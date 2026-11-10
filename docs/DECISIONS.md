@@ -62,6 +62,24 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
   - In `.claude/settings.local.json` (non versionato) ci sono i permessi per lavorare senza prompt; `git push`
     resta vietato.
 
+### DEC-008 – Validazione delle sezioni di config dei protocolli (decisa dal PM)
+- **Dubbio** (emerso in WP0): DEC-003 affida al protocollo la validazione di `config set` su `[ssh]`/`[rdp]`, ma
+  il trait `Protocol` non ha un metodo per farlo.
+- **Decisione**: si aggiunge a `Protocol` il metodo obbligatorio
+  `fn validate_config(&self, section: &toml::Value) -> Result<(), String>`; la sezione è quella con nome
+  uguale a `id()`. La CLI chiama il protocollo, senza conoscere `SshConfig`/`RdpConfig`.
+- **Motivo**: rispetta §1.5; un nuovo protocollo porta con sé la propria validazione.
+
+### DEC-009 – Dove vive il client askpass (decisa dal PM)
+- **Dubbio** (emerso in WP0): il protocollo askpass (§7.2) ha il server nei connettori e il client nella CLI
+  (`commands/askpass.rs`), con il rischio di duplicare nomi delle variabili e formato dei messaggi.
+- **Decisione**: entrambi i lati stanno in `portolano-connectors::ssh::askpass` (WP4), che espone la funzione
+  client `run_client(prompt: &str) -> i32` (exit code) e le costanti delle variabili d'ambiente.
+  `commands/askpass.rs` e `main.rs` (WP6) si limitano a rilevare `PORTOLANO_ASKPASS=1` prima di clap e a
+  chiamarla.
+- **Motivo**: un solo modulo possiede il formato del protocollo, e i test di integrazione sul socket del §7.4
+  esercitano client e server reali nello stesso crate.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
