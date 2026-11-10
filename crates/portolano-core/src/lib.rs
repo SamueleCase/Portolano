@@ -11,6 +11,7 @@ pub mod migrate;
 pub mod model;
 pub mod secret;
 pub mod store;
+pub mod vault;
 
 mod path;
 mod resolve;
@@ -27,3 +28,4 @@ pub use model::{
 pub use resolve::{CredentialOrigin, ResolvedCredential};
 pub use secret::{Secret, SecretRef};
 pub use store::Store;
+pub use vault::{MasterPasswordSource, Vault, VaultSelection, open_vault};
