@@ -5,5 +5,7 @@
 //! It knows nothing about SSH, RDP or Royal (SPEC §1.5).
 
 pub mod error;
+pub mod secret;
 
 pub use error::{Error, Issue, Result, Severity, VaultError};
+pub use secret::{Secret, SecretRef};
