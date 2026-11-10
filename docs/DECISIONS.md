@@ -52,6 +52,16 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
     (`Debug, Clone, PartialEq, Serialize, Deserialize`), più `Default` dove la SPEC lo indica;
   - crate con `publish = false` e senza campo `license`.
 
+### DEC-007 – Il PM procede in autonomia (modifica a `PM-PROMPT.md`)
+- **Richiesta dell'utente**: "deve andare da solo".
+- **Decisione**: il PM non chiede più conferme all'utente, compreso il checkpoint dell'ondata 0.
+  - I dubbi che la SPEC non copre li decide il PM con l'opzione più aderente alla SPEC e a §1/§11.3, li registra
+    qui e li riassume nell'aggiornamento di fine ondata.
+  - Si interrompe l'utente solo per azioni che richiedono la sua presenza fisica (prompt del Keychain, test
+    manuali su host reali) o per azioni irreversibili fuori dal repo.
+  - In `.claude/settings.local.json` (non versionato) ci sono i permessi per lavorare senza prompt; `git push`
+    resta vietato.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
