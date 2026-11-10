@@ -2,6 +2,8 @@
 samples/
 *.rtsz
 *.rtsx
+# Fixture sintetiche dei test (dati finti, SPEC §8.3.6): sempre nel repo
+!crates/**/tests/fixtures/**
 
 # Vault / dati locali dell'app
 *.vault
