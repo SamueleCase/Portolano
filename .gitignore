@@ -1,0 +1,14 @@
+# Documenti Royal di esempio: contengono dati reali, mai nel repo
+samples/
+*.rtsz
+*.rtsx
+
+# Vault / dati locali dell'app
+*.vault
+.portolano/
+
+# Build
+target/
+node_modules/
+dist/
+.DS_Store
