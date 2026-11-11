@@ -3,6 +3,10 @@
 //!
 //! Unsigned development builds on macOS may trigger the "allow access to the
 //! keychain" prompt after every rebuild; this is expected.
+//!
+//! Errors of `keyring` become [`VaultError::Backend`] through their `Display`,
+//! never their `Debug`. `keyring::Error::BadEncoding` carries the bytes of the
+//! secret, so it is matched explicitly and mapped to a fixed message.
 
 // Stub (WP0): the parameters are used once WP3 implements the bodies.
 #![expect(unused_variables)]
