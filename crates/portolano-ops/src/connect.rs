@@ -115,6 +115,7 @@ mod tests {
             freerdp: Some(PathBuf::from("/opt/homebrew/bin/sdl-freerdp")),
             windows_app: None,
             self_exe: PathBuf::from("/usr/local/bin/portolano"),
+            rejected: Vec::new(),
         }
     }
 

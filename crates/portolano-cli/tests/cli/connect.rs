@@ -185,6 +185,21 @@ fn group_writable_client_is_refused_before_launch() {
 }
 
 #[test]
+fn a_refused_ssh_program_does_not_block_rdp() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let workspace = with_probes("exit 0", "exit 0");
+    with_connections(&workspace);
+    let ssh = workspace.path("probe-ssh");
+    std::fs::set_permissions(&ssh, std::fs::Permissions::from_mode(0o777)).unwrap();
+    workspace.run(&["connect", "--print", "/dc01"]).success();
+    workspace
+        .run(&["connect", "--print", "/web01"])
+        .code(6)
+        .stderr(contains("[ssh]"));
+}
+
+#[test]
 fn connect_to_a_folder_is_a_connection_error() {
     let workspace = Workspace::new();
     workspace.ok(&["add", "folder", "/a"]);

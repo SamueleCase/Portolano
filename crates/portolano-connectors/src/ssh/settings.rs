@@ -12,7 +12,8 @@ use uuid::Uuid;
 use super::options::check_option;
 use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
-use crate::env::{DEFAULT_SSH_PROGRAM, check_program_path};
+use crate::env::DEFAULT_SSH_PROGRAM;
+use crate::safe_path::check_program_path;
 
 /// The `settings` of an `ssh` connection. Fields at their default are
 /// omitted when serialized.

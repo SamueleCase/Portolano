@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 
 use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
-use crate::env::check_program_path;
+use crate::safe_path::check_program_path;
 
 /// Scale factors accepted by FreeRDP (`/scale:`).
 const SCALES: [u32; 3] = [100, 140, 180];

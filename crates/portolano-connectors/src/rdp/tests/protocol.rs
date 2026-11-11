@@ -15,6 +15,39 @@ fn program(plan: &LaunchPlan) -> PathBuf {
 }
 
 #[test]
+fn a_refused_freerdp_is_reported_even_with_windows_app_installed() {
+    let env = crate::testutil::environment_rejecting("rdp");
+
+    let result = choose_client(None, RdpClientChoice::Auto, &env);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidConfig { ref section, .. }) if section == "rdp"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn a_refused_ssh_program_does_not_block_rdp() {
+    let env = crate::testutil::environment_rejecting("ssh");
+
+    let chosen = choose_client(None, RdpClientChoice::Auto, &env).unwrap();
+
+    assert!(matches!(chosen, ChosenClient::FreeRdp(_)), "{chosen:?}");
+}
+
+#[test]
+fn a_refused_freerdp_does_not_block_a_forced_windows_app() {
+    let env = crate::testutil::environment_rejecting("rdp");
+
+    let chosen = choose_client(Some(RdpClient::WindowsApp), RdpClientChoice::Auto, &env);
+
+    assert!(
+        matches!(chosen, Ok(ChosenClient::WindowsApp { .. })),
+        "{chosen:?}"
+    );
+}
+
+#[test]
 fn validate_config_refuses_a_relative_freerdp_program() {
     let section: toml::Value = toml::from_str("freerdp_program = \"bin/sdl-freerdp\"").unwrap();
 

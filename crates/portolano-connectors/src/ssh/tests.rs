@@ -249,6 +249,28 @@ fn validate_settings_refuses_a_dangerous_option() {
 }
 
 #[test]
+fn a_refused_ssh_program_is_the_error_of_the_plan() {
+    let conn = connection_node("ssh", "web01.example.com", CredentialSpec::None, json!({}));
+    let conn_id = conn.id;
+    let doc = document(vec![conn]);
+    let config = portolano_core::AppConfig::default();
+    let env = crate::testutil::environment_rejecting("ssh");
+
+    let result = SshProtocol.plan(&crate::protocol::PlanContext {
+        doc: &doc,
+        node_id: conn_id,
+        config: &config,
+        env: &env,
+        options: &ConnectOptions::default(),
+    });
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidConfig { ref section, .. }) if section == "ssh"),
+        "{result:?}"
+    );
+}
+
+#[test]
 fn new_window_relaunches_portolano_on_the_node() {
     let conn = connection_node("ssh", "web01.example.com", CredentialSpec::None, json!({}));
     let conn_id = conn.id;

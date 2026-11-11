@@ -10,6 +10,7 @@ mod exec;
 mod plan;
 mod protocol;
 mod registry;
+mod safe_path;
 mod terminal;
 
 pub mod rdp;
@@ -27,7 +28,7 @@ use std::path::PathBuf;
 use portolano_core::{SecretRef, VaultError};
 use uuid::Uuid;
 
-pub use env::{Environment, Os};
+pub use env::{Environment, Os, RejectedProgram};
 pub use exec::{PreparedLaunch, execute, prepare};
 pub use plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher, render};
 pub use protocol::{ConnectOptions, PlanContext, Protocol, SessionCredential};

@@ -92,7 +92,11 @@ impl Protocol for SshProtocol {
                 reason,
             }
         })?;
-        let ssh = ctx.env.ssh.clone().ok_or_else(ssh_not_found)?;
+        let ssh = ctx
+            .env
+            .ssh
+            .clone()
+            .ok_or_else(|| ctx.env.rejection(self.id()).unwrap_or_else(ssh_not_found))?;
 
         let mut warnings = Vec::new();
         let target = target_endpoint(ctx, connection, &mut warnings)?;

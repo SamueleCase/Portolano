@@ -258,7 +258,7 @@ fn check_private(dir: &Path, metadata: &fs::Metadata) -> io::Result<()> {
     if !metadata.file_type().is_dir() {
         return refuse("non è una directory (o è un collegamento simbolico)");
     }
-    if metadata.uid() != current_uid()? {
+    if metadata.uid() != crate::safe_path::current_uid()? {
         return refuse("appartiene a un altro utente");
     }
     if metadata.mode() & 0o777 != 0o700 {
@@ -277,14 +277,6 @@ fn check_private(dir: &Path, metadata: &fs::Metadata) -> io::Result<()> {
             dir.display()
         )))
     }
-}
-
-/// The effective user id. The owner of a new anonymous file is that user,
-/// which avoids an `unsafe` call to `getuid` (the crate forbids `unsafe`).
-#[cfg(unix)]
-fn current_uid() -> io::Result<u32> {
-    use std::os::unix::fs::MetadataExt;
-    Ok(tempfile::tempfile()?.metadata()?.uid())
 }
 
 #[cfg(test)]
