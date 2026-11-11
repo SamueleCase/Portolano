@@ -1,9 +1,6 @@
 //! Requests for the secrets of an import (SPEC §8.1, D3): encrypted secrets
 //! of the source cannot be decrypted, so the user may type them.
 
-// Stub (WP0): the parameters are used once WP5 implements the bodies.
-#![expect(unused_variables)]
-
 use portolano_core::Secret;
 
 use crate::ImportError;
@@ -47,7 +44,25 @@ pub enum SecretField {
 pub struct NonInteractive;
 
 impl SecretPrompter for NonInteractive {
-    fn ask(&mut self, req: &SecretRequest) -> Result<Option<Secret>, ImportError> {
-        todo!()
+    fn ask(&mut self, _req: &SecretRequest) -> Result<Option<Secret>, ImportError> {
+        Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_interactive_skips_every_request() {
+        let request = SecretRequest {
+            node_path: "Royal/web01".to_owned(),
+            username: Some("admin".to_owned()),
+            field: SecretField::Password,
+        };
+
+        let answer = NonInteractive.ask(&request).unwrap();
+
+        assert!(answer.is_none());
     }
 }

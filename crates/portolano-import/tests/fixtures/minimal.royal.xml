@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SYNTHETIC FIXTURE: written by hand for the tests of portolano-import, it is not a document
+  saved by Royal TS/TSX. It follows the shape of document B of docs/royal-format.md: minimal
+  fields, identical timestamps, no secrets. Hosts and users are fake (RFC 5737, example.com).
+-->
+<RTSZDocument>
+  <RoyalDocument>
+    <ID>b0000000-0000-4000-8000-000000000001</ID>
+    <Name>Minimo</Name>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalDocument>
+  <RoyalFolder>
+    <ID>b0000000-0000-4000-8000-000000000010</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Clienti</Name>
+    <PositionNr>1</PositionNr>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalFolder>
+  <RoyalFolder>
+    <ID>b0000000-0000-4000-8000-000000000011</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>ACME</Name>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalFolder>
+  <RoyalFolder>
+    <ID>b0000000-0000-4000-8000-000000000012</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Interni</Name>
+    <PositionNr>2</PositionNr>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalFolder>
+  <RoyalFolder>
+    <ID>b0000000-0000-4000-8000-000000000013</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>Laboratorio</Name>
+    <PositionNr>1</PositionNr>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalFolder>
+  <RoyalFolder>
+    <ID>b0000000-0000-4000-8000-000000000014</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Archivio</Name>
+    <PositionNr>3</PositionNr>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalFolder>
+  <RoyalSSHConnection>
+    <ID>b0000000-0000-4000-8000-000000000020</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>web01</Name>
+    <URI>web01.example.com</URI>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalSSHConnection>
+  <RoyalRDSConnection>
+    <ID>b0000000-0000-4000-8000-000000000021</ID>
+    <ParentID>b0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>dc01</Name>
+    <PositionNr>2</PositionNr>
+    <URI>192.0.2.10</URI>
+    <Created>03/14/2026 10:00:00.000</Created>
+    <Modified>03/14/2026 10:00:00.000</Modified>
+  </RoyalRDSConnection>
+</RTSZDocument>
