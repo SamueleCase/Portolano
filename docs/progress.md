@@ -11,9 +11,9 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 | WP1 – albero, percorsi, risoluzione | **integrato** | merge `93c03c2`; due giri di revisione; 157 test nel core; gate verdi su `main` |
 | WP2 – store, migrazioni, icone, config | **integrato** | merge `400adf0`; tre giri di revisione; lock per operazione (DEC-016.1), symlink, gc sicuro, `MAX_DEPTH` (DEC-021) |
 | WP3 – vault | **integrato** | merge `b569fb3`; due giri di revisione; lock inter-processo (DEC-017), zeroize di Argon2; core: 297 test + 1 ignorato (Keychain) |
-| WP4 – connettori | correzioni del 1° giro | 1 bloccante (pulizia dei file temporanei), 3 importanti, 10 minori |
-| WP5 – importer Royal | correzioni del 1° giro | 1 bloccante (ciphertext annidato), profondità, gzip bomba; test sui campioni reali verde (DEC-019) |
-| WP6 – CLI | da fare | |
+| WP4 – connettori | **integrato** | merge `3df8c3a`; tre giri di revisione; 158 test; opzioni FreeRDP reali (DEC-020) |
+| WP5 – importer Royal | **integrato** | merge `737c58c`; tre giri di revisione; 159 test; test sui campioni reali verde (DEC-019, DEC-021) |
+| WP6 – `portolano-ops` + CLI | in corso | piano dell'API di `portolano-ops` da approvare prima dell'implementazione (DEC-018) |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |
 
