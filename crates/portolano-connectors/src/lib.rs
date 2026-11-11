@@ -47,6 +47,15 @@ pub enum ConnectError {
         id: Uuid,
     },
 
+    /// The connection uses a protocol that is not registered.
+    #[error("il nodo {id} usa il protocollo sconosciuto '{protocol}'")]
+    UnknownProtocol {
+        /// The connection.
+        id: Uuid,
+        /// The `protocol` field of the connection.
+        protocol: String,
+    },
+
     /// The `settings` of a connection do not match its protocol.
     #[error("impostazioni non valide per il nodo {id}: {reason}")]
     InvalidSettings {
