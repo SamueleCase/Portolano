@@ -110,13 +110,6 @@ pub enum Error {
         source: std::io::Error,
     },
 
-    /// The document is locked by another process.
-    #[error("il documento '{path}' è già in uso da un altro processo")]
-    Locked {
-        /// The document file.
-        path: PathBuf,
-    },
-
     /// The document file changed after this store last read or wrote it, so
     /// saving would overwrite someone else's changes (DEC-016.1).
     #[error("il documento '{path}' è stato modificato da un altro processo: ricaricalo")]
