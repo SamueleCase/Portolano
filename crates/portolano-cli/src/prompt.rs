@@ -8,6 +8,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, IsTerminal, Read, Write};
 
+use portolano_core::vault::MASTER_PASSWORD_ENV;
 use portolano_core::{MasterPasswordSource, Secret, VaultError};
 use portolano_import::{ImportError, SecretField, SecretPrompter, SecretRequest};
 use portolano_ops::connect::LoginRequest;
@@ -15,9 +16,6 @@ use portolano_ops::vault::Login;
 use zeroize::Zeroizing;
 
 use crate::failure::CliError;
-
-/// Master password of the file vault, for automation and tests only.
-pub const VAULT_PASSWORD_ENV: &str = "PORTOLANO_VAULT_PASSWORD";
 
 /// Whether the user is at a terminal and can answer questions.
 pub fn interactive() -> bool {
@@ -97,18 +95,18 @@ pub fn login(request: &LoginRequest) -> Result<Option<Login>, CliError> {
     }))
 }
 
-/// The master password from [`VAULT_PASSWORD_ENV`], or asked on the terminal
+/// The master password from [`MASTER_PASSWORD_ENV`], or asked on the terminal
 /// (twice when the vault is created).
 pub struct MasterPassword;
 
 impl MasterPasswordSource for MasterPassword {
     fn master_password(&self, creating: bool) -> Result<Secret, VaultError> {
-        if let Some(value) = std::env::var_os(VAULT_PASSWORD_ENV).filter(|value| !value.is_empty())
+        if let Some(value) = std::env::var_os(MASTER_PASSWORD_ENV).filter(|value| !value.is_empty())
         {
             return value
                 .into_string()
                 .map(Secret::new)
-                .map_err(|_| unavailable(format!("{VAULT_PASSWORD_ENV} non è UTF-8 valido")));
+                .map_err(|_| unavailable(format!("{MASTER_PASSWORD_ENV} non è UTF-8 valido")));
         }
         let label = if creating {
             "Nuova master password del vault"

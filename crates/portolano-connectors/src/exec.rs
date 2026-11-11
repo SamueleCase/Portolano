@@ -11,6 +11,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 
+use portolano_core::vault::MASTER_PASSWORD_ENV;
 use portolano_core::{AppConfig, Secret, SecretRef, Vault};
 
 use self::temp_files::TempFiles;
@@ -289,7 +290,9 @@ impl PreparedLaunch {
     }
 
     /// Variables to add to the inherited environment, including those of
-    /// askpass; they never contain secrets.
+    /// askpass; they never contain secrets. A caller that starts the program
+    /// itself must also remove [`MASTER_PASSWORD_ENV`] from the inherited
+    /// environment (DEC-023.1).
     pub fn env(&self) -> &[(String, String)] {
         &self.env
     }
@@ -364,8 +367,14 @@ impl PreparedLaunch {
     fn command(&self, detached: bool, log: Option<fs::File>) -> Command {
         let mut command = Command::new(&self.program);
         command.args(&self.args);
-        // A child must never inherit askpass variables of another session.
-        for name in [ASKPASS_ENV, ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV] {
+        // A child must never inherit askpass variables of another session,
+        // nor the master password of the vault (DEC-023.1).
+        for name in [
+            ASKPASS_ENV,
+            ASKPASS_SOCK_ENV,
+            ASKPASS_TOKEN_ENV,
+            MASTER_PASSWORD_ENV,
+        ] {
             command.env_remove(name);
         }
         command.envs(self.env.iter().map(|(key, value)| (key, value)));

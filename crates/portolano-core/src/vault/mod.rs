@@ -17,6 +17,11 @@ pub use memory::MemoryVault;
 use crate::error::VaultError;
 use crate::secret::{Secret, SecretRef};
 
+/// Environment variable that holds the master password of the file vault,
+/// for automation and tests only (SPEC §5.2). It must never reach the
+/// environment of a child process (SPEC §1.1, DEC-023.1).
+pub const MASTER_PASSWORD_ENV: &str = "PORTOLANO_VAULT_PASSWORD";
+
 /// A store of secrets keyed by [`SecretRef`].
 pub trait Vault: Send + Sync {
     /// Name of the backend: `"keychain"`, `"file"` or `"memory"`.
@@ -65,7 +70,7 @@ pub enum VaultSelection {
 }
 
 /// Provides the master password of the file vault, from a hidden prompt or
-/// from `PORTOLANO_VAULT_PASSWORD`.
+/// from [`MASTER_PASSWORD_ENV`].
 pub trait MasterPasswordSource {
     /// The master password; `creating` is true when the vault file does not
     /// exist yet, so that a prompt can ask for confirmation.

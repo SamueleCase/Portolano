@@ -80,6 +80,28 @@ fn print_of_a_new_window_relaunches_with_the_same_document() {
     assert!(output.contains("--vault file"));
     assert!(output.contains(" connect @"));
     assert!(!output.contains("PORTOLANO_VAULT_PASSWORD"));
+    assert!(!output.contains(TEST_MASTER_PASSWORD));
+}
+
+/// A probe that fails with 9 if the master password reached it, by name or
+/// by value (DEC-023.1), and otherwise exits with 0.
+const NO_MASTER_PASSWORD: &str = "[ -z \"${PORTOLANO_VAULT_PASSWORD+set}\" ] || exit 9\n\
+     env | grep -qF test-only-master-password && exit 9\n\
+     cat > /dev/null\n\
+     exit 0";
+
+#[test]
+fn ssh_does_not_inherit_the_master_password() {
+    let workspace = with_probes(NO_MASTER_PASSWORD, "exit 0");
+    with_connections(&workspace);
+    workspace.run(&["connect", "/web01"]).success();
+}
+
+#[test]
+fn freerdp_does_not_inherit_the_master_password() {
+    let workspace = with_probes("exit 0", NO_MASTER_PASSWORD);
+    with_connections(&workspace);
+    workspace.run(&["connect", "--wait", "/dc01"]).success();
 }
 
 #[test]
