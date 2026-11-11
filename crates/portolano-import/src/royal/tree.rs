@@ -2,7 +2,7 @@
 //! parents from `ParentID`, siblings ordered by numeric `PositionNr` and then
 //! by file order.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
@@ -41,6 +41,7 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
     let index: HashMap<Uuid, usize> = ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
 
     let mut warnings = Vec::new();
+    let mut parents = vec![root; objects.len()];
     let mut children = vec![Vec::new(); objects.len()];
     for (object, raw) in objects.iter().enumerate().filter(|(i, _)| *i != root) {
         let parent = match find_parent(objects, &index, object) {
@@ -53,6 +54,7 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
                 root
             }
         };
+        parents[object] = parent;
         children[parent].push(object);
     }
     for siblings in &mut children {
@@ -63,13 +65,16 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
     let mut root_node = subtree(root, &children, &mut visited);
     for object in 0..objects.len() {
         if !visited[object] {
+            // Not reachable from the root: its ancestors end in a cycle. Only
+            // that cycle member is detached; the rest keeps its parent.
+            let member = cycle_member(object, &parents);
             warnings.push(format!(
                 "{}: ParentID ciclico, inserito nella radice",
-                describe(&objects[object])
+                describe(&objects[member])
             ));
             root_node
                 .children
-                .push(subtree(object, &children, &mut visited));
+                .push(subtree(member, &children, &mut visited));
         }
     }
     Ok(Tree {
@@ -140,6 +145,19 @@ fn find_parent(
     } else {
         Ok(parent)
     }
+}
+
+/// The first ancestor of `object` met twice when climbing the parents: a
+/// member of the cycle that keeps `object` away from the root.
+fn cycle_member(object: usize, parents: &[usize]) -> usize {
+    // A set sized by the climb, not by the document: every object climbed
+    // is attached right after, so the climbs stay linear overall.
+    let mut seen = HashSet::new();
+    let mut current = object;
+    while seen.insert(current) {
+        current = parents[current];
+    }
+    current
 }
 
 fn subtree(object: usize, children: &[Vec<usize>], visited: &mut [bool]) -> TreeNode {

@@ -103,6 +103,24 @@ fn a_parent_id_cycle_is_broken_under_the_root() {
 }
 
 #[test]
+fn a_descendant_of_a_cycle_keeps_its_valid_parent() {
+    let xml = document(&[
+        folder(4, 2, "c", None),
+        folder(2, 3, "a", None),
+        folder(3, 2, "b", None),
+    ]);
+
+    let outcome = import(&xml);
+
+    assert_eq!(child_names(&outcome.root), vec!["a"]);
+    assert_eq!(child_names(find(&outcome.root, uuid(2))), vec!["c", "b"]);
+    assert_eq!(
+        outcome.report.warnings,
+        vec!["oggetto `a` (RoyalFolder): ParentID ciclico, inserito nella radice"]
+    );
+}
+
+#[test]
 fn node_ids_are_the_royal_ids() {
     let xml = document(&[folder(2, 1, "cartella", None)]);
 
