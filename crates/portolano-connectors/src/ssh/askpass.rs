@@ -10,16 +10,23 @@
 //! `{"token": …, "prompt": …}`, the server answers `{"answer": …}`,
 //! `{"fallback": true}` or `{"error": …}`.
 
+// The client, the server and the recognition of the prompts need Unix
+// sockets; elsewhere only the constants and the placeholder server remain.
 #[cfg(unix)]
 mod client;
+#[cfg(unix)]
 mod prompt;
 #[cfg(unix)]
 mod server;
 
 use portolano_core::Secret;
+#[cfg(unix)]
 use serde::{Deserialize, Serialize};
 
-pub(crate) use prompt::SSH_ADD_STDIN_KEY_PATH;
+/// The key path that `ssh-add` shows for a key read from stdin; the askpass
+/// entry of a [`SshAddKey`](crate::LaunchStep::SshAddKey) step uses it
+/// (DEC-015).
+pub(crate) const SSH_ADD_STDIN_KEY_PATH: &str = "(stdin)";
 #[cfg(unix)]
 pub(crate) use server::AskpassServer;
 #[cfg(not(unix))]
@@ -44,6 +51,7 @@ pub const ASKPASS_SOCK_ENV: &str = "PORTOLANO_ASKPASS_SOCK";
 pub const ASKPASS_TOKEN_ENV: &str = "PORTOLANO_ASKPASS_TOKEN";
 
 /// Upper bound of a message on the socket; longer lines are rejected.
+#[cfg(unix)]
 const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
 
 /// Whether this process was started by `ssh` as its askpass program, that is
@@ -78,6 +86,9 @@ pub fn run_client(prompt: &str) -> i32 {
 }
 
 /// A secret the server may answer with, already read from the vault.
+// Without Unix sockets no server reads the fields; the plan code that builds
+// them stays the same on every system.
+#[cfg_attr(not(unix), allow(dead_code))]
 pub(crate) struct ServedSecret {
     /// The prompt it answers.
     pub(crate) matcher: PromptMatcher,
@@ -86,6 +97,7 @@ pub(crate) struct ServedSecret {
 }
 
 /// A request of the client.
+#[cfg(unix)]
 #[derive(Debug, Serialize, Deserialize)]
 struct Request<S> {
     token: S,
@@ -94,6 +106,7 @@ struct Request<S> {
 
 /// The answer of the server. Serialized externally tagged:
 /// `{"answer": "…"}`, `{"fallback": true}`, `{"error": "…"}`.
+#[cfg(unix)]
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Reply<S> {

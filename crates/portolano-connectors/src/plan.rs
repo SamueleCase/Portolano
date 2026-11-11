@@ -3,7 +3,7 @@
 //! A plan holds secrets only as [`SecretRef`]s; [`execute`](crate::execute)
 //! reads them from the vault.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use portolano_core::SecretRef;
 
@@ -153,7 +153,21 @@ fn render_step(step: &LaunchStep) -> Vec<String> {
                 .chain(contents.lines().map(|line| format!("#   {line}")))
                 .collect()
         }
-        LaunchStep::Run { .. } => render_run(step),
+        LaunchStep::Run {
+            program,
+            args,
+            env,
+            stdin_secret,
+            askpass,
+            wait,
+        } => render_run(
+            program,
+            args,
+            env,
+            stdin_secret.as_ref(),
+            askpass.as_ref(),
+            *wait,
+        ),
         LaunchStep::OpenInTerminal { argv } => vec![format!(
             "{}  # in una nuova finestra del terminale",
             shell_words::join(argv)
@@ -161,18 +175,14 @@ fn render_step(step: &LaunchStep) -> Vec<String> {
     }
 }
 
-fn render_run(step: &LaunchStep) -> Vec<String> {
-    let LaunchStep::Run {
-        program,
-        args,
-        env,
-        stdin_secret,
-        askpass,
-        wait,
-    } = step
-    else {
-        return Vec::new();
-    };
+fn render_run(
+    program: &Path,
+    args: &[String],
+    env: &[(String, String)],
+    stdin_secret: Option<&SecretRef>,
+    askpass: Option<&AskpassSpec>,
+    wait: bool,
+) -> Vec<String> {
     let mut words: Vec<String> = env
         .iter()
         .map(|(key, value)| format!("{key}={value}"))

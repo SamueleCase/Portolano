@@ -27,11 +27,6 @@ const SSH_PASSPHRASE: &str = r"^Enter passphrase for key '(?P<path>.+)': ?$";
 const SSH_ADD_PASSPHRASE: &str =
     r"^Enter passphrase for (?P<path>[^']+?)(?: \(will confirm each use\))?: ?$";
 
-/// The key path that `ssh-add` shows for a key read from stdin; the askpass
-/// entry of a [`SshAddKey`](crate::LaunchStep::SshAddKey) step uses it
-/// (DEC-015).
-pub(crate) const SSH_ADD_STDIN_KEY_PATH: &str = "(stdin)";
-
 /// The compiled prompt patterns.
 pub(super) struct PromptPatterns {
     password: [Regex; 2],
@@ -145,7 +140,7 @@ mod tests {
     fn ssh_add_stdin_passphrase_prompt_is_recognized() {
         assert_eq!(
             parse("Enter passphrase for (stdin): "),
-            passphrase(SSH_ADD_STDIN_KEY_PATH)
+            passphrase(crate::ssh::askpass::SSH_ADD_STDIN_KEY_PATH)
         );
     }
 
@@ -153,7 +148,7 @@ mod tests {
     fn ssh_add_confirm_passphrase_prompt_is_recognized() {
         assert_eq!(
             parse("Enter passphrase for (stdin) (will confirm each use): "),
-            passphrase(SSH_ADD_STDIN_KEY_PATH)
+            passphrase(crate::ssh::askpass::SSH_ADD_STDIN_KEY_PATH)
         );
     }
 
