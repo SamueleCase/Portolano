@@ -1,8 +1,9 @@
 # Stato di avanzamento
 
-Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se la sessione si interrompe.
+Stato finale della FASE 1 + FASE 2a (SPEC §0), scritto con WP7. Il PM lo aggiorna alla verifica finale. Serve
+anche a riprendere il lavoro se la sessione si interrompe.
 
-## Stato attuale (2026-11-10)
+## Pacchetti di lavoro (2026-11-11)
 
 | Passo | Stato | Note |
 |---|---|---|
@@ -14,8 +15,108 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 | WP4 – connettori | **integrato** | merge `3df8c3a`; tre giri di revisione; 158 test; opzioni FreeRDP reali (DEC-020) |
 | WP5 – importer Royal | **integrato** | merge `737c58c`; tre giri di revisione; 159 test; test sui campioni reali verde (DEC-019, DEC-021) |
 | WP6 – `portolano-ops` + CLI | **integrato** | merge `c762281`; due giri di revisione per crate; 882 test nel workspace (DEC-018, DEC-022, DEC-023) |
-| WP7 – README, smoke, sicurezza | da fare | |
-| Verifica finale | da fare | |
+| WP7 – README, smoke, stato finale | **consegnato**, da rivedere e integrare | `README.md`, `scripts/smoke.sh` (`SMOKE OK`), questo file; nessuna modifica al codice |
+| Verifica finale | da fare | PM: quality gate su checkout pulito, revisione di WP7; utente: verifiche dal vivo (sotto) |
+
+Quality gate sul branch di WP7 (= `main` + documentazione): `cargo fmt --all --check` pulito,
+`cargo clippy --workspace --all-targets -- -D warnings` pulito, `cargo test --workspace` 882 test superati e
+2 ignorati (Keychain reale, campioni reali). `scripts/smoke.sh` termina con `SMOKE OK`.
+
+## Cosa funziona
+
+Verificato da test automatici (unitari, di integrazione con `assert_cmd`) e dallo smoke test:
+
+- **Documento**: formato JSON versionato (`schema_version` 1) con migrazioni, salvataggio atomico deterministico
+  con `.bak`, lock per operazione e rilevamento delle modifiche esterne (DEC-016.1), profondità massima 50
+  (DEC-021), icone personalizzate deduplicate con gc.
+- **Albero**: percorsi con escape, `@id` e prefissi, fallback senza maiuscole, ambiguità con candidati;
+  `move` con riordino e rifiuto dei cicli; risoluzione delle credenziali (`inherit`, `none`, `prompt`, inline,
+  per id, per nome); validazione del core, dei protocolli e del vault (`missing_secret` come avviso).
+- **Vault**: Keychain (servizio `dev.portolano`), vault su file Argon2id + XChaCha20-Poly1305 sicuro con più
+  processi (DEC-017), vault in memoria per i test; master password da prompt o da `PORTOLANO_VAULT_PASSWORD`,
+  mai passata ai processi figli (DEC-023).
+- **CLI**: tutti i comandi del §10 (`init`, `tree`, `list`, `show`, `add`, `edit`, `move`, `delete`, `secret`,
+  `connect`, `import`, `validate`, `config`), opzioni globali con precedenza flag > env > config > default, help e
+  messaggi in italiano, codici d'uscita di DEC-022.7, `--json` per i comandi di lettura.
+- **Piani di lancio**: SSH con password e passphrase via askpass, chiave su file, chiave nel vault via `ssh-add`,
+  catene di jump con `$ref` e indirizzi, rilevamento dei cicli; RDP con FreeRDP (fit, fullscreen, fisso, scala,
+  gateway, password via stdin) e Windows App (file `.rdp` senza password); nuova finestra per Terminal, iTerm,
+  Ghostty e comando personalizzato. Nessun segreto in argv, env o `--print` (test con segreto sentinella).
+- **Askpass**: server su socket Unix con token monouso, ogni segreto servito una volta, fallback su `/dev/tty`
+  (test di integrazione con prompt simulati).
+- **Import Royal**: XML, gzip e zip; albero da `ParentID`/`PositionNr`; credenziali nei modi 0–4; cestino;
+  segreti chiesti con `--prompt-secrets` o segnalati come `Partial`; tipi non supportati conservati senza campi
+  cifrati; conflitti `fail`/`update`/`new-ids`; report in tabella e JSON senza segreti né ciphertext.
+- **Libreria `portolano-ops`** riusabile dall'app della FASE 2 (DEC-018.2, DEC-022).
+- **Installazione**: `cargo install --path crates/portolano-cli` compila in release e installa `portolano`, il cui
+  `--help` elenca i comandi del §10 (verificato da WP7 con una `--root` temporanea).
+
+## Cosa non è verificato: da provare dal vivo
+
+Richiedono la presenza dell'utente, host reali o il portachiavi reale; nessuna è stata eseguita in sviluppo.
+
+1. **Keychain reale** (DoD): `add cred --ask-password`, `secret status` → presente, `delete` → l'elemento sparisce
+   dal portachiavi. C'è anche il test `#[ignore]`: `PORTOLANO_TEST_KEYCHAIN=1 cargo test -p portolano-core --
+   --ignored keychain`. Su binari non firmati compare il prompt del portachiavi dopo ogni ricompilazione (§5.2).
+2. **DEC-015, prompt di `ssh-add`**: confermare il testo `Enter passphrase for (stdin):` con un `ssh-agent`
+   temporaneo e una chiave di test usa e getta (mai l'agent dell'utente); se diverge si aggiorna la regex.
+3. **DEC-020, gateway RDP**: su un host reale con RD Gateway, riuso delle credenziali sul gateway quando
+   coincidono con quelle della destinazione (`u:`/`d:` omessi) e `/from-stdin:force` insieme a `/gateway:`.
+4. **FreeRDP staccato senza password disponibile** (osservazione di WP7, dal codice): senza `--wait` FreeRDP ha lo
+   stdin vuoto (connessione senza password salvata) o già chiuso dopo la password (gateway con credenziale
+   diversa, per cui il piano avvisa "la password del gateway la chiederà FreeRDP"). Va provato se `sdl-freerdp`
+   riesce comunque a chiederla (finestra propria) o se fallisce; nel secondo caso servirebbe una decisione
+   (es. attendere il client quando manca un segreto).
+5. **SSH su host reale** (DoD): `connect` di una connessione con password salvata entra senza prompt; con jump
+   host che hanno a loro volta una password; chiave nel vault con passphrase.
+6. **RDP su host reale** (DoD): con FreeRDP installato, `connect` di una connessione con credenziale salvata non
+   chiede la password; Windows App apre il `.rdp` generato.
+7. **Nuova finestra**: `connect --new-window` con Terminal, iTerm e Ghostty (lancia `osascript`/`open`).
+
+## Ipotesi [ipo] ancora aperte dell'importer Royal
+
+Da `royal-format.md` e DEC-019. Le fixture sintetiche le coprono, ma i nomi e i valori dei campi non sono
+verificati su documenti reali: i nodi ricostruiti da questi campi risultano `Partial` ("campi Royal non
+verificati") e conservano l'originale in `extra`. Per chiuderle serve il documento di test descritto in
+`royal-format.md` §9, creato con Royal TSX con dati finti.
+
+- **Contenitore**: `.rtsx` come XML in chiaro e `.rtsz` compresso nelle versioni storiche; gzip e zip sono gestiti
+  ma mai visti in un file reale (i campioni sono XML con BOM).
+- **Date**: `MM/dd/yyyy HH:mm:ss.fff` interpretate come UTC.
+- **Credenziali**: `CredentialMode` 1 = chiedi all'avvio; `CredentialMode` assente = `Inherit` (DEC-006);
+  `CredentialId` verso altri documenti (resta `ById` con stato `Partial`).
+- **Chiavi**: `PrivateKeyMode` ≠ 0 con `PrivateKeyContent` = chiave incorporata; `Passphrase`;
+  `CredentialKeyMode=0` sulla connessione SSH.
+- **Secure Gateway e RD Gateway**: `SecureGatewayID`, `RDSGatewayID`, `GatewayHostName`, `GatewayUsageMethod`
+  (1/2 = usato, 0/4 = non usato); `RoyalRDSGateway` diventa `Unsupported` e host/porta sono copiati nelle
+  connessioni, con credenziale del gateway `Inherit`.
+- **Campi personalizzati**: `CustomField1..10` e `CustomProtectedField1..10`; struttura di `CustomProperties`.
+- **Icone**: `CustomImageName` come percorso nella libreria di Royal, `CustomImage` come immagine in base64,
+  `CustomImageList`.
+- **Note**: `Notes` in HTML convertito in testo.
+- **Altri tipi** (VNC, Web, File Transfer, Dynamic Folder, …): nomi dei tipi ipotizzati; in ogni caso un tipo
+  sconosciuto diventa `Unsupported`.
+- **Riconoscimento dei campi cifrati per nome** (DEC-019.3): un campo cifrato con un nome non previsto potrebbe
+  sfuggire; nelle fixture sono scartati e segnalati anche `Settings`/`CustomProperties` con password annidate.
+
+## Definition of Done (SPEC §13)
+
+- [x] Tutti i quality gate passano (sul branch di WP7; su checkout pulito di `main` **da verificare dal PM** dopo
+      l'integrazione).
+- [x] `scripts/smoke.sh` termina con `SMOKE OK`.
+- [x] `cargo install --path crates/portolano-cli` installa `portolano`, e `portolano --help` elenca i comandi del
+      §10.
+- [ ] Il test di conteggio sui campioni reali passa (`PORTOLANO_SAMPLES_DIR=samples cargo test -p portolano-import
+      -- --ignored samples`): **da verificare dal PM** (verde durante WP5, DEC-019; WP7 non apre `samples/`).
+- [ ] L'import dei due documenti in `samples/` riesce, con report: i segreti cifrati risultano `Partial` e i
+      conteggi coincidono: **da verificare dal PM**.
+- [ ] Con il Keychain reale: `add cred --ask-password`, `secret status` → presente, `delete` → la voce sparisce:
+      **da verificare dall'utente**.
+- [ ] `connect --print` di SSH e RDP mostra piani corretti (fatto: smoke test e test dei piani); con FreeRDP,
+      `connect` RDP con credenziale salvata non chiede la password: **verifica manuale dell'utente**.
+- [ ] `connect` di una SSH con password salvata entra senza prompt: **verifica manuale dell'utente**.
+- [x] Il README contiene requisiti, build, posizione dei file, uso di ogni comando, sicurezza, limiti noti.
+- [x] `docs/progress.md` contiene un riepilogo di cosa funziona, cosa no e le ipotesi `[ipo]` ancora aperte.
 
 ## Come riprendere dopo un'interruzione
 1. `git log --oneline` su `main` e `git branch` per vedere i branch dei WP non ancora integrati.
@@ -23,15 +124,31 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
    committato.
 3. Le decisioni prese sono in `docs/DECISIONS.md`; il processo è in `docs/PM-PROMPT.md` (con la modifica DEC-007:
    il PM procede in autonomia).
-4. Per il WP in revisione: rieseguire i quality gate (SPEC §11.2) sul suo branch e ripetere la revisione
-   indipendente prima del merge.
+4. Per il WP in revisione: rieseguire i quality gate (SPEC §11.2) e `scripts/smoke.sh` sul suo branch e ripetere
+   la revisione indipendente prima del merge.
 
-## Seguiti da fare dopo l'integrazione dell'ondata 1
-- Test di WP2 sul segreto sentinella: usare `MemoryVault` (WP3) invece della verifica sul solo `SecretRef`.
-- Verifica dal vivo del prompt di `ssh-add` (DEC-015) con agent e chiave temporanei.
+## Seguiti
+- Test di WP2 sul segreto sentinella: usare `MemoryVault` (WP3) invece della verifica sul solo `SecretRef`
+  (ancora aperto: i test dello store controllano solo il JSON).
+- Verifiche dal vivo elencate sopra (DEC-015, DEC-020, FreeRDP staccato, Keychain, host reali).
+- Help della CLI (osservazioni di WP7, cosmetiche): l'intestazione `Possible values:` delle opzioni a valori
+  enumerati resta in inglese (DEC-023.2 chiede l'help in italiano); nell'help dei sottocomandi le opzioni globali
+  sono mescolate a quelle del comando invece di stare in fondo.
 
 ## Lavori rimandati
 - RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
+- Fuori scope (SPEC §14): UI Tauri, terminale integrato, Wake-on-LAN (si conserva solo `wol_mac`), VNC/Web/SFTP,
+  sincronizzazione o condivisione dei documenti, decrittaggio dei segreti Royal, Windows come piattaforma di test.
+
+### Limiti accettati (documentati nel README)
+- `init --force` non tocca il vault: i segreti del vecchio documento restano (DEC-022.10).
+- `add ssh --key` scrive `IdentityFile`/`IdentitiesOnly` in `settings.options` (DEC-022.2).
+- `import --verbose` non offerto (DEC-022.9).
+- `secret set/clear` non raggiungono le credenziali inline dentro i `settings` (es. gateway RDP importato) e
+  l'`update` dell'import non ne conserva i segreti (DEC-022).
+- `config show` mostra le sezioni dei protocolli solo se presenti nel file (DEC-022).
+- Un nodo chiamato come un riferimento per id è raggiungibile solo per id (DEC-014.3).
+- I log dei client e i `.rdp` si cancellano al `connect` successivo dopo 10 minuti.
 
 ### Sicurezza per la UI (FASE 2)
 - Le icone SVG importate si mostrano solo come `<img>`, mai inserite nel DOM (XSS memorizzato, DEC-024).
