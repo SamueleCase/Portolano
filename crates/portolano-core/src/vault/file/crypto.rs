@@ -1,7 +1,7 @@
 //! Key derivation (Argon2id) and authenticated encryption
 //! (XChaCha20-Poly1305) of the vault plaintext.
 
-use argon2::{Algorithm, Argon2, Params, Version};
+use argon2::{Algorithm, Argon2, Block, Params, Version};
 use chacha20poly1305::{AeadInOut, Key, KeyInit, XChaCha20Poly1305, XNonce};
 use zeroize::Zeroizing;
 
@@ -54,10 +54,26 @@ impl KdfSetup {
         let crypto_error = |error: argon2::Error| VaultError::Crypto {
             reason: format!("derivazione della chiave non riuscita: {error}"),
         };
+        let argon2 = argon2(self.params).map_err(crypto_error)?;
+        // The memory blocks hold values from which the key can be computed.
+        // `hash_password_into` frees its own blocks without wiping them, so
+        // the blocks are allocated here, in a buffer wiped on drop. The
+        // reservation is fallible so that a lack of memory is an error, not
+        // an abort.
+        let block_count = argon2.params().block_count();
+        let mut blocks = Zeroizing::new(Vec::new());
+        blocks
+            .try_reserve_exact(block_count)
+            .map_err(|_| crypto_error(argon2::Error::OutOfMemory))?;
+        blocks.resize(block_count, Block::new());
         let mut key = Zeroizing::new([0; KEY_LEN]);
-        argon2(self.params)
-            .map_err(crypto_error)?
-            .hash_password_into(password.expose().as_bytes(), &self.salt, &mut key[..])
+        argon2
+            .hash_password_into_with_memory(
+                password.expose().as_bytes(),
+                &self.salt,
+                &mut key[..],
+                &mut blocks[..],
+            )
             .map_err(crypto_error)?;
         Ok(key)
     }

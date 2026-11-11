@@ -35,7 +35,9 @@ anyhow = "1.0.104"
 # keyring 4: the `v1` feature selects the native store of each platform
 # (macOS Keychain, Windows Credential Manager, Linux Secret Service via zbus).
 keyring = { version = "4.2.0", default-features = false, features = ["v1"] }
-# `zeroize` wipes the Argon2 memory blocks and the key inside the cipher on drop (DEC-017).
+# `zeroize` (DEC-017): in chacha20poly1305 it wipes the key inside the cipher on drop; in argon2 it
+# wipes the intermediate hashes and makes `Block` zeroizable. argon2 does not wipe the memory blocks
+# it allocates itself, so the vault allocates them and wipes them (vault/file/crypto.rs).
 argon2 = { version = "0.6.0", features = ["zeroize"] }
 chacha20poly1305 = { version = "0.11.0", features = ["zeroize"] }
 getrandom = "0.4.3"
