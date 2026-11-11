@@ -13,15 +13,12 @@ use crate::testutil::{SENTINEL, vault_with};
 #[test]
 fn detached_program_returns_zero_without_waiting() {
     let temp = tempfile::tempdir().unwrap();
-    let mut plan = run(
+    let plan = detach(run(
         PathBuf::from("/bin/sh"),
         vec!["-c".into(), "sleep 1; exit 3".into()],
         None,
         None,
-    );
-    if let Some(LaunchStep::Run { wait, .. }) = plan.steps.last_mut() {
-        *wait = false;
-    }
+    ));
 
     let code = execute_in(&plan, &MemoryVault::default(), &temp).unwrap();
 
@@ -38,15 +35,12 @@ fn detached_program_gets_its_stdin_secret_and_runs_to_completion() {
         &temp,
         "echo noise; cat > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"",
     );
-    let mut plan = run(
+    let plan = detach(run(
         program,
         vec![output.to_string_lossy().into_owned()],
         Some(reference),
         None,
-    );
-    if let Some(LaunchStep::Run { wait, .. }) = plan.steps.last_mut() {
-        *wait = false;
-    }
+    ));
 
     let code = execute_in(&plan, &vault, &temp).unwrap();
     wait_for(&output);

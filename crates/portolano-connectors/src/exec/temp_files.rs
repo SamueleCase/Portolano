@@ -83,8 +83,8 @@ impl TempFiles {
     }
 
     /// Creates a new log for the detached program `program`, named
-    /// `<program>-<milliseconds since the epoch>.log`, with permissions
-    /// `0600`.
+    /// `<program>-<milliseconds since the epoch>-<random hex>.log`, with
+    /// permissions `0600`.
     ///
     /// # Errors
     /// [`ConnectError::Io`] for a directory that is not private or a
@@ -115,7 +115,11 @@ impl TempFiles {
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|elapsed| elapsed.as_millis())
             .unwrap_or_default();
-        let path = dir.join(format!("{stem}-{millis}.{LOG_EXTENSION}"));
+        // A random suffix keeps two launches in the same millisecond apart.
+        let mut random = [0u8; 4];
+        getrandom::fill(&mut random).map_err(|error| io_error(io::Error::other(error)))?;
+        let suffix = hex::encode(random);
+        let path = dir.join(format!("{stem}-{millis}-{suffix}.{LOG_EXTENSION}"));
         let file = create_new(&path, LOG_MODE).map_err(io_error)?;
         Ok((file, path))
     }
@@ -394,6 +398,18 @@ mod tests {
         assert!(!old_rdp.exists());
         assert!(old_other.exists());
         assert!(fresh_rdp.exists());
+    }
+
+    #[test]
+    fn two_logs_created_at_once_get_different_names() {
+        let root = tempfile::tempdir().unwrap();
+        let mut files = TempFiles::new(root.path().join("tmp"));
+        let program = Path::new("/opt/homebrew/bin/sdl-freerdp");
+
+        let (_, first) = files.create_log(program).unwrap();
+        let (_, second) = files.create_log(program).unwrap();
+
+        assert_ne!(first, second);
     }
 
     #[test]
