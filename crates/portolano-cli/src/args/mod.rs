@@ -2,6 +2,7 @@
 
 mod add;
 mod edit;
+mod help;
 mod italian;
 mod parse;
 
