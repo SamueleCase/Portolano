@@ -37,7 +37,14 @@ type Fingerprint = [u8; 32];
 ///
 /// The store remembers the fingerprint of the bytes it last read or wrote,
 /// so that [`Store::save`] can tell whether someone else changed the file in
-/// the meantime. It is `Send + Sync`: one store can serve several threads.
+/// the meantime.
+///
+/// The check works between different stores (and processes), not between
+/// copies of the document obtained from the same store: two copies loaded
+/// through one store both pass it, and the second save silently replaces
+/// the first. The store is `Send + Sync`, but threads sharing one must
+/// serialize load, modify and save themselves, for example by keeping the
+/// document in a `Mutex`.
 #[derive(Debug)]
 pub struct Store {
     path: PathBuf,
@@ -119,6 +126,12 @@ impl Store {
     /// saving the previous content to `<file>.bak`, and updates
     /// `doc.modified`. The output is deterministic: 2-space pretty JSON with
     /// a final newline.
+    ///
+    /// The fingerprint check holds against writers that take the document
+    /// lock (other stores). A program that writes without it, such as an
+    /// editor or `git checkout`, can still change the file between the check
+    /// and the rename, and that change is then lost. The locks wait without
+    /// a timeout: every locked operation is short.
     ///
     /// # Errors
     /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally) if the
