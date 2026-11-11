@@ -33,6 +33,9 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 ## Lavori rimandati
 - RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
 
+### Sicurezza per la UI (FASE 2)
+- Le icone SVG importate si mostrano solo come `<img>`, mai inserite nel DOM (XSS memorizzato, DEC-024).
+
 ### Esigenze della UI (FASE 2) aggiungibili senza rompere il core
 Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
 - traccia dell'ereditarietà della credenziale (`resolve_trace`: da quale cartella arriva);

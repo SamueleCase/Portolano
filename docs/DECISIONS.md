@@ -295,6 +295,42 @@ mock in `docs/ui/NOTE.md`.
 2. **Messaggi della CLI**: gli errori d'uso e l'help di clap vanno in italiano (§10.3): `try_parse`, traduzione dei
    tipi di errore principali mantenendo l'exit 2, intestazioni e descrizioni dei flag di aiuto in italiano.
 
+### DEC-024 – Modello di fiducia e indurimento (dalla revisione di sicurezza, decise dal PM)
+- **Modello di fiducia**: il documento può arrivare da altri (repo condiviso, import Royal) e **non** è fidato quanto
+  `~/.ssh/config`. La configurazione (`config.toml`) e i processi dello stesso utente sono dentro il perimetro di
+  fiducia, come per gli helper di credenziali di git: un processo dell'utente che riscrive la config può ottenere i
+  segreti, e questo rischio residuo è accettato e documentato nel README.
+1. **Opzioni ssh pericolose**: `SshSettings.options` rifiuta (in `validate_settings`, quindi in `add`/`edit`, e come
+   errore in `validate` e in `connect` per documenti scritti a mano o importati) le opzioni che eseguono comandi o
+   cambiano ambiente/agent: `ProxyCommand`, `ProxyJump` (si usa `jump_hosts`), `LocalCommand`, `PermitLocalCommand`,
+   `KnownHostsCommand`, `PKCS11Provider`, `SecurityKeyProvider`, `ProxyUseFdpass`, `SendEnv`, `SetEnv`, `Include`,
+   `Match`, `IdentityAgent`, `ControlPath`, `ControlMaster`, `RemoteCommand`, `ForwardAgent` (si usa
+   `agent_forwarding`), confronto senza distinguere maiuscole. Chi ne ha bisogno le mette nel proprio `~/.ssh/config`.
+2. **Programmi sostituiti in config**: `[ssh] program` e `[rdp] freerdp_program` devono essere percorsi assoluti a file
+   regolari non scrivibili dal gruppo o da altri; altrimenti `connect` rifiuta con errore chiaro. Rischio residuo
+   (stesso utente) documentato.
+3. **Caratteri di controllo**: l'output della CLI (`tree`, `list`, `show`, `validate`, report d'import, `connect
+   --print`) li rende visibili (es. `\u{1b}`) invece di emetterli; `validate` segnala con un Warning
+   `control_characters` nomi, host e utenti che li contengono; host e utente di destinazione SSH rifiutano gli stessi
+   caratteri vietati dei jump (DEC sul `-J`) e i caratteri di controllo. Requisito documentato: OpenSSH ≥ 8.4.
+4. **Ciphertext Royal con nomi non previsti**: oltre al riconoscimento per nome, l'importer tratta come cifrato
+   (scartato, nodo `Partial`) un valore base64 che decodifica a ≥ 32 byte con lunghezza multipla di 16, nei campi che
+   non sono note né immagini (D3).
+5. **Memoria**: le letture di segreti da stdin (`--password-stdin`, `--key-stdin`) e le risposte askpass usano buffer
+   preallocati che si azzerano, con un limite di dimensione; la master password presa dall'ambiente resta nel blocco
+   environ del processo (limite documentato).
+6. `RawField`/`RawObject` dell'importer con `Debug` manuale che non mostra i valori.
+7. Master password del vault su file: minimo 12 caratteri alla creazione.
+- Nota per la FASE 2: le icone SVG importate vanno mostrate solo come `<img>`, mai inserite nel DOM.
+
+### DEC-025 – FreeRDP che deve chiedere una password (dal report di WP7, decisa dal PM)
+- **Problema**: senza `--wait` FreeRDP è staccato con stdin vuoto (o chiuso dopo la password), quindi non può chiedere
+  all'utente la password mancante della destinazione o quella del gateway con credenziale diversa.
+- **Decisione**: quando FreeRDP dovrà chiedere qualcosa (nessuna password per la destinazione, oppure gateway con
+  credenziale diversa da quella della destinazione), il piano lo esegue in primo piano (`wait = true`, terminale
+  ereditato) con un warning che lo spiega; negli altri casi resta staccato. Comportamento da confermare nella verifica
+  manuale dell'utente.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
