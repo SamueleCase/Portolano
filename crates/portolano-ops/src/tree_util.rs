@@ -5,6 +5,16 @@ use std::collections::HashSet;
 use portolano_core::{Document, Node, SecretRef};
 use uuid::Uuid;
 
+/// Calls `visit` on every node of `nodes` and their descendants, pre-order.
+pub(crate) fn for_each_node_mut(nodes: &mut [Node], visit: &mut impl FnMut(&mut Node)) {
+    for node in nodes {
+        visit(node);
+        if let Some(folder) = node.as_folder_mut() {
+            for_each_node_mut(&mut folder.children, visit);
+        }
+    }
+}
+
 /// The ids of `node` and of its descendants.
 pub(crate) fn subtree_ids(node: &Node) -> HashSet<Uuid> {
     let mut ids = HashSet::from([node.id]);

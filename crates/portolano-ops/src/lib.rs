@@ -18,6 +18,7 @@ mod commit;
 pub mod delete;
 pub mod document;
 mod error;
+pub mod import;
 pub mod inspect;
 pub mod locations;
 pub mod moves;

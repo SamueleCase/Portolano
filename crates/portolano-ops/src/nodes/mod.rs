@@ -15,7 +15,7 @@ pub use credential::CredentialInput;
 pub use details::{IconInput, NodeDetails};
 pub use edit::edit_node;
 
-pub(crate) use credential::credential_spec_mut;
+pub(crate) use credential::{credential_spec, credential_spec_mut};
 pub(crate) use details::set_secret_properties;
 
 use crate::commit::CleanupFailure;

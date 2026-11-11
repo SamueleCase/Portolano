@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use portolano_connectors::ConnectError;
 use portolano_core::VaultError;
 use portolano_import::ImportError;
+use uuid::Uuid;
 
 use crate::delete::ExternalReference;
 use crate::secrets::SecretSlot;
@@ -176,6 +177,51 @@ pub enum OpsError {
         path: String,
         /// The destination folder.
         destination: String,
+    },
+
+    /// Ids of the import already exist in the document
+    /// (`ConflictPolicy::Fail`).
+    #[error("{} nodi dell'import esistono già nel documento", .conflicts.len())]
+    ImportConflicts {
+        /// The existing nodes, as `(id, path)`.
+        conflicts: Vec<(Uuid, String)>,
+    },
+
+    /// An update would turn a folder into another kind of node, or the
+    /// opposite.
+    #[error(
+        "l'import cambierebbe il tipo di '{path}' (cartella / non cartella): usa un'altra strategia per i conflitti"
+    )]
+    ImportKindChanged {
+        /// The existing node.
+        path: String,
+    },
+
+    /// The import does not fit under the destination (DEC-021).
+    #[error(
+        "l'import in '{into}' supererebbe la profondità massima di {max} livelli: scegli una cartella meno profonda"
+    )]
+    ImportTooDeep {
+        /// The destination folder.
+        into: String,
+        /// The maximum depth.
+        max: usize,
+    },
+
+    /// `--format` names no importer.
+    #[error("formato d'importazione sconosciuto '{format}' (disponibili: {})", .known.join(", "))]
+    UnknownImportFormat {
+        /// The format given.
+        format: String,
+        /// The registered importers.
+        known: Vec<String>,
+    },
+
+    /// No importer recognizes the file.
+    #[error("formato del file '{file}' non riconosciuto: indicalo esplicitamente")]
+    UnrecognizedImportFile {
+        /// The file name.
+        file: String,
     },
 
     /// A key file and a key for the vault were both given.

@@ -89,6 +89,15 @@ pub(crate) fn with_password(
 }
 
 /// The credential spec of a folder or a connection.
+pub(crate) fn credential_spec(node: &Node) -> Option<&CredentialSpec> {
+    match &node.kind {
+        NodeKind::Folder(folder) => Some(&folder.credential),
+        NodeKind::Connection(connection) => Some(&connection.credential),
+        NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
+    }
+}
+
+/// The credential spec of a folder or a connection, to change it.
 pub(crate) fn credential_spec_mut(node: &mut Node) -> Option<&mut CredentialSpec> {
     match &mut node.kind {
         NodeKind::Folder(folder) => Some(&mut folder.credential),

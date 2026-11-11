@@ -2,6 +2,7 @@
 //! under `example.com` and users are fake (SPEC §1.3).
 
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use portolano_core::vault::{FileVault, KdfParams, MemoryVault};
 use portolano_core::{
@@ -141,4 +142,39 @@ pub(crate) fn fast_file_vault(dir: &Path) -> PathBuf {
     let path = dir.join("vault.json");
     FileVault::with_kdf_params(&path, &TestPassword, TEST_KDF_PARAMS).unwrap();
     path
+}
+
+/// A memory vault that records the references written and deleted, in
+/// order, to check rollbacks.
+#[derive(Default)]
+pub(crate) struct RecordingVault {
+    inner: MemoryVault,
+    history: Mutex<(Vec<SecretRef>, Vec<SecretRef>)>,
+}
+
+impl RecordingVault {
+    /// The references written and those deleted.
+    pub(crate) fn history(&self) -> (Vec<SecretRef>, Vec<SecretRef>) {
+        self.history.lock().unwrap().clone()
+    }
+}
+
+impl Vault for RecordingVault {
+    fn backend(&self) -> &'static str {
+        "memory"
+    }
+
+    fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
+        self.inner.get(reference)
+    }
+
+    fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
+        self.history.lock().unwrap().0.push(reference.clone());
+        self.inner.set(reference, secret)
+    }
+
+    fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
+        self.history.lock().unwrap().1.push(reference.clone());
+        self.inner.delete(reference)
+    }
 }

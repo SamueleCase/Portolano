@@ -11,7 +11,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::commit::Change;
-use crate::nodes::{EditOutcome, credential_spec_mut};
+use crate::nodes::{EditOutcome, credential_spec, credential_spec_mut};
 use crate::tree_util::node_path;
 use crate::{OpsError, Result};
 
@@ -200,7 +200,7 @@ fn current_ref(node: &Node, slot: &SecretSlot, path: &str) -> Result<Option<Secr
         }
         (SecretSlot::Password, NodeKind::Credential(credential)) => Ok(credential.password.clone()),
         (SecretSlot::Password, NodeKind::Folder(_) | NodeKind::Connection(_)) => {
-            match inline_spec(node) {
+            match credential_spec(node) {
                 Some(CredentialSpec::Inline { password, .. }) => Ok(password.clone()),
                 _ => Err(not_applicable()),
             }
@@ -246,16 +246,8 @@ fn assign(node: &mut Node, slot: &SecretSlot, reference: Option<SecretRef>) {
     }
 }
 
-fn inline_spec(node: &Node) -> Option<&CredentialSpec> {
-    match &node.kind {
-        NodeKind::Folder(folder) => Some(&folder.credential),
-        NodeKind::Connection(connection) => Some(&connection.credential),
-        NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
-    }
-}
-
 fn inline_password(node: &Node) -> Option<SecretRef> {
-    match inline_spec(node) {
+    match credential_spec(node) {
         Some(CredentialSpec::Inline { password, .. }) => password.clone(),
         _ => None,
     }
