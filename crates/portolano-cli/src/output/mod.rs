@@ -1,16 +1,15 @@
 //! Output formatting: tree, tables, details and JSON (SPEC §10.2).
 
+mod escape;
 mod report;
 mod show;
 mod tree;
-
-use std::borrow::Cow;
-use std::fmt::Write as _;
 
 use anyhow::Result;
 use serde::Serialize;
 use uuid::Uuid;
 
+pub use escape::visible;
 pub use report::print_import;
 pub use show::print_show;
 pub use tree::{Header, render_tree};
@@ -19,39 +18,20 @@ pub use tree::{Header, render_tree};
 /// that `@<prefix>` paths need.
 const SHORT_ID_DIGITS: usize = 8;
 
-/// `text` with every control character written as an escape such as
-/// `\u{1b}` (DEC-024.3). Names, hosts, paths and messages may come from a
-/// shared or imported document: printed as they are, control characters
-/// would drive the terminal (move the cursor, rewrite lines, change the
-/// window title). Every value of a document goes through here before it is
-/// printed; the JSON output is already escaped by `serde_json`.
-pub fn visible(text: &str) -> Cow<'_, str> {
-    if !text.chars().any(char::is_control) {
-        return Cow::Borrowed(text);
-    }
-    let mut escaped = String::with_capacity(text.len() + 8);
-    for c in text.chars() {
-        if c.is_control() {
-            // Writing to a `String` cannot fail.
-            let _ = write!(escaped, "{}", c.escape_unicode());
-        } else {
-            escaped.push(c);
-        }
-    }
-    Cow::Owned(escaped)
-}
-
 /// The first hex digits of `id`, usable as `@<prefix>`.
 pub fn short_id(id: Uuid) -> String {
     id.simple().to_string()[..SHORT_ID_DIGITS].to_owned()
 }
 
-/// Prints `value` as pretty JSON on stdout.
+/// Prints `value` as pretty JSON on stdout. `serde_json` escapes only the
+/// C0 controls: DEL, the C1 controls and the bidi controls are escaped here
+/// (DEC-026.4).
 ///
 /// # Errors
 /// Serialization errors.
 pub fn print_json(value: &impl Serialize) -> Result<()> {
-    println!("{}", serde_json::to_string_pretty(value)?);
+    let json = serde_json::to_string_pretty(value)?;
+    println!("{}", escape::json_visible(&json));
     Ok(())
 }
 
@@ -116,22 +96,6 @@ mod tests {
     fn short_id_is_a_prefix_of_the_id() {
         let id = Uuid::parse_str("6f1c2d3e-0000-4000-8000-000000000001").unwrap();
         assert_eq!(short_id(id), "6f1c2d3e");
-    }
-
-    #[test]
-    fn visible_escapes_control_characters() {
-        assert_eq!(
-            visible("web\u{1b}[2J01\r\n\u{7}\u{9b}"),
-            "web\\u{1b}[2J01\\u{d}\\u{a}\\u{7}\\u{9b}"
-        );
-    }
-
-    #[test]
-    fn visible_keeps_other_text_as_it_is() {
-        assert!(matches!(
-            visible("📁 Clienti/ACME àè"),
-            Cow::Borrowed("📁 Clienti/ACME àè")
-        ));
     }
 
     #[test]

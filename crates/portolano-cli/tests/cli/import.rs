@@ -259,6 +259,20 @@ fn control_characters_are_shown_escaped_by_show_validate_and_connect_print() {
 }
 
 #[test]
+fn del_c1_and_bidi_controls_are_escaped_in_text_and_json() {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "folder", "/a\u{7f}b\u{9b}c\u{202e}d"]);
+    let raw = |c: char| c == '\u{7f}' || c == '\u{9b}' || c == '\u{202e}';
+    let tree = workspace.ok(&["tree"]);
+    assert!(tree.contains("a\\u{7f}b\\u{9b}c\\u{202e}d"), "{tree}");
+    let json = workspace.ok(&["--json", "tree"]);
+    assert!(json.contains("a\\u007fb\\u009bc\\u202ed"), "{json}");
+    for output in [tree, json] {
+        assert!(!output.chars().any(raw), "{output}");
+    }
+}
+
+#[test]
 fn import_too_deep_for_the_destination_exits_with_4() {
     let workspace = Workspace::new();
     let path = "/l".repeat(portolano_core::MAX_DEPTH);
