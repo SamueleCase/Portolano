@@ -1,6 +1,8 @@
 //! Launch plan of an SSH connection (SPEC §7.2): the jump chain, the
 //! arguments of `ssh`, keys and passwords.
 
+mod values;
+
 use std::path::{Path, PathBuf};
 
 use portolano_core::{Connection, Document, PrivateKey, ResolvedCredential};
@@ -9,17 +11,10 @@ use uuid::Uuid;
 use super::settings::{JumpHost, SshSettings};
 use crate::ConnectError;
 use crate::plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher};
-use crate::protocol::{check_value, host_port};
+use crate::protocol::host_port;
 
 /// Port of SSH when the connection does not set one.
 pub(super) const SSH_PORT: u16 = 22;
-
-/// Characters that would split or end a `-J` entry, or that a shell would
-/// interpret: OpenSSH may turn the jump hosts into a proxy command run by
-/// the shell, so quotes, substitutions and separators are refused too.
-const JUMP_FORBIDDEN: [char; 14] = [
-    ',', ' ', '\'', '"', '`', ';', '$', '|', '&', '<', '>', '(', ')', '\\',
-];
 
 /// Lifetime of a vault key in `ssh-agent` (`ssh-add -t`), in seconds: long
 /// enough to log in, short enough not to linger.
@@ -105,7 +100,7 @@ fn follow<'a>(
     for jump in &settings.jump_hosts {
         match jump {
             JumpHost::Address { address } => {
-                check_value(owner, "jump_hosts.address", address, &JUMP_FORBIDDEN)?;
+                values::check_jump_address(owner, address)?;
                 chain.push(JumpLink::Address(address.clone()));
             }
             JumpHost::Ref { id } => {
@@ -156,14 +151,7 @@ fn jump_connection(doc: &Document, id: Uuid) -> Result<&Connection, ConnectError
 pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
     let mut secrets = HopSecrets::new(launch.ssh_add_available, &launch.askpass_program);
     let target = &launch.target;
-    // ssh may expand the destination into commands (`%h`, `%r` in a
-    // `ProxyCommand` or `Match exec` of `~/.ssh/config`). OpenSSH from 9.6
-    // (CVE-2023-51385) refuses such users and hosts itself; these checks
-    // protect older versions too (DEC-024.3, DEC-026.2).
-    check_value(target.node, "host", &target.host, &JUMP_FORBIDDEN)?;
-    if let Some(user) = &target.credential.username {
-        check_target_user(target.node, user)?;
-    }
+    values::check_target(target)?;
     let mut args = vec!["-p".to_owned(), target.port.to_string()];
     if let Some(user) = &target.credential.username {
         args.extend(["-l".to_owned(), user.clone()]);
@@ -215,7 +203,7 @@ fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, Con
         match jump {
             Jump::Address(address) => hops.push(address.clone()),
             Jump::Endpoint(endpoint) => {
-                check_hop(endpoint)?;
+                values::check_jump(endpoint)?;
                 secrets.add_key(endpoint, Role::Jump)?;
                 secrets.add_password(endpoint);
                 hops.push(jump_address(endpoint));
@@ -223,50 +211,6 @@ fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, Con
         }
     }
     Ok(hops.join(","))
-}
-
-/// Characters of the shell refused in the user of the destination, as
-/// OpenSSH's `valid_ruser` does, plus `$`.
-const USER_FORBIDDEN: [char; 13] = [
-    '\'', '`', '"', ';', '&', '<', '>', '|', '(', ')', '{', '}', '$',
-];
-
-/// Checks the user of the destination with the rule of OpenSSH
-/// (`valid_ruser`, DEC-026.2): no shell metacharacter nor control character,
-/// no leading `-` nor `-` after a space (it would read as an option), no
-/// trailing `\`. A space, or a `\` as in `DOMINIO\utente`, is fine: `-l`
-/// passes the user as one argument.
-fn check_target_user(node: Uuid, user: &str) -> Result<(), ConnectError> {
-    check_value(node, "username", user, &USER_FORBIDDEN)?;
-    let invalid = |reason: &str| ConnectError::InvalidValue {
-        id: node,
-        field: "username".to_owned(),
-        reason: reason.to_owned(),
-    };
-    if user.starts_with('-') {
-        return Err(invalid("inizia con '-'"));
-    }
-    if user
-        .char_indices()
-        .any(|(index, c)| c.is_whitespace() && user[index + c.len_utf8()..].starts_with('-'))
-    {
-        return Err(invalid("contiene '-' dopo uno spazio"));
-    }
-    if user.ends_with('\\') {
-        return Err(invalid("finisce con '\\'"));
-    }
-    Ok(())
-}
-
-/// Refuses a host or user of a jump host with a control character or one
-/// of [`JUMP_FORBIDDEN`]: the stricter rule of `-J`, whose entries are
-/// separated by commas.
-fn check_hop(hop: &Endpoint) -> Result<(), ConnectError> {
-    check_value(hop.node, "host", &hop.host, &JUMP_FORBIDDEN)?;
-    if let Some(user) = &hop.credential.username {
-        check_value(hop.node, "username", user, &JUMP_FORBIDDEN)?;
-    }
-    Ok(())
 }
 
 fn flags(settings: &SshSettings) -> Vec<String> {
