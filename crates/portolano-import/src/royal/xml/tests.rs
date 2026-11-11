@@ -121,6 +121,25 @@ fn text_deep_below_a_secret_element_is_secret() {
     }
 }
 
+// Trimming the whole text below every level would take tens of seconds on
+// this input; the length check keeps it linear.
+#[test]
+fn deep_secret_elements_over_much_whitespace_are_checked_in_linear_time() {
+    let levels = 16_000;
+    let xml = format!(
+        "<RTSZDocument><RoyalFolder><ID>a</ID><Settings>{}{}{}</Settings></RoyalFolder></RTSZDocument>",
+        "<Password>".repeat(levels),
+        " ".repeat(1024 * 1024),
+        "</Password>".repeat(levels)
+    );
+    let started = std::time::Instant::now();
+
+    let objects = parse_document(&xml).unwrap();
+
+    assert!(objects[0].is_secret("Settings"));
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+}
+
 #[test]
 fn a_secret_attribute_on_a_deep_descendant_is_secret() {
     let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\

@@ -128,8 +128,17 @@ pub(super) fn parse_date(value: &str) -> Option<DateTime<Utc>> {
 /// those are settings such as `CredentialPasswordFromParent`, never
 /// ciphertext.
 pub(super) fn is_secret_value(name: &str, value: &str) -> bool {
-    is_secret_name(name) && !is_plain_setting(value.trim())
+    // A plain setting is at most an `i64` (20 characters) with a little
+    // whitespace: longer text counts as secret without trimming it, so the
+    // check is O(1) even when the parser asks it for every level of deeply
+    // nested elements over the same long text. Erring here drops a field,
+    // the safe direction.
+    is_secret_name(name)
+        && (value.len() > MAX_PLAIN_SETTING_LENGTH || !is_plain_setting(value.trim()))
 }
+
+/// Longest text that may still be a plain setting, whitespace included.
+const MAX_PLAIN_SETTING_LENGTH: usize = 64;
 
 fn is_secret_name(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
@@ -196,6 +205,12 @@ mod tests {
         assert!(!is_secret_value("Password", "  "));
         assert!(!is_secret_value("PrivateKeyPath", "~/.ssh/id_ed25519"));
         assert!(!is_secret_value("PrivateKeyMode", "1"));
+    }
+
+    #[test]
+    fn long_text_under_a_secret_name_is_secret_even_if_blank() {
+        assert!(is_secret_value("Password", &" ".repeat(65)));
+        assert!(!is_secret_value("Password", &format!("{:>64}", "True")));
     }
 
     #[test]
