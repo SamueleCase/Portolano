@@ -131,6 +131,37 @@ fn xml_that_is_not_svg_is_rejected() {
 }
 
 #[test]
+fn svg_nested_in_another_root_element_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let html = b"<html><body><svg viewBox=\"0 0 1 1\"/></body></html>";
+
+    let error = icon_store(&dir).add(html, "image/svg+xml").unwrap_err();
+
+    assert!(matches!(error, Error::UnsupportedIcon { .. }));
+}
+
+#[test]
+fn a_root_element_that_only_starts_with_svg_is_rejected() {
+    let dir = TempDir::new().unwrap();
+
+    let error = icon_store(&dir)
+        .add(b"<svgfont/>", "image/svg+xml")
+        .unwrap_err();
+
+    assert!(matches!(error, Error::UnsupportedIcon { .. }));
+}
+
+#[test]
+fn svg_after_a_doctype_with_an_internal_subset_is_recognized() {
+    let dir = TempDir::new().unwrap();
+    let svg = b"<?xml version=\"1.0\"?>\n<!DOCTYPE svg [ <!ENTITY a \"x\"> ]>\n<svg>\n</svg>";
+
+    let icon = icon_store(&dir).add(svg, "image/svg+xml").unwrap();
+
+    assert!(matches!(icon, Icon::Custom { mime, .. } if mime == "image/svg+xml"));
+}
+
+#[test]
 fn the_same_image_is_stored_once() {
     let dir = TempDir::new().unwrap();
     let store = icon_store(&dir);

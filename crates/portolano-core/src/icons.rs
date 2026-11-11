@@ -209,12 +209,52 @@ impl ImageType {
     }
 }
 
-/// SVG has no binary signature: it is XML (optionally after a byte order
-/// mark and whitespace) with an `<svg` element near the start.
+/// SVG has no binary signature: it is XML whose root element is `<svg`.
+/// The byte order mark, the XML declaration (and other processing
+/// instructions), comments and the DOCTYPE may come before the root.
 fn looks_like_svg(bytes: &[u8]) -> bool {
     let head = &bytes[..bytes.len().min(SVG_HEAD_LEN)];
-    let head = head.strip_prefix(b"\xef\xbb\xbf").unwrap_or(head);
-    head.trim_ascii_start().starts_with(b"<") && head.windows(4).any(|window| window == b"<svg")
+    let mut rest = head
+        .strip_prefix(b"\xef\xbb\xbf")
+        .unwrap_or(head)
+        .trim_ascii_start();
+    while let Some(len) = prolog_item_len(rest) {
+        rest = rest[len..].trim_ascii_start();
+    }
+    rest.strip_prefix(b"<svg").is_some_and(|after| {
+        matches!(
+            after.first(),
+            Some(b'>' | b'/' | b' ' | b'\t' | b'\r' | b'\n')
+        )
+    })
+}
+
+/// The length of the XML prolog item that `rest` starts with, or `None` if
+/// it starts with something else or the item is not terminated in the head.
+fn prolog_item_len(rest: &[u8]) -> Option<usize> {
+    if rest.starts_with(b"<?") {
+        end_of(rest, b"?>")
+    } else if rest.starts_with(b"<!--") {
+        end_of(rest, b"-->")
+    } else if rest.starts_with(b"<!DOCTYPE") {
+        // An internal subset, `[ ... ]`, may contain `>` itself.
+        let first = rest.iter().position(|&b| b == b'[' || b == b'>')?;
+        if rest[first] == b'>' {
+            return Some(first + 1);
+        }
+        let subset_end = first + end_of(&rest[first..], b"]")?;
+        Some(subset_end + end_of(&rest[subset_end..], b">")?)
+    } else {
+        None
+    }
+}
+
+/// The index just past the first `marker` in `haystack`.
+fn end_of(haystack: &[u8], marker: &[u8]) -> Option<usize> {
+    haystack
+        .windows(marker.len())
+        .position(|window| window == marker)
+        .map(|start| start + marker.len())
 }
 
 fn is_sha256_hex(text: &str) -> bool {
