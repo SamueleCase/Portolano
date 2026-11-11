@@ -363,6 +363,18 @@ mock in `docs/ui/NOTE.md`.
 - **Da verificare dal vivo** (DEC-025): con password della destinazione su stdin e gateway con credenziale diversa,
   FreeRDP potrebbe leggere anche la password del gateway da stdin (chiuso) o chiederla con una finestra grafica.
 
+### DEC-027 – Avvio della FASE 2 (UI): stack e mock (decisione dell'utente, 2026-11-11)
+- **Stack confermato dall'utente**: app desktop **Tauri v2** (Rust) che usa i crate esistenti (`portolano-ops` in
+  testa) + interfaccia **React + TypeScript**. Valutato Flutter e scartato: l'RDP integrato si farà con **IronRDP**
+  (Rust, con client web WASM/canvas), che in Tauri si integra direttamente; con Flutter servirebbe un bridge
+  Rust↔Dart per tutto il core e per l'RDP, e il mock HTML/CSS andrebbe ricostruito.
+- **Mock**: quello in `docs/ui/project/` è definitivo; le correzioni elencate in `docs/ui/NOTE.md` non vengono
+  riportate nel mock ma integrate direttamente nella specifica della UI (`docs/SPEC-UI.md`).
+- **RDP integrato**: resta un passo successivo alla UI (DEC-013), ma la UI prevede fin da ora lo spazio per il
+  pannello RDP nelle tab di sessione, così l'aggiunta non cambierà la struttura.
+- **Metodo**: come per la FASE 1/2a: specifica (`docs/SPEC-UI.md`) + prompt PM, implementazione con sottoagenti in
+  worktree, revisione indipendente prima di ogni merge, quality gate estesi al frontend.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
