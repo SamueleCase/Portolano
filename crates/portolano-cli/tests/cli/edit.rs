@@ -139,5 +139,9 @@ fn move_into_a_folder_prints_the_new_path() {
 fn move_into_a_descendant_is_refused() {
     let workspace = abc();
     workspace.ok(&["move", "/a", "/b"]);
-    workspace.run(&["move", "/b", "/b/a"]).code(1);
+    let assert = workspace.run(&["move", "/b", "/b/a"]).code(1);
+    assert_eq!(
+        stderr(&assert).trim(),
+        "errore: impossibile spostare '/b' dentro sé stesso o un suo discendente ('/b/a')"
+    );
 }

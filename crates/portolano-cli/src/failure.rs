@@ -5,7 +5,7 @@ use std::io;
 use std::path::PathBuf;
 
 use portolano_connectors::ConnectError;
-use portolano_core::VaultError;
+use portolano_core::{Document, VaultError};
 use portolano_ops::OpsError;
 
 /// Exit code: generic error.
@@ -38,6 +38,16 @@ pub enum CliError {
         first: &'static str,
         /// The second option.
         second: &'static str,
+    },
+    /// A move into the node itself or one of its descendants.
+    #[error(
+        "impossibile spostare '{path}' dentro sé stesso o un suo discendente ('{destination}')"
+    )]
+    InvalidMove {
+        /// The node to move.
+        path: String,
+        /// The destination.
+        destination: String,
     },
     /// A question with no terminal to ask it on.
     #[error("impossibile chiedere {what}: nessun terminale")]
@@ -85,6 +95,22 @@ impl CliError {
             | CliError::KeyNeedsStdin => EXIT_USAGE,
             _ => EXIT_ERROR,
         }
+    }
+}
+
+/// `error` with the nodes it names by id shown by their path in `doc`,
+/// which is what the user typed.
+pub fn with_paths(error: OpsError, doc: &Document) -> anyhow::Error {
+    let path = |id| doc.path_of(id).unwrap_or_else(|| format!("@{id}"));
+    match error {
+        OpsError::Core(portolano_core::Error::InvalidMove { id, new_parent }) => {
+            CliError::InvalidMove {
+                path: path(id),
+                destination: path(new_parent),
+            }
+            .into()
+        }
+        other => other.into(),
     }
 }
 

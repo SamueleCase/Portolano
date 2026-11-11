@@ -5,6 +5,7 @@ use portolano_ops::moves::{Placement, move_node};
 
 use crate::args::MoveArgs;
 use crate::context::Context;
+use crate::failure::with_paths;
 
 /// Moves the node and saves.
 ///
@@ -21,7 +22,8 @@ pub fn run(ctx: &Context, args: MoveArgs) -> Result<i32> {
         (_, _, Some(after)) => Placement::After(doc.resolve_path(after)?),
         _ => Placement::End,
     };
-    let path = move_node(&store, &mut doc, id, destination, placement)?;
+    let path = move_node(&store, &mut doc, id, destination, placement)
+        .map_err(|error| with_paths(error, &doc))?;
     println!("Spostato in {path}");
     Ok(0)
 }
