@@ -39,8 +39,12 @@ fn run(
     }
 }
 
+/// The askpass program of the test plans; never executed.
+const ASKPASS_PROGRAM: &str = "/opt/example/bin/portolano";
+
 fn password_askpass(secret: &SecretRef) -> AskpassSpec {
     AskpassSpec {
+        program: PathBuf::from(ASKPASS_PROGRAM),
         entries: vec![AskpassEntry {
             matcher: PromptMatcher::Password {
                 user: "admin".into(),
@@ -141,6 +145,34 @@ fn askpass_socket_is_removed_when_the_program_exits() {
     let socket = fs::read_to_string(output).unwrap();
     assert_eq!(code, 0);
     assert!(!Path::new(socket.trim()).exists());
+}
+
+#[test]
+fn ssh_askpass_is_the_program_of_the_plan() {
+    let temp = tempfile::tempdir().unwrap();
+    let password = SecretRef::new();
+    let vault = TestVault::with(&[(&password, SENTINEL)]);
+    let plan = run(
+        PathBuf::from("/usr/bin/true"),
+        vec![],
+        None,
+        Some(password_askpass(&password)),
+    );
+
+    let prepared = prepare_with(
+        &plan,
+        &vault,
+        &AppConfig::default(),
+        TempFiles::new(temp.path().to_path_buf()),
+    )
+    .unwrap();
+
+    let askpass = prepared
+        .env()
+        .iter()
+        .find(|(key, _)| key == "SSH_ASKPASS")
+        .map(|(_, value)| value.as_str());
+    assert_eq!(askpass, Some(ASKPASS_PROGRAM));
 }
 
 #[test]

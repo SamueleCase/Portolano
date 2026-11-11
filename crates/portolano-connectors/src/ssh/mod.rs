@@ -122,6 +122,7 @@ impl Protocol for SshProtocol {
         let mut plan = plan::build(&SshLaunch {
             ssh,
             ssh_add_available: ctx.env.ssh_add.is_some(),
+            askpass_program: ctx.env.self_exe.clone(),
             target,
             jumps,
             settings: &settings,

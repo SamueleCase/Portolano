@@ -29,6 +29,9 @@ pub enum LaunchStep {
         passphrase: Option<SecretRef>,
         /// Lifetime of the key in the agent, in seconds.
         lifetime_s: u32,
+        /// The askpass program for the passphrase, as in
+        /// [`AskpassSpec::program`].
+        askpass_program: PathBuf,
     },
     /// Writes a temporary file, referenced by later steps as `{temp:<name>}`.
     WriteTempFile {
@@ -64,6 +67,12 @@ pub enum LaunchStep {
 /// The secrets the askpass server may answer with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AskpassSpec {
+    /// The program that `ssh` runs as `SSH_ASKPASS`: the `portolano`
+    /// executable ([`Environment::self_exe`](crate::Environment::self_exe)).
+    /// It must check [`is_client_invocation`](crate::ssh::askpass::is_client_invocation)
+    /// (`PORTOLANO_ASKPASS=1`) before anything else and then call
+    /// [`run_client`](crate::ssh::askpass::run_client).
+    pub program: PathBuf,
     /// One entry per expected prompt; each is served at most once.
     pub entries: Vec<AskpassEntry>,
 }
@@ -104,75 +113,66 @@ pub(crate) fn temp_placeholder(name: &str) -> String {
 /// with secrets shown as `<vault:ref>`. Lines starting with `#` describe what
 /// is not a command line (askpass answers, temporary files, new windows).
 pub fn render(plan: &LaunchPlan) -> String {
-    let mut lines = Vec::new();
-    for step in &plan.steps {
-        match step {
-            LaunchStep::SshAddKey {
-                key,
-                passphrase,
-                lifetime_s,
-            } => {
-                let lifetime = lifetime_s.to_string();
-                let mut line = format!(
-                    "{} < {}",
-                    shell_words::join(["ssh-add", "-t", lifetime.as_str(), "-"]),
-                    vault_ref(key)
-                );
-                if let Some(passphrase) = passphrase {
-                    line.push_str(&format!(
-                        "  # passphrase via askpass: {}",
-                        vault_ref(passphrase)
-                    ));
-                }
-                lines.push(line);
-            }
-            LaunchStep::WriteTempFile {
-                name,
-                contents,
-                mode,
-            } => {
-                lines.push(format!(
-                    "# file temporaneo {} (permessi {mode:04o}):",
-                    temp_placeholder(name)
-                ));
-                lines.extend(contents.lines().map(|line| format!("#   {line}")));
-            }
-            LaunchStep::Run {
-                program,
-                args,
-                env,
-                stdin_secret,
-                askpass,
-                wait,
-            } => render_run(
-                &mut lines,
-                program,
-                args,
-                env,
-                stdin_secret.as_ref(),
-                askpass.as_ref(),
-                *wait,
-            ),
-            LaunchStep::OpenInTerminal { argv } => {
-                lines.push(format!(
-                    "{}  # in una nuova finestra del terminale",
-                    shell_words::join(argv)
-                ));
-            }
-        }
-    }
-    lines.join("\n")
+    plan.steps
+        .iter()
+        .flat_map(render_step)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
-fn render_run(
-    lines: &mut Vec<String>,
-    program: &std::path::Path,
-    args: &[String],
-    env: &[(String, String)],
-    stdin_secret: Option<&SecretRef>,
-    askpass: Option<&AskpassSpec>,
-    wait: bool,
-) {
+fn render_step(step: &LaunchStep) -> Vec<String> {
+    match step {
+        LaunchStep::SshAddKey {
+            key,
+            passphrase,
+            lifetime_s,
+            askpass_program,
+        } => {
+            let lifetime = lifetime_s.to_string();
+            let command = shell_words::join(["ssh-add", "-t", lifetime.as_str(), "-"]);
+            let mut line = format!("{command} < {}", vault_ref(key));
+            if let Some(passphrase) = passphrase {
+                line.push_str(&format!(
+                    "  # passphrase via askpass ({}): {}",
+                    askpass_program.display(),
+                    vault_ref(passphrase)
+                ));
+            }
+            vec![line]
+        }
+        LaunchStep::WriteTempFile {
+            name,
+            contents,
+            mode,
+        } => {
+            let header = format!(
+                "# file temporaneo {} (permessi {mode:04o}):",
+                temp_placeholder(name)
+            );
+            std::iter::once(header)
+                .chain(contents.lines().map(|line| format!("#   {line}")))
+                .collect()
+        }
+        LaunchStep::Run { .. } => render_run(step),
+        LaunchStep::OpenInTerminal { argv } => vec![format!(
+            "{}  # in una nuova finestra del terminale",
+            shell_words::join(argv)
+        )],
+    }
+}
+
+fn render_run(step: &LaunchStep) -> Vec<String> {
+    let LaunchStep::Run {
+        program,
+        args,
+        env,
+        stdin_secret,
+        askpass,
+        wait,
+    } = step
+    else {
+        return Vec::new();
+    };
     let mut words: Vec<String> = env
         .iter()
         .map(|(key, value)| format!("{key}={value}"))
@@ -186,17 +186,21 @@ fn render_run(
     if !wait {
         line.push_str(" &");
     }
-    lines.push(line);
-    for entry in askpass.iter().flat_map(|spec| &spec.entries) {
-        let prompt = match &entry.matcher {
-            PromptMatcher::Password { user, host } => format!("password di {user}@{host}"),
-            PromptMatcher::Passphrase { key_path } => format!("passphrase di '{key_path}'"),
-        };
-        lines.push(format!(
-            "#   askpass: {prompt} <- {}",
-            vault_ref(&entry.secret)
-        ));
+    let mut lines = vec![line];
+    if let Some(spec) = askpass {
+        lines.extend(spec.entries.iter().map(|entry| {
+            let prompt = match &entry.matcher {
+                PromptMatcher::Password { user, host } => format!("password di {user}@{host}"),
+                PromptMatcher::Passphrase { key_path } => format!("passphrase di '{key_path}'"),
+            };
+            format!(
+                "#   askpass ({}): {prompt} <- {}",
+                spec.program.display(),
+                vault_ref(&entry.secret)
+            )
+        }));
     }
+    lines
 }
 
 fn vault_ref(reference: &SecretRef) -> String {
@@ -243,6 +247,7 @@ mod tests {
                     key: secret_ref("key-ref"),
                     passphrase: Some(secret_ref("pass-ref")),
                     lifetime_s: 300,
+                    askpass_program: PathBuf::from("/usr/local/bin/portolano"),
                 },
                 LaunchStep::Run {
                     program: PathBuf::from("/usr/bin/ssh"),
@@ -255,6 +260,7 @@ mod tests {
                     env: vec![],
                     stdin_secret: None,
                     askpass: Some(AskpassSpec {
+                        program: PathBuf::from("/usr/local/bin/portolano"),
                         entries: vec![AskpassEntry {
                             matcher: PromptMatcher::Password {
                                 user: "admin".into(),
@@ -273,9 +279,10 @@ mod tests {
 
         assert_eq!(
             text,
-            "ssh-add -t 300 - < <vault:key-ref>  # passphrase via askpass: <vault:pass-ref>\n\
+            "ssh-add -t 300 - < <vault:key-ref>  \
+             # passphrase via askpass (/usr/local/bin/portolano): <vault:pass-ref>\n\
              /usr/bin/ssh -p 22 -- web01.example.com\n\
-             #   askpass: password di admin@web01.example.com <- <vault:pw-ref>"
+             #   askpass (/usr/local/bin/portolano): password di admin@web01.example.com <- <vault:pw-ref>"
         );
     }
 

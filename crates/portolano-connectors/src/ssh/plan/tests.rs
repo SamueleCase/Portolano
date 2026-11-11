@@ -21,6 +21,7 @@ fn launch<'a>(target: Endpoint, jumps: Vec<Jump>, settings: &'a SshSettings) -> 
     SshLaunch {
         ssh: PathBuf::from("/usr/bin/ssh"),
         ssh_add_available: true,
+        askpass_program: PathBuf::from("/usr/local/bin/portolano"),
         target,
         jumps,
         settings,
@@ -181,6 +182,7 @@ fn vault_key_adds_an_ssh_add_step_before_ssh() {
             key,
             passphrase: Some(passphrase),
             lifetime_s: 300,
+            askpass_program: PathBuf::from("/usr/local/bin/portolano"),
         }
     );
     assert_eq!(
@@ -364,4 +366,25 @@ fn jump_user_with_a_space_or_control_character_is_rejected() {
             "{result:?}"
         );
     }
+}
+
+#[test]
+fn askpass_program_comes_from_the_launch() {
+    let settings = SshSettings::default();
+    let target = endpoint(
+        "web01.example.com",
+        22,
+        login(Some("admin"), Some(&SecretRef::new())),
+    );
+
+    let plan = build(&launch(target, vec![], &settings)).unwrap();
+
+    let Some(LaunchStep::Run {
+        askpass: Some(spec),
+        ..
+    }) = plan.steps.last()
+    else {
+        panic!("expected askpass");
+    };
+    assert_eq!(spec.program, PathBuf::from("/usr/local/bin/portolano"));
 }

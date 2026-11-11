@@ -1,7 +1,7 @@
 //! Launch plan of an SSH connection (SPEC §7.2): the jump chain, the
 //! arguments of `ssh`, keys and passwords.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use portolano_core::{Connection, Document, PrivateKey, ResolvedCredential};
 use uuid::Uuid;
@@ -63,6 +63,8 @@ pub(super) struct SshLaunch<'a> {
     pub(super) ssh: PathBuf,
     /// Whether `ssh-add` is installed, needed for keys in the vault.
     pub(super) ssh_add_available: bool,
+    /// The program that answers the askpass prompts (`portolano` itself).
+    pub(super) askpass_program: PathBuf,
     /// The destination.
     pub(super) target: Endpoint,
     /// The flattened jump chain.
@@ -146,7 +148,7 @@ fn jump_connection(doc: &Document, id: Uuid) -> Result<&Connection, ConnectError
 /// and it is not installed; [`ConnectError::InvalidValue`] for a jump host
 /// whose user or host would break the `-J` list.
 pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
-    let mut secrets = HopSecrets::new(launch.ssh_add_available);
+    let mut secrets = HopSecrets::new(launch.ssh_add_available, &launch.askpass_program);
     let target = &launch.target;
     let mut args = vec!["-p".to_owned(), target.port.to_string()];
     if let Some(user) = &target.credential.username {
@@ -174,6 +176,7 @@ pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
     args.extend(["--".to_owned(), target.host.clone()]);
 
     let askpass = (!secrets.entries.is_empty()).then_some(AskpassSpec {
+        program: launch.askpass_program.clone(),
         entries: secrets.entries,
     });
     let mut steps = secrets.ssh_add;
@@ -192,7 +195,7 @@ pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
 }
 
 /// The value of `-J`, collecting the secrets of the jump hosts.
-fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets) -> Result<String, ConnectError> {
+fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, ConnectError> {
     let mut hops = Vec::with_capacity(jumps.len());
     for jump in jumps {
         match jump {
@@ -249,17 +252,19 @@ enum Role {
 }
 
 /// The secrets of the hops, as plan steps and askpass entries.
-struct HopSecrets {
+struct HopSecrets<'a> {
     ssh_add_available: bool,
+    askpass_program: &'a Path,
     ssh_add: Vec<LaunchStep>,
     entries: Vec<AskpassEntry>,
     warnings: Vec<String>,
 }
 
-impl HopSecrets {
-    fn new(ssh_add_available: bool) -> HopSecrets {
+impl<'a> HopSecrets<'a> {
+    fn new(ssh_add_available: bool, askpass_program: &'a Path) -> HopSecrets<'a> {
         HopSecrets {
             ssh_add_available,
+            askpass_program,
             ssh_add: Vec::new(),
             entries: Vec::new(),
             warnings: Vec::new(),
@@ -305,6 +310,7 @@ impl HopSecrets {
                     key: secret.clone(),
                     passphrase: hop.credential.passphrase.clone(),
                     lifetime_s: SSH_ADD_LIFETIME_S,
+                    askpass_program: self.askpass_program.to_path_buf(),
                 });
                 Ok(None)
             }

@@ -78,7 +78,14 @@ fn prepare_with(
                 key,
                 passphrase,
                 lifetime_s,
-            } => add_key(vault, key, passphrase.as_ref(), *lifetime_s)?,
+                askpass_program,
+            } => add_key(
+                vault,
+                key,
+                passphrase.as_ref(),
+                *lifetime_s,
+                askpass_program,
+            )?,
             LaunchStep::WriteTempFile {
                 name,
                 contents,
@@ -115,7 +122,10 @@ fn prepare_step(
                 .as_ref()
                 .map(|reference| read_secret(vault, reference))
                 .transpose()?,
-            served_secrets(vault, askpass.as_ref())?,
+            askpass
+                .as_ref()
+                .map(|spec| askpass_secrets(vault, spec))
+                .transpose()?,
             *wait,
         ),
         LaunchStep::OpenInTerminal { argv } => {
@@ -125,7 +135,7 @@ fn prepare_step(
                 launcher.args,
                 Vec::new(),
                 None,
-                Vec::new(),
+                None,
                 true,
             )
         }
@@ -142,6 +152,7 @@ fn add_key(
     key: &SecretRef,
     passphrase: Option<&SecretRef>,
     lifetime_s: u32,
+    askpass_program: &Path,
 ) -> Result<(), ConnectError> {
     if std::env::var_os("SSH_AUTH_SOCK").is_none_or(|socket| socket.is_empty()) {
         return Err(ConnectError::AgentUnavailable);
@@ -150,18 +161,21 @@ fn add_key(
         client: "ssh-add".to_owned(),
         hint: "serve per le chiavi salvate nel vault: installa OpenSSH".to_owned(),
     })?;
-    let served = match passphrase {
-        Some(reference) => vec![ServedSecret {
-            matcher: PromptMatcher::Passphrase {
-                key_path: SSH_ADD_STDIN_KEY_PATH.to_owned(),
-            },
-            secret: read_secret(vault, reference)?,
-        }],
-        None => Vec::new(),
+    let askpass = match passphrase {
+        Some(reference) => Some(Askpass {
+            program: askpass_program.to_path_buf(),
+            secrets: vec![ServedSecret {
+                matcher: PromptMatcher::Passphrase {
+                    key_path: SSH_ADD_STDIN_KEY_PATH.to_owned(),
+                },
+                secret: read_secret(vault, reference)?,
+            }],
+        }),
+        None => None,
     };
     let args = vec!["-t".to_owned(), lifetime_s.to_string(), "-".to_owned()];
     let key = read_secret(vault, key)?;
-    match PreparedLaunch::new(program, args, Vec::new(), Some(key), served, true)?.launch()? {
+    match PreparedLaunch::new(program, args, Vec::new(), Some(key), askpass, true)?.launch()? {
         0 => Ok(()),
         SSH_ADD_NO_AGENT => Err(ConnectError::AgentUnavailable),
         code => Err(ConnectError::ClientFailed {
@@ -171,19 +185,28 @@ fn add_key(
     }
 }
 
-fn served_secrets(
-    vault: &dyn Vault,
-    spec: Option<&AskpassSpec>,
-) -> Result<Vec<ServedSecret>, ConnectError> {
-    spec.iter()
-        .flat_map(|spec| &spec.entries)
+/// The askpass program of a step and the secrets it may answer with, read
+/// from the vault.
+struct Askpass {
+    program: PathBuf,
+    secrets: Vec<ServedSecret>,
+}
+
+fn askpass_secrets(vault: &dyn Vault, spec: &AskpassSpec) -> Result<Askpass, ConnectError> {
+    let secrets = spec
+        .entries
+        .iter()
         .map(|entry| {
             Ok(ServedSecret {
                 matcher: entry.matcher.clone(),
                 secret: read_secret(vault, &entry.secret)?,
             })
         })
-        .collect()
+        .collect::<Result<_, ConnectError>>()?;
+    Ok(Askpass {
+        program: spec.program.clone(),
+        secrets,
+    })
 }
 
 fn read_secret(vault: &dyn Vault, reference: &SecretRef) -> Result<Secret, ConnectError> {
@@ -213,19 +236,16 @@ impl PreparedLaunch {
         args: Vec<String>,
         mut env: Vec<(String, String)>,
         stdin_secret: Option<Secret>,
-        served: Vec<ServedSecret>,
+        askpass: Option<Askpass>,
         wait: bool,
     ) -> Result<PreparedLaunch, ConnectError> {
-        let askpass = if served.is_empty() {
-            None
-        } else {
-            let server = AskpassServer::start(served)?;
-            let self_exe = std::env::current_exe().map_err(|source| ConnectError::Io {
-                context: "individuazione dell'eseguibile di Portolano per l'askpass".to_owned(),
-                source,
-            })?;
-            env.extend(server.child_env(&self_exe));
-            Some(server)
+        let askpass = match askpass {
+            Some(askpass) if !askpass.secrets.is_empty() => {
+                let server = AskpassServer::start(askpass.secrets)?;
+                env.extend(server.child_env(&askpass.program));
+                Some(server)
+            }
+            _ => None,
         };
         Ok(PreparedLaunch {
             program,
