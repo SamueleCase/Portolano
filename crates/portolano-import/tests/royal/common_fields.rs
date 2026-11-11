@@ -176,6 +176,10 @@ fn protected_custom_fields_are_requested_as_secrets() {
             },
         }]
     );
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec!["proprietà protetta `CustomProtectedField2`: campi Royal non verificati"]
+    );
 }
 
 #[test]

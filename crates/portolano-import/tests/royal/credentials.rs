@@ -321,6 +321,30 @@ fn an_embedded_key_and_its_passphrase_are_requested() {
 }
 
 #[test]
+fn a_provided_embedded_key_is_still_partial_and_keeps_the_mode() {
+    let xml = credential_with(&[
+        ("PrivateKeyMode", "1"),
+        ("PrivateKeyContent", FAKE_CIPHERTEXT),
+        ("Passphrase", FAKE_CIPHERTEXT),
+    ]);
+
+    let (outcome, _) = import_answering(&xml, "typed-by-the-user");
+
+    assert_eq!(status(&outcome, 2), ItemStatus::Partial);
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec![
+            "chiave privata incorporata: campi Royal non verificati",
+            "passphrase: campi Royal non verificati"
+        ]
+    );
+    assert_eq!(
+        find(&outcome.root, uuid(2)).extra["royal.PrivateKeyMode"],
+        "1"
+    );
+}
+
+#[test]
 fn a_skipped_embedded_key_makes_the_credential_partial() {
     let xml = credential_with(&[
         ("PrivateKeyMode", "1"),

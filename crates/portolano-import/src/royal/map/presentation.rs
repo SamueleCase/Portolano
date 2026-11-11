@@ -75,6 +75,7 @@ fn custom_properties(
         let name = format!("{PROTECTED_FIELD_PREFIX}{number}");
         let field = SecretField::CustomProperty(name.clone());
         if let Some(secret) = secrets.request(ctx, &name, field)? {
+            ctx.add_unverified(&format!("proprietà protetta `{name}`"));
             properties.push(CustomProperty {
                 name,
                 value: PropertyValue::Secret { secret },
