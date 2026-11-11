@@ -12,6 +12,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::model::{CredentialSpec, Document, Folder, Node, NodeKind};
+use crate::resolve::CredentialNames;
 use crate::spec_scan::{
     credential_spec_mut, credential_specs_of, embedded_spec, for_each_object, for_each_object_mut,
     prompt_value,
@@ -27,14 +28,17 @@ impl Document {
     /// with a `ByName` spec, on the node or in its `settings`, that resolves
     /// to it, case-insensitive fallback included (DEC-014).
     pub fn references_to(&self, target: Uuid) -> Vec<Uuid> {
+        let credentials = self.credential_index_for(target);
         self.walk()
             .map(|(_, node)| node)
             .filter(|node| {
                 reference_values(node)
                     .iter()
                     .any(|value| referenced_id(value) == Some(target))
-                    || credential_specs_of(node).iter().any(|spec| {
-                        matches!(spec, CredentialSpec::ByName { name } if self.name_resolves_to(name, target))
+                    || credentials.as_ref().is_some_and(|credentials| {
+                        credential_specs_of(node).iter().any(|spec| {
+                            matches!(spec, CredentialSpec::ByName { name } if credentials.resolves_to(name, target))
+                        })
                     })
             })
             .map(|node| node.id)
@@ -53,15 +57,18 @@ impl Document {
     pub fn detach_credential_references(&mut self, credential: Uuid) -> Vec<Uuid> {
         // Names are resolved once, before any change, against the whole
         // document: detaching one spec must not alter how another resolves.
-        let names: HashSet<String> = self
-            .walk()
-            .flat_map(|(_, node)| credential_specs_of(node))
-            .filter_map(|spec| match spec {
-                CredentialSpec::ByName { name } => Some(name),
-                _ => None,
-            })
-            .filter(|name| self.name_resolves_to(name, credential))
-            .collect();
+        let names: HashSet<String> = match self.credential_index_for(credential) {
+            Some(credentials) => self
+                .walk()
+                .flat_map(|(_, node)| credential_specs_of(node))
+                .filter_map(|spec| match spec {
+                    CredentialSpec::ByName { name } => Some(name),
+                    _ => None,
+                })
+                .filter(|name| credentials.resolves_to(name, credential))
+                .collect(),
+            None => HashSet::new(),
+        };
         let refers = |spec: &CredentialSpec| match spec {
             CredentialSpec::ById { id } => *id == credential,
             CredentialSpec::ByName { name } => names.contains(name),
@@ -77,9 +84,12 @@ impl Document {
         detached
     }
 
-    fn name_resolves_to(&self, name: &str, target: Uuid) -> bool {
-        self.credential_named(name)
-            .is_ok_and(|(credential, _)| credential == target)
+    /// The credentials by name, built once so that each `ByName` spec is a
+    /// lookup; `None` if `target` is not a credential, since only credentials
+    /// can be referenced by name.
+    fn credential_index_for(&self, target: Uuid) -> Option<CredentialNames<'_>> {
+        self.find(target)?.as_credential()?;
+        Some(CredentialNames::new(self))
     }
 }
 

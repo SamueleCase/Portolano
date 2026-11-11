@@ -145,3 +145,11 @@ fn detach_without_references_changes_nothing() {
     assert!(detached.is_empty());
     assert_eq!(document, before);
 }
+
+#[test]
+fn references_to_a_connection_ignores_by_name_specs_with_its_name() {
+    let mut document = sample();
+    set_spec(&mut document, DB, by_name("bastion"));
+
+    assert_eq!(document.references_to(BASTION), vec![WEB]);
+}

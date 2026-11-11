@@ -197,6 +197,12 @@ pub(crate) fn same_name_ignoring_case(left: &str, right: &str) -> bool {
         .eq(right.chars().flat_map(char::to_lowercase))
 }
 
+/// The key under which [`same_name_ignoring_case`] considers names equal:
+/// two names compare equal exactly when their keys do.
+pub(crate) fn lowercase_name(name: &str) -> String {
+    name.chars().flat_map(char::to_lowercase).collect()
+}
+
 /// One parsed path segment.
 enum Segment {
     /// A node name, unescaped.

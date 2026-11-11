@@ -1,10 +1,12 @@
 //! Credential resolution (SPEC §4.3, DEC-010).
 
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
 use crate::model::{Credential, CredentialSpec, Document, Node, NodeKind, PrivateKey};
-use crate::path::same_name_ignoring_case;
+use crate::path::lowercase_name;
 use crate::secret::SecretRef;
 
 /// Where the effective login data of a node comes from.
@@ -111,24 +113,12 @@ impl Document {
     /// [`Error::NotFound`](crate::Error::NotFound) if no credential has the
     /// name, [`Error::Ambiguous`](crate::Error::Ambiguous) if several do.
     pub(crate) fn credential_named(&self, name: &str) -> Result<(Uuid, &Credential)> {
-        let credentials = || {
-            self.walk()
-                .filter_map(|(_, node)| Some((node, node.as_credential()?)))
-        };
-        let mut found: Vec<_> = credentials()
-            .filter(|(node, _)| node.name == name)
-            .collect();
-        if found.is_empty() {
-            found = credentials()
-                .filter(|(node, _)| same_name_ignoring_case(&node.name, name))
-                .collect();
-        }
-        match found.as_slice() {
+        match CredentialNames::new(self).matching(name) {
             [] => Err(Error::NotFound {
                 query: name.to_owned(),
             }),
             [(node, credential)] => Ok((node.id, credential)),
-            _ => {
+            found => {
                 let nodes: Vec<&Node> = found.iter().map(|(node, _)| *node).collect();
                 Err(self.ambiguous(name.to_owned(), &nodes))
             }
@@ -172,6 +162,53 @@ impl Document {
                 Ok(ResolvedCredential::from_credential(id, credential))
             }
         }
+    }
+}
+
+/// The credentials of a document indexed by name, so that many `ByName`
+/// specs are resolved in one pass over the document (SPEC §4.3).
+pub(crate) struct CredentialNames<'a> {
+    exact: HashMap<&'a str, Vec<(&'a Node, &'a Credential)>>,
+    lowercase: HashMap<String, Vec<(&'a Node, &'a Credential)>>,
+}
+
+impl<'a> CredentialNames<'a> {
+    /// Indexes every credential of `document`.
+    pub(crate) fn new(document: &'a Document) -> Self {
+        let mut names = Self {
+            exact: HashMap::new(),
+            lowercase: HashMap::new(),
+        };
+        for (_, node) in document.walk() {
+            if let Some(credential) = node.as_credential() {
+                names
+                    .exact
+                    .entry(node.name.as_str())
+                    .or_default()
+                    .push((node, credential));
+                names
+                    .lowercase
+                    .entry(lowercase_name(&node.name))
+                    .or_default()
+                    .push((node, credential));
+            }
+        }
+        names
+    }
+
+    /// The credentials a `ByName` spec with `name` matches: those with
+    /// exactly that name or, if there is none, those with that name ignoring
+    /// case. The spec resolves only when there is exactly one.
+    pub(crate) fn matching(&self, name: &str) -> &[(&'a Node, &'a Credential)] {
+        self.exact
+            .get(name)
+            .or_else(|| self.lowercase.get(&lowercase_name(name)))
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Whether a `ByName` spec with `name` resolves to the node `target`.
+    pub(crate) fn resolves_to(&self, name: &str, target: Uuid) -> bool {
+        matches!(self.matching(name), [(node, _)] if node.id == target)
     }
 }
 
