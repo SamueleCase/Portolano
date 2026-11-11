@@ -205,6 +205,54 @@ fn nonce_of_the_wrong_length_is_corrupt() {
     assert!(matches!(result, Err(VaultError::Corrupt { .. })));
 }
 
+/// Creates a vault and overwrites one KDF cost in its file.
+fn vault_with_kdf_cost(field: &str, value: u32) -> (TempDir, PathBuf) {
+    let (dir, path) = vault_path();
+    open_test_vault(&path);
+    let mut json = read_json(&path);
+    json["kdf"][field] = Value::from(value);
+    write_json(&path, &json);
+    (dir, path)
+}
+
+#[test]
+fn memory_cost_above_the_limit_is_corrupt() {
+    let (_dir, path) = vault_with_kdf_cost("m_cost_kib", 1024 * 1024 + 1);
+
+    let result = FileVault::with_kdf_params(&path, &NoPassword, TEST_KDF_PARAMS);
+
+    assert!(matches!(result, Err(VaultError::Corrupt { .. })));
+}
+
+#[test]
+fn time_cost_above_the_limit_is_corrupt() {
+    let (_dir, path) = vault_with_kdf_cost("t_cost", 17);
+
+    let result = FileVault::with_kdf_params(&path, &NoPassword, TEST_KDF_PARAMS);
+
+    assert!(matches!(result, Err(VaultError::Corrupt { .. })));
+}
+
+#[test]
+fn parallelism_above_the_limit_is_corrupt() {
+    let (_dir, path) = vault_with_kdf_cost("p_cost", 17);
+
+    let result = FileVault::with_kdf_params(&path, &NoPassword, TEST_KDF_PARAMS);
+
+    assert!(matches!(result, Err(VaultError::Corrupt { .. })));
+}
+
+#[test]
+fn time_cost_at_the_limit_is_accepted() {
+    let (_dir, path) = vault_with_kdf_cost("t_cost", 16);
+
+    let result = FileVault::with_kdf_params(&path, &FixedPassword::test(), TEST_KDF_PARAMS);
+
+    // The file passes validation; the changed cost derives another key, so
+    // only decryption fails.
+    assert!(matches!(result, Err(VaultError::BadMasterPassword)));
+}
+
 #[test]
 fn newer_version_is_unsupported() {
     let (_dir, path) = vault_path();
