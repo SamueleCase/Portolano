@@ -7,6 +7,7 @@
 mod common_fields;
 mod connections;
 mod credentials;
+mod encrypted_fields;
 mod fixtures;
 mod testutil;
 mod tree;

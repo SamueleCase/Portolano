@@ -52,6 +52,21 @@ pub fn document(objects: &[String]) -> String {
     )
 }
 
+/// A document with one SSH connection (object 2) to `web01.example.com`
+/// and the given extra fields.
+pub fn ssh_with(fields: &[(&str, &str)]) -> String {
+    let mut all = vec![("Name", "web01"), ("URI", "web01.example.com")];
+    all.extend_from_slice(fields);
+    document(&[object("RoyalSSHConnection", 2, 1, &all)])
+}
+
+/// A document with one credential (object 2) and the given fields.
+pub fn credential_with(fields: &[(&str, &str)]) -> String {
+    let mut all = vec![("Name", "cred")];
+    all.extend_from_slice(fields);
+    document(&[object("RoyalCredential", 2, 1, &all)])
+}
+
 pub fn options() -> ImportOptions {
     ImportOptions {
         source_file_name: "test.rtsz".to_owned(),
