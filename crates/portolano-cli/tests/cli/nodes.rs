@@ -315,9 +315,33 @@ fn delete_of_a_referenced_jump_host_with_force_leaves_a_dangling_reference() {
     workspace
         .run(&["delete", "-y", "--force", "/bastion"])
         .success()
-        .stdout(contains("validate"));
+        .stdout(contains("restano riferimenti"))
+        .stdout(contains("/web01 -> /bastion"));
     workspace
         .run(&["validate"])
         .code(4)
         .stdout(contains("dangling_ref"));
+}
+
+#[test]
+fn forced_deletion_of_two_credentials_used_by_one_node_reports_no_leftover() {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "cred", "-p", "/Credenziali/Admin", "--user", "admin"]);
+    workspace.ok(&["add", "cred", "/Credenziali/Gateway", "--user", "gw"]);
+    workspace.ok(&[
+        "add",
+        "rdp",
+        "/dc01",
+        "--host",
+        "192.0.2.10",
+        "--cred",
+        "/Credenziali/Admin",
+        "--gateway",
+        "gw.example.com",
+        "--gateway-cred",
+        "/Credenziali/Gateway",
+    ]);
+    let output = workspace.ok(&["delete", "-y", "-r", "--force", "/Credenziali"]);
+    assert!(output.contains("1 nodi ora chiedono le credenziali"));
+    assert!(!output.contains("restano riferimenti"));
 }

@@ -48,8 +48,11 @@ pub fn run(ctx: &Context, args: DeleteArgs) -> Result<i32> {
             outcome.detached.len()
         );
     }
-    if preview.references.len() > outcome.detached.len() {
-        println!("restano riferimenti al nodo eliminato: `portolano validate` li elenca");
+    if !outcome.remaining_references.is_empty() {
+        println!("restano riferimenti ai nodi eliminati (`portolano validate` li segnala):");
+        for reference in &outcome.remaining_references {
+            println!("  {} -> {}", reference.from_path, reference.target_path);
+        }
     }
     Ok(report_cleanup(&outcome.cleanup_failures))
 }

@@ -89,6 +89,10 @@ pub struct DeleteOutcome {
     /// Nodes outside the subtree whose credential became "ask at launch"
     /// because it referred to a deleted credential.
     pub detached: Vec<Uuid>,
+    /// References from outside the subtree that are left dangling: those to
+    /// nodes that are not credentials, such as jump hosts; `validate`
+    /// reports them.
+    pub remaining_references: Vec<ExternalReference>,
     /// Secrets deleted from the vault.
     pub secrets_deleted: usize,
     /// Secrets that could not be deleted from the vault.
@@ -105,19 +109,7 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         .find(id)
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let subtree = subtree_ids(node);
-    let mut references = Vec::new();
-    for (_, inner) in doc.walk().filter(|(_, n)| subtree.contains(&n.id)) {
-        for from in doc.references_to(inner.id) {
-            if !subtree.contains(&from) {
-                references.push(ExternalReference {
-                    from,
-                    from_path: node_path(doc, from),
-                    target: inner.id,
-                    target_path: node_path(doc, inner.id),
-                });
-            }
-        }
-    }
+    let references = external_references(doc, &subtree);
     let secrets: HashSet<_> = doc.secret_refs_in(id).into_iter().collect();
     Ok(DeletePreview {
         id,
@@ -158,21 +150,46 @@ pub fn delete(
     } else {
         Vec::new()
     };
+    let remaining_references = external_references(&change.doc, &subtree_of(&change.doc, id));
     change.doc.remove(id)?;
     let committed = change.commit(store, vault, doc, |_| Ok(()))?;
     collect_unused_icons(store, doc);
     Ok(DeleteOutcome {
         removed_nodes: preview.descendants + 1,
         detached,
+        remaining_references,
         secrets_deleted: committed.secrets_deleted,
         cleanup_failures: committed.cleanup_failures,
     })
 }
 
+/// The references from nodes outside `subtree` to nodes inside it, in tree
+/// order.
+fn external_references(doc: &Document, subtree: &HashSet<Uuid>) -> Vec<ExternalReference> {
+    let mut references = Vec::new();
+    for (_, inner) in doc.walk().filter(|(_, n)| subtree.contains(&n.id)) {
+        for from in doc.references_to(inner.id) {
+            if !subtree.contains(&from) {
+                references.push(ExternalReference {
+                    from,
+                    from_path: node_path(doc, from),
+                    target: inner.id,
+                    target_path: node_path(doc, inner.id),
+                });
+            }
+        }
+    }
+    references
+}
+
+fn subtree_of(doc: &Document, id: Uuid) -> HashSet<Uuid> {
+    doc.find(id).map(subtree_ids).unwrap_or_default()
+}
+
 /// Turns the references to every credential of the subtree of `id` into
 /// "ask at launch"; returns the changed nodes outside the subtree.
 fn detach_credentials(doc: &mut Document, id: Uuid) -> Vec<Uuid> {
-    let subtree = doc.find(id).map(subtree_ids).unwrap_or_default();
+    let subtree = subtree_of(doc, id);
     let credentials: Vec<Uuid> = doc
         .walk()
         .filter(|(_, node)| {

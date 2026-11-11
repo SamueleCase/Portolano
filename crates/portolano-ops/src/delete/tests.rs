@@ -166,3 +166,45 @@ fn failed_save_keeps_nodes_and_secrets() {
     assert!(vault.contains(&reference).unwrap());
     assert_eq!(stored.doc.nodes.len(), 1);
 }
+
+#[test]
+fn forced_deletion_of_two_credentials_used_by_one_node_leaves_no_reference() {
+    let first = credential("Admin", "admin", None);
+    let second = credential("Gateway", "gw", None);
+    let mut dc01 = connection_with("dc01", "rdp", by_id(first.id));
+    if let Some(connection) = dc01.as_connection_mut() {
+        connection.settings.insert(
+            "gateway".to_owned(),
+            json!({ "host": "gw.example.com", "credential": { "mode": "by_id", "$ref": second.id } }),
+        );
+    }
+    let dc01_id = dc01.id;
+    let mut stored = stored(vec![folder("Credenziali", vec![first, second]), dc01]);
+    let preview = preview_delete(&stored.doc, id_of(&stored.doc, "/Credenziali")).unwrap();
+    assert_eq!(preview.references.len(), 2);
+    let options = DeleteOptions {
+        recursive: true,
+        force: true,
+    };
+    let outcome = remove(
+        &mut stored,
+        &MemoryVault::default(),
+        "/Credenziali",
+        options,
+    )
+    .unwrap();
+    assert_eq!(outcome.detached, vec![dc01_id]);
+    assert!(outcome.remaining_references.is_empty());
+}
+
+#[test]
+fn forced_deletion_reports_the_references_left_dangling() {
+    let mut stored = stored(with_jump_host());
+    let options = DeleteOptions {
+        recursive: true,
+        force: true,
+    };
+    let outcome = remove(&mut stored, &MemoryVault::default(), "/Rete", options).unwrap();
+    assert_eq!(outcome.remaining_references.len(), 1);
+    assert_eq!(outcome.remaining_references[0].from_path, "/web01");
+}
