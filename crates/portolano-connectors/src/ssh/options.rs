@@ -10,7 +10,7 @@
 
 /// The accepted options, compared without regard to case, each with the
 /// reason it is safe.
-const ALLOWED_OPTIONS: [&str; 24] = [
+const ALLOWED_OPTIONS: [&str; 23] = [
     // The key to log in with, and whether only the given keys are offered:
     // written by `add ssh --key` (DEC-022.2). Reading a key runs nothing.
     "IdentityFile",
@@ -30,7 +30,10 @@ const ALLOWED_OPTIONS: [&str; 24] = [
     "Ciphers",
     "MACs",
     "KexAlgorithms",
-    "HostKeyAlgorithms",
+    // Not `HostKeyAlgorithms`: an explicit list turns off the ordering
+    // taken from `known_hosts`, so with `StrictHostKeyChecking=accept-new` a
+    // man in the middle could have a key of a new type accepted and receive
+    // the password through askpass.
     "PubkeyAcceptedAlgorithms",
     // Presentation and transport details.
     "Compression",
@@ -113,6 +116,10 @@ fn alternative(key: &str) -> &'static str {
         ("Port", " (usa la porta della connessione)"),
         ("User", " (usa la credenziale della connessione)"),
         ("HostName", " (usa l'host della connessione)"),
+        (
+            "HostKeyAlgorithms",
+            " (cambia quali chiavi dell'host vengono accettate e può indebolirne la verifica)",
+        ),
     ];
     replacements
         .iter()
@@ -180,6 +187,7 @@ mod tests {
             "ServerAliveInterval",
             "NumberOfPasswordPrompts",
             "Tunnel",
+            "HostKeyAlgorithms",
         ];
         for name in refused {
             for key in [name.to_owned(), name.to_ascii_lowercase()] {
@@ -205,6 +213,15 @@ mod tests {
 
             assert!(error.contains("accept-new"), "{value}: {error}");
         }
+    }
+
+    #[test]
+    fn host_key_algorithms_are_refused_and_left_to_the_ssh_config() {
+        let error = check_option("HostKeyAlgorithms", "ssh-ed25519").unwrap_err();
+
+        assert!(error.contains("'HostKeyAlgorithms'"), "{error}");
+        assert!(error.contains("chiavi dell'host"), "{error}");
+        assert!(error.contains("~/.ssh/config"), "{error}");
     }
 
     #[test]
