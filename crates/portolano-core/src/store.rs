@@ -46,15 +46,19 @@ pub struct Store {
 
 impl Store {
     /// Opens an existing document file and records the fingerprint of its
-    /// current content, without parsing it.
+    /// current content, without parsing it. Symlinks are resolved: the store
+    /// works on the file they point to.
     ///
     /// # Errors
     /// [`Error::Io`](crate::Error::Io) on filesystem errors, including a
     /// missing document.
     pub fn open(path: impl Into<PathBuf>) -> Result<Store> {
-        let path = path.into();
-        // Checked before locking so that a mistyped path leaves no lock file.
-        fs::metadata(&path).map_err(io_error(&path))?;
+        let given = path.into();
+        // Resolved before locking: a missing document fails here and leaves
+        // no lock file, and a symlink (for example into a repository of the
+        // user) stays intact because the lock, the backup, the temporary file
+        // and the rename all work next to the real file.
+        let path = fs::canonicalize(&given).map_err(io_error(&given))?;
         let bytes = with_lock(&path, Access::Shared, || read(&path))?;
         Ok(Store::new(path, &bytes))
     }
@@ -69,9 +73,17 @@ impl Store {
     /// exists, [`Error::Serialize`](crate::Error::Serialize),
     /// [`Error::Io`](crate::Error::Io).
     pub fn create(path: impl Into<PathBuf>, name: &str) -> Result<(Store, Document)> {
-        let path = path.into();
-        let dir = parent_dir(&path);
+        let given = path.into();
+        let dir = parent_dir(&given);
         fs::create_dir_all(dir).map_err(io_error(dir))?;
+        let file_name = given
+            .file_name()
+            .ok_or_else(|| io_error(&given)(io::ErrorKind::InvalidInput.into()))?;
+        // The file does not exist yet, so only its directory can be resolved;
+        // see `open` for why the path is resolved at all.
+        let path = fs::canonicalize(dir)
+            .map_err(io_error(dir))?
+            .join(file_name);
         let doc = Document::new(name);
         let bytes = to_json(&doc)?;
         with_lock(&path, Access::Exclusive, || {
