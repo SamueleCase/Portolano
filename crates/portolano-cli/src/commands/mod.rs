@@ -3,6 +3,7 @@
 
 mod add;
 pub mod askpass;
+mod common;
 mod config;
 mod connect;
 mod delete;

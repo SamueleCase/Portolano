@@ -6,6 +6,33 @@ use serde_json::Value;
 
 use crate::testutil::*;
 
+fn sample() -> Workspace {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "folder", "-p", "/Clienti/ACME"]);
+    workspace.add_admin();
+    workspace.ok(&[
+        "add",
+        "ssh",
+        "/Clienti/ACME/web01",
+        "--host",
+        "web01.example.com",
+        "--cred",
+        "/Admin",
+    ]);
+    workspace.ok(&[
+        "add",
+        "rdp",
+        "/Clienti/ACME/dc01",
+        "--host",
+        "192.0.2.10",
+        "--user",
+        "administrator",
+        "--domain",
+        "ACME",
+    ]);
+    workspace
+}
+
 #[test]
 fn init_creates_the_document_and_refuses_to_overwrite_it() {
     let workspace = Workspace::empty();
@@ -28,6 +55,82 @@ fn missing_document_suggests_init() {
         .run(&["tree"])
         .code(1)
         .stderr(contains("portolano init"));
+}
+
+#[test]
+fn tree_draws_folders_connections_and_credentials() {
+    let text = sample().ok(&["tree"]);
+    assert_eq!(
+        text,
+        "Portolano\n\
+         ├── 📁 Clienti\n\
+         │   └── 📁 ACME\n\
+         │       ├── [ssh] web01  admin@web01.example.com:22\n\
+         │       └── [rdp] dc01   ACME\\administrator@192.0.2.10\n\
+         └── 🔑 Admin             admin\n"
+    );
+}
+
+#[test]
+fn tree_of_a_folder_with_depth_and_ids() {
+    let workspace = sample();
+    let text = workspace.ok(&["tree", "/Clienti", "--depth", "1", "--ids"]);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2);
+    assert!(lines[0].starts_with("📁 Clienti  @"));
+    assert!(lines[1].starts_with("└── 📁 ACME  @"));
+}
+
+#[test]
+fn tree_json_is_the_model_without_secrets() {
+    let workspace = sample();
+    let json: Value = serde_json::from_str(&workspace.ok(&["tree", "--json"])).unwrap();
+    assert_eq!(json["format"], "portolano");
+    assert!(!json.to_string().contains(SENTINEL));
+}
+
+#[test]
+fn list_filters_by_type() {
+    let workspace = sample();
+    let text = workspace.ok(&["list", "--type", "rdp"]);
+    assert_eq!(
+        text,
+        "TIPO  PERCORSO            RIEPILOGO\n\
+         rdp   /Clienti/ACME/dc01  ACME\\administrator@192.0.2.10\n"
+    );
+}
+
+#[test]
+fn list_json_has_one_entry_per_node() {
+    let workspace = sample();
+    let json: Value = serde_json::from_str(&workspace.ok(&["list", "--json"])).unwrap();
+    assert_eq!(json.as_array().unwrap().len(), 5);
+}
+
+#[test]
+fn show_resolved_tells_presence_without_the_secret() {
+    let workspace = sample();
+    let assert = workspace
+        .run(&["show", "/Clienti/ACME/web01", "--resolved"])
+        .success();
+    let output = all_output(&assert);
+    assert!(output.contains("credenziale /Admin"));
+    assert!(output.contains("presente nel vault"));
+    assert!(!output.contains(SENTINEL));
+}
+
+#[test]
+fn show_json_includes_the_resolved_credential() {
+    let workspace = sample();
+    let text = workspace.ok(&["show", "--json", "--resolved", "/Clienti/ACME/web01"]);
+    let json: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["resolved"]["password"], "present");
+    assert_eq!(json["path"], "/Clienti/ACME/web01");
+}
+
+#[test]
+fn unknown_path_exits_with_3() {
+    sample().run(&["show", "/Clienti/nessuno"]).code(3);
 }
 
 #[test]
