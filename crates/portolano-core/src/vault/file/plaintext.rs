@@ -107,3 +107,54 @@ impl Write for WipingBuffer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    const SENTINEL: &str = "sentinel-plaintext-secret";
+
+    /// A decrypted plaintext with one entry whose value is `value`.
+    fn plaintext_with_value(value: &str) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({ SecretRef::new().as_str(): value })).unwrap()
+    }
+
+    #[test]
+    fn decode_returns_what_encode_wrote() {
+        let reference = SecretRef::new();
+        let mut secrets = SecretMap::new();
+        secrets.insert(reference.clone(), Secret::new(SENTINEL.to_owned()));
+
+        let decoded = decode(&encode(&secrets, 0).unwrap()).unwrap();
+
+        assert_eq!(decoded.get(&reference).map(Secret::expose), Some(SENTINEL));
+    }
+
+    #[test]
+    fn encode_leaves_the_requested_spare_capacity() {
+        let encoded = encode(&SecretMap::new(), 16).unwrap();
+
+        assert!(encoded.capacity() - encoded.len() >= 16);
+    }
+
+    #[test]
+    fn value_that_is_not_base64_is_rejected() {
+        let plaintext = plaintext_with_value("not base64!");
+
+        assert!(decode(&plaintext).is_err());
+    }
+
+    #[test]
+    fn value_that_is_not_utf8_is_rejected() {
+        let plaintext = plaintext_with_value(&BASE64.encode([0xff, 0xfe, 0xfd]));
+
+        assert!(decode(&plaintext).is_err());
+    }
+
+    #[test]
+    fn plaintext_that_is_not_a_json_object_is_rejected() {
+        assert!(decode(b"[1, 2, 3]").is_err());
+    }
+}

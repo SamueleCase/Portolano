@@ -143,3 +143,79 @@ pub(super) fn serialize(
         reason: "serializzazione del vault non riuscita".to_owned(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::Value;
+
+    use super::*;
+    use crate::vault::testutil::TEST_KDF_PARAMS;
+
+    const PATH: &str = "vault.json";
+
+    /// A well-formed vault file as JSON, to be altered by each test.
+    fn valid_file() -> Value {
+        let kdf = KdfSetup {
+            params: TEST_KDF_PARAMS,
+            salt: vec![7; 16],
+        };
+        let bytes = serialize(&kdf, &[9; NONCE_LEN], b"ciphertext").unwrap();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    fn parse_value(file: &Value) -> Result<Sealed, VaultError> {
+        parse(Path::new(PATH), &serde_json::to_vec(file).unwrap())
+    }
+
+    fn is_corrupt(result: Result<Sealed, VaultError>) -> bool {
+        matches!(result, Err(VaultError::Corrupt { .. }))
+    }
+
+    #[test]
+    fn serialized_file_parses_back() {
+        let sealed = parse_value(&valid_file()).unwrap();
+
+        assert!(sealed.kdf.params == TEST_KDF_PARAMS && sealed.kdf.salt == vec![7; 16]);
+        assert!(sealed.nonce == [9; NONCE_LEN] && sealed.ciphertext == b"ciphertext");
+    }
+
+    #[test]
+    fn short_salt_is_corrupt() {
+        let mut file = valid_file();
+        file["kdf"]["salt"] = Value::from(BASE64.encode([7; 4]));
+
+        assert!(is_corrupt(parse_value(&file)));
+    }
+
+    #[test]
+    fn salt_that_is_not_base64_is_corrupt() {
+        let mut file = valid_file();
+        file["kdf"]["salt"] = Value::from("not base64!");
+
+        assert!(is_corrupt(parse_value(&file)));
+    }
+
+    #[test]
+    fn unknown_kdf_algorithm_is_corrupt() {
+        let mut file = valid_file();
+        file["kdf"]["alg"] = Value::from("scrypt");
+
+        assert!(is_corrupt(parse_value(&file)));
+    }
+
+    #[test]
+    fn unknown_cipher_is_corrupt() {
+        let mut file = valid_file();
+        file["cipher"] = Value::from("aes256gcm");
+
+        assert!(is_corrupt(parse_value(&file)));
+    }
+
+    #[test]
+    fn other_format_is_corrupt() {
+        let mut file = valid_file();
+        file["format"] = Value::from("another-format");
+
+        assert!(is_corrupt(parse_value(&file)));
+    }
+}
