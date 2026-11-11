@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use portolano_core::{Document, Issue, Node, ResolvedCredential};
 use serde_json::Value;
+use uuid::Uuid;
 
 pub use settings::{
     CertPolicy, RdpClient, RdpClientChoice, RdpConfig, RdpGateway, RdpSettings, Resolution,
@@ -128,6 +129,7 @@ impl Protocol for RdpProtocol {
             None => None,
         };
         let target = RdpTarget {
+            node_id: ctx.node_id,
             name: &node.name,
             host: &connection.host,
             port: connection.port.unwrap_or(RDP_PORT),
@@ -138,10 +140,10 @@ impl Protocol for RdpProtocol {
 
         let mut plan = match client {
             ChosenClient::FreeRdp(program) => {
-                freerdp::plan(program, &target, config.cert, ctx.options.wait)
+                freerdp::plan(program, &target, config.cert, ctx.options.wait)?
             }
             ChosenClient::WindowsApp { app, fallback } => {
-                windows_app::plan(&app, &target, fallback)
+                windows_app::plan(&app, &target, fallback)?
             }
         };
         warnings.append(&mut plan.warnings);
@@ -152,6 +154,8 @@ impl Protocol for RdpProtocol {
 
 /// An RDP connection with its login data resolved.
 struct RdpTarget<'a> {
+    /// The connection node, named by errors.
+    node_id: Uuid,
     /// Name of the node, used for the `.rdp` file of Windows App.
     name: &'a str,
     host: &'a str,

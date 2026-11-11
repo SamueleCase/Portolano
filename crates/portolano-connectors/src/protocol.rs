@@ -162,6 +162,36 @@ pub(crate) fn apply_session_credential(
     }
 }
 
+/// Checks that `value`, the field `field` of the node `id`, contains neither
+/// control characters nor any of `forbidden`: such characters would change
+/// the meaning of a client option or of a file line.
+///
+/// # Errors
+/// [`ConnectError::InvalidValue`] naming the field and the character.
+pub(crate) fn check_value(
+    id: Uuid,
+    field: &str,
+    value: &str,
+    forbidden: &[char],
+) -> Result<(), ConnectError> {
+    let Some(found) = value
+        .chars()
+        .find(|c| c.is_control() || forbidden.contains(c))
+    else {
+        return Ok(());
+    };
+    let reason = if found.is_control() {
+        "contiene un carattere di controllo".to_owned()
+    } else {
+        format!("contiene il carattere '{found}'")
+    };
+    Err(ConnectError::InvalidValue {
+        id,
+        field: field.to_owned(),
+        reason,
+    })
+}
+
 /// An error [`Issue`] reported by a protocol about `node`.
 pub(crate) fn error_issue(node: Uuid, code: &'static str, message: String) -> Issue {
     Issue {

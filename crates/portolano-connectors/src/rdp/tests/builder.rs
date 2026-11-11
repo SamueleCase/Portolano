@@ -123,12 +123,130 @@ fn freerdp_gateway_with_another_login_passes_user_and_domain_but_never_the_passw
         args.contains(&"/gateway:g:gw.example.com,u:gwuser,d:EDGE".to_owned()),
         "{args:?}"
     );
-    assert!(
-        args.iter()
-            .all(|arg| !arg.contains("p:") || arg.starts_with("/gateway:g:"))
-    );
+    let gateway = args
+        .iter()
+        .find(|arg| arg.starts_with("/gateway:"))
+        .unwrap();
+    assert!(!gateway.contains(",p:"), "{gateway}");
     assert!(args.iter().all(|arg| !arg.starts_with("/p:")));
     assert_eq!(plan.warnings.len(), 1);
+}
+
+#[test]
+fn freerdp_gateway_user_without_password_still_warns() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.gateway = Some(GatewayLogin {
+        host: "gw.example.com",
+        port: None,
+        credential: login(Some("gwuser"), None),
+    });
+
+    let plan = freerdp_plan(&rdp);
+
+    assert!(run_args(&plan).contains(&"/gateway:g:gw.example.com,u:gwuser".to_owned()));
+    assert_eq!(plan.warnings.len(), 1);
+}
+
+#[test]
+fn freerdp_gateway_with_prompt_credential_warns_and_passes_no_user() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.gateway = Some(GatewayLogin {
+        host: "gw.example.com",
+        port: None,
+        credential: ResolvedCredential {
+            origin: portolano_core::CredentialOrigin::Prompt,
+            ..login(None, None)
+        },
+    });
+
+    let plan = freerdp_plan(&rdp);
+
+    assert!(run_args(&plan).contains(&"/gateway:g:gw.example.com".to_owned()));
+    assert_eq!(plan.warnings.len(), 1);
+}
+
+#[test]
+fn freerdp_gateway_user_with_a_comma_is_rejected() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.gateway = Some(GatewayLogin {
+        host: "gw.example.com",
+        port: None,
+        credential: login(Some("gwuser,p:injected"), None),
+    });
+
+    let result = freerdp_result(&rdp);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "gateway.username"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn freerdp_gateway_host_with_a_control_character_is_rejected() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.gateway = Some(GatewayLogin {
+        host: "gw.example.com\t",
+        port: None,
+        credential: login(None, None),
+    });
+
+    let result = freerdp_result(&rdp);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "gateway.host"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn freerdp_password_without_user_is_not_sent() {
+    let settings = RdpSettings::default();
+
+    let plan = freerdp_plan(&target(&settings, login(None, Some(&SecretRef::new()))));
+
+    assert!(!run_args(&plan).contains(&"/from-stdin:force".to_owned()));
+    assert!(matches!(
+        &plan.steps[0],
+        LaunchStep::Run {
+            stdin_secret: None,
+            ..
+        }
+    ));
+    assert_eq!(plan.warnings.len(), 1);
+}
+
+#[test]
+fn windows_app_rejects_a_line_break_in_the_host() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.host = "dc01.example.com\nusername:s:intruder";
+    let app = PathBuf::from("/Applications/Windows App.app");
+
+    let result = windows_app::plan(&app, &rdp, false);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "host"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn windows_app_rejects_a_carriage_return_in_the_domain() {
+    let settings = RdpSettings::default();
+    let rdp = target(&settings, domain_login("administrator", "ACME\r", None));
+    let app = PathBuf::from("/Applications/Windows App.app");
+
+    let result = windows_app::plan(&app, &rdp, false);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "domain"),
+        "{result:?}"
+    );
 }
 
 #[test]
@@ -169,7 +287,7 @@ fn windows_app_writes_an_rdp_file_without_password_and_opens_it() {
     });
     let app = PathBuf::from("/Applications/Windows App.app");
 
-    let plan = windows_app::plan(&app, &rdp, false);
+    let plan = windows_app::plan(&app, &rdp, false).unwrap();
 
     assert_eq!(
         plan.steps,
@@ -211,7 +329,7 @@ fn windows_app_fullscreen_uses_screen_mode_2() {
     };
     let app = PathBuf::from("/Applications/Windows App.app");
 
-    let plan = windows_app::plan(&app, &target(&settings, login(None, None)), false);
+    let plan = windows_app::plan(&app, &target(&settings, login(None, None)), false).unwrap();
 
     let LaunchStep::WriteTempFile { contents, .. } = &plan.steps[0] else {
         panic!("expected a temporary file");

@@ -5,7 +5,9 @@ use std::path::Path;
 
 use super::settings::Resolution;
 use super::{RdpTarget, account};
+use crate::ConnectError;
 use crate::plan::{LaunchPlan, LaunchStep, temp_placeholder};
+use crate::protocol::check_value;
 
 /// Permissions of the `.rdp` file: it names the user and the host.
 const RDP_FILE_MODE: u32 = 0o600;
@@ -15,7 +17,16 @@ const OPEN: &str = "/usr/bin/open";
 
 /// The plan that writes the `.rdp` file and opens it with Windows App.
 /// `fallback` says that `auto` chose Windows App because FreeRDP is missing.
-pub(super) fn plan(app: &Path, target: &RdpTarget, fallback: bool) -> LaunchPlan {
+///
+/// # Errors
+/// [`ConnectError::InvalidValue`] if a value written to the file contains a
+/// line break or another control character, which would add lines.
+pub(super) fn plan(
+    app: &Path,
+    target: &RdpTarget,
+    fallback: bool,
+) -> Result<LaunchPlan, ConnectError> {
+    check_file_values(target)?;
     let name = format!("{}.rdp", file_stem(target.name));
     let mut warnings = Vec::new();
     if fallback {
@@ -28,7 +39,7 @@ pub(super) fn plan(app: &Path, target: &RdpTarget, fallback: bool) -> LaunchPlan
         warnings
             .push("Windows App non riceve la password salvata: la chiederà all'avvio".to_owned());
     }
-    LaunchPlan {
+    Ok(LaunchPlan {
         steps: vec![
             LaunchStep::WriteTempFile {
                 name: name.clone(),
@@ -50,7 +61,24 @@ pub(super) fn plan(app: &Path, target: &RdpTarget, fallback: bool) -> LaunchPlan
             },
         ],
         warnings,
+    })
+}
+
+/// Rejects control characters (such as `\r` and `\n`) in every value of the
+/// document that goes into the `.rdp` file.
+fn check_file_values(target: &RdpTarget) -> Result<(), ConnectError> {
+    let id = target.node_id;
+    check_value(id, "host", target.host, &[])?;
+    if let Some(user) = &target.credential.username {
+        check_value(id, "username", user, &[])?;
     }
+    if let Some(domain) = &target.credential.domain {
+        check_value(id, "domain", domain, &[])?;
+    }
+    if let Some(gateway) = &target.gateway {
+        check_value(id, "gateway.host", gateway.host, &[])?;
+    }
+    Ok(())
 }
 
 /// The content of the `.rdp` file; never a password.

@@ -23,6 +23,7 @@ fn domain_login(user: &str, domain: &str, password: Option<&SecretRef>) -> Resol
 
 fn target<'a>(settings: &'a RdpSettings, credential: ResolvedCredential) -> RdpTarget<'a> {
     RdpTarget {
+        node_id: Uuid::nil(),
         name: "dc01",
         host: "dc01.example.com",
         port: 3389,
@@ -33,6 +34,10 @@ fn target<'a>(settings: &'a RdpSettings, credential: ResolvedCredential) -> RdpT
 }
 
 fn freerdp_plan(target: &RdpTarget) -> LaunchPlan {
+    freerdp_result(target).unwrap()
+}
+
+fn freerdp_result(target: &RdpTarget) -> Result<LaunchPlan, ConnectError> {
     freerdp::plan(
         PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
         target,
