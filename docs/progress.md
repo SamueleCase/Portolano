@@ -56,4 +56,8 @@ Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
   rollback; una sostituzione usa un nuovo `SecretRef` e il vecchio si cancella dopo il salvataggio; "Cancella"
   differito al Salva (evita segreti orfani nel Keychain dopo Annulla);
 - salvataggio dell'editor dopo `ModifiedExternally`: modifiche tenute come patch e riapplicate dopo il reload;
-- "Ricontrolla" con il vault bloccato: una sola nota invece di un `missing_secret` per ogni password.
+- "Ricontrolla" con il vault bloccato: una sola nota invece di un `missing_secret` per ogni password;
+- `portolano-ops` per Tauri: `OpsError` serializzabile e input (`ConflictPolicy`, `DeleteOptions`, `Placement`,
+  `TypeFilter`, `CredentialInput`) con `Deserialize`;
+- richiesta del dominio in "chiedi all'avvio" decisa dal protocollo (oggi `ask_domain` è cablato su `rdp` in ops):
+  futuro metodo di `Protocol`.
