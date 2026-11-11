@@ -135,7 +135,10 @@ pub fn entries(
         max_depth,
         filter,
     };
-    visit.collect(children, 0, &mut found);
+    // Paths are built while visiting: asking the document for the path of
+    // every node would walk the tree once per node.
+    let base = start.and_then(|id| doc.path_of(id)).unwrap_or_default();
+    visit.collect(children, &base, 0, &mut found);
     Ok(found)
 }
 
@@ -147,27 +150,34 @@ struct Visit<'a> {
 }
 
 impl Visit<'_> {
-    fn collect(&self, nodes: &[Node], depth: usize, found: &mut Vec<Entry>) {
+    fn collect(&self, nodes: &[Node], parent_path: &str, depth: usize, found: &mut Vec<Entry>) {
         if self.max_depth.is_some_and(|max| depth >= max) {
             return;
         }
         for node in nodes {
+            let path = format!("{parent_path}/{}", escape(&node.name));
             let node_type = NodeType::of(node);
             if self.filter.is_none_or(|filter| filter.matches(&node_type)) {
                 found.push(Entry {
                     id: node.id,
                     depth,
                     name: node.name.clone(),
-                    path: node_path(self.doc, node.id),
+                    path: path.clone(),
                     node_type,
                     summary: summary(self.doc, node, self.protocols),
                 });
             }
             if let Some(folder) = node.as_folder() {
-                self.collect(&folder.children, depth + 1, found);
+                self.collect(&folder.children, &path, depth + 1, found);
             }
         }
     }
+}
+
+/// A name as a path segment (SPEC §4.2): `\\` for a backslash, `\/` for a
+/// slash, as [`Document::path_of`] writes them.
+fn escape(name: &str) -> String {
+    name.replace('\\', "\\\\").replace('/', "\\/")
 }
 
 /// One-line summary of a node: the protocol's summary for a connection

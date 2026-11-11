@@ -151,3 +151,18 @@ fn resolved_credential_reports_a_secret_missing_from_the_vault() {
     let view = resolved_credential(&doc, id_of(&doc, "/Admin"), &MemoryVault::default()).unwrap();
     assert_eq!(view.password, SecretState::Absent);
 }
+
+#[test]
+fn entry_paths_are_those_of_the_document_with_escapes() {
+    let doc = document(vec![folder(
+        "a/b",
+        vec![folder("c\\d", vec![connection("web01", "ssh")])],
+    )]);
+    let start = id_of(&doc, "/a\\/b");
+    for start in [None, Some(start)] {
+        let found = entries(&doc, start, &Registry::with_defaults(), None, None).unwrap();
+        for entry in found {
+            assert_eq!(Some(entry.path.clone()), doc.path_of(entry.id));
+        }
+    }
+}
