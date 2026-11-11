@@ -1,6 +1,33 @@
 use pretty_assertions::assert_eq;
 
 use super::*;
+use crate::model::MAX_DEPTH;
+use crate::testutil::folder_chain;
+
+/// An RDP connection with an inline credential and a gateway whose own
+/// inline credential is nested in the settings.
+fn rdp_with_gateway() -> Node {
+    let mut node = fixed(Node::connection("dc01", "rdp", "dc01.example.com"), 0xd1);
+    let rdp = node.as_connection_mut().unwrap();
+    rdp.credential = CredentialSpec::Inline {
+        username: Some("administrator".to_owned()),
+        domain: Some("ACME".to_owned()),
+        password: Some(SecretRef::new()),
+    };
+    rdp.settings.insert(
+        "gateway".to_owned(),
+        json!({
+            "host": "gw.example.com",
+            "port": 443,
+            "credential": {
+                "mode": "inline",
+                "username": "gateway-user",
+                "password": SecretRef::new().as_str(),
+            },
+        }),
+    );
+    node
+}
 
 // Depends on WP1: `load` calls `Document::validate`.
 #[test]
@@ -127,4 +154,22 @@ fn save_keeps_the_permissions_of_the_existing_file() {
         .permissions()
         .mode();
     assert_eq!(mode & 0o777, 0o640);
+}
+
+#[test]
+fn a_document_at_the_maximum_depth_round_trips() {
+    let dir = TempDir::new().unwrap();
+    let (store, _) = Store::create(document_path(&dir), "Portolano").unwrap();
+    // The connection sits at the deepest allowed level, below MAX_DEPTH - 1
+    // folders.
+    let (mut doc, ids) = folder_chain(MAX_DEPTH - 1);
+    doc.insert(ids.last().copied(), None, rdp_with_gateway())
+        .unwrap();
+    store.save(&mut doc).unwrap();
+    let written = fs::read(document_path(&dir)).unwrap();
+
+    let loaded = store.load().unwrap();
+
+    assert_eq!(loaded, doc);
+    assert_eq!(to_json(&loaded).unwrap(), written);
 }
