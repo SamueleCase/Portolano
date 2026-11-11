@@ -26,7 +26,9 @@ const ALLOWED_OPTIONS: [&str; 23] = [
     "PubkeyAuthentication",
     "PasswordAuthentication",
     "KbdInteractiveAuthentication",
-    // Algorithms: they can only make the session fail, not run anything.
+    // Algorithms of the session: they run nothing, but they can enable weak
+    // algorithms (such as `+3des-cbc`). An accepted risk: old servers need
+    // them, and the choice is visible in the document.
     "Ciphers",
     "MACs",
     "KexAlgorithms",
