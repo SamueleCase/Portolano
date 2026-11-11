@@ -1,5 +1,6 @@
-//! Tests of the RDP protocol. The `builder` tests work on resolved data; the
-//! `protocol` tests go through whole documents and the core resolution.
+//! Tests of the RDP protocol. The `freerdp_plans`, `prompting` and `clients`
+//! tests work on resolved data; the `protocol` tests go through whole
+//! documents and the core resolution.
 
 use std::path::PathBuf;
 
@@ -59,6 +60,7 @@ fn detached_freerdp_plan(target: &RdpTarget) -> LaunchPlan {
     .unwrap()
 }
 
-mod builder;
+mod clients;
+mod freerdp_plans;
 mod prompting;
 mod protocol;
