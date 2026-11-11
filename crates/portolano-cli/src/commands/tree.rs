@@ -5,6 +5,7 @@ use portolano_ops::inspect::{NodeType, entries, summary};
 
 use crate::args::TreeArgs;
 use crate::context::Context;
+use crate::failure::CliError;
 use crate::output::{Header, print_json, render_tree};
 
 /// Prints the tree; with `--json` the model of the subtree.
@@ -12,6 +13,14 @@ use crate::output::{Header, print_json, render_tree};
 /// # Errors
 /// Missing document, path not found or ambiguous.
 pub fn run(ctx: &Context, args: TreeArgs) -> Result<i32> {
+    if ctx.json && args.depth.is_some() {
+        // The JSON form is the model of the subtree, which has no depth.
+        return Err(CliError::Incompatible {
+            first: "--depth",
+            second: "--json",
+        }
+        .into());
+    }
     let (_, doc) = ctx.open()?;
     let start = match &args.path {
         Some(path) => doc.resolve_location(path)?,

@@ -27,6 +27,14 @@ pub enum CliError {
     /// `--json` on a command that writes.
     #[error("--json vale solo per i comandi di lettura")]
     JsonNotSupported,
+    /// Two options that cannot be used together.
+    #[error("{first} non si può usare insieme a {second}")]
+    Incompatible {
+        /// The first option.
+        first: &'static str,
+        /// The second option.
+        second: &'static str,
+    },
     /// A question with no terminal to ask it on.
     #[error("impossibile chiedere {what}: nessun terminale")]
     NoTerminal {
@@ -68,7 +76,9 @@ pub enum CliError {
 impl CliError {
     fn exit_code(&self) -> i32 {
         match self {
-            CliError::JsonNotSupported | CliError::KeyNeedsStdin => EXIT_USAGE,
+            CliError::JsonNotSupported
+            | CliError::Incompatible { .. }
+            | CliError::KeyNeedsStdin => EXIT_USAGE,
             _ => EXIT_ERROR,
         }
     }

@@ -239,3 +239,20 @@ fn config_path_works_with_an_invalid_configuration() {
         .code(1)
         .stderr(contains("configurazione"));
 }
+
+#[test]
+fn tree_json_of_a_path_is_that_node() {
+    let workspace = sample();
+    let text = workspace.ok(&["tree", "--json", "/Clienti/ACME"]);
+    let json: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["name"], "ACME");
+    assert_eq!(json["children"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn tree_json_with_depth_is_a_usage_error() {
+    sample()
+        .run(&["tree", "--json", "--depth", "1"])
+        .code(2)
+        .stderr(contains("--depth non si può usare insieme a --json"));
+}
