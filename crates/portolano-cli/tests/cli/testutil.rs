@@ -10,6 +10,7 @@ use assert_cmd::Command;
 use assert_cmd::assert::Assert;
 use portolano_core::vault::{FileVault, KdfParams};
 use portolano_core::{MasterPasswordSource, Secret, VaultError};
+use serde_json::Value;
 use tempfile::TempDir;
 
 /// The only master password allowed in tests (SPEC §1.3).
@@ -104,6 +105,22 @@ impl Workspace {
         cmd
     }
 
+    /// The binary run from the workspace directory, with the document and
+    /// the vault given by environment variables as relative paths.
+    pub fn env_cmd(&self) -> Command {
+        let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("portolano");
+        cmd.current_dir(self.dir.path())
+            .env_remove("PORTOLANO_ASKPASS")
+            .env("PORTOLANO_FILE", "doc.json")
+            .env("PORTOLANO_VAULT", "file")
+            .env("PORTOLANO_VAULT_FILE", "vault.json")
+            .env("PORTOLANO_VAULT_PASSWORD", TEST_MASTER_PASSWORD)
+            .args(["--config", "config.toml"])
+            .write_stdin("")
+            .timeout(TIMEOUT);
+        cmd
+    }
+
     pub fn run(&self, args: &[&str]) -> Assert {
         self.cmd().args(args).assert()
     }
@@ -163,6 +180,25 @@ pub fn all_output(assert: &Assert) -> String {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     )
+}
+
+/// The model of the node at `path`.
+pub fn node(workspace: &Workspace, path: &str) -> Value {
+    let text = workspace.ok(&["show", "--json", path]);
+    serde_json::from_str::<Value>(&text).unwrap()["node"].clone()
+}
+
+/// The names of the children of `path`, in order.
+pub fn names(workspace: &Workspace, path: &str) -> Vec<String> {
+    let text = workspace.ok(&["list", "--json", path]);
+    let entries: Value = serde_json::from_str(&text).unwrap();
+    entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|entry| entry["depth"] == 0)
+        .map(|entry| entry["name"].as_str().unwrap().to_owned())
+        .collect()
 }
 
 pub fn fixture(name: &str) -> PathBuf {

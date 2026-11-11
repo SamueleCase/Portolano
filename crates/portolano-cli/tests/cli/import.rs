@@ -41,27 +41,44 @@ fn import(workspace: &Workspace, name: &str, extra: &[&str]) -> assert_cmd::asse
 }
 
 #[test]
-fn each_fixture_imports_with_the_expected_counts() {
+fn each_fixture_imports_with_the_counts_of_the_importer() {
     for name in FIXTURES {
         let workspace = Workspace::new();
         let report = workspace.path("report.json");
         import(&workspace, name, &["--report", report.to_str().unwrap()]).success();
         let json: Value = serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
-        let counts: BTreeMap<String, TypeCounts> = expected_counts(name);
-        let reported = json["counts"].as_object().unwrap();
-        assert_eq!(reported.len(), counts.len(), "{name}");
-        for (source_type, expected) in counts {
-            let got = &reported[&source_type];
-            assert_eq!(got["source"], expected.source, "{name} {source_type}");
-            assert_eq!(got["imported"], expected.imported, "{name} {source_type}");
-            assert_eq!(got["partial"], expected.partial, "{name} {source_type}");
-            assert_eq!(
-                got["unsupported"], expected.unsupported,
-                "{name} {source_type}"
-            );
-            assert_eq!(got["skipped"], expected.skipped, "{name} {source_type}");
-        }
+        let expected = serde_json::to_value(expected_counts(name)).unwrap();
+        assert_eq!(json["counts"], expected, "{name}");
     }
+}
+
+#[test]
+fn minimal_fixture_imports_with_the_counts_of_its_objects() {
+    // Counted by hand in the fixture: one document, five folders, one RDP
+    // and one SSH connection, all importable.
+    let workspace = Workspace::new();
+    let report = workspace.path("report.json");
+    import(
+        &workspace,
+        "minimal.royal.xml",
+        &["--report", report.to_str().unwrap()],
+    )
+    .success();
+    let json: Value = serde_json::from_str(&fs::read_to_string(&report).unwrap()).unwrap();
+    let all_imported = |count: usize| {
+        serde_json::json!({
+            "source": count, "imported": count, "partial": 0, "unsupported": 0, "skipped": 0
+        })
+    };
+    assert_eq!(
+        json["counts"],
+        serde_json::json!({
+            "RoyalDocument": all_imported(1),
+            "RoyalFolder": all_imported(5),
+            "RoyalRDSConnection": all_imported(1),
+            "RoyalSSHConnection": all_imported(1),
+        })
+    );
 }
 
 #[test]
@@ -75,35 +92,54 @@ fn import_prints_the_report_table() {
         .stdout(contains("Fatto:"));
 }
 
+/// Number of folders at the root of the document.
+fn root_folders(workspace: &Workspace) -> usize {
+    let entries = workspace.ok(&["list", "--json", "--type", "folder"]);
+    serde_json::from_str::<Value>(&entries)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|entry| entry["depth"] == 0)
+        .count()
+}
+
 #[test]
-fn second_import_conflicts_unless_a_policy_is_given() {
+fn second_import_without_a_policy_lists_the_conflicts() {
     let workspace = Workspace::new();
     import(&workspace, "minimal.royal.xml", &[]).success();
     import(&workspace, "minimal.royal.xml", &[])
         .code(1)
+        .stderr(contains("8 nodi dell'import esistono già"))
         .stderr(contains("--on-conflict"));
+}
+
+#[test]
+fn second_import_with_update_replaces_in_place() {
+    let workspace = Workspace::new();
+    import(&workspace, "minimal.royal.xml", &[]).success();
     import(
         &workspace,
         "minimal.royal.xml",
         &["--on-conflict", "update"],
     )
     .success()
-    .stdout(contains("0 nodi inseriti"));
+    .stdout(contains("0 nodi inseriti, 8 aggiornati"));
+    assert_eq!(root_folders(&workspace), 1);
+}
+
+#[test]
+fn second_import_with_new_ids_adds_a_copy() {
+    let workspace = Workspace::new();
+    import(&workspace, "minimal.royal.xml", &[]).success();
     import(
         &workspace,
         "minimal.royal.xml",
         &["--on-conflict", "new-ids"],
     )
-    .success();
-    let tree = workspace.ok(&["list", "--json", "--type", "folder"]);
-    let roots = serde_json::from_str::<Value>(&tree)
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|entry| entry["depth"] == 0)
-        .count();
-    assert_eq!(roots, 2);
+    .success()
+    .stdout(contains("8 nodi inseriti"));
+    assert_eq!(root_folders(&workspace), 2);
 }
 
 #[test]

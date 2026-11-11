@@ -7,10 +7,14 @@
 #![cfg(unix)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+mod config;
 mod connect;
+mod delete;
 mod document;
+mod edit;
 mod import;
 mod nodes;
 mod secrets;
 mod testutil;
+mod usage;
 mod validate;

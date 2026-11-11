@@ -177,3 +177,26 @@ fn connect_to_a_folder_is_a_connection_error() {
     let assert = workspace.run(&["connect", "/a"]).code(6);
     assert_eq!(stderr(&assert).trim(), "errore: '/a' non è una connessione");
 }
+
+#[test]
+fn new_window_receives_options_from_the_environment_as_absolute_paths() {
+    let workspace = with_probes("exit 0", "exit 0");
+    with_connections(&workspace);
+    let dir = std::fs::canonicalize(workspace.dir.path()).unwrap();
+    let output = stdout(
+        workspace
+            .env_cmd()
+            .args(["connect", "--print", "--new-window", "/web01"])
+            .assert()
+            .success(),
+    );
+    for expected in [
+        format!("--file {}", dir.join("doc.json").display()),
+        "--vault file".to_owned(),
+        format!("--vault-file {}", dir.join("vault.json").display()),
+        format!("--config {}", dir.join("config.toml").display()),
+    ] {
+        assert!(output.contains(&expected), "{expected} in {output}");
+    }
+    assert!(!output.contains(TEST_MASTER_PASSWORD));
+}
