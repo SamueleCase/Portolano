@@ -343,7 +343,7 @@ fn only_the_vault_and_its_lock_file_are_left_after_a_write() {
 
 #[cfg(unix)]
 mod unix {
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
     use pretty_assertions::assert_eq;
 
@@ -363,6 +363,12 @@ mod unix {
     #[test]
     fn failed_write_leaves_the_vault_unchanged() {
         let (dir, path) = vault_path();
+        // The write fails through a read-only directory, which root ignores.
+        // A directory this process created is owned by its effective user.
+        if fs::metadata(dir.path()).unwrap().uid() == 0 {
+            eprintln!("skipped: running as root, directory permissions do not apply");
+            return;
+        }
         let vault = open_test_vault(&path);
         let reference = SecretRef::new();
         let read_only = fs::Permissions::from_mode(0o500);
