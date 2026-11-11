@@ -4,6 +4,9 @@ mod report;
 mod show;
 mod tree;
 
+use std::borrow::Cow;
+use std::fmt::Write as _;
+
 use anyhow::Result;
 use serde::Serialize;
 use uuid::Uuid;
@@ -15,6 +18,28 @@ pub use tree::{Header, render_tree};
 /// Hex digits of the abbreviated ids shown by `tree --ids`; at least the 6
 /// that `@<prefix>` paths need.
 const SHORT_ID_DIGITS: usize = 8;
+
+/// `text` with every control character written as an escape such as
+/// `\u{1b}` (DEC-024.3). Names, hosts, paths and messages may come from a
+/// shared or imported document: printed as they are, control characters
+/// would drive the terminal (move the cursor, rewrite lines, change the
+/// window title). Every value of a document goes through here before it is
+/// printed; the JSON output is already escaped by `serde_json`.
+pub fn visible(text: &str) -> Cow<'_, str> {
+    if !text.chars().any(char::is_control) {
+        return Cow::Borrowed(text);
+    }
+    let mut escaped = String::with_capacity(text.len() + 8);
+    for c in text.chars() {
+        if c.is_control() {
+            // Writing to a `String` cannot fail.
+            let _ = write!(escaped, "{}", c.escape_unicode());
+        } else {
+            escaped.push(c);
+        }
+    }
+    Cow::Owned(escaped)
+}
 
 /// The first hex digits of `id`, usable as `@<prefix>`.
 pub fn short_id(id: Uuid) -> String {
@@ -30,16 +55,21 @@ pub fn print_json(value: &impl Serialize) -> Result<()> {
     Ok(())
 }
 
-/// Prints rows as a table with a header, columns separated by two spaces.
+/// Prints rows as a table with a header, columns separated by two spaces;
+/// the cells are made [`visible`].
 pub fn print_table(header: &[&str], rows: &[Vec<String>]) {
+    let rows: Vec<Vec<String>> = rows
+        .iter()
+        .map(|row| row.iter().map(|cell| visible(cell).into_owned()).collect())
+        .collect();
     let mut widths: Vec<usize> = header.iter().map(|title| display_width(title)).collect();
-    for row in rows {
+    for row in &rows {
         for (width, cell) in widths.iter_mut().zip(row) {
             *width = (*width).max(display_width(cell));
         }
     }
     let header: Vec<String> = header.iter().map(|title| (*title).to_owned()).collect();
-    for row in std::iter::once(&header).chain(rows) {
+    for row in std::iter::once(&header).chain(&rows) {
         let cells: Vec<String> = row
             .iter()
             .zip(&widths)
@@ -86,6 +116,22 @@ mod tests {
     fn short_id_is_a_prefix_of_the_id() {
         let id = Uuid::parse_str("6f1c2d3e-0000-4000-8000-000000000001").unwrap();
         assert_eq!(short_id(id), "6f1c2d3e");
+    }
+
+    #[test]
+    fn visible_escapes_control_characters() {
+        assert_eq!(
+            visible("web\u{1b}[2J01\r\n\u{7}\u{9b}"),
+            "web\\u{1b}[2J01\\u{d}\\u{a}\\u{7}\\u{9b}"
+        );
+    }
+
+    #[test]
+    fn visible_keeps_other_text_as_it_is() {
+        assert!(matches!(
+            visible("📁 Clienti/ACME àè"),
+            Cow::Borrowed("📁 Clienti/ACME àè")
+        ));
     }
 
     #[test]

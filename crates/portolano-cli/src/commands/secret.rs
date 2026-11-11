@@ -9,7 +9,7 @@ use super::common::report_cleanup;
 use crate::args::SecretCommand;
 use crate::context::Context;
 use crate::failure::CliError;
-use crate::output::print_json;
+use crate::output::{print_json, visible};
 use crate::prompt;
 
 /// Runs a `secret` subcommand.
@@ -30,16 +30,20 @@ pub fn run(ctx: &Context, command: SecretCommand) -> Result<i32> {
                 (SecretSlot::PrivateKey, true) => prompt::stdin_all()?,
                 (SecretSlot::PrivateKey, false) => return Err(CliError::KeyNeedsStdin.into()),
                 (_, true) => prompt::stdin_line()?,
-                (_, false) => prompt::new_secret(&format!("Valore per {} ({path})", label(&slot)))?,
+                (_, false) => prompt::new_secret(&format!(
+                    "Valore per {} ({})",
+                    label(&slot),
+                    visible(&path)
+                ))?,
             };
             set_secret(&store, &mut doc, &vault, id, slot.clone(), secret)?;
-            println!("Salvato nel vault: {} di {path}", label(&slot));
+            println!("Salvato nel vault: {} di {}", label(&slot), visible(&path));
             Ok(0)
         }
         SecretCommand::Clear { path, field } => {
             let id = doc.resolve_path(&path)?;
             let outcome = clear_secret(&store, &mut doc, &vault, id, field.0.clone())?;
-            println!("Eliminato: {} di {path}", label(&field.0));
+            println!("Eliminato: {} di {}", label(&field.0), visible(&path));
             Ok(report_cleanup(&outcome.cleanup_failures))
         }
         SecretCommand::Status { path } => {
@@ -50,7 +54,7 @@ pub fn run(ctx: &Context, command: SecretCommand) -> Result<i32> {
                 return Ok(0);
             }
             if statuses.is_empty() {
-                println!("{path}: nessun segreto");
+                println!("{}: nessun segreto", visible(&path));
             }
             for status in &statuses {
                 let state = if status.present {
@@ -70,6 +74,6 @@ fn label(slot: &SecretSlot) -> String {
         SecretSlot::Password => "password".to_owned(),
         SecretSlot::Passphrase => "passphrase".to_owned(),
         SecretSlot::PrivateKey => "chiave privata".to_owned(),
-        SecretSlot::Property(name) => format!("proprietà {name}"),
+        SecretSlot::Property(name) => format!("proprietà {}", visible(name)),
     }
 }

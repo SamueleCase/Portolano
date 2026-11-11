@@ -8,6 +8,8 @@ use portolano_connectors::ConnectError;
 use portolano_core::{Document, VaultError};
 use portolano_ops::OpsError;
 
+use crate::output::{short_id, visible};
+
 /// Exit code: generic error.
 pub const EXIT_ERROR: i32 = 1;
 /// Exit code: wrong usage.
@@ -117,7 +119,8 @@ pub fn with_paths(error: OpsError, doc: &Document) -> anyhow::Error {
 /// Prints `error` on stderr, with the details that help to fix it, and
 /// returns the exit code.
 pub fn report(error: &anyhow::Error) -> i32 {
-    eprintln!("errore: {error:#}");
+    // Messages quote names, paths and hosts of the document.
+    eprintln!("errore: {}", visible(&format!("{error:#}")));
     for cause in error.chain() {
         if let Some(error) = cause.downcast_ref::<OpsError>() {
             print_details(error);
@@ -203,14 +206,18 @@ fn print_details(error: &OpsError) {
         OpsError::Referenced { references, .. } => {
             eprintln!("riferimenti:");
             for reference in references {
-                eprintln!("  {} -> {}", reference.from_path, reference.target_path);
+                eprintln!(
+                    "  {} -> {}",
+                    visible(&reference.from_path),
+                    visible(&reference.target_path)
+                );
             }
             eprintln!("usa --force per eliminare comunque");
         }
         OpsError::FolderNotEmpty { .. } => eprintln!("usa -r per eliminare anche il contenuto"),
         OpsError::ImportConflicts { conflicts } => {
             for (_, path) in conflicts.iter().take(MAX_LISTED_CONFLICTS) {
-                eprintln!("  {path}");
+                eprintln!("  {}", visible(path));
             }
             if conflicts.len() > MAX_LISTED_CONFLICTS {
                 eprintln!("  … e altri {}", conflicts.len() - MAX_LISTED_CONFLICTS);
@@ -225,6 +232,6 @@ fn print_details(error: &OpsError) {
 fn print_candidates(candidates: &[(uuid::Uuid, String)]) {
     eprintln!("candidati:");
     for (id, path) in candidates {
-        eprintln!("  @{}  {path}", crate::output::short_id(*id));
+        eprintln!("  @{}  {}", short_id(*id), visible(path));
     }
 }

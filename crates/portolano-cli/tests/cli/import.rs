@@ -194,6 +194,70 @@ fn unknown_format_is_a_usage_error() {
         .stderr(contains("formato d'importazione sconosciuto"));
 }
 
+/// A Royal document whose names, host and user carry terminal escape
+/// sequences as XML character references (DEC-024.3).
+const ESCAPES_DOCUMENT: &str = r#"<?xml version="1.0" encoding="utf-8"?>
+<RTSZDocument>
+  <RoyalDocument>
+    <ID>e0000000-0000-4000-8000-000000000001</ID>
+    <Name>Doc&#x1b;]0;titolo&#x7;</Name>
+  </RoyalDocument>
+  <RoyalSSHConnection>
+    <ID>e0000000-0000-4000-8000-000000000002</ID>
+    <ParentID>e0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>web&#x1b;[2J01</Name>
+    <URI>web01.example.com&#x1b;[1m</URI>
+    <CredentialMode>2</CredentialMode>
+    <CredentialUsername>adm&#xd;in</CredentialUsername>
+  </RoyalSSHConnection>
+</RTSZDocument>
+"#;
+
+const ESCAPE: char = '\u{1b}';
+
+fn import_escapes(workspace: &Workspace) -> assert_cmd::assert::Assert {
+    let file = workspace.path("escapes.rtsx");
+    fs::write(&file, ESCAPES_DOCUMENT).unwrap();
+    workspace.run(&["import", file.to_str().unwrap()])
+}
+
+#[test]
+fn control_characters_of_an_import_are_shown_escaped_in_the_report() {
+    let workspace = Workspace::new();
+    let output = all_output(&import_escapes(&workspace).success());
+    assert!(output.contains("Doc\\u{1b}]0;titolo\\u{7}"), "{output}");
+    assert!(!output.contains(ESCAPE));
+}
+
+#[test]
+fn control_characters_of_an_imported_name_are_shown_escaped_by_tree_and_list() {
+    let workspace = Workspace::new();
+    import_escapes(&workspace).success();
+    for command in [&["tree"][..], &["list"][..]] {
+        let output = workspace.ok(command);
+        assert!(output.contains("web\\u{1b}[2J01"), "{output}");
+        assert!(output.contains("web01.example.com\\u{1b}[1m"), "{output}");
+        assert!(!output.contains(ESCAPE), "{command:?}");
+        assert!(!output.contains('\r'), "{command:?}");
+    }
+}
+
+#[test]
+fn control_characters_are_shown_escaped_by_show_validate_and_connect_print() {
+    let workspace = Workspace::new();
+    import_escapes(&workspace).success();
+    let node = "@e0000000-0000-4000-8000-000000000002";
+    let shown = workspace.ok(&["show", "--resolved", node]);
+    assert!(shown.contains("adm\\u{d}in"), "{shown}");
+    let validated = all_output(&workspace.run(&["validate"]));
+    assert!(validated.contains("[control_characters]"), "{validated}");
+    let printed = all_output(&workspace.run(&["connect", "--print", node]));
+    for output in [shown, validated, printed] {
+        assert!(!output.contains(ESCAPE), "{output}");
+        assert!(!output.contains('\r'), "{output}");
+    }
+}
+
 #[test]
 fn import_too_deep_for_the_destination_exits_with_4() {
     let workspace = Workspace::new();

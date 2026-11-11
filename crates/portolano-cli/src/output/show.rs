@@ -5,7 +5,7 @@ use portolano_connectors::Registry;
 use portolano_core::{CredentialSpec, Document, Icon, Node, NodeKind, PrivateKey, PropertyValue};
 use portolano_ops::inspect::{CredentialView, KeyView, OriginView, SecretState};
 
-use super::{display_width, pad, short_id};
+use super::{display_width, pad, short_id, visible};
 
 /// The effective credential of `show --resolved`, or why it cannot be
 /// resolved.
@@ -26,17 +26,28 @@ pub fn print_show(doc: &Document, node: &Node, protocols: &Registry, resolved: &
             println!("Credenziale effettiva:");
             resolved_lines(view).print_indented();
         }
-        Some(Err(reason)) => println!("Credenziale effettiva: non risolvibile: {reason}"),
+        Some(Err(reason)) => println!(
+            "Credenziale effettiva: non risolvibile: {}",
+            visible(reason)
+        ),
     }
 }
 
-/// Labelled values, printed with aligned labels.
+/// Labelled values, printed with aligned labels; every value is made
+/// [`visible`].
 #[derive(Default)]
 struct Lines(Vec<(String, String)>);
 
 impl Lines {
+    /// A one-line value: a line break in it is escaped too.
     fn add(&mut self, label: &str, value: &str) {
-        self.0.push((label.to_owned(), value.to_owned()));
+        self.add_text(label, &visible(value));
+    }
+
+    /// A value that may span several lines (notes, settings): its line
+    /// breaks are kept, the other control characters escaped when printed.
+    fn add_text(&mut self, label: &str, value: &str) {
+        self.0.push((visible(label).into_owned(), value.to_owned()));
     }
 
     fn add_some(&mut self, label: &str, value: Option<&str>) {
@@ -63,9 +74,13 @@ impl Lines {
         for (label, value) in &self.0 {
             let mut values = value.lines();
             let first = values.next().unwrap_or_default();
-            println!("{indent}{} {first}", pad(&format!("{label}:"), width));
+            println!(
+                "{indent}{} {}",
+                pad(&format!("{label}:"), width),
+                visible(first)
+            );
             for more in values {
-                println!("{indent}{} {more}", " ".repeat(width));
+                println!("{indent}{} {}", " ".repeat(width), visible(more));
             }
         }
     }
@@ -91,7 +106,7 @@ fn kind_lines(lines: &mut Lines, doc: &Document, node: &Node, protocols: &Regist
             if !connection.settings.is_empty() {
                 let settings =
                     serde_json::to_string_pretty(&connection.settings).unwrap_or_default();
-                lines.add("Impostazioni", &settings);
+                lines.add_text("Impostazioni", &settings);
             }
         }
         NodeKind::Credential(credential) => {
@@ -123,7 +138,9 @@ fn kind_lines(lines: &mut Lines, doc: &Document, node: &Node, protocols: &Regist
 
 fn common_lines(lines: &mut Lines, node: &Node) {
     lines.add_some("Descrizione", node.description.as_deref());
-    lines.add_some("Note", node.notes.as_deref());
+    if let Some(notes) = &node.notes {
+        lines.add_text("Note", notes);
+    }
     if let Some(icon) = &node.icon {
         lines.add("Icona", &describe_icon(icon));
     }

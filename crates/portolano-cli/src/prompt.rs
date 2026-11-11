@@ -16,6 +16,7 @@ use portolano_ops::vault::Login;
 use zeroize::Zeroizing;
 
 use crate::failure::CliError;
+use crate::output::visible;
 
 /// Whether the user is at a terminal and can answer questions.
 pub fn interactive() -> bool {
@@ -65,7 +66,7 @@ pub fn stdin_all() -> Result<Secret, CliError> {
 /// Asks a yes/no question on the terminal; the default is no.
 pub fn confirm(question: &str) -> Result<bool, CliError> {
     require_terminal("la conferma")?;
-    let answer = visible(&format!("{question} [s/N] "))?;
+    let answer = echoed(&format!("{question} [s/N] "))?;
     Ok(matches!(
         answer.trim(),
         "s" | "S" | "si" | "sì" | "y" | "yes"
@@ -79,7 +80,7 @@ pub fn login(request: &LoginRequest) -> Result<Option<Login>, CliError> {
         return Ok(None);
     }
     let tty = Tty::open()?;
-    eprintln!("Credenziali per {}", request.path);
+    eprintln!("Credenziali per {}", visible(&request.path));
     let username = tty.ask("Utente: ")?;
     let domain = if request.ask_domain {
         tty.ask("Dominio (invio per nessuno): ")?
@@ -143,6 +144,8 @@ impl SecretPrompter for ImportPrompter {
             .map(|user| format!(" (utente {user})"))
             .unwrap_or_default();
         let prompt = format!("{what} di {}{user}, invio per saltare: ", request.node_path);
+        // The path, user and property name come from the imported file.
+        let prompt = visible(&prompt);
         let secret = hidden(&prompt).map_err(|error| ImportError::Prompt {
             source: io::Error::other(error.to_string()),
         })?;
@@ -166,7 +169,8 @@ fn hidden(prompt: &str) -> Result<Secret, CliError> {
         .map_err(CliError::Terminal)
 }
 
-fn visible(prompt: &str) -> Result<String, CliError> {
+/// An answer typed with echo, for questions that are not secrets.
+fn echoed(prompt: &str) -> Result<String, CliError> {
     Tty::open()?.ask(prompt)
 }
 

@@ -9,6 +9,7 @@ use clap::{Arg, ArgAction, Command, CommandFactory, FromArgMatches};
 
 use super::Cli;
 use crate::failure::EXIT_USAGE;
+use crate::output::visible;
 
 /// What clap writes between a number and the range it is not in.
 const CLAP_OUT_OF_RANGE: &str = " is not in ";
@@ -74,7 +75,7 @@ fn report(error: &clap::Error) -> i32 {
             EXIT_USAGE
         }
         _ => {
-            eprintln!("errore: {}", message(error));
+            eprintln!("errore: {}", visible(&message(error)));
             eprintln!("\nPer l'aiuto: portolano --help, oppure portolano <comando> --help");
             EXIT_USAGE
         }

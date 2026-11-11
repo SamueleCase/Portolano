@@ -11,6 +11,7 @@ use portolano_ops::nodes::{IconInput, NodeDetails};
 
 use crate::args::{CommonArgs, IconArg, PasswordArgs};
 use crate::failure::{CliError, EXIT_VAULT};
+use crate::output::visible;
 use crate::prompt;
 
 /// The common options as details and secret properties (asked on the
@@ -71,7 +72,7 @@ pub fn report_cleanup(failures: &[CleanupFailure]) -> i32 {
         eprintln!(
             "avviso: il segreto {} non è stato cancellato dal vault: {}",
             failure.reference.as_str(),
-            failure.reason
+            visible(&failure.reason)
         );
     }
     if failures.is_empty() { 0 } else { EXIT_VAULT }
