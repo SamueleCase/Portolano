@@ -14,12 +14,14 @@ use sha2::{Digest, Sha256};
 
 use crate::error::{Error, Result};
 use crate::model::{Document, Icon};
-use crate::store::{io_error, write_atomically};
+use crate::store::{Access, io_error, with_lock, write_atomically};
 
 /// The icon directory of one document. Obtained from
 /// [`Store::icons`](crate::store::Store::icons).
 #[derive(Debug, Clone)]
 pub struct IconStore {
+    /// The document the icons belong to; its lock guards [`IconStore::gc`].
+    document: PathBuf,
     dir: PathBuf,
 }
 
@@ -32,6 +34,7 @@ impl IconStore {
         let mut name = stem.to_os_string();
         name.push(".icons");
         IconStore {
+            document: document.to_owned(),
             dir: document.with_file_name(name),
         }
     }
@@ -83,9 +86,20 @@ impl IconStore {
     /// removed. Files whose name is not that of a stored image are left
     /// alone: the store did not put them there.
     ///
+    /// It runs under the exclusive lock of the document, so it never races
+    /// with a save. Known limit: an image that another process has added but
+    /// not yet referenced in a saved document is unused for `doc` and is
+    /// removed, so that process saves a reference to a missing file.
+    ///
     /// # Errors
     /// [`Error::Io`](crate::Error::Io).
     pub fn gc(&self, doc: &Document) -> Result<usize> {
+        with_lock(&self.document, Access::Exclusive, || {
+            self.remove_unused(doc)
+        })
+    }
+
+    fn remove_unused(&self, doc: &Document) -> Result<usize> {
         let entries = match fs::read_dir(&self.dir) {
             Ok(entries) => entries,
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
