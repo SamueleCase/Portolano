@@ -33,6 +33,8 @@ fn target<'a>(settings: &'a RdpSettings, credential: ResolvedCredential) -> RdpT
     }
 }
 
+/// A FreeRDP plan that waits for the client, so that its warnings are only
+/// those about the connection.
 fn freerdp_plan(target: &RdpTarget) -> LaunchPlan {
     freerdp_result(target).unwrap()
 }
@@ -42,7 +44,7 @@ fn freerdp_result(target: &RdpTarget) -> Result<LaunchPlan, ConnectError> {
         PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
         target,
         CertPolicy::Tofu,
-        false,
+        true,
     )
 }
 

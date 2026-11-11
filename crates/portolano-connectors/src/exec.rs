@@ -6,6 +6,9 @@
 
 mod temp_files;
 
+pub(crate) use self::temp_files::per_user_dir as temp_dir;
+
+use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
@@ -32,8 +35,12 @@ const SSH_ADD_NO_AGENT: i32 = 2;
 ///
 /// # Errors
 /// [`ConnectError::MissingSecret`], [`ConnectError::AgentUnavailable`],
+/// [`ConnectError::ClientNotFound`] and [`ConnectError::ClientFailed`] for
+/// `ssh-add`, [`ConnectError::InvalidPlan`], [`ConnectError::InvalidConfig`]
+/// and [`ConnectError::UnsupportedPlatform`] for a new window,
 /// [`ConnectError::Spawn`], [`ConnectError::Io`], [`ConnectError::Askpass`],
-/// vault errors.
+/// vault errors. [`ConnectError::InvalidValue`] is raised earlier, by
+/// [`Protocol::plan`](crate::Protocol::plan).
 pub fn execute(
     plan: &LaunchPlan,
     vault: &dyn Vault,
@@ -96,7 +103,7 @@ fn prepare_with(
             }
         }
     }
-    prepare_step(last, vault, config, &temp_files)
+    prepare_step(last, vault, config, &mut temp_files)
 }
 
 /// Prepares a `Run` or `OpenInTerminal` step.
@@ -104,7 +111,7 @@ fn prepare_step(
     step: &LaunchStep,
     vault: &dyn Vault,
     config: &AppConfig,
-    temp_files: &TempFiles,
+    temp_files: &mut TempFiles,
 ) -> Result<PreparedLaunch, ConnectError> {
     match step {
         LaunchStep::Run {
@@ -114,20 +121,33 @@ fn prepare_step(
             stdin_secret,
             askpass,
             wait,
-        } => PreparedLaunch::new(
-            program.clone(),
-            args.iter().map(|arg| temp_files.substitute(arg)).collect(),
-            env.clone(),
-            stdin_secret
+        } => {
+            let askpass = askpass
                 .as_ref()
-                .map(|reference| read_secret(vault, reference))
-                .transpose()?,
-            askpass
-                .as_ref()
+                .filter(|spec| !spec.entries.is_empty())
                 .map(|spec| askpass_secrets(vault, spec))
-                .transpose()?,
-            *wait,
-        ),
+                .transpose()?;
+            // A detached program keeps its error messages in a log, since
+            // nobody is watching its stderr any more.
+            let log = if !wait && askpass.is_none() {
+                Some(temp_files.create_log(program)?)
+            } else {
+                None
+            };
+            let mut prepared = PreparedLaunch::new(
+                program.clone(),
+                args.iter().map(|arg| temp_files.substitute(arg)).collect(),
+                env.clone(),
+                stdin_secret
+                    .as_ref()
+                    .map(|reference| read_secret(vault, reference))
+                    .transpose()?,
+                askpass,
+                *wait,
+            )?;
+            prepared.log = log;
+            Ok(prepared)
+        }
         LaunchStep::OpenInTerminal { argv } => {
             let launcher = launcher(Os::current(), &config.terminal, argv)?;
             PreparedLaunch::new(
@@ -228,6 +248,8 @@ pub struct PreparedLaunch {
     stdin_secret: Option<Secret>,
     wait: bool,
     askpass: Option<AskpassServer>,
+    /// Log of a detached program, which receives its stderr.
+    log: Option<(fs::File, PathBuf)>,
 }
 
 impl PreparedLaunch {
@@ -254,6 +276,7 @@ impl PreparedLaunch {
             stdin_secret,
             wait,
             askpass,
+            log: None,
         })
     }
 
@@ -285,17 +308,25 @@ impl PreparedLaunch {
         self.wait
     }
 
+    /// The log that receives the stderr of a detached program (FreeRDP by
+    /// default), in the private temporary directory; removed by a later run
+    /// once older than 10 minutes.
+    pub fn log_path(&self) -> Option<&Path> {
+        self.log.as_ref().map(|(_, path)| path.as_path())
+    }
+
     /// Starts the program, writes the stdin secret and, if required, waits.
     /// Returns its exit code (`128 + signal` if killed), or 0 if it detached.
     ///
     /// # Errors
     /// [`ConnectError::Spawn`] if the program cannot start,
     /// [`ConnectError::Io`] if writing stdin or waiting fails.
-    pub fn launch(self) -> Result<i32, ConnectError> {
+    pub fn launch(mut self) -> Result<i32, ConnectError> {
         // The askpass server must outlive the program it answers, so a
         // program that uses it is always waited for.
         let detached = !self.wait && self.askpass.is_none();
-        let mut command = self.command(detached);
+        let log = self.log.take().map(|(file, _)| file);
+        let mut command = self.command(detached, log);
         let mut child = command.spawn().map_err(|source| ConnectError::Spawn {
             program: self.program.clone(),
             source,
@@ -310,7 +341,14 @@ impl PreparedLaunch {
             // Reaped in the background, so it does not linger as a zombie
             // while this process lives; when this process exits, the system
             // adopts it.
-            std::thread::spawn(move || child.wait());
+            let reaper = std::thread::Builder::new()
+                .name("portolano-reaper".to_owned())
+                .spawn(move || child.wait());
+            if let Err(error) = reaper {
+                // Without the thread the child is only reaped when this
+                // process exits: harmless, so the launch still succeeds.
+                tracing::warn!(%error, "impossibile attendere il client in background");
+            }
             return Ok(0);
         }
         let status = child.wait().map_err(|source| ConnectError::Io {
@@ -320,10 +358,12 @@ impl PreparedLaunch {
         Ok(exit_code(status))
     }
 
-    /// The command to spawn. A detached program writes nowhere (it would
-    /// scribble over the terminal after `connect` returns) and gets its own
-    /// process group, so that Ctrl-C in the terminal does not reach it.
-    fn command(&self, detached: bool) -> Command {
+    /// The command to spawn. A detached program does not use the terminal:
+    /// it would scribble over it after `connect` returns. Its stdin is empty
+    /// (unless it gets a secret), its stdout is discarded, its stderr goes to
+    /// `log` if any, and it gets its own process group, so that Ctrl-C in
+    /// the terminal does not reach it.
+    fn command(&self, detached: bool, log: Option<fs::File>) -> Command {
         let mut command = Command::new(&self.program);
         command.args(&self.args);
         // A child must never inherit askpass variables of another session.
@@ -333,9 +373,12 @@ impl PreparedLaunch {
         command.envs(self.env.iter().map(|(key, value)| (key, value)));
         if self.stdin_secret.is_some() {
             command.stdin(Stdio::piped());
+        } else if detached {
+            command.stdin(Stdio::null());
         }
         if detached {
-            command.stdout(Stdio::null()).stderr(Stdio::null());
+            let stderr = log.map_or_else(Stdio::null, Stdio::from);
+            command.stdout(Stdio::null()).stderr(stderr);
             #[cfg(unix)]
             {
                 use std::os::unix::process::CommandExt;

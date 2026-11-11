@@ -17,8 +17,24 @@ use crate::plan::temp_placeholder;
 /// Age after which a temporary file is removed: the client has long read it.
 const STALE_AFTER: Duration = Duration::from_secs(10 * 60);
 
-/// Extension of the files that the cleanup removes (SPEC §7.3).
-const STALE_EXTENSION: &str = "rdp";
+/// Extensions of the files that the cleanup removes: the `.rdp` files of
+/// SPEC §7.3 and the logs of detached clients.
+const STALE_EXTENSIONS: [&str; 2] = ["rdp", LOG_EXTENSION];
+
+/// Extension of the logs of detached clients.
+const LOG_EXTENSION: &str = "log";
+
+/// Permissions of the logs: client messages may name users and hosts.
+const LOG_MODE: u32 = 0o600;
+
+/// The per-user directory of the temporary files and logs: `tmp` inside the
+/// cache directory of Portolano, such as
+/// `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS. `None` without a
+/// home directory.
+pub(crate) fn per_user_dir() -> Option<PathBuf> {
+    directories::ProjectDirs::from("dev", "portolano", "Portolano")
+        .map(|dirs| dirs.cache_dir().join("tmp"))
+}
 
 /// The temporary files written while running a plan. They outlive the plan,
 /// because a detached client reads them after `connect` returns, and are
@@ -40,21 +56,73 @@ impl TempFiles {
         }
     }
 
-    /// Files in `tmp` inside the per-user cache directory of Portolano, such
-    /// as `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS.
+    /// Files in [`per_user_dir`].
     pub(super) fn per_user() -> TempFiles {
-        let dir = directories::ProjectDirs::from("dev", "portolano", "Portolano")
-            .map(|dirs| dirs.cache_dir().join("tmp"));
         TempFiles {
-            dir,
+            dir: per_user_dir(),
             checked: false,
             written: Vec::new(),
         }
     }
 
+    /// The checked directory; the first call checks it and removes the
+    /// stale files in it.
+    fn ready_dir(&mut self) -> io::Result<PathBuf> {
+        let dir = self.dir.clone().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "directory dei file temporanei non determinabile (manca la home)",
+            )
+        })?;
+        if !self.checked {
+            ensure_private_dir(&dir)?;
+            remove_stale(&dir, STALE_AFTER, SystemTime::now());
+            self.checked = true;
+        }
+        Ok(dir)
+    }
+
+    /// Creates a new log for the detached program `program`, named
+    /// `<program>-<milliseconds since the epoch>.log`, with permissions
+    /// `0600`.
+    ///
+    /// # Errors
+    /// [`ConnectError::Io`] for a directory that is not private or a
+    /// filesystem failure.
+    pub(super) fn create_log(
+        &mut self,
+        program: &Path,
+    ) -> Result<(fs::File, PathBuf), ConnectError> {
+        let io_error = |source: io::Error| ConnectError::Io {
+            context: format!("creazione del log di '{}'", program.display()),
+            source,
+        };
+        let dir = self.ready_dir().map_err(io_error)?;
+        let stem: String = program
+            .file_stem()
+            .map(|stem| stem.to_string_lossy())
+            .unwrap_or_default()
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let millis = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_millis())
+            .unwrap_or_default();
+        let path = dir.join(format!("{stem}-{millis}.{LOG_EXTENSION}"));
+        let file = create_new(&path, LOG_MODE).map_err(io_error)?;
+        Ok((file, path))
+    }
+
     /// Writes `contents` to the file `name` with permissions `mode`,
     /// replacing an older file of the same name. The first write checks the
-    /// directory and removes the stale `.rdp` files in it.
+    /// directory and removes the stale `.rdp` and `.log` files in it.
     ///
     /// # Errors
     /// [`ConnectError::Io`] for an invalid name, a directory that is not
@@ -75,17 +143,7 @@ impl TempFiles {
                 "nome di file non valido",
             )));
         }
-        let dir = self.dir.clone().ok_or_else(|| {
-            io_error(io::Error::new(
-                io::ErrorKind::NotFound,
-                "directory dei file temporanei non determinabile (manca la home)",
-            ))
-        })?;
-        if !self.checked {
-            ensure_private_dir(&dir).map_err(io_error)?;
-            remove_stale(&dir, STALE_AFTER, SystemTime::now());
-            self.checked = true;
-        }
+        let dir = self.ready_dir().map_err(io_error)?;
         let path = dir.join(name);
         match fs::remove_file(&path) {
             Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(io_error(error)),
@@ -123,7 +181,7 @@ fn create_new(path: &Path, mode: u32) -> io::Result<fs::File> {
     options.open(path)
 }
 
-/// Removes the regular `.rdp` files of `dir` older than `age`. Links and
+/// Removes the regular `.rdp` and `.log` files of `dir` older than `age`. Links and
 /// other files are left alone. Best effort: a file that cannot be removed
 /// now will be removed by a later run.
 fn remove_stale(dir: &Path, age: Duration, now: SystemTime) -> usize {
@@ -133,10 +191,10 @@ fn remove_stale(dir: &Path, age: Duration, now: SystemTime) -> usize {
     entries
         .filter_map(Result::ok)
         .filter(|entry| {
-            let is_rdp = entry
+            let is_ours = entry
                 .path()
                 .extension()
-                .is_some_and(|ext| ext == STALE_EXTENSION);
+                .is_some_and(|ext| STALE_EXTENSIONS.iter().any(|ours| ext == *ours));
             // `DirEntry::file_type` and `metadata` do not follow links.
             let is_file = entry.file_type().is_ok_and(|kind| kind.is_file());
             let is_old = entry.metadata().is_ok_and(|metadata| {
@@ -145,7 +203,7 @@ fn remove_stale(dir: &Path, age: Duration, now: SystemTime) -> usize {
                         .is_ok_and(|elapsed| elapsed > age)
                 })
             });
-            is_rdp && is_file && is_old
+            is_ours && is_file && is_old
         })
         .filter(|entry| fs::remove_file(entry.path()).is_ok())
         .count()
@@ -160,7 +218,12 @@ fn ensure_private_dir(dir: &Path) -> io::Result<()> {
             if let Some(parent) = dir.parent() {
                 fs::create_dir_all(parent)?;
             }
-            create_private_dir(dir)?;
+            // Another `connect` may create it at the same moment: what counts
+            // is the check below.
+            match create_private_dir(dir) {
+                Err(error) if error.kind() != io::ErrorKind::AlreadyExists => return Err(error),
+                _ => {}
+            }
         }
         Err(error) => return Err(error),
         Ok(_) => {}
@@ -331,6 +394,40 @@ mod tests {
         assert!(!old_rdp.exists());
         assert!(old_other.exists());
         assert!(fresh_rdp.exists());
+    }
+
+    #[test]
+    fn log_is_private_and_named_after_the_program() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("tmp");
+        let mut files = TempFiles::new(dir.clone());
+
+        let (_, path) = files
+            .create_log(Path::new("/opt/homebrew/bin/sdl-freerdp"))
+            .unwrap();
+
+        assert_eq!(path.parent(), Some(dir.as_path()));
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(
+            name.starts_with("sdl-freerdp-") && name.ends_with(".log"),
+            "{name}"
+        );
+        assert_eq!(path.metadata().unwrap().permissions().mode() & 0o777, 0o600);
+    }
+
+    #[test]
+    fn old_logs_are_removed_like_rdp_files() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("tmp");
+        fs::create_dir(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+        let old_log = dir.join("sdl-freerdp-1.log");
+        old_file(&old_log);
+        let mut files = TempFiles::new(dir);
+
+        files.write("new.rdp", "x", 0o600).unwrap();
+
+        assert!(!old_log.exists());
     }
 
     #[test]

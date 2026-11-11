@@ -68,6 +68,7 @@ fn prompt_credential_with_session_login_acts_as_inline() {
             domain: Some("ACME".into()),
             password: Some(password.clone()),
         }),
+        wait: true,
         ..ConnectOptions::default()
     };
 
@@ -86,8 +87,12 @@ fn prompt_credential_without_session_login_leaves_it_to_freerdp() {
     let conn = connection_node("rdp", "dc01.example.com", CredentialSpec::Prompt, json!({}));
     let conn_id = conn.id;
     let doc = document(vec![conn]);
+    let options = ConnectOptions {
+        wait: true,
+        ..ConnectOptions::default()
+    };
 
-    let plan = plan_with(&RdpProtocol, &doc, conn_id, &ConnectOptions::default()).unwrap();
+    let plan = plan_with(&RdpProtocol, &doc, conn_id, &options).unwrap();
 
     let args = run_args(&plan);
     assert!(

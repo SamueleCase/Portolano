@@ -30,7 +30,7 @@ fn freerdp_fit_passes_the_password_on_stdin_only() {
             env: vec![],
             stdin_secret: Some(password),
             askpass: None,
-            wait: false,
+            wait: true,
         }]
     );
 }
@@ -246,6 +246,31 @@ fn windows_app_rejects_a_carriage_return_in_the_domain() {
     assert!(
         matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "domain"),
         "{result:?}"
+    );
+}
+
+#[test]
+fn detached_freerdp_says_where_its_log_goes() {
+    let settings = RdpSettings::default();
+    let rdp = target(&settings, login(Some("administrator"), None));
+
+    let plan = freerdp::plan(
+        PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
+        &rdp,
+        CertPolicy::Tofu,
+        false,
+    )
+    .unwrap();
+
+    assert!(matches!(
+        &plan.steps[0],
+        LaunchStep::Run { wait: false, .. }
+    ));
+    assert_eq!(plan.warnings.len(), 1);
+    assert!(
+        plan.warnings[0].contains("sdl-freerdp-<ora>.log"),
+        "{:?}",
+        plan.warnings
     );
 }
 

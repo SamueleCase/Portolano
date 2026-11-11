@@ -6,7 +6,7 @@
 //! is no explicit option to reuse the credentials on the gateway; leaving
 //! `u:`/`d:` out of `/gateway:` lets FreeRDP use the destination credentials.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use portolano_core::{CredentialOrigin, ResolvedCredential};
 
@@ -66,6 +66,9 @@ pub(super) fn plan(
     if stdin_secret.is_some() {
         args.push(FROM_STDIN.to_owned());
     }
+    if !wait {
+        warnings.push(detached_log_warning(&program));
+    }
 
     Ok(LaunchPlan {
         steps: vec![LaunchStep::Run {
@@ -78,6 +81,22 @@ pub(super) fn plan(
         }],
         warnings,
     })
+}
+
+/// Where the messages of a detached FreeRDP go (`execute` writes its stderr
+/// to a log in the private temporary directory).
+fn detached_log_warning(program: &Path) -> String {
+    let stem = program
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let place = crate::exec::temp_dir().map_or_else(
+        || "nella cartella temporanea di Portolano".to_owned(),
+        |dir| format!("in {}", dir.display()),
+    );
+    format!(
+        "FreeRDP prosegue da solo: i suoi messaggi d'errore vanno nel file {stem}-<ora>.log {place}"
+    )
 }
 
 /// Size, scale, color, monitors, session and clipboard options.
