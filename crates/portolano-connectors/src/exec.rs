@@ -292,16 +292,10 @@ impl PreparedLaunch {
     /// [`ConnectError::Spawn`] if the program cannot start,
     /// [`ConnectError::Io`] if writing stdin or waiting fails.
     pub fn launch(self) -> Result<i32, ConnectError> {
-        let mut command = Command::new(&self.program);
-        command.args(&self.args);
-        // A child must never inherit askpass variables of another session.
-        for name in [ASKPASS_ENV, ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV] {
-            command.env_remove(name);
-        }
-        command.envs(self.env.iter().map(|(key, value)| (key, value)));
-        if self.stdin_secret.is_some() {
-            command.stdin(Stdio::piped());
-        }
+        // The askpass server must outlive the program it answers, so a
+        // program that uses it is always waited for.
+        let detached = !self.wait && self.askpass.is_none();
+        let mut command = self.command(detached);
         let mut child = command.spawn().map_err(|source| ConnectError::Spawn {
             program: self.program.clone(),
             source,
@@ -312,9 +306,11 @@ impl PreparedLaunch {
                 source,
             })?;
         }
-        // The askpass server must outlive the program it answers, so a
-        // program that uses it is always waited for.
-        if !self.wait && self.askpass.is_none() {
+        if detached {
+            // Reaped in the background, so it does not linger as a zombie
+            // while this process lives; when this process exits, the system
+            // adopts it.
+            std::thread::spawn(move || child.wait());
             return Ok(0);
         }
         let status = child.wait().map_err(|source| ConnectError::Io {
@@ -322,6 +318,31 @@ impl PreparedLaunch {
             source,
         })?;
         Ok(exit_code(status))
+    }
+
+    /// The command to spawn. A detached program writes nowhere (it would
+    /// scribble over the terminal after `connect` returns) and gets its own
+    /// process group, so that Ctrl-C in the terminal does not reach it.
+    fn command(&self, detached: bool) -> Command {
+        let mut command = Command::new(&self.program);
+        command.args(&self.args);
+        // A child must never inherit askpass variables of another session.
+        for name in [ASKPASS_ENV, ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV] {
+            command.env_remove(name);
+        }
+        command.envs(self.env.iter().map(|(key, value)| (key, value)));
+        if self.stdin_secret.is_some() {
+            command.stdin(Stdio::piped());
+        }
+        if detached {
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                command.process_group(0);
+            }
+        }
+        command
     }
 }
 

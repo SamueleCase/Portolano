@@ -330,6 +330,36 @@ fn detached_program_returns_zero_without_waiting() {
 }
 
 #[test]
+fn detached_program_gets_its_stdin_secret_and_runs_to_completion() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = temp.path().join("detached.txt");
+    let reference = SecretRef::new();
+    let vault = TestVault::with(&[(&reference, SENTINEL)]);
+    let program = script(
+        &temp,
+        "echo noise; cat > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"",
+    );
+    let mut plan = run(
+        program,
+        vec![output.to_string_lossy().into_owned()],
+        Some(reference),
+        None,
+    );
+    if let Some(LaunchStep::Run { wait, .. }) = plan.steps.last_mut() {
+        *wait = false;
+    }
+
+    let code = execute_in(&plan, &vault, &temp).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !output.exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    assert_eq!(code, 0);
+    assert_eq!(fs::read_to_string(output).unwrap(), format!("{SENTINEL}\n"));
+}
+
+#[test]
 fn empty_plan_is_rejected() {
     let temp = tempfile::tempdir().unwrap();
 
