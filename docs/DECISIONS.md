@@ -80,6 +80,28 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
 - **Motivo**: un solo modulo possiede il formato del protocollo, e i test di integrazione sul socket del §7.4
   esercitano client e server reali nello stesso crate.
 
+### DEC-010 – `resolve_credential` su nodi senza `CredentialSpec` (decisa dal PM)
+- **Dubbio** (revisione di WP0): §4.3 dice "usa la spec del nodo", ma `Credential` e `Unsupported` non hanno una
+  `CredentialSpec`.
+- **Decisione**: `Connection` e `Folder` usano la propria `credential`. Un nodo `Credential` restituisce i propri
+  campi con `origin = Credential { node: <se stesso> }`. Un nodo `Unsupported` restituisce
+  `Error::NoCredential { id }` ("il nodo … non ha credenziali"), variante aggiunta da WP0.
+- **Motivo**: `show --resolved` su una credenziale mostra in modo naturale i suoi dati; un nodo non supportato
+  non ha nulla da risolvere e un errore esplicito è più chiaro di un risultato vuoto.
+
+### DEC-011 – Chiavi sconosciute in `config.toml` (decisa dal PM)
+- **Dubbio** (revisione di WP0): con DEC-003 le sezioni dei protocolli sono raccolte con `flatten`, quindi un
+  refuso come `default_documnt = "…"` verrebbe accettato in silenzio.
+- **Decisione**: `AppConfig::load` accetta come chiavi non riconosciute solo **tabelle** (le sezioni dei
+  protocolli); qualsiasi altro valore di primo livello sconosciuto dà `Error::InvalidConfig` con il nome della
+  chiave. La validazione del contenuto delle sezioni resta ai protocolli (DEC-008).
+- **Motivo**: un refuso in una chiave scalare non passa inosservato, senza che il core conosca i protocolli.
+
+### DEC-012 – Dipendenze aggiunte da WP0 su richiesta della revisione
+- `flate2` e `zip` (per l'importer, §8.3.1) e `toml` nella CLI (per `config show/set`, DEC-003/008) sono
+  dichiarate da WP0, perché i `Cargo.toml` sono di sua proprietà (§12). `rand` è rimosso: non serve,
+  `getrandom` copre tutti gli usi.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
