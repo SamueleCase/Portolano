@@ -112,6 +112,147 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
 - **Motivo**: scelta dell'utente; il core attuale (modello, vault, piani di lancio) resta la base anche per la
   versione integrata.
 
+### DEC-014 – Dettagli di percorsi e riferimenti (domande di WP1, decise dal PM)
+1. **Radice**: si aggiunge `pub fn resolve_location(&self, path: &str) -> Result<Option<Uuid>>`, dove `None` è
+   la radice (coerente con `children(Option<Uuid>)` e `move_node(.., Option<Uuid>, ..)`). `resolve_path("/")`
+   restituisce `InvalidPath` ("la radice non è un nodo"). La CLI usa `resolve_location` dove la radice è un
+   valore valido (`tree /`, `list /`, `move X /`).
+2. **`@id` dopo il primo segmento**: si cerca fra i **discendenti** (a qualsiasi profondità) dei candidati
+   correnti; in prima posizione equivale a tutto il documento.
+3. **Nomi che sembrano un id**: è un riferimento per id solo `@` + UUID o `@` + ≥ 6 cifre esadecimali; il resto è
+   un nome. Un nodo chiamato esattamente come un riferimento per id è raggiungibile solo per id (limite accettato,
+   nessun escape `\@`).
+4. **`references_to` e `ByName`**: conta un `ByName` che **risolve** al target secondo il §4.3 (incluso il
+   fallback case-insensitive), così `delete` non lascia riferimenti rotti senza avviso.
+5. **`secret_refs_in` e i `settings`**: il core cerca anche nei `settings` gli oggetti nella forma di una propria
+   `CredentialSpec::Inline` (`"mode": "inline"`) e ne raccoglie la `password`. È il formato di un tipo del core,
+   come la convenzione `$ref`, quindi il core non conosce i protocolli; evita segreti orfani nel vault quando si
+   cancella una connessione RDP con gateway inline (possibile da import).
+6. **Forma di `path_of`**: con lo `/` iniziale (`/Clienti/ACME/web01`), senza il nome del documento.
+- Inoltre approvato: escape sconosciuti, `\` finale e `/` finale danno `InvalidPath`; tutti i codici di
+  `validate` del core hanno severità `Error`.
+
+### DEC-015 – Prompt della passphrase di `ssh-add` (decisa dal PM)
+- **Dubbio**: con la chiave letta da stdin (`ssh-add -t 300 -`, §7.2), OpenSSH chiede la passphrase con un prompt
+  della forma `Enter passphrase for (stdin): ` (eventualmente seguito da ` (will confirm each use)`), che non
+  corrisponde alla regex del §7.2 `^Enter passphrase for key '(?P<path>.+)': ?$` (quella è di `ssh`).
+- **Decisione**: il server askpass riconosce anche la forma di `ssh-add`:
+  `^Enter passphrase for (?P<path>[^']+?)(?: \(will confirm each use\))?: ?$`, che produce un
+  `PromptMatcher::Passphrase { key_path }`. Per lo step `SshAddKey` la voce askpass usa `key_path = "(stdin)"`.
+  Le due regex restano distinte e testate entrambe.
+- **Verifica**: il testo esatto del prompt si conferma nella verifica finale con un `ssh-agent` temporaneo e una
+  chiave di test usa e getta (mai l'agent dell'utente); se diverge, si aggiorna la regex.
+- **Motivo**: senza questa forma la passphrase delle chiavi nel vault non verrebbe mai servita dall'askpass.
+
+### DEC-016 – Esigenze del mock UI che toccano il core (decise dal PM)
+Dall'analisi del mock in `docs/ui/` (FASE 2) contro SPEC e contratto. Si decidono ora perché costerebbe caro
+cambiarle dopo; le esigenze aggiungibili in FASE 2 senza rompere nulla sono in `progress.md`, le correzioni al solo
+mock in `docs/ui/NOTE.md`.
+1. **Lock del documento (WP2)**: niente più lock esclusivo per tutta la vita dello `Store`, che bloccherebbe la CLI
+   (anche `connect --new-window`) mentre l'app è aperta. Il lock su `<file>.lock` si prende solo durante le
+   operazioni: condiviso in `load`, esclusivo in `save`/`create`. Lo `Store` ricorda l'impronta (SHA-256) dei byte
+   letti o scritti per ultimi; `save` ricontrolla l'impronta sotto lock esclusivo e, se il file è cambiato nel
+   frattempo, fallisce con `Error::ModifiedExternally { path }` ("il documento … è stato modificato da un altro
+   processo: ricaricalo"). Sostituisce il requisito "il lock impedisce un secondo `Store::open`".
+2. **Lancio in due passi (WP4)**: `execute` si divide in una preparazione (avvia il server askpass, risolve i
+   segreti, produce programma/argomenti/env del passo interattivo e un guard che al drop chiude socket e azzera i
+   segreti) e un avvio. `execute` resta come composizione dei due. Serve al terminale integrato della FASE 2
+   (DEC-013), che avvierà `ssh` in una propria PTY.
+3. **Credenziale "chiedi all'avvio" (WP4, poi WP6)**: `ConnectOptions` riceve
+   `session_credential: Option<SessionCredential { username, domain, password: Option<SecretRef> }>`. Con origine
+   `Prompt`: se presente si usa come una `Inline`; se assente il piano non passa utente né password e lascia che
+   sia il client a chiederli (warning nel piano). La CLI chiede utente e password su TTY e mette la password in un
+   vault in memoria per quella sola sessione. `CredentialSpec::Prompt` resta senza campi (l'"utente proposto" del
+   mock non si fa ora).
+4. **Invariante dei segreti (WP1)**: un `SecretRef` appartiene a un solo punto del documento. `validate` lo
+   controlla con il codice `duplicate_secret_ref` (Error). Evita che cancellare un nodo cancelli la password di un
+   altro (es. dopo un futuro "Duplica").
+5. **Eliminazione forzata di una credenziale referenziata (WP1, poi WP6)**: nuova funzione del core
+   `detach_credential_references(&mut self, credential: Uuid) -> Vec<Uuid>`: ogni `CredentialSpec` (sul nodo o
+   dentro i `settings`) che punta alla credenziale per id o per nome diventa `Prompt`; restituisce i nodi modificati
+   e ne aggiorna `modified`. `delete --force` la usa, così le connessioni restano utilizzabili chiedendo le
+   credenziali.
+6. **Livello `Info` nella validazione (WP1)**: `Severity` riceve `Info`; il core segnala i nodi non supportati con
+   `unsupported_node` (Info). L'exit 4 di `validate` resta solo per gli `Error`.
+7. **Client RDP per connessione (WP4)**: `RdpSettings.client: Option<RdpClient>`; precedenza
+   `--client` > impostazione della connessione > `config.rdp.client`.
+8. **Restano come da SPEC** (si corregge il mock): `ByName` cerca in tutto il documento (§4.3); una password Royal
+   saltata è `Partial`, `Skipped` vale solo per il cestino (§8.3); la condivisione di documenti in cartelle
+   sincronizzate resta fuori scope (§14).
+
+### DEC-017 – Vault su file con più processi (decisa dal PM)
+- **Dubbio** (report di WP3): `FileVault` riscrive `vault.json` dalla propria copia in memoria; con due processi
+  aperti (app e CLI, DEC-016.1) l'ultimo che scrive cancella i segreti aggiunti dall'altro.
+- **Decisione**: `set` e `delete` fanno lettura-modifica-scrittura sotto lock esclusivo su `vault.json.lock`
+  (`fd-lock`): rileggono e decifrano il file corrente, applicano la modifica, riscrivono in modo atomico. `get` e
+  `contains` leggono il file corrente sotto lock condiviso (la chiave derivata resta in memoria, il salt è fisso
+  per file). Nessuna copia dei segreti tenuta in memoria fra un'operazione e l'altra.
+- Inoltre: i parametri KDF letti dal file hanno limiti massimi ragionevoli (oltre → `VaultError::Corrupt`), così
+  un file manomesso non blocca il processo; abilitata la feature `zeroize` di `chacha20poly1305` e `argon2`; il
+  modulo `vault/file.rs` è diviso in sottomoduli `vault/file/*.rs`.
+
+### DEC-018 – Eliminazione e orchestrazione riusabile dall'app (decise dal PM, dal mock aggiornato)
+1. **Regola di `delete`** (sostituisce la riga `delete` del §10.2 per la parte sui riferimenti): si contano i
+   riferimenti **da fuori** del sottoalbero eliminato verso **qualunque** nodo del sottoalbero (credenziali, jump
+   host, …), usando `references_to`. Senza `--force` l'eliminazione si rifiuta per ogni tipo di nodo, con l'elenco
+   dei riferimenti. Con `--force`: per ogni credenziale del sottoalbero si chiama `detach_credential_references`
+   (i nodi passano a `Prompt`, DEC-016.5); gli altri riferimenti (es. `$ref` dei jump) restano e `validate` li
+   segnala come `dangling_ref`, così il core non conosce i protocolli. Restano invariati `-r`, `-y` e la
+   cancellazione dei segreti del sottoalbero dopo il salvataggio.
+2. **Orchestrazione in una libreria**: le operazioni che la SPEC assegna alla CLI e che l'app dovrà rifare
+   (inserimento dell'import §8.4 con conflitti, ordine segreti → icone → documento e rollback; composizione di
+   `validate` con protocolli e `missing_secret`; `delete` con riferimenti e segreti; `secret set/clear`; `add`/`edit`
+   con i segreti) vanno in un nuovo crate **`portolano-ops`** (`crates/portolano-ops`, dipende da core, connectors,
+   import). Funzioni pubbliche senza stampe né TTY: ricevono `&Store`, `&dyn Vault`, i registry e callback per
+   prompt e conferme, e restituiscono risultati strutturati. La CLI (`portolano-cli`) dipende da `portolano-ops` e i
+   suoi `commands/*.rs` sono adattatori sottili (parsing, I/O, output). Entrambi i crate sono di WP6.
+- **Motivo**: l'app della FASE 2 esegue gli stessi flussi (import, validazione, eliminazione, segreti); senza una
+  libreria Tauri dovrebbe duplicare la logica (SPEC §0: "il core va esposto come libreria pulita").
+
+### DEC-019 – Scelte dell'importer Royal sui campi [ipo] (proposte da WP5, approvate dal PM)
+1. Nomi di campo ipotizzati: `SecureGatewayID`, `RDSGatewayID`, `GatewayHostName`, `GatewayUsageMethod`,
+   `CustomProtectedField1..10`, `PrivateKeyContent` (con `PrivateKeyMode` ≠ 0), `Passphrase`. Ogni dato ricostruito
+   da questi campi lascia l'originale in `extra` e rende il nodo `Partial` ("campi Royal non verificati").
+   `GatewayUsageMethod`: 1/2 → gateway usato; 0/4 → nessun gateway; altro o assente → nessun gateway e `Partial`.
+2. `RoyalRDSGateway` diventa un nodo `Unsupported` (un `RdpGateway` non può riferirsi a un nodo); host e porta sono
+   copiati nelle connessioni che lo usano, la credenziale del gateway resta `Inherit`.
+3. I campi cifrati si riconoscono per nome (password, passphrase, secret, chiave incorporata, campi custom
+   protetti) e non vengono mai conservati, nemmeno nel `raw` dei nodi `Unsupported` (D3). Un campo cifrato non
+   gestito viene scartato e il nodo è `Partial`.
+4. La password si chiede solo per il modo di credenziale attivo; `CredentialPassword` con un altro modo si scarta.
+5. `DOMINIO\utente` si divide anche nelle credenziali inline (modo 2).
+6. Fermano l'import (`InvalidInput`): `ID` mancante, non valido o duplicato; `RoyalDocument` assente o ripetuto.
+   `ParentID` inesistente, non cartella o ciclico → nodo sotto la radice con warning.
+7. Valori non validi (porta, colore, date, immagine) restano in `extra` e contano fra i campi non mappati; un'immagine
+   non riconosciuta rende il nodo `Partial`. Con `CustomImage` e `CustomImageName` insieme vince l'immagine.
+8. Nei test d'integrazione un `#![allow]` di crate per `unwrap`/`expect`/`panic`, motivato (le funzioni di supporto
+   dei test non sono `#[test]`).
+- **Campioni reali**: con `PORTOLANO_SAMPLES_DIR=samples` dalla radice del repo il test di conteggio passa; i 7
+  `Partial` del documento con password sono le 7 password cifrate attese.
+
+### DEC-020 – Opzioni reali di FreeRDP 3.33 (verificate da WP4 con `sdl-freerdp /help`)
+- Il gateway si indica con `/gateway:g:<host>[:<port>],u:<user>,d:<domain>` (l'opzione `/gw:` del §7.3 non esiste);
+  mai `p:`.
+- Password da stdin con `/from-stdin:force` (la password è letta prima della connessione).
+- Non esiste un'opzione esplicita per riusare le credenziali sul gateway: se la credenziale del gateway coincide con
+  quella della destinazione si omettono `u:`/`d:` e si conta sul comportamento predefinito di FreeRDP; altrimenti
+  si passano `u:`/`d:` con il warning "la password del gateway la chiederà FreeRDP".
+- **Da verificare dal vivo** (verifica manuale dell'utente su un host reale con gateway): riuso delle credenziali sul
+  gateway e `/from-stdin:force` insieme al gateway.
+- Prima dell'host, `ssh` riceve `--`, così un host preso dal documento non può essere interpretato come opzione.
+
+### DEC-021 – Profondità massima dell'albero (decisa dal PM)
+- **Dubbio** (revisione di WP5): `serde_json` ha un limite di ricorsione di 128 livelli, cioè circa 63 cartelle
+  annidate; un albero più profondo si salverebbe ma non si ricaricherebbe. Inoltre le funzioni ricorsive
+  (importer, albero) vanno in stack overflow con annidamenti di migliaia di livelli. §4.1 assumeva < 1000.
+- **Decisione**: profondità massima **50 livelli** di nodi (i figli della radice sono al livello 1), costante pubblica
+  `MAX_DEPTH` nel modello del core. `insert`, `move_node` ed `ensure_parent_path` rifiutano un'operazione che la
+  supererebbe con `Error::TooDeep { max }` ("l'albero supererebbe la profondità massima di {max} livelli"). Lo store
+  verifica che un documento alla profondità massima, con impostazioni annidate, faccia andata e ritorno. L'importer
+  aggancia alla radice, con warning e stato `Partial`, gli oggetti che supererebbero il limite.
+- **Motivo**: un limite esplicito e documentato è più chiaro di un errore di parsing a sorpresa; 50 livelli sono ben
+  oltre l'uso reale (nei campioni la profondità è 3).
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
