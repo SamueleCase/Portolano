@@ -102,6 +102,16 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
   dichiarate da WP0, perché i `Cargo.toml` sono di sua proprietà (§12). `rand` è rimosso: non serve,
   `getrandom` copre tutti gli usi.
 
+## 2026-11-11
+
+### DEC-013 – Connessioni integrate nell'app: rimandate
+- **Domanda dell'utente**: la connessione non è integrata nell'app?
+- **Decisione**: in FASE 1/2a si resta come da SPEC: SSH nel terminale (corrente o nuova finestra), RDP nella
+  finestra di FreeRDP. Il terminale SSH integrato è previsto con la UI (FASE 2). L'**RDP integrato** (IronRDP)
+  si farà **in seguito**, come lavoro separato, non ora.
+- **Motivo**: scelta dell'utente; il core attuale (modello, vault, piani di lancio) resta la base anche per la
+  versione integrata.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.

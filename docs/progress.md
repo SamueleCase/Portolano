@@ -23,4 +23,4 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
    indipendente prima del merge.
 
 ## Lavori rimandati
-Nessuno per ora.
+- RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
