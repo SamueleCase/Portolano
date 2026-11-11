@@ -6,13 +6,12 @@
 use std::collections::HashSet;
 use std::slice;
 
-use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
 use crate::model::{CredentialSpec, Document, Node, NodeKind, PrivateKey, PropertyValue};
 use crate::secret::SecretRef;
-use crate::validate::for_each_object;
+use crate::validate::credential_specs_of;
 
 impl Document {
     /// The node with the given id, at any depth.
@@ -221,6 +220,17 @@ impl<'a> Iterator for Walk<'a> {
     }
 }
 
+/// Calls `visit` on every node of `nodes` and their descendants, in
+/// pre-order.
+pub(crate) fn for_each_node_mut(nodes: &mut [Node], visit: &mut impl FnMut(&mut Node)) {
+    for node in nodes {
+        visit(node);
+        if let Some(folder) = node.as_folder_mut() {
+            for_each_node_mut(&mut folder.children, visit);
+        }
+    }
+}
+
 fn find_in_mut(nodes: &mut [Node], id: Uuid) -> Option<&mut Node> {
     nodes.iter_mut().find_map(|node| {
         if node.id == id {
@@ -244,20 +254,8 @@ pub(crate) fn collect_secret_refs(node: &Node, refs: &mut Vec<SecretRef>) {
             }),
     );
     match &node.kind {
-        NodeKind::Folder(folder) => refs.extend(inline_password(&folder.credential)),
-        NodeKind::Connection(connection) => {
-            refs.extend(inline_password(&connection.credential));
-            for value in connection.settings.values() {
-                for_each_object(value, &mut |object| {
-                    if object.get("mode").and_then(serde_json::Value::as_str) == Some("inline") {
-                        // A malformed object is not a credential spec, so it
-                        // holds no reference to collect.
-                        if let Ok(spec) = CredentialSpec::deserialize(object) {
-                            refs.extend(inline_password(&spec));
-                        }
-                    }
-                });
-            }
+        NodeKind::Folder(_) | NodeKind::Connection(_) => {
+            refs.extend(credential_specs_of(node).iter().filter_map(inline_password));
         }
         NodeKind::Credential(credential) => {
             refs.extend(credential.password.iter().cloned());

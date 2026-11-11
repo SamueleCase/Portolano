@@ -1,41 +1,21 @@
-//! References between nodes and structural validation (SPEC §4.4, DEC-014).
-//!
-//! Every reference from a node to another one is an object
-//! `{"$ref": "<uuid>"}` wherever it appears, protocol `settings` included, so
-//! references are found by serializing a node without its children and
-//! scanning the JSON, without knowing the protocols.
+//! Structural validation (SPEC §4.4, DEC-016) and, in [`references`], the
+//! references between nodes.
+
+mod references;
 
 use std::collections::{HashMap, HashSet};
 
-use serde_json::Value;
 use uuid::Uuid;
 
 use crate::error::{Error, Issue, Severity};
-use crate::model::{CredentialSpec, Document, Folder, Node, NodeKind};
+use crate::model::{CredentialSpec, Document, Node, NodeKind};
 use crate::secret::SecretRef;
 use crate::tree::collect_secret_refs;
 
-/// Key of a reference object (SPEC §3).
-const REF_KEY: &str = "$ref";
+pub(crate) use references::credential_specs_of;
+use references::{credential_spec, reference_values, referenced_id};
 
 impl Document {
-    /// The nodes that refer to `target`: those containing `{"$ref": target}`
-    /// anywhere (children excluded) and, if `target` is a credential, those
-    /// with a `ByName` spec that resolves to it, case-insensitive fallback
-    /// included (DEC-014).
-    pub fn references_to(&self, target: Uuid) -> Vec<Uuid> {
-        self.walk()
-            .map(|(_, node)| node)
-            .filter(|node| {
-                reference_values(node)
-                    .iter()
-                    .any(|value| referenced_id(value) == Some(target))
-                    || self.by_name_resolves_to(node, target)
-            })
-            .map(|node| node.id)
-            .collect()
-    }
-
     /// Structural problems of the document, with the codes `duplicate_id`,
     /// `dangling_ref`, `credential_ref_not_credential`, `by_name_unresolved`,
     /// `by_name_ambiguous`, `empty_host` and `duplicate_secret_ref`, all of severity
@@ -175,35 +155,6 @@ impl Document {
             _ => None,
         }
     }
-
-    fn by_name_resolves_to(&self, node: &Node, target: Uuid) -> bool {
-        match credential_spec(node) {
-            Some(CredentialSpec::ByName { name }) => self
-                .credential_named(name)
-                .is_ok_and(|(credential, _)| credential == target),
-            _ => false,
-        }
-    }
-}
-
-/// Calls `visit` on every JSON object inside `value`, `value` included, in
-/// pre-order. Core formats embedded in protocol data (`$ref`, inline
-/// credential specs) are found this way without knowing the protocols.
-pub(crate) fn for_each_object(value: &Value, visit: &mut impl FnMut(&Value)) {
-    match value {
-        Value::Object(object) => {
-            visit(value);
-            for child in object.values() {
-                for_each_object(child, visit);
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                for_each_object(item, visit);
-            }
-        }
-        _ => {}
-    }
 }
 
 /// One `dangling_ref` issue per `$ref` of `node` whose value is not the id of
@@ -223,64 +174,6 @@ fn dangling_references(node: &Node, known: &HashSet<Uuid>) -> Vec<Issue> {
             )
         })
         .collect()
-}
-
-/// The values of every `$ref` key in the node, children excluded.
-fn reference_values(node: &Node) -> Vec<Value> {
-    #[expect(
-        clippy::expect_used,
-        reason = "a node always serializes: every map key is a string and every field type has an infallible Serialize"
-    )]
-    let serialized =
-        serde_json::to_value(without_children(node)).expect("a node always serializes to JSON");
-    let mut values = Vec::new();
-    for_each_object(&serialized, &mut |object| {
-        if let Some(value) = object.get(REF_KEY) {
-            values.push(value.clone());
-        }
-    });
-    values
-}
-
-fn referenced_id(value: &Value) -> Option<Uuid> {
-    value.as_str().and_then(|text| Uuid::parse_str(text).ok())
-}
-
-/// A copy of `node` without its children, so that a folder is not credited
-/// with the references of its descendants and they are not cloned.
-fn without_children(node: &Node) -> Node {
-    let kind = match &node.kind {
-        NodeKind::Folder(folder) => NodeKind::Folder(Folder {
-            children: Vec::new(),
-            credential: folder.credential.clone(),
-        }),
-        other => other.clone(),
-    };
-    Node {
-        id: node.id,
-        name: node.name.clone(),
-        description: node.description.clone(),
-        notes: node.notes.clone(),
-        icon: node.icon.clone(),
-        color: node.color.clone(),
-        favorite: node.favorite,
-        tags: node.tags.clone(),
-        custom_properties: node.custom_properties.clone(),
-        created: node.created,
-        modified: node.modified,
-        extra: node.extra.clone(),
-        source: node.source.clone(),
-        kind,
-    }
-}
-
-/// The credential spec of a folder or a connection; other kinds have none.
-fn credential_spec(node: &Node) -> Option<&CredentialSpec> {
-    match &node.kind {
-        NodeKind::Folder(folder) => Some(&folder.credential),
-        NodeKind::Connection(connection) => Some(&connection.credential),
-        NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
-    }
 }
 
 fn error(node: &Node, code: &'static str, message: String) -> Issue {
