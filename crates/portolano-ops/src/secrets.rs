@@ -93,6 +93,16 @@ pub fn set_secret(
     Ok(reference)
 }
 
+/// Whether node `id` can hold a secret in `slot`, so that a caller can
+/// tell before asking the user for it.
+///
+/// # Errors
+/// As [`set_secret`]: [`portolano_core::Error::NodeNotFound`],
+/// [`OpsError::SecretNotApplicable`], [`OpsError::PropertyIsText`].
+pub fn check_secret_slot(doc: &Document, id: Uuid, slot: &SecretSlot) -> Result<()> {
+    current_ref(find(doc, id)?, slot, &node_path(doc, id)).map(drop)
+}
+
 /// Removes the secret in `slot` of node `id` from the document, saves it,
 /// then deletes the secret from the vault. A secret property is removed
 /// altogether.

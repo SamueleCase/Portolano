@@ -167,3 +167,15 @@ fn file_vault_is_created_on_first_use() {
     assert!(String::from_utf8_lossy(&bytes).contains("portolano-vault"));
     assert!(!String::from_utf8_lossy(&bytes).contains(SENTINEL));
 }
+
+#[test]
+fn inapplicable_secret_is_refused_before_asking() {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "ssh", "/web01", "--host", "web01.example.com"]);
+    let assert = workspace
+        .run(&["secret", "set", "/web01", "--field", "passphrase"])
+        .code(1);
+    let error = stderr(&assert);
+    assert!(error.contains("non è applicabile"), "{error}");
+    assert!(!error.contains("nessun terminale"), "{error}");
+}

@@ -1,7 +1,9 @@
 //! `portolano secret`: set, clear and check the secrets of a node.
 
 use anyhow::Result;
-use portolano_ops::secrets::{SecretSlot, clear_secret, secret_status, set_secret};
+use portolano_ops::secrets::{
+    SecretSlot, check_secret_slot, clear_secret, secret_status, set_secret,
+};
 
 use super::common::report_cleanup;
 use crate::args::SecretCommand;
@@ -22,6 +24,8 @@ pub fn run(ctx: &Context, command: SecretCommand) -> Result<i32> {
         SecretCommand::Set { path, field, stdin } => {
             let id = doc.resolve_path(&path)?;
             let slot = field.0;
+            // Refused before asking, so the user never types a secret in vain.
+            check_secret_slot(&doc, id, &slot)?;
             let secret = match (&slot, stdin) {
                 (SecretSlot::PrivateKey, true) => prompt::stdin_all()?,
                 (SecretSlot::PrivateKey, false) => return Err(CliError::KeyNeedsStdin.into()),

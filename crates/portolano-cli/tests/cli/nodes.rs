@@ -377,3 +377,24 @@ fn tree_deeper_than_the_maximum_exits_with_4() {
         .code(4)
         .stderr(contains("profondità massima"));
 }
+
+#[test]
+fn password_with_a_linked_credential_is_a_usage_error() {
+    let workspace = Workspace::new();
+    workspace.add_admin();
+    workspace
+        .run_with_stdin(
+            &[
+                "add",
+                "ssh",
+                "/web01",
+                "--host",
+                "web01.example.com",
+                "--cred",
+                "/Admin",
+                "--password-stdin",
+            ],
+            "x\n",
+        )
+        .code(2);
+}

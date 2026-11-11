@@ -58,8 +58,9 @@ pub struct ConnectionArgs {
     /// Utente (senza `--cred` crea una credenziale inline).
     #[arg(long, conflicts_with = "cred")]
     pub user: Option<String>,
-    /// Credenziale: inherit, none, prompt, name:NOME oppure il percorso di una credenziale.
-    #[arg(long, value_name = "SPEC")]
+    /// Credenziale: inherit, none, prompt, name:NOME oppure il percorso di una credenziale
+    /// (la password di una credenziale collegata si imposta su quella).
+    #[arg(long, value_name = "SPEC", conflicts_with_all = ["ask_password", "password_stdin"])]
     pub cred: Option<CredArg>,
     /// Password della credenziale inline.
     #[command(flatten)]

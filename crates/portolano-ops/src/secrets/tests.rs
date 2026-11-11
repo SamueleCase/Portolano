@@ -218,3 +218,18 @@ fn status_reports_presence_of_each_secret_of_the_node() {
         ]
     );
 }
+
+#[test]
+fn check_tells_whether_a_slot_can_hold_a_secret() {
+    let doc = document(vec![
+        credential("Admin", "admin", None),
+        connection("web01", "ssh"),
+    ]);
+    let admin = id_of(&doc, "/Admin");
+    let web01 = id_of(&doc, "/web01");
+    assert!(check_secret_slot(&doc, admin, &SecretSlot::Passphrase).is_ok());
+    assert!(matches!(
+        check_secret_slot(&doc, web01, &SecretSlot::Password),
+        Err(OpsError::SecretNotApplicable { .. })
+    ));
+}
