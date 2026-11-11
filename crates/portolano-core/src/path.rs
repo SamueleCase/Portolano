@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 use crate::error::{Error, Result};
 use crate::model::{Document, Node};
-use crate::tree::walk_nodes;
+use crate::tree::{ensure_within_max_depth, walk_nodes};
 
 /// Shortest hex prefix accepted after `@`, to keep accidental matches rare.
 const MIN_ID_PREFIX: usize = 6;
@@ -88,8 +88,11 @@ impl Document {
     /// # Errors
     /// As [`Document::resolve_parent_path`], except that missing folders are
     /// created instead of reported; a missing `@id` segment cannot be created
-    /// and gives [`Error::NotFound`](crate::Error::NotFound). Nothing is
-    /// created when an error is returned.
+    /// and gives [`Error::NotFound`](crate::Error::NotFound);
+    /// [`Error::TooDeep`](crate::Error::TooDeep) if the node to add under the
+    /// returned parent would be deeper than
+    /// [`MAX_DEPTH`](crate::model::MAX_DEPTH). Nothing is created when an
+    /// error is returned.
     pub fn ensure_parent_path(&mut self, path: &str) -> Result<(Option<Uuid>, String)> {
         let (parent, name) = split_last(path)?;
         // The longest prefix that exists anchors the folders to create; the
@@ -113,6 +116,9 @@ impl Document {
                 }),
             })
             .collect::<Result<Vec<_>>>()?;
+        // Checked before creating anything; the node the caller adds under
+        // the returned parent counts too.
+        ensure_within_max_depth(self.child_level(anchor) + missing.len())?;
         for folder_name in missing {
             let folder = Node::folder(folder_name.as_str());
             let id = folder.id;

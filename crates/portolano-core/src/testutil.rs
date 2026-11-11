@@ -50,6 +50,27 @@ pub(crate) fn document(nodes: Vec<Node>) -> Document {
     document
 }
 
+/// A document holding a chain of `levels` nested folders, `level-1` to
+/// `level-<levels>`, and their ids from the outermost one; the folder at
+/// level `n` has id `n`.
+pub(crate) fn folder_chain(levels: usize) -> (Document, Vec<Uuid>) {
+    let ids: Vec<Uuid> = (1..=levels)
+        .map(|level| Uuid::from_u128(level as u128))
+        .collect();
+    let innermost = ids
+        .iter()
+        .enumerate()
+        .rev()
+        .fold(None, |child: Option<Node>, (index, &id)| {
+            Some(folder(
+                id,
+                &format!("level-{}", index + 1),
+                child.into_iter().collect(),
+            ))
+        });
+    (document(innermost.into_iter().collect()), ids)
+}
+
 /// The ids of `nodes`, in order.
 pub(crate) fn ids(nodes: &[Node]) -> Vec<Uuid> {
     nodes.iter().map(|node| node.id).collect()

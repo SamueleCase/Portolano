@@ -26,7 +26,7 @@ pub use error::{Error, Issue, Result, Severity, VaultError};
 pub use icons::IconStore;
 pub use model::{
     Connection, Credential, CredentialSpec, CustomProperty, Document, FORMAT_ID, Folder, Icon,
-    Node, NodeKind, PrivateKey, PropertyValue, SCHEMA_VERSION, SourceInfo, Unsupported,
+    MAX_DEPTH, Node, NodeKind, PrivateKey, PropertyValue, SCHEMA_VERSION, SourceInfo, Unsupported,
 };
 pub use resolve::{CredentialOrigin, ResolvedCredential};
 pub use secret::{Secret, SecretRef};
