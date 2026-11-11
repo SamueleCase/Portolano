@@ -24,3 +24,23 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 
 ## Lavori rimandati
 - RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
+
+### Esigenze della UI (FASE 2) aggiungibili senza rompere il core
+Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
+- traccia dell'ereditarietà della credenziale (`resolve_trace`: da quale cartella arriva);
+- conteggio degli utilizzi di una credenziale inclusi gli ereditati (con `resolve_credential` su `walk`);
+- anteprima dell'import (conteggi e numero di password richieste) e prompter asincrono con totale ("3 / 12",
+  "Salta tutte");
+- dal report d'import al nodo (via `source_id`);
+- motivi di `Partial` per campi Royal specifici, se richiesti;
+- nuovi controlli di validazione (credenziale senza password, inline duplicate confrontando solo utente e dominio);
+- icone della libreria Royal mappate sul set builtin e `IconStore::list()`;
+- riepilogo host/porta dei nodi non supportati estratto dall'importer;
+- preferenze di aspetto della UI in un file separato da `config.toml` (non come sezione di primo livello, DEC-011);
+- annullamento di un'eliminazione con cancellazione differita dei segreti;
+- `self_exe` per askpass e nuova finestra = binario CLI incluso nell'app (sidecar), non l'eseguibile Tauri;
+- stato bloccato/sbloccato del vault gestito dalla UI;
+- operazione "Duplica" che rigenera id e `SecretRef` (DEC-016.4);
+- estensione del file del documento (`.portolano` nel mock, `portolano.json` nella SPEC) da decidere per
+  l'associazione dei file;
+- "utente proposto" per la modalità "chiedi all'avvio".
