@@ -200,3 +200,48 @@ fn validate_reports_a_secret_ref_repeated_inside_settings() {
         vec![("duplicate_secret_ref", Some(OTHER))]
     );
 }
+
+#[test]
+fn validate_reports_an_unresolved_by_name_inside_settings() {
+    let mut document = sample();
+    document.nodes.push(with_setting(
+        connection(OTHER, "rdp"),
+        "gateway",
+        json!({ "host": "gateway.example.com", "credential": { "mode": "by_name", "name": "Nobody" } }),
+    ));
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("by_name_unresolved", Some(OTHER))]
+    );
+}
+
+#[test]
+fn validate_reports_a_credential_reference_to_a_connection_inside_settings() {
+    let mut document = sample();
+    document.nodes.push(with_setting(
+        connection(OTHER, "rdp"),
+        "gateway",
+        json!({ "host": "gateway.example.com", "credential": { "mode": "by_id", "$ref": BASTION } }),
+    ));
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("credential_ref_not_credential", Some(OTHER))]
+    );
+}
+
+#[test]
+fn validate_reports_a_dangling_credential_reference_inside_settings_once() {
+    let mut document = sample();
+    document.nodes.push(with_setting(
+        connection(OTHER, "rdp"),
+        "gateway",
+        json!({ "credential": { "mode": "by_id", "$ref": MISSING } }),
+    ));
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("dangling_ref", Some(OTHER))]
+    );
+}

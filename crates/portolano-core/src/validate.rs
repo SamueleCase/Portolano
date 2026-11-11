@@ -13,7 +13,7 @@ use crate::resolve::CredentialNames;
 use crate::secret::SecretRef;
 use crate::tree::collect_secret_refs;
 
-use crate::spec_scan::credential_spec;
+use crate::spec_scan::credential_specs_of;
 use references::{reference_values, referenced_id};
 
 impl Document {
@@ -29,8 +29,8 @@ impl Document {
         let lookup = Lookup::new(self);
         for (_, node) in self.walk() {
             issues.extend(dangling_references(node, &lookup.nodes));
-            if let Some(spec) = credential_spec(node) {
-                issues.extend(lookup.credential_spec_issue(node, spec));
+            for spec in credential_specs_of(node) {
+                issues.extend(lookup.credential_spec_issue(node, &spec));
             }
             if let Some(connection) = node.as_connection()
                 && connection.host.trim().is_empty()
@@ -138,9 +138,10 @@ impl<'a> Lookup<'a> {
         }
     }
 
-    /// Checks the node's own credential spec. `$ref`s inside `settings` that
-    /// point to credentials are checked by their protocol: the core cannot
-    /// tell them apart from references to other kinds of node.
+    /// Checks one credential spec of `node`, its own or one embedded in its
+    /// `settings`. A `ById` to a missing node is not reported here: the
+    /// reference scan already reports it as `dangling_ref`. Other `$ref`s in
+    /// `settings`, such as jump hosts, are checked by their protocol.
     fn credential_spec_issue(&self, node: &Node, spec: &CredentialSpec) -> Option<Issue> {
         match spec {
             CredentialSpec::ById { id } => {

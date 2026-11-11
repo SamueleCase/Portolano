@@ -4,6 +4,7 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 use super::*;
+use crate::spec_scan::credential_spec;
 
 #[test]
 fn references_to_finds_a_ref_nested_in_settings() {
