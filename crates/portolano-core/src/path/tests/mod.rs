@@ -61,5 +61,6 @@ fn invalid_reason(result: Result<impl std::fmt::Debug>) -> String {
     }
 }
 
+mod depth;
 mod resolution;
 mod syntax;

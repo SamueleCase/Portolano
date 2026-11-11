@@ -23,6 +23,15 @@ pub const FORMAT_ID: &str = "portolano";
 /// Schema version written by this build. Older documents are migrated on load.
 pub const SCHEMA_VERSION: u32 = 1;
 
+/// Maximum depth of the tree, in levels of nodes: the children of the root
+/// are at level 1 (DEC-021).
+///
+/// Each level adds two levels of JSON nesting (the node and its `children`),
+/// and `serde_json` refuses input nested more than 128 levels, so a deeper
+/// tree would save but not load again; the limit also keeps recursive code
+/// far from a stack overflow. Real documents are a few levels deep.
+pub const MAX_DEPTH: usize = 50;
+
 /// Serde helper for `skip_serializing_if`: omits boolean fields that are `false`.
 pub fn is_false(value: &bool) -> bool {
     !*value

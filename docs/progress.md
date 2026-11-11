@@ -9,10 +9,10 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 | Prerequisiti | fatto | Rust 1.99.1, FreeRDP 3.33.1 (`sdl-freerdp`); `samples/` con 2 documenti, ignorato da git |
 | WP0 – scheletro e contratto | **integrato** | merge `6e49dfd`; due giri di revisione indipendente; 30 test; gate verdi su `main` |
 | WP1 – albero, percorsi, risoluzione | **integrato** | merge `93c03c2`; due giri di revisione; 157 test nel core; gate verdi su `main` |
-| WP2 – store, migrazioni, icone, config | correzioni del 2° giro | lock per operazione con impronta (DEC-016.1), symlink, gc sicuro |
-| WP3 – vault | 2° giro di revisione | lock inter-processo (DEC-017), zeroize di Argon2 |
-| WP4 – connettori | 1° giro di revisione | 122 test con WP1; opzioni FreeRDP reali (DEC-020) |
-| WP5 – importer Royal | 1° giro di revisione | test sui campioni reali verde (DEC-019) |
+| WP2 – store, migrazioni, icone, config | **integrato** | merge `400adf0`; tre giri di revisione; lock per operazione (DEC-016.1), symlink, gc sicuro, `MAX_DEPTH` (DEC-021) |
+| WP3 – vault | **integrato** | merge `b569fb3`; due giri di revisione; lock inter-processo (DEC-017), zeroize di Argon2; core: 297 test + 1 ignorato (Keychain) |
+| WP4 – connettori | correzioni del 1° giro | 1 bloccante (pulizia dei file temporanei), 3 importanti, 10 minori |
+| WP5 – importer Royal | correzioni del 1° giro | 1 bloccante (ciphertext annidato), profondità, gzip bomba; test sui campioni reali verde (DEC-019) |
 | WP6 – CLI | da fare | |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |

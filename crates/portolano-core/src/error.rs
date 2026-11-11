@@ -66,6 +66,14 @@ pub enum Error {
         new_parent: Uuid,
     },
 
+    /// An insert, a move or the creation of a path would put a node deeper
+    /// than [`MAX_DEPTH`](crate::model::MAX_DEPTH) (DEC-021).
+    #[error("l'albero supererebbe la profondità massima di {max} livelli")]
+    TooDeep {
+        /// The maximum depth.
+        max: usize,
+    },
+
     /// A path is syntactically invalid or cannot be used for the operation.
     #[error("percorso non valido '{path}': {reason}")]
     InvalidPath {
@@ -110,9 +118,18 @@ pub enum Error {
         source: std::io::Error,
     },
 
-    /// The document is locked by another process.
-    #[error("il documento '{path}' è già in uso da un altro processo")]
-    Locked {
+    /// The document file changed after this store last read or wrote it, so
+    /// saving would overwrite someone else's changes (DEC-016.1).
+    #[error("il documento '{path}' è stato modificato da un altro processo: ricaricalo")]
+    ModifiedExternally {
+        /// The document file.
+        path: PathBuf,
+    },
+
+    /// The document file disappeared after the store was opened (moved or
+    /// deleted), so there is nothing to reload.
+    #[error("il documento '{path}' non esiste più: è stato spostato o cancellato")]
+    DocumentMissing {
         /// The document file.
         path: PathBuf,
     },
@@ -177,8 +194,11 @@ pub enum Error {
         source: serde_json::Error,
     },
 
-    /// An icon image has a type that is not supported (SPEC §6.4).
-    #[error("formato immagine non supportato per l'icona: {mime}")]
+    /// The bytes of an icon image are not of an accepted type (SPEC §6.4),
+    /// whatever type was declared.
+    #[error(
+        "il contenuto dell'icona non corrisponde a nessun formato immagine ammesso (dichiarato: {mime})"
+    )]
     UnsupportedIcon {
         /// The declared MIME type.
         mime: String,
