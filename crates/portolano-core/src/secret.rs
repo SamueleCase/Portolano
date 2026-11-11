@@ -18,7 +18,7 @@ pub struct SecretRef(String);
 impl SecretRef {
     /// Generates a new, random reference.
     // A `Default` impl would hide that every call yields a different value.
-    #[allow(clippy::new_without_default)]
+    #[expect(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(Uuid::new_v4().to_string())
     }
