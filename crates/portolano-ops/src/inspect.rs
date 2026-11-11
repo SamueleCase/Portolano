@@ -5,6 +5,7 @@
 use portolano_connectors::Registry;
 use portolano_core::{
     CredentialOrigin, Document, Node, NodeKind, PrivateKey, SecretRef, Vault, VaultError,
+    escape_path_segment,
 };
 use serde::Serialize;
 use uuid::Uuid;
@@ -155,7 +156,7 @@ impl Visit<'_> {
             return;
         }
         for node in nodes {
-            let path = format!("{parent_path}/{}", escape(&node.name));
+            let path = format!("{parent_path}/{}", escape_path_segment(&node.name));
             let node_type = NodeType::of(node);
             if self.filter.is_none_or(|filter| filter.matches(&node_type)) {
                 found.push(Entry {
@@ -172,12 +173,6 @@ impl Visit<'_> {
             }
         }
     }
-}
-
-/// A name as a path segment (SPEC §4.2): `\\` for a backslash, `\/` for a
-/// slash, as [`Document::path_of`] writes them.
-fn escape(name: &str) -> String {
-    name.replace('\\', "\\\\").replace('/', "\\/")
 }
 
 /// One-line summary of a node: the protocol's summary for a connection

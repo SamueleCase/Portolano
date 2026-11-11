@@ -28,6 +28,7 @@ pub use model::{
     Connection, Credential, CredentialSpec, CustomProperty, Document, FORMAT_ID, Folder, Icon,
     MAX_DEPTH, Node, NodeKind, PrivateKey, PropertyValue, SCHEMA_VERSION, SourceInfo, Unsupported,
 };
+pub use path::escape_path_segment;
 pub use resolve::{CredentialOrigin, ResolvedCredential};
 pub use secret::{Secret, SecretRef};
 pub use store::Store;

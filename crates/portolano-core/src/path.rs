@@ -38,7 +38,7 @@ impl Document {
         Some(
             lineage
                 .iter()
-                .map(|node| format!("/{}", escape(&node.name)))
+                .map(|node| format!("/{}", escape_path_segment(&node.name)))
                 .collect(),
         )
     }
@@ -316,13 +316,17 @@ fn render(segments: &[Segment]) -> String {
     segments
         .iter()
         .map(|segment| match segment {
-            Segment::Name(name) => format!("/{}", escape(name)),
+            Segment::Name(name) => format!("/{}", escape_path_segment(name)),
             Segment::Id { text, .. } => format!("/@{text}"),
         })
         .collect()
 }
 
-fn escape(name: &str) -> String {
+/// A node name as a path segment (SPEC §4.2): a backslash becomes `\\`
+/// and a slash `\/`, as in the paths returned by [`Document::path_of`].
+/// Callers that build the paths of many nodes while walking the tree use it
+/// instead of asking `path_of` for each node.
+pub fn escape_path_segment(name: &str) -> String {
     name.replace('\\', "\\\\").replace('/', "\\/")
 }
 
