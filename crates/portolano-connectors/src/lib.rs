@@ -18,6 +18,9 @@ pub mod ssh;
 #[cfg(test)]
 mod testutil;
 
+#[cfg(test)]
+mod secrecy_tests;
+
 use std::path::PathBuf;
 
 use portolano_core::{SecretRef, VaultError};
@@ -26,7 +29,7 @@ use uuid::Uuid;
 pub use env::{Environment, Os};
 pub use exec::execute;
 pub use plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher, render};
-pub use protocol::{ConnectOptions, PlanContext, Protocol};
+pub use protocol::{ConnectOptions, PlanContext, Protocol, SessionCredential};
 pub use rdp::RdpClient;
 pub use registry::Registry;
 
