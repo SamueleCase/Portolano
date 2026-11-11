@@ -5,6 +5,7 @@
 #![expect(unused_variables)]
 
 mod defaults;
+mod fields;
 mod map;
 mod sniff;
 mod xml;
