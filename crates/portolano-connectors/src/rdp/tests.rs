@@ -48,5 +48,17 @@ fn freerdp_result(target: &RdpTarget) -> Result<LaunchPlan, ConnectError> {
     )
 }
 
+/// A FreeRDP plan without `--wait`.
+fn detached_freerdp_plan(target: &RdpTarget) -> LaunchPlan {
+    freerdp::plan(
+        PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
+        target,
+        CertPolicy::Tofu,
+        false,
+    )
+    .unwrap()
+}
+
 mod builder;
+mod prompting;
 mod protocol;

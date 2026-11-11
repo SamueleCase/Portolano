@@ -252,15 +252,12 @@ fn windows_app_rejects_a_carriage_return_in_the_domain() {
 #[test]
 fn detached_freerdp_says_where_its_log_goes() {
     let settings = RdpSettings::default();
-    let rdp = target(&settings, login(Some("administrator"), None));
+    let rdp = target(
+        &settings,
+        login(Some("administrator"), Some(&SecretRef::new())),
+    );
 
-    let plan = freerdp::plan(
-        PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
-        &rdp,
-        CertPolicy::Tofu,
-        false,
-    )
-    .unwrap();
+    let plan = detached_freerdp_plan(&rdp);
 
     assert!(matches!(
         &plan.steps[0],
@@ -273,15 +270,12 @@ fn detached_freerdp_says_where_its_log_goes() {
 #[test]
 fn detached_freerdp_logs_only_warnings_and_errors() {
     let settings = RdpSettings::default();
-    let rdp = target(&settings, login(Some("administrator"), None));
+    let rdp = target(
+        &settings,
+        login(Some("administrator"), Some(&SecretRef::new())),
+    );
 
-    let plan = freerdp::plan(
-        PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
-        &rdp,
-        CertPolicy::Tofu,
-        false,
-    )
-    .unwrap();
+    let plan = detached_freerdp_plan(&rdp);
 
     assert!(run_args(&plan).contains(&"/log-level:WARN".to_owned()));
 }
