@@ -1,12 +1,10 @@
-//! Credential resolution (SPEC §4.3).
-
-// Stub (WP0): the parameters are used once WP1 implements the bodies.
-#![expect(unused_variables)]
+//! Credential resolution (SPEC §4.3, DEC-010).
 
 use uuid::Uuid;
 
-use crate::error::Result;
-use crate::model::{CredentialSpec, Document, PrivateKey};
+use crate::error::{Error, Result};
+use crate::model::{Credential, CredentialSpec, Document, Node, NodeKind, PrivateKey};
+use crate::path::same_name_ignoring_case;
 use crate::secret::SecretRef;
 
 /// Where the effective login data of a node comes from.
@@ -60,7 +58,17 @@ impl Document {
     /// not exist, [`Error::NoCredential`](crate::Error::NoCredential) for an
     /// unsupported node, plus the errors of [`Document::resolve_spec`].
     pub fn resolve_credential(&self, node_id: Uuid) -> Result<ResolvedCredential> {
-        todo!()
+        let node = self
+            .find(node_id)
+            .ok_or(Error::NodeNotFound { id: node_id })?;
+        match &node.kind {
+            NodeKind::Folder(folder) => self.resolve_spec(node_id, &folder.credential),
+            NodeKind::Connection(connection) => self.resolve_spec(node_id, &connection.credential),
+            NodeKind::Credential(credential) => {
+                Ok(ResolvedCredential::from_credential(node_id, credential))
+            }
+            NodeKind::Unsupported(_) => Err(Error::NoCredential { id: node_id }),
+        }
     }
 
     /// Resolves `spec` as if it belonged to the node `context`: `Inherit`
@@ -70,8 +78,126 @@ impl Document {
     /// [`Error::DanglingReference`](crate::Error::DanglingReference) or
     /// [`Error::NotACredential`](crate::Error::NotACredential) for a bad
     /// `ById`; [`Error::NotFound`](crate::Error::NotFound) or
-    /// [`Error::Ambiguous`](crate::Error::Ambiguous) for a bad `ByName`.
+    /// [`Error::Ambiguous`](crate::Error::Ambiguous) for a bad `ByName`;
+    /// [`Error::NodeNotFound`](crate::Error::NodeNotFound) if `Inherit` has to
+    /// look up a `context` that does not exist.
     pub fn resolve_spec(&self, context: Uuid, spec: &CredentialSpec) -> Result<ResolvedCredential> {
-        todo!()
+        let mut context = context;
+        let mut spec = spec;
+        while spec.is_inherit() {
+            let parent = self
+                .parent_of(context)
+                .ok_or(Error::NodeNotFound { id: context })?;
+            let Some(parent) = parent else {
+                return Ok(ResolvedCredential::empty(CredentialOrigin::None));
+            };
+            // Only folders have children, so a parent always has a spec; the
+            // error covers a broken invariant, not bad input.
+            spec = self
+                .find(parent)
+                .and_then(|node| node.as_folder())
+                .map(|folder| &folder.credential)
+                .ok_or(Error::NotAFolder { id: parent })?;
+            context = parent;
+        }
+        self.resolve_own_spec(context, spec)
+    }
+
+    /// The credential node a `ByName` spec refers to: the only credential with
+    /// exactly that name or, if there is none, the only one with that name
+    /// ignoring case.
+    ///
+    /// # Errors
+    /// [`Error::NotFound`](crate::Error::NotFound) if no credential has the
+    /// name, [`Error::Ambiguous`](crate::Error::Ambiguous) if several do.
+    pub(crate) fn credential_named(&self, name: &str) -> Result<(Uuid, &Credential)> {
+        let credentials = || {
+            self.walk()
+                .filter_map(|(_, node)| Some((node, node.as_credential()?)))
+        };
+        let mut found: Vec<_> = credentials()
+            .filter(|(node, _)| node.name == name)
+            .collect();
+        if found.is_empty() {
+            found = credentials()
+                .filter(|(node, _)| same_name_ignoring_case(&node.name, name))
+                .collect();
+        }
+        match found.as_slice() {
+            [] => Err(Error::NotFound {
+                query: name.to_owned(),
+            }),
+            [(node, credential)] => Ok((node.id, credential)),
+            _ => {
+                let nodes: Vec<&Node> = found.iter().map(|(node, _)| *node).collect();
+                Err(self.ambiguous(name.to_owned(), &nodes))
+            }
+        }
+    }
+
+    /// Resolves a spec that is not `Inherit`, owned by the node `context`.
+    fn resolve_own_spec(&self, context: Uuid, spec: &CredentialSpec) -> Result<ResolvedCredential> {
+        match spec {
+            // `resolve_spec` follows `Inherit` up to a real spec or the root,
+            // and inheriting from the root means no credential.
+            CredentialSpec::Inherit | CredentialSpec::None => {
+                Ok(ResolvedCredential::empty(CredentialOrigin::None))
+            }
+            CredentialSpec::Prompt => Ok(ResolvedCredential::empty(CredentialOrigin::Prompt)),
+            CredentialSpec::Inline {
+                username,
+                domain,
+                password,
+            } => Ok(ResolvedCredential {
+                origin: CredentialOrigin::Inline { node: context },
+                username: username.clone(),
+                domain: domain.clone(),
+                password: password.clone(),
+                private_key: None,
+                passphrase: None,
+            }),
+            CredentialSpec::ById { id } => {
+                let target = self.find(*id).ok_or(Error::DanglingReference {
+                    from: context,
+                    target: *id,
+                })?;
+                let credential = target.as_credential().ok_or(Error::NotACredential {
+                    from: context,
+                    target: *id,
+                })?;
+                Ok(ResolvedCredential::from_credential(*id, credential))
+            }
+            CredentialSpec::ByName { name } => {
+                let (id, credential) = self.credential_named(name)?;
+                Ok(ResolvedCredential::from_credential(id, credential))
+            }
+        }
     }
 }
+
+impl ResolvedCredential {
+    fn empty(origin: CredentialOrigin) -> Self {
+        Self {
+            origin,
+            username: None,
+            domain: None,
+            password: None,
+            private_key: None,
+            passphrase: None,
+        }
+    }
+
+    fn from_credential(node: Uuid, credential: &Credential) -> Self {
+        Self {
+            origin: CredentialOrigin::Credential { node },
+            username: credential.username.clone(),
+            domain: credential.domain.clone(),
+            password: credential.password.clone(),
+            private_key: credential.private_key.clone(),
+            passphrase: credential.passphrase.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;
