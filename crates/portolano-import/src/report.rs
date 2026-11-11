@@ -175,6 +175,9 @@ mod tests {
         report.count_unmapped("RoyalSSHConnection", "IsExpanded");
 
         assert_eq!(report.unmapped_fields["RoyalFolder"]["IsExpanded"], 2);
-        assert_eq!(report.unmapped_fields["RoyalSSHConnection"]["IsExpanded"], 1);
+        assert_eq!(
+            report.unmapped_fields["RoyalSSHConnection"]["IsExpanded"],
+            1
+        );
     }
 }

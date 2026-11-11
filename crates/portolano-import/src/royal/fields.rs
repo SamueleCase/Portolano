@@ -69,11 +69,7 @@ impl<'a> Fields<'a> {
 
     /// The trimmed, non-blank value, without marking it as used.
     pub(super) fn peek(&self, name: &str) -> Option<&'a str> {
-        self.object
-            .fields
-            .get(name)
-            .map(|field| field.as_str().trim())
-            .filter(|value| !value.is_empty())
+        self.object.value(name)
     }
 
     /// Whether the field is `True`, without marking it as used.

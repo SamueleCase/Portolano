@@ -60,6 +60,14 @@ impl RawObject {
         redacted
     }
 
+    /// The trimmed value of a field, `None` if absent or blank.
+    pub(super) fn value(&self, name: &str) -> Option<&str> {
+        self.fields
+            .get(name)
+            .map(|field| field.as_str().trim())
+            .filter(|value| !value.is_empty())
+    }
+
     /// Whether some fields hold encrypted secrets.
     pub(super) fn has_secrets(&self) -> bool {
         !self.secret_spans.is_empty()
@@ -261,7 +269,8 @@ mod tests {
 
     #[test]
     fn raw_xml_is_the_original_fragment() {
-        let fragment = "<RoyalVNCConnection><ID>a</ID><URI>vnc.example.com</URI></RoyalVNCConnection>";
+        let fragment =
+            "<RoyalVNCConnection><ID>a</ID><URI>vnc.example.com</URI></RoyalVNCConnection>";
         let xml = format!("<RTSZDocument>\n  {fragment}\n</RTSZDocument>");
 
         let objects = parse_document(&xml).unwrap();
@@ -336,8 +345,8 @@ mod tests {
 
     #[test]
     fn malformed_xml_is_rejected_without_quoting_the_content() {
-        let error = parse_document("<RTSZDocument><RoyalFolder><Name>secret-ish</Folder>")
-            .unwrap_err();
+        let error =
+            parse_document("<RTSZDocument><RoyalFolder><Name>secret-ish</Folder>").unwrap_err();
 
         assert!(matches!(error, ImportError::Xml { .. }));
         assert!(!error.to_string().contains("secret-ish"));

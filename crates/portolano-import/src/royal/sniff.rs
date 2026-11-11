@@ -42,7 +42,8 @@ pub(super) fn container(head: &[u8]) -> Option<Container> {
 
 /// Whether plain-XML bytes contain the root element of a Royal document.
 pub(super) fn mentions_root_element(head: &[u8]) -> bool {
-    head.windows(ROOT_TAG.len()).any(|window| window == ROOT_TAG)
+    head.windows(ROOT_TAG.len())
+        .any(|window| window == ROOT_TAG)
 }
 
 /// The XML text of a Royal document, decompressed if needed and without BOM.
@@ -221,7 +222,10 @@ mod tests {
         let mut bytes = gzip(XML.as_bytes());
         bytes.truncate(12);
 
-        assert!(matches!(decode(&bytes), Err(ImportError::Decompress { .. })));
+        assert!(matches!(
+            decode(&bytes),
+            Err(ImportError::Decompress { .. })
+        ));
     }
 
     #[test]
