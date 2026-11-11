@@ -122,8 +122,10 @@ impl Store {
     ///
     /// # Errors
     /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally) if the
-    /// file changed (or disappeared) after this store last read or wrote it;
-    /// the document must be loaded again.
+    /// file changed after this store last read or wrote it; the document must
+    /// be loaded again.
+    /// [`Error::DocumentMissing`](crate::Error::DocumentMissing) if the file
+    /// was moved or deleted.
     /// [`Error::Serialize`](crate::Error::Serialize),
     /// [`Error::Io`](crate::Error::Io).
     pub fn save(&self, doc: &mut Document) -> Result<()> {
@@ -134,7 +136,9 @@ impl Store {
             let current = match fs::read(&self.path) {
                 Ok(current) => current,
                 Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                    return Err(self.modified_externally());
+                    return Err(Error::DocumentMissing {
+                        path: self.path.clone(),
+                    });
                 }
                 Err(source) => return Err(io_error(&self.path)(source)),
             };

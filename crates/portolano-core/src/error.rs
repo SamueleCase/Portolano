@@ -118,6 +118,14 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// The document file disappeared after the store was opened (moved or
+    /// deleted), so there is nothing to reload.
+    #[error("il documento '{path}' non esiste più: è stato spostato o cancellato")]
+    DocumentMissing {
+        /// The document file.
+        path: PathBuf,
+    },
+
     /// The file to create already exists.
     #[error("il file '{path}' esiste già")]
     AlreadyExists {

@@ -47,14 +47,26 @@ fn save_after_an_external_edit_is_refused_and_keeps_the_edit() {
 }
 
 #[test]
-fn save_after_the_file_was_deleted_is_refused() {
+fn save_after_the_file_was_deleted_reports_the_missing_document() {
     let dir = TempDir::new().unwrap();
     let (store, mut doc) = Store::create(document_path(&dir), "Portolano").unwrap();
     fs::remove_file(document_path(&dir)).unwrap();
 
     let error = store.save(&mut doc).unwrap_err();
 
-    assert!(matches!(error, Error::ModifiedExternally { .. }));
+    assert!(matches!(error, Error::DocumentMissing { .. }));
+    assert!(!document_path(&dir).exists());
+}
+
+#[test]
+fn save_after_the_file_was_moved_reports_the_missing_document() {
+    let dir = TempDir::new().unwrap();
+    let (store, mut doc) = Store::create(document_path(&dir), "Portolano").unwrap();
+    fs::rename(document_path(&dir), dir.path().join("moved.json")).unwrap();
+
+    let error = store.save(&mut doc).unwrap_err();
+
+    assert!(matches!(error, Error::DocumentMissing { .. }));
 }
 
 // Depends on WP1: `load` calls `Document::validate`.
