@@ -27,7 +27,7 @@ fn insert_at_the_maximum_depth_is_accepted() {
 }
 
 #[test]
-fn insert_below_the_maximum_depth_is_rejected_and_changes_nothing() {
+fn insert_beyond_the_maximum_depth_is_rejected_and_changes_nothing() {
     let (mut document, ids) = folder_chain(MAX_DEPTH);
     let before = document.clone();
 
