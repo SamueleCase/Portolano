@@ -64,9 +64,15 @@ impl FileVault {
     /// [`KdfParams::RECOMMENDED`] if it does not exist.
     ///
     /// # Errors
-    /// [`VaultError::BadMasterPassword`], [`VaultError::Corrupt`],
-    /// [`VaultError::UnsupportedVersion`], [`VaultError::Io`], or the error of
-    /// the master password source.
+    /// - [`VaultError::BadMasterPassword`]: wrong password or tampered file;
+    /// - [`VaultError::Corrupt`], [`VaultError::UnsupportedVersion`]: the file
+    ///   cannot be read (including KDF costs above the bounds);
+    /// - [`VaultError::Io`]: on the vault, its lock or its directory;
+    /// - [`VaultError::Crypto`]: creation with KDF parameters out of bounds,
+    ///   system random generator unavailable, or key derivation failure;
+    /// - [`VaultError::Backend`]: another process created the vault while
+    ///   this one was creating it;
+    /// - the error of the master password source.
     pub fn open(
         path: impl Into<PathBuf>,
         master_password: &dyn MasterPasswordSource,
@@ -79,7 +85,8 @@ impl FileVault {
     /// stored in its file.
     ///
     /// # Errors
-    /// As [`FileVault::open`].
+    /// As [`FileVault::open`]; the [`VaultError::Crypto`] for out-of-bounds
+    /// costs concerns `params`.
     pub fn with_kdf_params(
         path: impl Into<PathBuf>,
         master_password: &dyn MasterPasswordSource,
