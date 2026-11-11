@@ -146,15 +146,17 @@ impl Mapper<'_, '_> {
         for structural in ["ID", "ParentID", "PositionNr"] {
             fields.take_raw(structural);
         }
-        let name = match fields.take("Name") {
-            _ if object.type_name == types::TRASH => TRASH_FOLDER_NAME,
-            Some(name) => name,
-            None => UNNAMED,
+        let royal_name = fields.take("Name").unwrap_or(UNNAMED);
+        let name = if object.type_name == types::TRASH {
+            TRASH_FOLDER_NAME
+        } else {
+            royal_name
         };
         let path = join_path(parent_path, name);
         let mut ctx = ObjectContext::new(fields, path.clone());
         let created = ctx.fields.take_with("Created", parse_date);
         let modified = ctx.fields.take_with("Modified", parse_date);
+        // The constructor fills the common fields; the kind is set below.
         let mut node = Node::folder(name);
         node.id = self.ids[index];
         node.created = created.unwrap_or(self.imported_at);
@@ -220,8 +222,7 @@ impl Mapper<'_, '_> {
         let unused: Vec<_> = ctx.fields.unused().collect();
         for (name, field) in unused {
             if is_secret_value(name, field.as_str()) {
-                ctx.reasons
-                    .push(format!("campo cifrato `{name}` non importato"));
+                ctx.add_reason(format!("campo cifrato `{name}` non importato"));
             } else {
                 ctx.extra.insert(
                     format!("{EXTRA_PREFIX}{name}"),
@@ -279,10 +280,9 @@ fn classify(object: &RawObject, fields: &Fields<'_>) -> Class {
 
 /// An unsupported object keeps its XML, without the encrypted fields (D3).
 fn unsupported(object: &RawObject, reason: String, ctx: &mut ObjectContext<'_>) -> NodeKind {
-    ctx.reasons.push(reason);
+    ctx.add_reason(reason);
     if object.has_secrets() {
-        ctx.reasons
-            .push("campi cifrati rimossi dall'XML conservato".to_owned());
+        ctx.add_reason("campi cifrati rimossi dall'XML conservato");
     }
     NodeKind::Unsupported(Unsupported {
         source_type: object.type_name.clone(),
