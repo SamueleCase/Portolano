@@ -142,6 +142,9 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
   Le due regex restano distinte e testate entrambe.
 - **Verifica**: il testo esatto del prompt si conferma nella verifica finale con un `ssh-agent` temporaneo e una
   chiave di test usa e getta (mai l'agent dell'utente); se diverge, si aggiorna la regex.
+- **Verificato dal vivo il 2026-11-11** (OpenSSH_10.3p1, agent temporaneo, chiave ed25519 usa e getta): il prompt è
+  esattamente `Enter passphrase for (stdin): `, corrisponde alla regex di questa decisione e non a quella del §7.2;
+  con l'askpass che risponde, la chiave viene caricata (`Identity added: (stdin)`, durata 5 minuti).
 - **Motivo**: senza questa forma la passphrase delle chiavi nel vault non verrebbe mai servita dall'askpass.
 
 ### DEC-016 – Esigenze del mock UI che toccano il core (decise dal PM)
