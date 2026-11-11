@@ -14,8 +14,12 @@ use crate::protocol::{check_value, host_port};
 /// Port of SSH when the connection does not set one.
 pub(super) const SSH_PORT: u16 = 22;
 
-/// Characters that would split or end a `-J` entry.
-const JUMP_FORBIDDEN: [char; 2] = [',', ' '];
+/// Characters that would split or end a `-J` entry, or that a shell would
+/// interpret: OpenSSH may turn the jump hosts into a proxy command run by
+/// the shell, so quotes, substitutions and separators are refused too.
+const JUMP_FORBIDDEN: [char; 14] = [
+    ',', ' ', '\'', '"', '`', ';', '$', '|', '&', '<', '>', '(', ')', '\\',
+];
 
 /// Lifetime of a vault key in `ssh-agent` (`ssh-add -t`), in seconds: long
 /// enough to log in, short enough not to linger.

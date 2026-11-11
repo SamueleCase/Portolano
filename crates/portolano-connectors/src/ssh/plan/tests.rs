@@ -349,6 +349,33 @@ fn jump_host_with_a_comma_is_rejected() {
 }
 
 #[test]
+fn jump_host_with_shell_characters_is_rejected() {
+    let settings = SshSettings::default();
+    for host in [
+        "gw.example.com;id",
+        "$(id).example.com",
+        "gw`id`",
+        "gw'x",
+        "gw\"x",
+        "a|b",
+        "a&b",
+        "a<b",
+        "a>b",
+        "a\\b",
+    ] {
+        let jumps = vec![Jump::Endpoint(endpoint(host, 22, login(None, None)))];
+        let target = endpoint("web01.example.com", 22, login(None, None));
+
+        let result = build(&launch(target, jumps, &settings));
+
+        assert!(
+            matches!(result, Err(ConnectError::InvalidValue { .. })),
+            "{host}: {result:?}"
+        );
+    }
+}
+
+#[test]
 fn jump_user_with_a_space_or_control_character_is_rejected() {
     let settings = SshSettings::default();
     for user in ["ops admin", "ops\nadmin"] {
