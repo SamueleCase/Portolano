@@ -36,6 +36,10 @@ impl Protocol for SshProtocol {
         todo!()
     }
 
+    fn validate_config(&self, section: &toml::Value) -> Result<(), String> {
+        todo!()
+    }
+
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue> {
         todo!()
     }

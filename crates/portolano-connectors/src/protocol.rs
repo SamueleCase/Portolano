@@ -28,6 +28,14 @@ pub trait Protocol: Send + Sync {
     /// A description of the problem, in Italian.
     fn validate_settings(&self, settings: &serde_json::Map<String, Value>) -> Result<(), String>;
 
+    /// Checks the protocol's section of `config.toml`: `section` is the
+    /// top-level table whose name equals [`Protocol::id`] (DEC-003, DEC-008).
+    /// The CLI calls it on `config set`, so the core never knows the fields.
+    ///
+    /// # Errors
+    /// A description of the problem, in Italian.
+    fn validate_config(&self, section: &toml::Value) -> Result<(), String>;
+
     /// Protocol-specific problems of a connection node.
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue>;
 
