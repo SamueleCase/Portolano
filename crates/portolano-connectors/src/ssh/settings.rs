@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use uuid::Uuid;
 
+use super::options::check_option;
 use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
 use crate::env::{DEFAULT_SSH_PROGRAM, check_program_path};
@@ -65,65 +66,6 @@ impl SshSettings {
         }
         Ok(parsed)
     }
-}
-
-/// Options that run commands, change the environment, the agent or the
-/// multiplexing socket, read other configuration, or replace a dedicated
-/// setting (DEC-024.1). A document may come from someone else, so it is not
-/// trusted like `~/.ssh/config`, where whoever needs them can put them.
-const FORBIDDEN_OPTIONS: [&str; 17] = [
-    "ProxyCommand",
-    "ProxyJump",
-    "LocalCommand",
-    "PermitLocalCommand",
-    "KnownHostsCommand",
-    "PKCS11Provider",
-    "SecurityKeyProvider",
-    "ProxyUseFdpass",
-    "SendEnv",
-    "SetEnv",
-    "Include",
-    "Match",
-    "IdentityAgent",
-    "ControlPath",
-    "ControlMaster",
-    "RemoteCommand",
-    "ForwardAgent",
-];
-
-/// Checks one `-o Key=Value` option.
-///
-/// The name must be a plain keyword: ssh reads `-o` like a line of its
-/// configuration, so a space or a `=` in the name would let the rest of it
-/// become the value of another keyword, and a control character in the value
-/// could end the line.
-fn check_option(key: &str, value: &str) -> Result<(), String> {
-    if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return Err(format!(
-            "campo 'options': nome di opzione non valido '{key}'"
-        ));
-    }
-    if value.chars().any(char::is_control) {
-        return Err(format!(
-            "campo 'options': il valore di '{key}' contiene un carattere di controllo"
-        ));
-    }
-    let Some(forbidden) = FORBIDDEN_OPTIONS
-        .iter()
-        .find(|name| name.eq_ignore_ascii_case(key))
-    else {
-        return Ok(());
-    };
-    let alternative = match *forbidden {
-        "ProxyJump" => " (per i jump host usa 'jump_hosts')",
-        "ForwardAgent" => " (per l'inoltro dell'agent usa 'agent_forwarding')",
-        _ => "",
-    };
-    Err(format!(
-        "campo 'options': l'opzione '{key}' non è ammessa nel documento perché può eseguire \
-         comandi o cambiare ambiente, agent o configurazione{alternative}; se ti serve, \
-         mettila nel tuo ~/.ssh/config"
-    ))
 }
 
 /// A jump host: another SSH connection of the document, or a literal address.
@@ -286,52 +228,21 @@ mod tests {
     }
 
     #[test]
-    fn option_names_with_spaces_are_rejected() {
-        let options = json!({ "options": { "User ProxyCommand": "x" } });
+    fn options_outside_the_allowed_list_are_rejected() {
+        let options = json!({ "options": { "RemoteForward": "8080 localhost:80" } });
 
         let error = SshSettings::parse(&map(options)).unwrap_err();
 
-        assert!(error.contains("nome di opzione non valido"), "{error}");
+        assert!(error.contains("'RemoteForward'"), "{error}");
+        assert!(error.contains("~/.ssh/config"), "{error}");
     }
 
     #[test]
-    fn option_values_with_control_characters_are_rejected() {
-        let options = json!({ "options": { "User": "admin\nProxyCommand x" } });
-
-        let error = SshSettings::parse(&map(options)).unwrap_err();
-
-        assert!(error.contains("carattere di controllo"), "{error}");
-    }
-
-    #[test]
-    fn every_dangerous_option_is_rejected_whatever_its_case() {
-        for name in FORBIDDEN_OPTIONS {
-            for key in [name.to_owned(), name.to_ascii_lowercase()] {
-                let options = json!({ "options": { key.clone(): "x" } });
-
-                let error = SshSettings::parse(&map(options)).unwrap_err();
-
-                assert!(error.contains(&format!("'{key}'")), "{error}");
-                assert!(error.contains("~/.ssh/config"), "{error}");
-            }
-        }
-    }
-
-    #[test]
-    fn proxy_jump_points_at_jump_hosts() {
-        let options = json!({ "options": { "ProxyJump": "bastion.example.com" } });
-
-        let error = SshSettings::parse(&map(options)).unwrap_err();
-
-        assert!(error.contains("jump_hosts"), "{error}");
-    }
-
-    #[test]
-    fn harmless_options_are_accepted() {
+    fn options_of_add_ssh_key_are_accepted() {
         let options = json!({ "options": {
             "IdentityFile": "~/.ssh/id_ed25519",
             "IdentitiesOnly": "yes",
-            "StrictHostKeyChecking": "yes",
+            "StrictHostKeyChecking": "accept-new",
         } });
 
         let parsed = SshSettings::parse(&map(options)).unwrap();

@@ -1,6 +1,7 @@
 //! The SSH protocol, through the system OpenSSH (SPEC §7.2).
 
 pub mod askpass;
+mod options;
 mod plan;
 mod settings;
 
