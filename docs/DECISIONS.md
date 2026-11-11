@@ -132,6 +132,18 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
 - Inoltre approvato: escape sconosciuti, `\` finale e `/` finale danno `InvalidPath`; tutti i codici di
   `validate` del core hanno severità `Error`.
 
+### DEC-015 – Prompt della passphrase di `ssh-add` (decisa dal PM)
+- **Dubbio**: con la chiave letta da stdin (`ssh-add -t 300 -`, §7.2), OpenSSH chiede la passphrase con un prompt
+  della forma `Enter passphrase for (stdin): ` (eventualmente seguito da ` (will confirm each use)`), che non
+  corrisponde alla regex del §7.2 `^Enter passphrase for key '(?P<path>.+)': ?$` (quella è di `ssh`).
+- **Decisione**: il server askpass riconosce anche la forma di `ssh-add`:
+  `^Enter passphrase for (?P<path>[^']+?)(?: \(will confirm each use\))?: ?$`, che produce un
+  `PromptMatcher::Passphrase { key_path }`. Per lo step `SshAddKey` la voce askpass usa `key_path = "(stdin)"`.
+  Le due regex restano distinte e testate entrambe.
+- **Verifica**: il testo esatto del prompt si conferma nella verifica finale con un `ssh-agent` temporaneo e una
+  chiave di test usa e getta (mai l'agent dell'utente); se diverge, si aggiorna la regex.
+- **Motivo**: senza questa forma la passphrase delle chiavi nel vault non verrebbe mai servita dall'askpass.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
