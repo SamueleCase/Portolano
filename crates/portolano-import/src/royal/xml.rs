@@ -10,7 +10,7 @@ use quick_xml::Reader;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::{BytesRef, BytesStart, Event};
 
-use super::fields::is_secret_value;
+use super::fields::{is_secret_value, looks_like_ciphertext};
 use crate::ImportError;
 
 const ROOT_ELEMENT: &str = "RTSZDocument";
@@ -190,7 +190,8 @@ fn read_fields(
             Event::Eof => return Err(unexpected_end()),
             _ => continue,
         };
-        if field.secret || is_secret_value(&name, field.value.as_str()) {
+        let value = field.value.as_str();
+        if field.secret || is_secret_value(&name, value) || looks_like_ciphertext(&name, value) {
             let span = field_start - start..position(reader)? - start;
             object.redactions.push((span, String::new()));
             object.secret_fields.insert(name.clone());
@@ -256,7 +257,7 @@ fn read_field_value(
 
 /// Whether an attribute of the element holds a secret: the attribute has a
 /// secret name, or the element has one, and the value is not a plain
-/// setting.
+/// setting; or the value looks like ciphertext.
 fn has_secret_attribute(element: &BytesStart<'_>) -> Result<bool, ImportError> {
     let name = element_name(element);
     for attribute in element.attributes() {
@@ -264,7 +265,10 @@ fn has_secret_attribute(element: &BytesStart<'_>) -> Result<bool, ImportError> {
             reason: "attributo non valido".to_owned(),
         })?;
         let value = attribute.value.as_ref();
-        if is_secret_value(attribute.key.as_ref(), value) || is_secret_value(&name, value) {
+        if is_secret_value(attribute.key.as_ref(), value)
+            || is_secret_value(&name, value)
+            || looks_like_ciphertext(&name, value)
+        {
             return Ok(true);
         }
     }

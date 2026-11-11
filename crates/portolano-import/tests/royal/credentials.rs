@@ -1,7 +1,7 @@
 //! Credentials of connections and folders, `RoyalCredential` and secrets
 //! (SPEC §8.3.5).
 
-use portolano_core::{CredentialSpec, PrivateKey};
+use portolano_core::{CredentialSpec, NodeKind, PrivateKey};
 use portolano_import::{ImportError, ItemStatus, SecretField, SecretPrompter, SecretRequest};
 use pretty_assertions::assert_eq;
 
@@ -357,6 +357,57 @@ fn a_skipped_embedded_key_makes_the_credential_partial() {
         reasons(&outcome, 2),
         vec!["chiave privata Royal cifrata non importata: impostala con `portolano secret set`"]
     );
+}
+
+/// Base64 of 48 bytes, block-aligned, under a name that says nothing about
+/// a secret (DEC-024.4).
+const UNNAMED_CIPHERTEXT: &str = "kq7Hn2Lw0zVb5yX1cR8tFj3mP6sD9gA4eK0uN7iB2oQ5vZ8xW1hT4rY6lC3dE9fG";
+
+#[test]
+fn ciphertext_under_an_unexpected_name_is_dropped_and_reported() {
+    let xml = ssh_with(&[("TokenBlob", UNNAMED_CIPHERTEXT)]);
+
+    let outcome = import(&xml);
+
+    let node = find(&outcome.root, uuid(2));
+    assert!(!node.extra.contains_key("royal.TokenBlob"));
+    assert_eq!(status(&outcome, 2), ItemStatus::Partial);
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec!["campo cifrato `TokenBlob` non importato"]
+    );
+    let json = serde_json::to_string(&outcome.root).unwrap();
+    assert!(!json.contains(UNNAMED_CIPHERTEXT));
+}
+
+#[test]
+fn ciphertext_under_an_unexpected_name_is_removed_from_an_unsupported_object() {
+    let xml = document(&[object(
+        "RoyalVNCConnection",
+        2,
+        1,
+        &[("Name", "vnc"), ("TokenBlob", UNNAMED_CIPHERTEXT)],
+    )]);
+
+    let outcome = import(&xml);
+
+    let node = find(&outcome.root, uuid(2));
+    let NodeKind::Unsupported(unsupported) = &node.kind else {
+        panic!("not unsupported: {node:?}");
+    };
+    assert!(!unsupported.raw.contains(UNNAMED_CIPHERTEXT));
+    assert!(unsupported.raw.contains("<Name>vnc</Name>"));
+}
+
+#[test]
+fn base64_notes_and_images_are_not_taken_for_ciphertext() {
+    let xml = ssh_with(&[("Notes", UNNAMED_CIPHERTEXT)]);
+
+    let outcome = import(&xml);
+
+    assert_eq!(status(&outcome, 2), ItemStatus::Imported);
+    let node = find(&outcome.root, uuid(2));
+    assert_eq!(node.notes.as_deref(), Some(UNNAMED_CIPHERTEXT));
 }
 
 #[test]
