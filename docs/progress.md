@@ -7,8 +7,8 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 | Passo | Stato | Note |
 |---|---|---|
 | Prerequisiti | fatto | Rust 1.99.1, FreeRDP 3.33.1 (`sdl-freerdp`); `samples/` con 2 documenti, ignorato da git |
-| WP0 – scheletro e contratto | in revisione | branch `worktree-agent-a149a766fbe3c143b` (worktree in `.claude/worktrees/`), gate verdi; revisione indipendente in corso |
-| WP1…WP5 – ondata 1 | da fare | dopo il merge di WP0 |
+| WP0 – scheletro e contratto | **integrato** | merge `6e49dfd`; due giri di revisione indipendente; 30 test; gate verdi su `main` |
+| WP1…WP5 – ondata 1 | in corso | 5 sottoagenti in parallelo, ciascuno in un worktree sotto `.claude/worktrees/`; merge previsto in ordine WP1 → WP5 |
 | WP6 – CLI | da fare | |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |
