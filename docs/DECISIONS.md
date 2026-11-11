@@ -180,6 +180,17 @@ mock in `docs/ui/NOTE.md`.
    saltata è `Partial`, `Skipped` vale solo per il cestino (§8.3); la condivisione di documenti in cartelle
    sincronizzate resta fuori scope (§14).
 
+### DEC-017 – Vault su file con più processi (decisa dal PM)
+- **Dubbio** (report di WP3): `FileVault` riscrive `vault.json` dalla propria copia in memoria; con due processi
+  aperti (app e CLI, DEC-016.1) l'ultimo che scrive cancella i segreti aggiunti dall'altro.
+- **Decisione**: `set` e `delete` fanno lettura-modifica-scrittura sotto lock esclusivo su `vault.json.lock`
+  (`fd-lock`): rileggono e decifrano il file corrente, applicano la modifica, riscrivono in modo atomico. `get` e
+  `contains` leggono il file corrente sotto lock condiviso (la chiave derivata resta in memoria, il salt è fisso
+  per file). Nessuna copia dei segreti tenuta in memoria fra un'operazione e l'altra.
+- Inoltre: i parametri KDF letti dal file hanno limiti massimi ragionevoli (oltre → `VaultError::Corrupt`), così
+  un file manomesso non blocca il processo; abilitata la feature `zeroize` di `chacha20poly1305` e `argon2`; il
+  modulo `vault/file.rs` è diviso in sottomoduli `vault/file/*.rs`.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
