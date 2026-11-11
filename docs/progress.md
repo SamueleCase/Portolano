@@ -17,11 +17,18 @@ verifica finale. Serve anche a riprendere il lavoro se la sessione si interrompe
 | WP6 – `portolano-ops` + CLI | **integrato** | merge `c762281`; due giri di revisione per crate; 882 test nel workspace (DEC-018, DEC-022, DEC-023) |
 | WP7 – README, smoke, stato finale | **integrato** | merge `b2a6a7f`; una revisione; `README.md`, `scripts/smoke.sh` (`SMOKE OK`), questo file; nessuna modifica al codice; aggiornamento finale dopo WP8 |
 | WP8 – indurimento di sicurezza | **integrato** | merge `3273cbe`; due giri di revisione; modello di fiducia, opzioni ssh ammesse, programmi in config, caratteri di controllo, ciphertext Royal, memoria dei segreti, FreeRDP in primo piano (DEC-024, DEC-025, DEC-026) |
-| Verifica finale | da fare | PM: quality gate su checkout pulito; utente: verifiche dal vivo (sotto) |
+| WP9 – coerenza | **integrato** | merge `85c7c16`; caratteri di controllo rifiutati anche nella destinazione FreeRDP; messaggio d'errore di stdin non ripetuto |
+| Verifica finale (PM) | **fatta** | 2026-11-11 su `85c7c16`: gate su `main` e su un clone pulito, smoke, campioni reali, `cargo install`, import dei campioni in prova, DEC-015 dal vivo |
+| Verifiche dal vivo (utente) | da fare | Keychain reale, SSH e RDP su host reali, gateway RDP, nuova finestra (sotto) |
 
-Quality gate dopo WP8 (branch di WP7 = `main` + documentazione): `cargo fmt --all --check` pulito,
-`cargo test --workspace` 976 test superati e 2 ignorati (Keychain reale, campioni reali). `scripts/smoke.sh`
-termina con `SMOKE OK`.
+Verifica finale del PM (su `85c7c16`, sia nel repo sia in un clone pulito senza `samples/`): `cargo fmt --all
+--check` pulito; `cargo clippy --workspace --all-targets -- -D warnings` pulito; `cargo test --workspace` 980 test
+superati, 0 falliti, 2 ignorati (Keychain reale, campioni reali); nessun IP fuori da RFC 5737 in codice, script e
+README; `scripts/smoke.sh` termina con `SMOKE OK`; `PORTOLANO_SAMPLES_DIR=samples cargo test --workspace --
+--ignored samples` passa; `cargo install --path crates/portolano-cli` installa `~/.cargo/bin/portolano` 0.1.0 e
+`--help` elenca i 13 comandi del §10; `import --dry-run` dei due campioni: documento 1 → 23 oggetti, 15 importati,
+7 parziali (le 7 password cifrate), 1 saltato (cestino), 1 avviso (documento protetto da password); documento 2 → 8
+oggetti, 8 importati; nessuna scrittura sul documento.
 
 ## Cosa funziona
 
@@ -69,8 +76,9 @@ Richiedono la presenza dell'utente, host reali o il portachiavi reale; nessuna �
 1. **Keychain reale** (DoD): `add cred --ask-password`, `secret status` → presente, `delete` → l'elemento sparisce
    dal portachiavi. C'è anche il test `#[ignore]`: `PORTOLANO_TEST_KEYCHAIN=1 cargo test -p portolano-core --
    --ignored keychain`. Su binari non firmati compare il prompt del portachiavi dopo ogni ricompilazione (§5.2).
-2. **DEC-015, prompt di `ssh-add`**: confermare il testo `Enter passphrase for (stdin):` con un `ssh-agent`
-   temporaneo e una chiave di test usa e getta (mai l'agent dell'utente); se diverge si aggiorna la regex.
+2. ~~**DEC-015, prompt di `ssh-add`**~~: **verificato dal PM** il 2026-11-11 con un `ssh-agent` temporaneo e una
+   chiave usa e getta: il prompt è `Enter passphrase for (stdin): ` e la chiave viene caricata. Resta da provare
+   `connect` con una chiave nel vault su un host reale (punto 5).
 3. **DEC-020, gateway RDP**: su un host reale con RD Gateway, riuso delle credenziali sul gateway quando
    coincidono con quelle della destinazione (`u:`/`d:` omessi) e `/from-stdin:force` insieme a `/gateway:`.
 4. **DEC-025/DEC-026, FreeRDP che deve chiedere una password**: quando manca la password della destinazione o il
@@ -113,15 +121,14 @@ verificati") e conservano l'originale in `extra`. Per chiuderle serve il documen
 
 ## Definition of Done (SPEC §13)
 
-- [x] Tutti i quality gate passano (dopo WP8, sul branch di WP7; su checkout pulito di `main` **da verificare dal
-      PM** alla verifica finale).
+- [x] Tutti i quality gate passano su un checkout pulito (clone di `main` a `85c7c16`).
 - [x] `scripts/smoke.sh` termina con `SMOKE OK`.
 - [x] `cargo install --path crates/portolano-cli` installa `portolano`, e `portolano --help` elenca i comandi del
       §10.
-- [ ] Il test di conteggio sui campioni reali passa (`PORTOLANO_SAMPLES_DIR=samples cargo test -p portolano-import
-      -- --ignored samples`): **da verificare dal PM** (verde durante WP5, DEC-019; WP7 non apre `samples/`).
-- [ ] L'import dei due documenti in `samples/` riesce, con report: i segreti cifrati risultano `Partial` e i
-      conteggi coincidono: **da verificare dal PM**.
+- [x] Il test di conteggio sui campioni reali passa (`PORTOLANO_SAMPLES_DIR=samples cargo test --workspace --
+      --ignored samples`).
+- [x] L'import dei due documenti in `samples/` riesce, con report: le 7 password cifrate risultano `Partial` e i
+      conteggi coincidono (23 = 15 + 7 + 1; 8 = 8).
 - [ ] Con il Keychain reale: `add cred --ask-password`, `secret status` → presente, `delete` → la voce sparisce:
       **da verificare dall'utente**.
 - [ ] `connect --print` di SSH e RDP mostra piani corretti (fatto: smoke test e test dei piani); con FreeRDP,
