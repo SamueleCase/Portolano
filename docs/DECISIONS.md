@@ -191,6 +191,68 @@ mock in `docs/ui/NOTE.md`.
   un file manomesso non blocca il processo; abilitata la feature `zeroize` di `chacha20poly1305` e `argon2`; il
   modulo `vault/file.rs` è diviso in sottomoduli `vault/file/*.rs`.
 
+### DEC-018 – Eliminazione e orchestrazione riusabile dall'app (decise dal PM, dal mock aggiornato)
+1. **Regola di `delete`** (sostituisce la riga `delete` del §10.2 per la parte sui riferimenti): si contano i
+   riferimenti **da fuori** del sottoalbero eliminato verso **qualunque** nodo del sottoalbero (credenziali, jump
+   host, …), usando `references_to`. Senza `--force` l'eliminazione si rifiuta per ogni tipo di nodo, con l'elenco
+   dei riferimenti. Con `--force`: per ogni credenziale del sottoalbero si chiama `detach_credential_references`
+   (i nodi passano a `Prompt`, DEC-016.5); gli altri riferimenti (es. `$ref` dei jump) restano e `validate` li
+   segnala come `dangling_ref`, così il core non conosce i protocolli. Restano invariati `-r`, `-y` e la
+   cancellazione dei segreti del sottoalbero dopo il salvataggio.
+2. **Orchestrazione in una libreria**: le operazioni che la SPEC assegna alla CLI e che l'app dovrà rifare
+   (inserimento dell'import §8.4 con conflitti, ordine segreti → icone → documento e rollback; composizione di
+   `validate` con protocolli e `missing_secret`; `delete` con riferimenti e segreti; `secret set/clear`; `add`/`edit`
+   con i segreti) vanno in un nuovo crate **`portolano-ops`** (`crates/portolano-ops`, dipende da core, connectors,
+   import). Funzioni pubbliche senza stampe né TTY: ricevono `&Store`, `&dyn Vault`, i registry e callback per
+   prompt e conferme, e restituiscono risultati strutturati. La CLI (`portolano-cli`) dipende da `portolano-ops` e i
+   suoi `commands/*.rs` sono adattatori sottili (parsing, I/O, output). Entrambi i crate sono di WP6.
+- **Motivo**: l'app della FASE 2 esegue gli stessi flussi (import, validazione, eliminazione, segreti); senza una
+  libreria Tauri dovrebbe duplicare la logica (SPEC §0: "il core va esposto come libreria pulita").
+
+### DEC-019 – Scelte dell'importer Royal sui campi [ipo] (proposte da WP5, approvate dal PM)
+1. Nomi di campo ipotizzati: `SecureGatewayID`, `RDSGatewayID`, `GatewayHostName`, `GatewayUsageMethod`,
+   `CustomProtectedField1..10`, `PrivateKeyContent` (con `PrivateKeyMode` ≠ 0), `Passphrase`. Ogni dato ricostruito
+   da questi campi lascia l'originale in `extra` e rende il nodo `Partial` ("campi Royal non verificati").
+   `GatewayUsageMethod`: 1/2 → gateway usato; 0/4 → nessun gateway; altro o assente → nessun gateway e `Partial`.
+2. `RoyalRDSGateway` diventa un nodo `Unsupported` (un `RdpGateway` non può riferirsi a un nodo); host e porta sono
+   copiati nelle connessioni che lo usano, la credenziale del gateway resta `Inherit`.
+3. I campi cifrati si riconoscono per nome (password, passphrase, secret, chiave incorporata, campi custom
+   protetti) e non vengono mai conservati, nemmeno nel `raw` dei nodi `Unsupported` (D3). Un campo cifrato non
+   gestito viene scartato e il nodo è `Partial`.
+4. La password si chiede solo per il modo di credenziale attivo; `CredentialPassword` con un altro modo si scarta.
+5. `DOMINIO\utente` si divide anche nelle credenziali inline (modo 2).
+6. Fermano l'import (`InvalidInput`): `ID` mancante, non valido o duplicato; `RoyalDocument` assente o ripetuto.
+   `ParentID` inesistente, non cartella o ciclico → nodo sotto la radice con warning.
+7. Valori non validi (porta, colore, date, immagine) restano in `extra` e contano fra i campi non mappati; un'immagine
+   non riconosciuta rende il nodo `Partial`. Con `CustomImage` e `CustomImageName` insieme vince l'immagine.
+8. Nei test d'integrazione un `#![allow]` di crate per `unwrap`/`expect`/`panic`, motivato (le funzioni di supporto
+   dei test non sono `#[test]`).
+- **Campioni reali**: con `PORTOLANO_SAMPLES_DIR=samples` dalla radice del repo il test di conteggio passa; i 7
+  `Partial` del documento con password sono le 7 password cifrate attese.
+
+### DEC-020 – Opzioni reali di FreeRDP 3.33 (verificate da WP4 con `sdl-freerdp /help`)
+- Il gateway si indica con `/gateway:g:<host>[:<port>],u:<user>,d:<domain>` (l'opzione `/gw:` del §7.3 non esiste);
+  mai `p:`.
+- Password da stdin con `/from-stdin:force` (la password è letta prima della connessione).
+- Non esiste un'opzione esplicita per riusare le credenziali sul gateway: se la credenziale del gateway coincide con
+  quella della destinazione si omettono `u:`/`d:` e si conta sul comportamento predefinito di FreeRDP; altrimenti
+  si passano `u:`/`d:` con il warning "la password del gateway la chiederà FreeRDP".
+- **Da verificare dal vivo** (verifica manuale dell'utente su un host reale con gateway): riuso delle credenziali sul
+  gateway e `/from-stdin:force` insieme al gateway.
+- Prima dell'host, `ssh` riceve `--`, così un host preso dal documento non può essere interpretato come opzione.
+
+### DEC-021 – Profondità massima dell'albero (decisa dal PM)
+- **Dubbio** (revisione di WP5): `serde_json` ha un limite di ricorsione di 128 livelli, cioè circa 63 cartelle
+  annidate; un albero più profondo si salverebbe ma non si ricaricherebbe. Inoltre le funzioni ricorsive
+  (importer, albero) vanno in stack overflow con annidamenti di migliaia di livelli. §4.1 assumeva < 1000.
+- **Decisione**: profondità massima **50 livelli** di nodi (i figli della radice sono al livello 1), costante pubblica
+  `MAX_DEPTH` nel modello del core. `insert`, `move_node` ed `ensure_parent_path` rifiutano un'operazione che la
+  supererebbe con `Error::TooDeep { max }` ("l'albero supererebbe la profondità massima di {max} livelli"). Lo store
+  verifica che un documento alla profondità massima, con impostazioni annidate, faccia andata e ritorno. L'importer
+  aggancia alla radice, con warning e stato `Partial`, gli oggetti che supererebbero il limite.
+- **Motivo**: un limite esplicito e documentato è più chiaro di un errore di parsing a sorpresa; 50 livelli sono ben
+  oltre l'uso reale (nei campioni la profondità è 3).
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.

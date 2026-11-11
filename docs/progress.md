@@ -8,7 +8,11 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 |---|---|---|
 | Prerequisiti | fatto | Rust 1.99.1, FreeRDP 3.33.1 (`sdl-freerdp`); `samples/` con 2 documenti, ignorato da git |
 | WP0 – scheletro e contratto | **integrato** | merge `6e49dfd`; due giri di revisione indipendente; 30 test; gate verdi su `main` |
-| WP1…WP5 – ondata 1 | in corso | 5 sottoagenti in parallelo, ciascuno in un worktree sotto `.claude/worktrees/`; merge previsto in ordine WP1 → WP5 |
+| WP1 – albero, percorsi, risoluzione | **integrato** | merge `93c03c2`; due giri di revisione; 157 test nel core; gate verdi su `main` |
+| WP2 – store, migrazioni, icone, config | correzioni del 2° giro | lock per operazione con impronta (DEC-016.1), symlink, gc sicuro |
+| WP3 – vault | 2° giro di revisione | lock inter-processo (DEC-017), zeroize di Argon2 |
+| WP4 – connettori | 1° giro di revisione | 122 test con WP1; opzioni FreeRDP reali (DEC-020) |
+| WP5 – importer Royal | 1° giro di revisione | test sui campioni reali verde (DEC-019) |
 | WP6 – CLI | da fare | |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |
@@ -21,6 +25,10 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
    il PM procede in autonomia).
 4. Per il WP in revisione: rieseguire i quality gate (SPEC §11.2) sul suo branch e ripetere la revisione
    indipendente prima del merge.
+
+## Seguiti da fare dopo l'integrazione dell'ondata 1
+- Test di WP2 sul segreto sentinella: usare `MemoryVault` (WP3) invece della verifica sul solo `SecretRef`.
+- Verifica dal vivo del prompt di `ssh-add` (DEC-015) con agent e chiave temporanei.
 
 ## Lavori rimandati
 - RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
@@ -43,4 +51,9 @@ Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
 - operazione "Duplica" che rigenera id e `SecretRef` (DEC-016.4);
 - estensione del file del documento (`.portolano` nel mock, `portolano.json` nella SPEC) da decidere per
   l'associazione dei file;
-- "utente proposto" per la modalità "chiedi all'avvio".
+- "utente proposto" per la modalità "chiedi all'avvio";
+- segreti dell'editor in staging: tenuti in memoria come `Secret` fino al Salva, poi `vault.set` → `save` con
+  rollback; una sostituzione usa un nuovo `SecretRef` e il vecchio si cancella dopo il salvataggio; "Cancella"
+  differito al Salva (evita segreti orfani nel Keychain dopo Annulla);
+- salvataggio dell'editor dopo `ModifiedExternally`: modifiche tenute come patch e riapplicate dopo il reload;
+- "Ricontrolla" con il vault bloccato: una sola nota invece di un `missing_secret` per ogni password.
