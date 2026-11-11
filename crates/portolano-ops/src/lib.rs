@@ -14,13 +14,20 @@
 //! An operation that fails leaves the document it was given unchanged: it
 //! works on a copy and replaces the caller's document only on success.
 
+mod commit;
 pub mod document;
 mod error;
+pub mod inspect;
 pub mod locations;
+pub mod nodes;
+pub mod secrets;
 #[cfg(test)]
 mod testutil;
+mod tree_util;
+pub mod validate;
 pub mod vault;
 
+pub use commit::CleanupFailure;
 pub use error::OpsError;
 
 /// Result type of the operations, with [`OpsError`] as the default error.
