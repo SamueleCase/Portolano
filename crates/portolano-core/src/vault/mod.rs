@@ -3,9 +3,6 @@
 //!
 //! Documents only hold [`SecretRef`]s; the secret values live in a vault.
 
-// Stub (WP0): the parameters are used once WP3 implements the bodies.
-#![expect(unused_variables)]
-
 mod file;
 mod keychain;
 mod memory;
@@ -90,7 +87,11 @@ pub fn open_vault(
     selection: &VaultSelection,
     master_password: &dyn MasterPasswordSource,
 ) -> Result<Box<dyn Vault>, VaultError> {
-    todo!()
+    Ok(match selection {
+        VaultSelection::Keychain => Box::new(KeychainVault),
+        VaultSelection::File { path } => Box::new(FileVault::open(path.clone(), master_password)?),
+        VaultSelection::Memory => Box::new(MemoryVault::default()),
+    })
 }
 
 /// Decrypted secrets held in memory by the memory and file backends.
@@ -169,5 +170,57 @@ mod testutil {
                 reason: "not expected in this test".to_owned(),
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::testutil::{FixedPassword, NoPassword, TEST_KDF_PARAMS};
+    use super::*;
+
+    #[test]
+    fn open_vault_memory_is_empty_and_needs_no_password() {
+        let vault = open_vault(&VaultSelection::Memory, &NoPassword).unwrap();
+
+        assert_eq!(vault.backend(), "memory");
+        assert!(!vault.contains(&SecretRef::new()).unwrap());
+    }
+
+    #[test]
+    fn open_vault_keychain_needs_no_password() {
+        let vault = open_vault(&VaultSelection::Keychain, &NoPassword).unwrap();
+
+        assert_eq!(vault.backend(), "keychain");
+    }
+
+    #[test]
+    fn open_vault_file_opens_the_vault_at_the_given_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.json");
+        let reference = SecretRef::new();
+        FileVault::with_kdf_params(&path, &FixedPassword::test(), TEST_KDF_PARAMS)
+            .unwrap()
+            .set(&reference, &Secret::new("sentinel-open-vault".to_owned()))
+            .unwrap();
+
+        let vault = open_vault(&VaultSelection::File { path }, &FixedPassword::test()).unwrap();
+
+        assert_eq!(vault.backend(), "file");
+        assert!(vault.contains(&reference).unwrap());
+    }
+
+    #[test]
+    fn open_vault_file_reports_the_password_source_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.json");
+
+        let result = open_vault(&VaultSelection::File { path }, &NoPassword);
+
+        assert!(matches!(
+            result,
+            Err(VaultError::MasterPasswordUnavailable { .. })
+        ));
     }
 }
