@@ -14,4 +14,5 @@
 
 mod document;
 mod nodes;
+mod secrets;
 mod testutil;
