@@ -6,7 +6,7 @@
 //! is no explicit option to reuse the credentials on the gateway; leaving
 //! `u:`/`d:` out of `/gateway:` lets FreeRDP use the destination credentials.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use portolano_core::{CredentialOrigin, ResolvedCredential};
 
@@ -20,6 +20,14 @@ use crate::protocol::{check_value, host_port};
 /// FreeRDP reads them only when the server asks, which may never happen and
 /// makes the outcome depend on the server.
 const FROM_STDIN: &str = "/from-stdin:force";
+
+/// Log level of a detached FreeRDP, whose stderr goes to a log file
+/// (option checked with `sdl-freerdp /help` of FreeRDP 3.33.1).
+const DETACHED_LOG_LEVEL: &str = "/log-level:WARN";
+
+/// Where the messages of a detached FreeRDP go. The plan is pure, so the
+/// exact path is given by `PreparedLaunch::log_path` when executing.
+const DETACHED_LOG_WARNING: &str = "i messaggi d'errore di FreeRDP vengono salvati in un log nella cartella temporanea di Portolano";
 
 /// Separators of the `/gateway:` sub-options: a value containing one would
 /// add or change a sub-option.
@@ -67,7 +75,11 @@ pub(super) fn plan(
         args.push(FROM_STDIN.to_owned());
     }
     if !wait {
-        warnings.push(detached_log_warning(&program));
+        // Its stderr goes to a log (see `PreparedLaunch::log_path`): only
+        // warnings and errors, never debug dumps of the settings, even with
+        // `WLOG_LEVEL=DEBUG` in the environment.
+        args.push(DETACHED_LOG_LEVEL.to_owned());
+        warnings.push(DETACHED_LOG_WARNING.to_owned());
     }
 
     Ok(LaunchPlan {
@@ -81,22 +93,6 @@ pub(super) fn plan(
         }],
         warnings,
     })
-}
-
-/// Where the messages of a detached FreeRDP go (`execute` writes its stderr
-/// to a log in the private temporary directory).
-fn detached_log_warning(program: &Path) -> String {
-    let stem = program
-        .file_stem()
-        .map(|stem| stem.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let place = crate::exec::temp_dir().map_or_else(
-        || "nella cartella temporanea di Portolano".to_owned(),
-        |dir| format!("in {}", dir.display()),
-    );
-    format!(
-        "FreeRDP prosegue da solo: i suoi messaggi d'errore vanno nel file {stem}-<ora>.log {place}"
-    )
 }
 
 /// Size, scale, color, monitors, session and clipboard options.

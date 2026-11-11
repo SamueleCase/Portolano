@@ -31,7 +31,7 @@ const LOG_MODE: u32 = 0o600;
 /// cache directory of Portolano, such as
 /// `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS. `None` without a
 /// home directory.
-pub(crate) fn per_user_dir() -> Option<PathBuf> {
+fn per_user_dir() -> Option<PathBuf> {
     directories::ProjectDirs::from("dev", "portolano", "Portolano")
         .map(|dirs| dirs.cache_dir().join("tmp"))
 }

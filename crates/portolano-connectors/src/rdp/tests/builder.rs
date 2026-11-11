@@ -267,10 +267,35 @@ fn detached_freerdp_says_where_its_log_goes() {
         LaunchStep::Run { wait: false, .. }
     ));
     assert_eq!(plan.warnings.len(), 1);
+    assert!(plan.warnings[0].contains("log"), "{:?}", plan.warnings);
+}
+
+#[test]
+fn detached_freerdp_logs_only_warnings_and_errors() {
+    let settings = RdpSettings::default();
+    let rdp = target(&settings, login(Some("administrator"), None));
+
+    let plan = freerdp::plan(
+        PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
+        &rdp,
+        CertPolicy::Tofu,
+        false,
+    )
+    .unwrap();
+
+    assert!(run_args(&plan).contains(&"/log-level:WARN".to_owned()));
+}
+
+#[test]
+fn waited_freerdp_keeps_its_own_log_level() {
+    let settings = RdpSettings::default();
+
+    let plan = freerdp_plan(&target(&settings, login(Some("administrator"), None)));
+
     assert!(
-        plan.warnings[0].contains("sdl-freerdp-<ora>.log"),
-        "{:?}",
-        plan.warnings
+        run_args(&plan)
+            .iter()
+            .all(|arg| !arg.starts_with("/log-level:"))
     );
 }
 

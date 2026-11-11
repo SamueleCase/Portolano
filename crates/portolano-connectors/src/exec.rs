@@ -6,8 +6,6 @@
 
 mod temp_files;
 
-pub(crate) use self::temp_files::per_user_dir as temp_dir;
-
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
