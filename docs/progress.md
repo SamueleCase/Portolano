@@ -13,7 +13,7 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 | WP3 – vault | **integrato** | merge `b569fb3`; due giri di revisione; lock inter-processo (DEC-017), zeroize di Argon2; core: 297 test + 1 ignorato (Keychain) |
 | WP4 – connettori | **integrato** | merge `3df8c3a`; tre giri di revisione; 158 test; opzioni FreeRDP reali (DEC-020) |
 | WP5 – importer Royal | **integrato** | merge `737c58c`; tre giri di revisione; 159 test; test sui campioni reali verde (DEC-019, DEC-021) |
-| WP6 – `portolano-ops` + CLI | in corso | piano dell'API di `portolano-ops` da approvare prima dell'implementazione (DEC-018) |
+| WP6 – `portolano-ops` + CLI | **integrato** | merge `c762281`; due giri di revisione per crate; 882 test nel workspace (DEC-018, DEC-022, DEC-023) |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |
 
