@@ -74,8 +74,9 @@ pub enum CliError {
     #[error("la chiave privata si legge solo da stdin: usa --stdin")]
     KeyNeedsStdin,
     /// A secret could not be read from stdin: too long, not UTF-8, or an
-    /// I/O error.
-    #[error("stdin: {0}")]
+    /// I/O error. The reason is the source, which the report already joins
+    /// to this message.
+    #[error("stdin")]
     Stdin(#[from] SecretInputError),
     /// The terminal could not be used.
     #[error("terminale non disponibile")]
