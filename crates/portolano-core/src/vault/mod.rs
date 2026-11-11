@@ -116,3 +116,58 @@ fn lock_secrets<'a>(
 fn copy_secret(secret: &Secret) -> Secret {
     Secret::new(secret.expose().to_owned())
 }
+
+#[cfg(test)]
+mod testutil {
+    use std::cell::Cell;
+
+    use super::{KdfParams, MasterPasswordSource, Secret, VaultError};
+
+    /// The only master password allowed in tests (SPEC §1.3).
+    pub(super) const TEST_MASTER_PASSWORD: &str = "test-only-master-password";
+
+    /// The cheapest Argon2id costs, to keep the file vault tests fast.
+    pub(super) const TEST_KDF_PARAMS: KdfParams = KdfParams {
+        m_cost_kib: 8,
+        t_cost: 1,
+        p_cost: 1,
+    };
+
+    /// A master password source that returns a fixed password and records
+    /// the `creating` flag of its last call.
+    pub(super) struct FixedPassword {
+        password: &'static str,
+        pub(super) last_creating: Cell<Option<bool>>,
+    }
+
+    impl FixedPassword {
+        pub(super) fn new(password: &'static str) -> Self {
+            Self {
+                password,
+                last_creating: Cell::new(None),
+            }
+        }
+
+        pub(super) fn test() -> Self {
+            Self::new(TEST_MASTER_PASSWORD)
+        }
+    }
+
+    impl MasterPasswordSource for FixedPassword {
+        fn master_password(&self, creating: bool) -> Result<Secret, VaultError> {
+            self.last_creating.set(Some(creating));
+            Ok(Secret::new(self.password.to_owned()))
+        }
+    }
+
+    /// A master password source that is never expected to be asked.
+    pub(super) struct NoPassword;
+
+    impl MasterPasswordSource for NoPassword {
+        fn master_password(&self, _creating: bool) -> Result<Secret, VaultError> {
+            Err(VaultError::MasterPasswordUnavailable {
+                reason: "not expected in this test".to_owned(),
+            })
+        }
+    }
+}
