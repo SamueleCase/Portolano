@@ -15,6 +15,8 @@
 //! works on a copy and replaces the caller's document only on success.
 
 mod commit;
+pub mod config;
+pub mod connect;
 pub mod delete;
 pub mod document;
 mod error;

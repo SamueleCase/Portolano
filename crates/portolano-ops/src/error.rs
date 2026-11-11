@@ -224,6 +224,22 @@ pub enum OpsError {
         file: String,
     },
 
+    /// A configuration key that does not exist.
+    #[error("chiave di configurazione sconosciuta '{key}'")]
+    UnknownConfigKey {
+        /// The key.
+        key: String,
+    },
+
+    /// A configuration value that the core or the protocol rejects.
+    #[error("valore non valido per '{key}': {reason}")]
+    InvalidConfigValue {
+        /// The key.
+        key: String,
+        /// Why it is rejected.
+        reason: String,
+    },
+
     /// A key file and a key for the vault were both given.
     #[error("indica la chiave privata come file oppure nel vault, non entrambe")]
     KeyFileAndVaultKey,
