@@ -12,6 +12,8 @@ use crate::{ImportError, SecretField};
 const PASSPHRASE: &str = "Passphrase";
 /// [ipo] Private key embedded in a `RoyalCredential`.
 const EMBEDDED_KEY: &str = "PrivateKeyContent";
+/// 0 or absent for a key file; [ipo] other values for an embedded key.
+const PRIVATE_KEY_MODE: &str = "PrivateKeyMode";
 /// Inline password of a connection or folder.
 const INLINE_PASSWORD: &str = "CredentialPassword";
 
@@ -44,7 +46,7 @@ pub(super) fn spec(
             CredentialSpec::Inherit
         }
     };
-    ctx.fields.take_raw(INLINE_PASSWORD);
+    ctx.fields.take_secret(INLINE_PASSWORD);
     Ok(spec)
 }
 
@@ -108,6 +110,9 @@ pub(super) fn credential(
     let password = secrets.request(ctx, "Password", SecretField::Password)?;
     let private_key = private_key(ctx, secrets)?;
     let passphrase = secrets.request(ctx, PASSPHRASE, SecretField::Passphrase)?;
+    if passphrase.is_some() {
+        ctx.add_unverified("passphrase");
+    }
     Ok(Credential {
         username,
         domain,
@@ -118,28 +123,34 @@ pub(super) fn credential(
 }
 
 /// `PrivateKeyMode` 0 (or absent) means a key file; [ipo] any other value
-/// means a key embedded in the document.
+/// means a key embedded in the document. An embedded key comes from
+/// unverified fields, so the mode stays in `extra` and the node is partial
+/// (DEC-019.1).
 fn private_key(
     ctx: &mut ObjectContext<'_>,
     secrets: &mut SecretCollector<'_>,
 ) -> Result<Option<PrivateKey>, ImportError> {
-    let embedded = ctx
+    let embedded_mode = ctx
         .fields
-        .peek("PrivateKeyMode")
-        .is_some_and(|mode| mode != "0");
-    if !embedded {
-        ctx.fields.take_raw("PrivateKeyMode");
+        .peek(PRIVATE_KEY_MODE)
+        .filter(|mode| *mode != "0");
+    let Some(mode) = embedded_mode else {
+        ctx.fields.take_raw(PRIVATE_KEY_MODE);
         let path = ctx.fields.take("PrivateKeyPath");
         return Ok(path.map(|path| PrivateKey::File {
             path: path.to_owned(),
         }));
-    }
-    if ctx.fields.peek(EMBEDDED_KEY).is_none() {
+    };
+    if !ctx.fields.is_secret(EMBEDDED_KEY) {
         ctx.add_reason("chiave privata incorporata non trovata nel documento");
         return Ok(None);
     }
-    ctx.fields.take_raw("PrivateKeyMode");
+    ctx.fields.take_raw(PRIVATE_KEY_MODE);
+    ctx.keep_original(PRIVATE_KEY_MODE, mode);
     let secret = secrets.request(ctx, EMBEDDED_KEY, SecretField::PrivateKey)?;
+    if secret.is_some() {
+        ctx.add_unverified("chiave privata incorporata");
+    }
     Ok(secret.map(|secret| PrivateKey::Vault { secret }))
 }
 

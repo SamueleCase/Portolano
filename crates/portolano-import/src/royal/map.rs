@@ -20,7 +20,7 @@ use serde_json::Value;
 
 use self::context::{ObjectContext, SecretCollector};
 use self::references::References;
-use super::fields::{Fields, is_secret_value, parse_date};
+use super::fields::{Fields, parse_date};
 use super::tree::{Tree, TreeNode};
 use super::xml::RawObject;
 use super::{IMPORTER_ID, UNNAMED, types};
@@ -209,7 +209,7 @@ impl Mapper<'_, '_> {
     /// The document is protected by a password whose hash is useless to
     /// Portolano and sensitive: it is dropped (SPEC §8.3.3).
     fn take_document_fields(&mut self, ctx: &mut ObjectContext<'_>) {
-        if ctx.fields.take("PasswordHash").is_some() {
+        if ctx.fields.take_secret("PasswordHash") {
             self.report
                 .warnings
                 .push("documento protetto da password".to_owned());
@@ -221,7 +221,7 @@ impl Mapper<'_, '_> {
     fn keep_unused_fields(&mut self, ctx: &mut ObjectContext<'_>, type_name: &str) {
         let unused: Vec<_> = ctx.fields.unused().collect();
         for (name, field) in unused {
-            if is_secret_value(name, field.as_str()) {
+            if ctx.fields.is_secret(name) {
                 ctx.add_reason(format!("campo cifrato `{name}` non importato"));
             } else {
                 ctx.extra.insert(

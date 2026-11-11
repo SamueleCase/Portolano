@@ -3,7 +3,7 @@
 //! Every child of `<RTSZDocument>` is an object; every child of an object is
 //! a field (`docs/royal-format.md` §3). No field is interpreted here.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use quick_xml::Reader;
@@ -41,36 +41,51 @@ pub(super) struct RawObject {
     pub(super) fields: BTreeMap<String, RawField>,
     /// The original XML fragment of the object.
     pub(super) raw_xml: String,
-    /// Byte ranges in `raw_xml` of the fields holding encrypted secrets.
-    secret_spans: Vec<Range<usize>>,
+    /// Fields holding an encrypted secret in any occurrence: in their text,
+    /// in a descendant element or in an attribute.
+    secret_fields: BTreeSet<String>,
+    /// Parts of `raw_xml` to replace so that no secret is kept: the field
+    /// elements holding secrets, or the start tag if it has secret
+    /// attributes. In document order.
+    redactions: Vec<(Range<usize>, String)>,
 }
 
 impl RawObject {
-    /// `raw_xml` without the elements that hold encrypted secrets: the
+    /// `raw_xml` without the parts that hold encrypted secrets: the
     /// ciphertext must not be kept anywhere (D3), not even in the XML of an
     /// unsupported node.
     pub(super) fn redacted_xml(&self) -> String {
         let mut redacted = String::with_capacity(self.raw_xml.len());
         let mut cursor = 0;
-        for span in &self.secret_spans {
+        for (span, replacement) in &self.redactions {
             redacted.push_str(&self.raw_xml[cursor..span.start]);
+            redacted.push_str(replacement);
             cursor = span.end;
         }
         redacted.push_str(&self.raw_xml[cursor..]);
         redacted
     }
 
-    /// The trimmed value of a field, `None` if absent or blank.
+    /// The trimmed value of a field, `None` if absent, blank or holding a
+    /// secret: a secret is never used as data.
     pub(super) fn value(&self, name: &str) -> Option<&str> {
+        if self.is_secret(name) {
+            return None;
+        }
         self.fields
             .get(name)
             .map(|field| field.as_str().trim())
             .filter(|value| !value.is_empty())
     }
 
-    /// Whether some fields hold encrypted secrets.
+    /// Whether the field holds an encrypted secret.
+    pub(super) fn is_secret(&self, name: &str) -> bool {
+        self.secret_fields.contains(name)
+    }
+
+    /// Whether some parts of the XML hold encrypted secrets.
     pub(super) fn has_secrets(&self) -> bool {
-        !self.secret_spans.is_empty()
+        !self.redactions.is_empty()
     }
 }
 
@@ -105,15 +120,11 @@ pub(super) fn parse_document(xml: &str) -> Result<Vec<RawObject>, ImportError> {
         let start = position(&reader)?;
         match read(&mut reader)? {
             Event::Start(element) => {
-                let type_name = element_name(&element);
-                objects.push(parse_object(&mut reader, xml, type_name, start)?);
+                let mut object = new_object(&reader, xml, &element, start)?;
+                read_fields(&mut reader, xml, &mut object, start)?;
+                objects.push(object);
             }
-            Event::Empty(element) => objects.push(RawObject {
-                type_name: element_name(&element),
-                fields: BTreeMap::new(),
-                raw_xml: xml[start..position(&reader)?].to_owned(),
-                secret_spans: Vec::new(),
-            }),
+            Event::Empty(element) => objects.push(new_object(&reader, xml, &element, start)?),
             Event::End(_) => return Ok(objects),
             Event::Eof => return Err(unexpected_end()),
             _ => {}
@@ -121,67 +132,144 @@ pub(super) fn parse_document(xml: &str) -> Result<Vec<RawObject>, ImportError> {
     }
 }
 
-/// Reads the fields of an object whose start tag began at byte `start`.
-fn parse_object(
-    reader: &mut Reader<&[u8]>,
+/// An object from its start tag, which began at byte `start` and has just
+/// been read; until [`read_fields`] runs, `raw_xml` holds the tag only.
+fn new_object(
+    reader: &Reader<&[u8]>,
     xml: &str,
-    type_name: String,
+    element: &BytesStart<'_>,
     start: usize,
 ) -> Result<RawObject, ImportError> {
-    let mut fields = BTreeMap::new();
-    let mut secret_spans = Vec::new();
+    let type_name = element_name(element);
+    let tag = &xml[start..position(reader)?];
+    let mut redactions = Vec::new();
+    if has_secret_attribute(element)? {
+        // Royal never writes attributes: one holding a secret drops them all.
+        let bare_tag = if tag.ends_with("/>") {
+            format!("<{type_name}/>")
+        } else {
+            format!("<{type_name}>")
+        };
+        redactions.push((0..tag.len(), bare_tag));
+    }
+    Ok(RawObject {
+        type_name,
+        fields: BTreeMap::new(),
+        raw_xml: tag.to_owned(),
+        secret_fields: BTreeSet::new(),
+        redactions,
+    })
+}
+
+/// Reads the fields of an object whose start tag began at byte `start`, up
+/// to its end tag.
+fn read_fields(
+    reader: &mut Reader<&[u8]>,
+    xml: &str,
+    object: &mut RawObject,
+    start: usize,
+) -> Result<(), ImportError> {
     loop {
         let field_start = position(reader)?;
-        let (name, value) = match read(reader)? {
-            Event::Start(element) => (element_name(&element), read_field_value(reader, xml)?),
-            Event::Empty(element) => (element_name(&element), RawField::Text(String::new())),
+        let (name, field) = match read(reader)? {
+            Event::Start(element) => {
+                let field = read_field_value(reader, xml, &element)?;
+                (element_name(&element), field)
+            }
+            Event::Empty(element) => {
+                let field = FieldValue {
+                    value: RawField::Text(String::new()),
+                    secret: has_secret_attribute(&element)?,
+                };
+                (element_name(&element), field)
+            }
             Event::End(_) => {
-                return Ok(RawObject {
-                    type_name,
-                    fields,
-                    raw_xml: xml[start..position(reader)?].to_owned(),
-                    secret_spans,
-                });
+                object.raw_xml = xml[start..position(reader)?].to_owned();
+                return Ok(());
             }
             Event::Eof => return Err(unexpected_end()),
             _ => continue,
         };
-        if is_secret_value(&name, value.as_str()) {
-            secret_spans.push(field_start - start..position(reader)? - start);
+        if field.secret || is_secret_value(&name, field.value.as_str()) {
+            let span = field_start - start..position(reader)? - start;
+            object.redactions.push((span, String::new()));
+            object.secret_fields.insert(name.clone());
         }
-        fields.entry(name).or_insert(value);
+        object.fields.entry(name).or_insert(field.value);
     }
 }
 
-/// Reads the content of a field up to its end tag.
-fn read_field_value(reader: &mut Reader<&[u8]>, xml: &str) -> Result<RawField, ImportError> {
+/// The value of a field, and whether a descendant element or an attribute
+/// holds a secret.
+struct FieldValue {
+    value: RawField,
+    secret: bool,
+}
+
+/// Reads the content of the field opened by `field`, up to its end tag.
+fn read_field_value(
+    reader: &mut Reader<&[u8]>,
+    xml: &str,
+    field: &BytesStart<'_>,
+) -> Result<FieldValue, ImportError> {
     let inner_start = position(reader)?;
     let mut text = String::new();
-    let mut depth = 0_usize;
+    let mut secret = has_secret_attribute(field)?;
+    // Open descendant elements with their own text, to check their names.
+    let mut open: Vec<(String, String)> = Vec::new();
     let mut has_children = false;
     loop {
         let before = position(reader)?;
+        let mut content = String::new();
         match read(reader)? {
-            Event::Text(content) => text.push_str(&content.xml10_content()),
-            Event::CData(content) => text.push_str(&content),
-            Event::GeneralRef(reference) => push_reference(&mut text, &reference),
-            Event::Start(_) => {
-                depth += 1;
+            Event::Text(event) => content.push_str(&event.xml10_content()),
+            Event::CData(event) => content.push_str(&event),
+            Event::GeneralRef(reference) => push_reference(&mut content, &reference),
+            Event::Start(element) => {
+                secret |= has_secret_attribute(&element)?;
+                open.push((element_name(&element), String::new()));
                 has_children = true;
             }
-            Event::Empty(_) => has_children = true,
-            Event::End(_) if depth == 0 => {
-                return Ok(if has_children {
-                    RawField::Markup(xml[inner_start..before].to_owned())
-                } else {
-                    RawField::Text(text)
-                });
+            Event::Empty(element) => {
+                secret |= has_secret_attribute(&element)?;
+                has_children = true;
             }
-            Event::End(_) => depth -= 1,
+            Event::End(_) => match open.pop() {
+                Some((name, own_text)) => secret |= is_secret_value(&name, &own_text),
+                None => {
+                    let value = if has_children {
+                        RawField::Markup(xml[inner_start..before].to_owned())
+                    } else {
+                        RawField::Text(text)
+                    };
+                    return Ok(FieldValue { value, secret });
+                }
+            },
             Event::Eof => return Err(unexpected_end()),
             _ => {}
         }
+        if let Some((_, own_text)) = open.last_mut() {
+            own_text.push_str(&content);
+        }
+        text.push_str(&content);
     }
+}
+
+/// Whether an attribute of the element holds a secret: the attribute has a
+/// secret name, or the element has one, and the value is not a plain
+/// setting.
+fn has_secret_attribute(element: &BytesStart<'_>) -> Result<bool, ImportError> {
+    let name = element_name(element);
+    for attribute in element.attributes() {
+        let attribute = attribute.map_err(|_| ImportError::Xml {
+            reason: "attributo non valido".to_owned(),
+        })?;
+        let value = attribute.value.as_ref();
+        if is_secret_value(attribute.key.as_ref(), value) || is_secret_value(&name, value) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Appends a character or predefined entity reference; an unknown entity is
@@ -328,6 +416,63 @@ mod tests {
             "<RoyalVNCConnection><ID>a</ID>\
              <CredentialPasswordFromParent>False</CredentialPasswordFromParent>\
              </RoyalVNCConnection>"
+        );
+    }
+
+    #[test]
+    fn a_field_with_a_nested_secret_element_is_secret() {
+        let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\
+                   <CustomProperties><Property><Name>pin</Name>\
+                   <Password>Y2lwaGVydGV4dA==</Password></Property></CustomProperties>\
+                   </RoyalFolder></RTSZDocument>";
+
+        let objects = parse_document(xml).unwrap();
+
+        assert!(objects[0].is_secret("CustomProperties"));
+        assert_eq!(objects[0].value("CustomProperties"), None);
+        assert_eq!(
+            objects[0].redacted_xml(),
+            "<RoyalFolder><ID>a</ID></RoyalFolder>"
+        );
+    }
+
+    #[test]
+    fn a_field_with_a_secret_attribute_is_secret() {
+        let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\
+                   <Password value=\"Y2lwaGVydGV4dA==\"/>\
+                   <Extra><Token Passphrase=\"Y2lwaGVydGV4dA==\">x</Token></Extra>\
+                   </RoyalFolder></RTSZDocument>";
+
+        let objects = parse_document(xml).unwrap();
+
+        assert!(objects[0].is_secret("Password"));
+        assert!(objects[0].is_secret("Extra"));
+        assert!(!objects[0].redacted_xml().contains("Y2lwaGVydGV4dA=="));
+    }
+
+    #[test]
+    fn plain_settings_in_nested_elements_are_not_secret() {
+        let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\
+                   <Options><SavePassword>True</SavePassword>\
+                   <Item PasswordMode=\"2\"/></Options>\
+                   </RoyalFolder></RTSZDocument>";
+
+        let objects = parse_document(xml).unwrap();
+
+        assert!(!objects[0].is_secret("Options"));
+        assert!(!objects[0].has_secrets());
+    }
+
+    #[test]
+    fn secret_attributes_of_the_object_tag_are_dropped() {
+        let xml = "<RTSZDocument><RoyalVNCConnection Password=\"Y2lwaGVydGV4dA==\">\
+                   <ID>a</ID></RoyalVNCConnection></RTSZDocument>";
+
+        let objects = parse_document(xml).unwrap();
+
+        assert_eq!(
+            objects[0].redacted_xml(),
+            "<RoyalVNCConnection><ID>a</ID></RoyalVNCConnection>"
         );
     }
 

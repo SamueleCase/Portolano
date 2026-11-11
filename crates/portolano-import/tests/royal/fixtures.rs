@@ -30,20 +30,28 @@ fn import_fixture(name: &str) -> ImportOutcome {
     import_bytes(&fixture(name), &options(), &mut NonInteractive).unwrap()
 }
 
-/// The encrypted values written in a fixture.
+/// Attributes of the fixtures that hold encrypted values.
+const ENCRYPTED_ATTRIBUTES: [&str; 2] = ["value", "Passphrase"];
+
+/// The encrypted values written in a fixture, as element text (also nested
+/// in other fields) or as attribute values.
 fn ciphertexts(name: &str) -> Vec<String> {
     let text = String::from_utf8(fixture(name)).unwrap();
-    ENCRYPTED_ELEMENTS
-        .iter()
-        .flat_map(|element| {
-            let open = format!("<{element}>");
-            let close = format!("</{element}>");
-            text.split(&open)
-                .skip(1)
-                .filter_map(|rest| rest.split_once(&close).map(|(value, _)| value.to_owned()))
-                .collect::<Vec<_>>()
-        })
-        .collect()
+    let elements = ENCRYPTED_ELEMENTS.iter().flat_map(|element| {
+        let open = format!("<{element}>");
+        let close = format!("</{element}>");
+        text.split(&open)
+            .skip(1)
+            .filter_map(|rest| rest.split_once(&close).map(|(value, _)| value.to_owned()))
+            .collect::<Vec<_>>()
+    });
+    let attributes = ENCRYPTED_ATTRIBUTES.iter().flat_map(|attribute| {
+        text.split(&format!(" {attribute}=\""))
+            .skip(1)
+            .filter_map(|rest| rest.split_once('"').map(|(value, _)| value.to_owned()))
+            .collect::<Vec<_>>()
+    });
+    elements.chain(attributes).collect()
 }
 
 /// Everything an outcome can expose: the tree, the report and the debug
@@ -93,7 +101,7 @@ fn counts(
 fn every_fixture_has_encrypted_values_to_check() {
     assert!(ciphertexts("minimal.royal.xml").is_empty());
     assert_eq!(ciphertexts("workspace.royal.xml").len(), 7);
-    assert_eq!(ciphertexts("full-synthetic.royal.xml").len(), 7);
+    assert_eq!(ciphertexts("full-synthetic.royal.xml").len(), 10);
 }
 
 #[test]
@@ -263,7 +271,7 @@ fn full_synthetic_counts() {
         ("RoyalDocument", counts(1, 1, 0, 0, 0)),
         ("RoyalDynamicFolder", counts(1, 0, 0, 1, 0)),
         ("RoyalFileTransferConnection", counts(1, 0, 0, 1, 0)),
-        ("RoyalFolder", counts(3, 3, 0, 0, 0)),
+        ("RoyalFolder", counts(3, 2, 1, 0, 0)),
         ("RoyalHologramConnection", counts(1, 0, 0, 1, 0)),
         ("RoyalRDSConnection", counts(4, 0, 4, 0, 0)),
         ("RoyalRDSGateway", counts(1, 0, 0, 1, 0)),

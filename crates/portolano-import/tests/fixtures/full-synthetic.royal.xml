@@ -4,7 +4,8 @@
   saved by Royal TS/TSX. It covers the cases marked [ipo] in docs/royal-format.md, which no real
   document has shown yet: Secure Gateway, Remote Desktop Gateway (object and inline fields),
   HTML notes, custom fields, protected custom fields, library and embedded icons, templates,
-  embedded private key and passphrase, unsupported and unknown types, an orphan object.
+  embedded private key and passphrase, unsupported and unknown types, an orphan object,
+  encrypted values nested in a field or held in an attribute.
   The NAMES of these fields are hypotheses (SecureGatewayID, RDSGatewayID, GatewayHostName,
   GatewayUsageMethod, CustomProtectedFieldN, PrivateKeyContent, Passphrase): they must be
   checked against a real document before being trusted.
@@ -137,6 +138,13 @@
     <ParentID>f0000000-0000-4000-8000-000000000001</ParentID>
     <Name>Altri tipi</Name>
     <PositionNr>3</PositionNr>
+    <CustomProperties>
+      <Property>
+        <Name>pin</Name>
+        <Password>wm0uJe6A80sYnpobXlPrlUEbmoVs06q6BCIqlTIxA6BuAOMvX4xfPacAsV2IvfO7GtTnOqcKl796YT4AH0S4iTjs72VFqNHEXCEto28lxPs=</Password>
+      </Property>
+    </CustomProperties>
+    <Password value="hI+9VHat5jdhVoVrBPVLubx/3DM3UTO6yeLZXGLK1YbteqaSzF+r5yknELfsWJ53CIoug3nplSw+PlUnDOufHw3lW2zetgvW5Dnpj11U3k0="/>
   </RoyalFolder>
   <RoyalVNCConnection>
     <ID>f0000000-0000-4000-8000-000000000040</ID>
@@ -167,6 +175,7 @@
     <ID>f0000000-0000-4000-8000-000000000044</ID>
     <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
     <Name>tipo-sconosciuto</Name>
+    <Options><Token Passphrase="96nVcgqBxZLwS6CBxCZf8VNmpYpAB+GqsoBIM6fRVdueiV4t0iz66RvmAVtCKuw7aVy6hrqSQ69/+wXkUQHs/UGO1SnA++J3Qy8o+QhBJWs=">x</Token></Options>
     <Passphrase>nG9AEebDSR+kt1eXKtUW7SNAXxUoOdqNnQALsPlIwp9DmL/QJ3u7wIWhu/IT7pXpR5Ubx1QgLiDDIPxf+f+WvOv4h/Cy+EtGZPhnJrOAbJ8=</Passphrase>
   </RoyalHologramConnection>
   <RoyalSSHConnection>

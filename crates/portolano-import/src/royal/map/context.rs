@@ -45,6 +45,12 @@ impl<'a> ObjectContext<'a> {
     pub(super) fn add_reason(&mut self, reason: impl Into<String>) {
         self.reasons.push(reason.into());
     }
+
+    /// Marks data read from fields whose Royal names are hypotheses: even
+    /// when complete, it needs checking (DEC-019.1).
+    pub(super) fn add_unverified(&mut self, what: &str) {
+        self.add_reason(format!("{what}: campi Royal non verificati"));
+    }
 }
 
 /// Asks the prompter for the secrets of encrypted fields and keeps the
@@ -75,7 +81,7 @@ impl<'p> SecretCollector<'p> {
         field: &str,
         kind: SecretField,
     ) -> Result<Option<SecretRef>, ImportError> {
-        if ctx.fields.take(field).is_none() {
+        if !ctx.fields.take_secret(field) {
             return Ok(None);
         }
         let request = SecretRequest {

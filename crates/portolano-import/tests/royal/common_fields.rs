@@ -240,3 +240,75 @@ fn an_unknown_type_is_kept_verbatim_without_ciphertext() {
         ]
     );
 }
+
+#[test]
+fn a_field_with_a_nested_secret_is_dropped_from_extra() {
+    let nested =
+        format!("<Property><Name>pin</Name><Password>{FAKE_CIPHERTEXT}</Password></Property>");
+
+    let outcome = import(&folder_with(&[("CustomProperties", &nested)]));
+
+    let node = find(&outcome.root, uuid(2));
+    assert!(!node.extra.contains_key("royal.CustomProperties"));
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec!["campo cifrato `CustomProperties` non importato"]
+    );
+}
+
+#[test]
+fn a_field_with_a_secret_attribute_is_dropped_from_extra() {
+    let xml = document(&[format!(
+        "<RoyalFolder><ID>{}</ID><ParentID>{}</ParentID>\
+         <Password value=\"{FAKE_CIPHERTEXT}\"/></RoyalFolder>",
+        id(2),
+        id(1)
+    )]);
+
+    let outcome = import(&xml);
+
+    assert!(
+        !find(&outcome.root, uuid(2))
+            .extra
+            .contains_key("royal.Password")
+    );
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec!["campo cifrato `Password` non importato"]
+    );
+}
+
+#[test]
+fn a_mapped_field_with_a_nested_secret_is_not_used() {
+    let nested = format!("<p>nota</p><Secret>{FAKE_CIPHERTEXT}</Secret>");
+
+    let outcome = import(&folder_with(&[("Notes", &nested)]));
+
+    let node = find(&outcome.root, uuid(2));
+    assert_eq!(node.notes, None);
+    assert!(!node.extra.contains_key("royal.Notes"));
+    assert_eq!(
+        reasons(&outcome, 2),
+        vec!["campo cifrato `Notes` non importato"]
+    );
+}
+
+#[test]
+fn an_unknown_type_with_a_nested_secret_keeps_no_ciphertext() {
+    let nested = format!("<Token Passphrase=\"{FAKE_CIPHERTEXT}\">x</Token>");
+    let xml = document(&[object(
+        "RoyalHologramConnection",
+        2,
+        1,
+        &[("URI", "h.example.com"), ("Options", &nested)],
+    )]);
+
+    let outcome = import(&xml);
+
+    let NodeKind::Unsupported(unsupported) = &find(&outcome.root, uuid(2)).kind else {
+        panic!("expected an unsupported node");
+    };
+    assert!(unsupported.raw.contains("<URI>h.example.com</URI>"));
+    assert!(!unsupported.raw.contains(FAKE_CIPHERTEXT));
+    assert!(!unsupported.raw.contains("<Options>"));
+}

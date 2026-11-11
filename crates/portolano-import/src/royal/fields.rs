@@ -25,11 +25,31 @@ impl<'a> Fields<'a> {
         }
     }
 
-    /// The raw field, marking it as used.
+    /// The raw field, marking it as used. A field holding a secret is never
+    /// returned and stays unused, so that it is dropped and reported
+    /// (D3); secrets are read with [`Fields::take_secret`].
     pub(super) fn take_raw(&mut self, name: &str) -> Option<&'a RawField> {
+        if self.object.is_secret(name) {
+            return None;
+        }
         let (key, value) = self.object.fields.get_key_value(name)?;
         self.used.insert(key.as_str());
         Some(value)
+    }
+
+    /// Whether the field holds an encrypted secret, marking it as used: its
+    /// value is never returned, it cannot be decrypted nor kept (D3).
+    pub(super) fn take_secret(&mut self, name: &str) -> bool {
+        let Some((key, _)) = self.object.fields.get_key_value(name) else {
+            return false;
+        };
+        self.used.insert(key.as_str());
+        self.object.is_secret(name)
+    }
+
+    /// Whether the field holds an encrypted secret.
+    pub(super) fn is_secret(&self, name: &str) -> bool {
+        self.object.is_secret(name)
     }
 
     /// The trimmed value, `None` if absent or blank; the field is marked as
