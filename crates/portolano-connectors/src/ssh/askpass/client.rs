@@ -13,11 +13,11 @@ use zeroize::Zeroizing;
 
 use super::{ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV, MAX_MESSAGE_BYTES, Reply, Request};
 
-/// How long the client waits for the server, which answers immediately
-/// while it runs; after that the client asks on the terminal. A server that
-/// stopped accepting still lets the connection in (the kernel queues it), so
-/// only this timeout ends the wait.
-const REPLY_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long the client waits for the answer of the server, which answers
+/// immediately while it runs; after that the client asks on the terminal.
+/// It only matters for a server that is stuck: a stopped one has closed its
+/// socket, and the connection is refused at once.
+pub(super) const REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Prompts that need visible input: the host key confirmation of `ssh`.
 const ECHO_MARKER: &str = "(yes/no";
@@ -64,7 +64,7 @@ pub(super) fn run(prompt: &str) -> Result<(), ClientError> {
         std::env::var_os(ASKPASS_SOCK_ENV).ok_or(ClientError::MissingVariable(ASKPASS_SOCK_ENV))?;
     let token = std::env::var(ASKPASS_TOKEN_ENV)
         .map_err(|_| ClientError::MissingVariable(ASKPASS_TOKEN_ENV))?;
-    let answer = match exchange(Path::new(&socket), &token, prompt) {
+    let answer = match exchange(Path::new(&socket), &token, prompt, REPLY_TIMEOUT) {
         Ok(ServerAnswer::Answer(secret)) => secret,
         Ok(ServerAnswer::Fallback) => ask_on_tty(prompt)?,
         // A server that is gone or does not answer must not block the login:
@@ -85,18 +85,21 @@ pub(super) fn run(prompt: &str) -> Result<(), ClientError> {
     Ok(())
 }
 
-/// Sends one request to the server at `socket` and reads its reply.
+/// Sends one request to the server at `socket` and reads its reply,
+/// waiting at most `timeout` for it.
 ///
 /// # Errors
-/// [`ClientError::Io`] for socket failures or a malformed reply,
-/// [`ClientError::Refused`] if the server rejects the request.
+/// [`ClientError::Io`] for socket failures, a malformed reply or no reply
+/// within `timeout`; [`ClientError::Refused`] if the server rejects the
+/// request.
 pub(super) fn exchange(
     socket: &Path,
     token: &str,
     prompt: &str,
+    timeout: Duration,
 ) -> Result<ServerAnswer, ClientError> {
     let mut stream = UnixStream::connect(socket)?;
-    stream.set_read_timeout(Some(REPLY_TIMEOUT))?;
+    stream.set_read_timeout(Some(timeout))?;
     let mut request = serde_json::to_vec(&Request { token, prompt }).map_err(io::Error::from)?;
     request.push(b'\n');
     stream.write_all(&request)?;

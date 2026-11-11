@@ -2,11 +2,12 @@
 //! client exchange over the socket (SPEC §7.4).
 
 use std::path::Path;
+use std::time::Duration;
 
 use portolano_core::Secret;
 use pretty_assertions::assert_eq;
 
-use super::client::{ClientError, ServerAnswer, exchange};
+use super::client::{ClientError, REPLY_TIMEOUT, ServerAnswer, exchange};
 use super::*;
 use crate::plan::PromptMatcher;
 
@@ -33,7 +34,7 @@ fn passphrase_entry(key_path: &str, value: &str) -> ServedSecret {
 }
 
 fn ask(server: &AskpassServer, prompt: &str) -> Option<String> {
-    match exchange(server.socket(), server.token(), prompt).unwrap() {
+    match exchange(server.socket(), server.token(), prompt, REPLY_TIMEOUT).unwrap() {
         ServerAnswer::Answer(secret) => Some(secret.expose().to_owned()),
         ServerAnswer::Fallback => None,
     }
@@ -132,9 +133,27 @@ fn two_entries_for_the_same_prompt_are_served_in_order() {
 fn missing_server_is_an_io_error_so_the_client_asks_on_the_terminal() {
     let dir = tempfile::tempdir().unwrap();
 
-    let result = exchange(&dir.path().join("askpass.sock"), "token", "Password: ");
+    let result = exchange(
+        &dir.path().join("askpass.sock"),
+        "token",
+        "Password: ",
+        REPLY_TIMEOUT,
+    );
 
     assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
+}
+
+#[test]
+fn closed_server_socket_is_refused_at_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("askpass.sock");
+    drop(std::os::unix::net::UnixListener::bind(&socket).unwrap());
+    let started = std::time::Instant::now();
+
+    let result = exchange(&socket, "token", "Password: ", REPLY_TIMEOUT);
+
+    assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
+    assert!(started.elapsed() < REPLY_TIMEOUT);
 }
 
 #[test]
@@ -144,7 +163,7 @@ fn silent_server_is_an_io_error_after_the_timeout() {
     // Bound but never accepting, like a server that gave up.
     let _listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
 
-    let result = exchange(&socket, "token", "Password: ");
+    let result = exchange(&socket, "token", "Password: ", Duration::from_millis(200));
 
     assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
 }
@@ -158,6 +177,7 @@ fn wrong_token_is_refused() {
         server.socket(),
         &wrong,
         "admin@web01.example.com's password: ",
+        REPLY_TIMEOUT,
     );
 
     assert!(matches!(result, Err(ClientError::Refused(_))), "{result:?}");
@@ -167,7 +187,7 @@ fn wrong_token_is_refused() {
 fn refused_request_does_not_consume_the_secret() {
     let server = start_default();
     let prompt = "admin@web01.example.com's password: ";
-    let _ = exchange(server.socket(), "wrong-token", prompt);
+    let _ = exchange(server.socket(), "wrong-token", prompt, REPLY_TIMEOUT);
 
     let answer = ask(&server, prompt);
 
