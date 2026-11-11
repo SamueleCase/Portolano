@@ -13,7 +13,6 @@ mod prompt;
 use std::process::exit;
 
 use anyhow::Result;
-use clap::Parser;
 use tracing::Level;
 
 use crate::args::Cli;
@@ -25,7 +24,10 @@ fn main() {
     if let Some(code) = commands::askpass::run_if_invoked() {
         exit(code);
     }
-    let cli = Cli::parse();
+    let cli = match args::parse() {
+        Ok(cli) => cli,
+        Err(code) => exit(code),
+    };
     init_logging(cli.global.verbose);
     let code = run(cli).unwrap_or_else(|error| failure::report(&error));
     exit(code);

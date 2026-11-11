@@ -164,8 +164,32 @@ fn json_on_a_write_command_is_a_usage_error() {
 }
 
 #[test]
-fn bad_arguments_exit_with_2() {
-    Workspace::new().run(&["add", "ssh", "/web01"]).code(2);
+fn missing_argument_is_a_usage_error_in_italian() {
+    Workspace::new()
+        .run(&["add", "ssh", "/web01"])
+        .code(2)
+        .stderr(contains("manca l'argomento obbligatorio --host"));
+}
+
+#[test]
+fn unknown_command_is_a_usage_error_in_italian() {
+    Workspace::new()
+        .run(&["conect", "/web01"])
+        .code(2)
+        .stderr(contains("comando sconosciuto 'conect'"));
+}
+
+#[test]
+fn help_lists_every_command_of_the_spec_in_italian() {
+    let help = Workspace::empty().ok(&["--help"]);
+    assert!(help.contains("Uso: portolano"));
+    assert!(help.contains("Mostra l'aiuto"));
+    for command in [
+        "init", "tree", "list", "show", "add", "edit", "move", "delete", "secret", "connect",
+        "import", "validate", "config",
+    ] {
+        assert!(help.contains(&format!("\n  {command} ")), "{command}");
+    }
 }
 
 #[test]

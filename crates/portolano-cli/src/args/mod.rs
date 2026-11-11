@@ -2,6 +2,7 @@
 
 mod add;
 mod edit;
+mod italian;
 mod parse;
 
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ pub use add::{
     PasswordArgs,
 };
 pub use edit::EditArgs;
+pub use italian::parse;
 pub use parse::{FieldArg, IconArg, TypeArg};
 
 /// Portolano: gestore di connessioni SSH e RDP.
