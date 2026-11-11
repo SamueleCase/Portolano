@@ -132,6 +132,54 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
 - Inoltre approvato: escape sconosciuti, `\` finale e `/` finale danno `InvalidPath`; tutti i codici di
   `validate` del core hanno severità `Error`.
 
+### DEC-015 – Prompt della passphrase di `ssh-add` (decisa dal PM)
+- **Dubbio**: con la chiave letta da stdin (`ssh-add -t 300 -`, §7.2), OpenSSH chiede la passphrase con un prompt
+  della forma `Enter passphrase for (stdin): ` (eventualmente seguito da ` (will confirm each use)`), che non
+  corrisponde alla regex del §7.2 `^Enter passphrase for key '(?P<path>.+)': ?$` (quella è di `ssh`).
+- **Decisione**: il server askpass riconosce anche la forma di `ssh-add`:
+  `^Enter passphrase for (?P<path>[^']+?)(?: \(will confirm each use\))?: ?$`, che produce un
+  `PromptMatcher::Passphrase { key_path }`. Per lo step `SshAddKey` la voce askpass usa `key_path = "(stdin)"`.
+  Le due regex restano distinte e testate entrambe.
+- **Verifica**: il testo esatto del prompt si conferma nella verifica finale con un `ssh-agent` temporaneo e una
+  chiave di test usa e getta (mai l'agent dell'utente); se diverge, si aggiorna la regex.
+- **Motivo**: senza questa forma la passphrase delle chiavi nel vault non verrebbe mai servita dall'askpass.
+
+### DEC-016 – Esigenze del mock UI che toccano il core (decise dal PM)
+Dall'analisi del mock in `docs/ui/` (FASE 2) contro SPEC e contratto. Si decidono ora perché costerebbe caro
+cambiarle dopo; le esigenze aggiungibili in FASE 2 senza rompere nulla sono in `progress.md`, le correzioni al solo
+mock in `docs/ui/NOTE.md`.
+1. **Lock del documento (WP2)**: niente più lock esclusivo per tutta la vita dello `Store`, che bloccherebbe la CLI
+   (anche `connect --new-window`) mentre l'app è aperta. Il lock su `<file>.lock` si prende solo durante le
+   operazioni: condiviso in `load`, esclusivo in `save`/`create`. Lo `Store` ricorda l'impronta (SHA-256) dei byte
+   letti o scritti per ultimi; `save` ricontrolla l'impronta sotto lock esclusivo e, se il file è cambiato nel
+   frattempo, fallisce con `Error::ModifiedExternally { path }` ("il documento … è stato modificato da un altro
+   processo: ricaricalo"). Sostituisce il requisito "il lock impedisce un secondo `Store::open`".
+2. **Lancio in due passi (WP4)**: `execute` si divide in una preparazione (avvia il server askpass, risolve i
+   segreti, produce programma/argomenti/env del passo interattivo e un guard che al drop chiude socket e azzera i
+   segreti) e un avvio. `execute` resta come composizione dei due. Serve al terminale integrato della FASE 2
+   (DEC-013), che avvierà `ssh` in una propria PTY.
+3. **Credenziale "chiedi all'avvio" (WP4, poi WP6)**: `ConnectOptions` riceve
+   `session_credential: Option<SessionCredential { username, domain, password: Option<SecretRef> }>`. Con origine
+   `Prompt`: se presente si usa come una `Inline`; se assente il piano non passa utente né password e lascia che
+   sia il client a chiederli (warning nel piano). La CLI chiede utente e password su TTY e mette la password in un
+   vault in memoria per quella sola sessione. `CredentialSpec::Prompt` resta senza campi (l'"utente proposto" del
+   mock non si fa ora).
+4. **Invariante dei segreti (WP1)**: un `SecretRef` appartiene a un solo punto del documento. `validate` lo
+   controlla con il codice `duplicate_secret_ref` (Error). Evita che cancellare un nodo cancelli la password di un
+   altro (es. dopo un futuro "Duplica").
+5. **Eliminazione forzata di una credenziale referenziata (WP1, poi WP6)**: nuova funzione del core
+   `detach_credential_references(&mut self, credential: Uuid) -> Vec<Uuid>`: ogni `CredentialSpec` (sul nodo o
+   dentro i `settings`) che punta alla credenziale per id o per nome diventa `Prompt`; restituisce i nodi modificati
+   e ne aggiorna `modified`. `delete --force` la usa, così le connessioni restano utilizzabili chiedendo le
+   credenziali.
+6. **Livello `Info` nella validazione (WP1)**: `Severity` riceve `Info`; il core segnala i nodi non supportati con
+   `unsupported_node` (Info). L'exit 4 di `validate` resta solo per gli `Error`.
+7. **Client RDP per connessione (WP4)**: `RdpSettings.client: Option<RdpClient>`; precedenza
+   `--client` > impostazione della connessione > `config.rdp.client`.
+8. **Restano come da SPEC** (si corregge il mock): `ByName` cerca in tutto il documento (§4.3); una password Royal
+   saltata è `Partial`, `Skipped` vale solo per il cestino (§8.3); la condivisione di documenti in cartelle
+   sincronizzate resta fuori scope (§14).
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
