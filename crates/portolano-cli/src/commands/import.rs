@@ -1,6 +1,7 @@
 //! `portolano import`: import a document of another program (SPEC §8.4).
 
 use std::fs;
+use std::path::Path;
 
 use anyhow::Result;
 use portolano_import::{NonInteractive, SecretPrompter};
@@ -26,13 +27,10 @@ pub fn run(ctx: &Context, args: ImportArgs) -> Result<i32> {
         Some(path) => doc.resolve_location(path)?,
         None => None,
     };
+    let mut prompter = prompter(args.prompt_secrets)?;
     let request = ImportRequest {
         input: &input,
-        file_name: args
-            .source
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default(),
+        file_name: file_name(&args.source),
         format: args.format,
         into,
         on_conflict: match args.on_conflict {
@@ -44,17 +42,6 @@ pub fn run(ctx: &Context, args: ImportArgs) -> Result<i32> {
         dry_run: args.dry_run,
     };
     let vault = ctx.vault();
-    let mut prompter: Box<dyn SecretPrompter> = if args.prompt_secrets {
-        if !prompt::interactive() {
-            return Err(CliError::NoTerminal {
-                what: "le password dell'import".to_owned(),
-            }
-            .into());
-        }
-        Box::new(ImportPrompter)
-    } else {
-        Box::new(NonInteractive)
-    };
     let result = import(
         &store,
         &mut doc,
@@ -73,4 +60,27 @@ pub fn run(ctx: &Context, args: ImportArgs) -> Result<i32> {
         .unwrap_or_else(|| "/".to_owned());
     print_import(&result, &root_path);
     Ok(report_cleanup(&result.cleanup_failures))
+}
+
+/// Asks the encrypted secrets on the terminal with `--prompt-secrets`,
+/// otherwise skips them all.
+fn prompter(prompt_secrets: bool) -> Result<Box<dyn SecretPrompter>> {
+    if !prompt_secrets {
+        return Ok(Box::new(NonInteractive));
+    }
+    if !prompt::interactive() {
+        return Err(CliError::NoTerminal {
+            what: "le password dell'import".to_owned(),
+        }
+        .into());
+    }
+    Ok(Box::new(ImportPrompter))
+}
+
+/// The file name without its directory, recorded in the nodes and the
+/// report.
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }

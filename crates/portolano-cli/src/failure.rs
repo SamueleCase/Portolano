@@ -21,6 +21,10 @@ pub const EXIT_VAULT: i32 = 5;
 /// Exit code: connection error before launch.
 pub const EXIT_CONNECT: i32 = 6;
 
+/// Conflicts of an import listed by name; a re-import of a whole document
+/// conflicts on every node, and the rest is only counted.
+const MAX_LISTED_CONFLICTS: usize = 20;
+
 /// Errors raised by the CLI layer.
 #[derive(Debug, thiserror::Error)]
 pub enum CliError {
@@ -178,11 +182,11 @@ fn print_details(error: &OpsError) {
         }
         OpsError::FolderNotEmpty { .. } => eprintln!("usa -r per eliminare anche il contenuto"),
         OpsError::ImportConflicts { conflicts } => {
-            for (_, path) in conflicts.iter().take(20) {
+            for (_, path) in conflicts.iter().take(MAX_LISTED_CONFLICTS) {
                 eprintln!("  {path}");
             }
-            if conflicts.len() > 20 {
-                eprintln!("  … e altri {}", conflicts.len() - 20);
+            if conflicts.len() > MAX_LISTED_CONFLICTS {
+                eprintln!("  … e altri {}", conflicts.len() - MAX_LISTED_CONFLICTS);
             }
             eprintln!("usa --on-conflict update oppure new-ids");
         }
