@@ -67,16 +67,9 @@ pub(super) fn plan(
 /// Rejects control characters (such as `\r` and `\n`) in every value of the
 /// document that goes into the `.rdp` file.
 fn check_file_values(target: &RdpTarget) -> Result<(), ConnectError> {
-    let id = target.node_id;
-    check_value(id, "host", target.host, &[])?;
-    if let Some(user) = &target.credential.username {
-        check_value(id, "username", user, &[])?;
-    }
-    if let Some(domain) = &target.credential.domain {
-        check_value(id, "domain", domain, &[])?;
-    }
+    target.check_login_values()?;
     if let Some(gateway) = &target.gateway {
-        check_value(id, "gateway.host", gateway.host, &[])?;
+        check_value(target.node_id, "gateway.host", gateway.host, &[])?;
     }
     Ok(())
 }

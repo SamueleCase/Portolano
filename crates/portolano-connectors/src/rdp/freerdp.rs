@@ -41,7 +41,8 @@ const GATEWAY_FORBIDDEN: [char; 1] = [','];
 /// so it then runs in the foreground with a warning that says why.
 ///
 /// # Errors
-/// [`ConnectError::InvalidValue`] for a gateway value that would break the
+/// [`ConnectError::InvalidValue`] for a control character in the host, user
+/// or domain of the destination, or for a gateway value that would break the
 /// `/gateway:` option.
 pub(super) fn plan(
     program: PathBuf,
@@ -49,6 +50,7 @@ pub(super) fn plan(
     cert: CertPolicy,
     wait: bool,
 ) -> Result<LaunchPlan, ConnectError> {
+    target.check_login_values()?;
     let mut warnings = Vec::new();
     let mut args = vec![format!("/v:{}", host_port(target.host, target.port))];
     if let Some(user) = &target.credential.username {
