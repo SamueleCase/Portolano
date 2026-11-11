@@ -1,1 +1,6 @@
-//! Askpass client mode, entered before argument parsing when `PORTOLANO_ASKPASS=1` (SPEC §7.2).
+//! The askpass client (implemented in a following commit).
+
+/// The hidden `askpass` command.
+pub fn run(_prompt: &str) -> i32 {
+    todo!("portolano askpass")
+}
