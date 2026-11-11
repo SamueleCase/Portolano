@@ -22,16 +22,21 @@ const BLOCK_ELEMENTS: &[&str] = &[
     "h5",
     "h6",
 ];
+/// Longest entity name decoded, without `&` and `;`: `#x10FFFF`.
+const MAX_ENTITY_LENGTH: usize = 8;
 /// Elements whose content is not text.
 const HIDDEN_ELEMENTS: [&str; 3] = ["script", "style", "head"];
 
 /// Whether the text contains an HTML tag: `<` followed by a letter, `/` or
 /// `!`, and a `>` later on.
 pub(super) fn looks_like_html(text: &str) -> bool {
-    text.match_indices('<').any(|(index, _)| {
-        let rest = &text[index + 1..];
-        rest.starts_with(|c: char| c.is_ascii_alphabetic() || c == '/' || c == '!')
-            && rest.contains('>')
+    // Computed once: searching for a `>` after every `<` would be quadratic
+    // on notes crafted with many `<`.
+    let Some(last_close) = text.rfind('>') else {
+        return false;
+    };
+    text[..last_close].match_indices('<').any(|(index, _)| {
+        text[index + 1..].starts_with(|c: char| c.is_ascii_alphabetic() || c == '/' || c == '!')
     })
 }
 
@@ -122,9 +127,12 @@ fn decode_entities(html: &str) -> String {
     while let Some(start) = rest.find('&') {
         decoded.push_str(&rest[..start]);
         let candidate = &rest[start + 1..];
+        // Only the first bytes can close an entity: searching the whole rest
+        // after every `&` would be quadratic.
         let entity = candidate
-            .find(';')
-            .filter(|end| *end <= 10)
+            .bytes()
+            .take(MAX_ENTITY_LENGTH + 1)
+            .position(|byte| byte == b';')
             .and_then(|end| Some((decode_entity(&candidate[..end])?, end)));
         match entity {
             Some((c, end)) => {
@@ -216,6 +224,29 @@ mod tests {
             html_to_text("<p>A &amp; B &lt;C&gt; &#233;&#x41;&nbsp;fine &unknown;</p>"),
             "A & B <C> éA fine &unknown;"
         );
+    }
+
+    #[test]
+    fn entities_are_decoded_up_to_the_longest_name_only() {
+        assert_eq!(decode_entities("&#x10FFFF;"), "\u{10FFFF}");
+        assert_eq!(decode_entities("&#00000065;"), "&#00000065;");
+    }
+
+    // Quadratic scans would take minutes on these inputs; linear ones take
+    // milliseconds.
+    #[test]
+    fn many_angle_brackets_are_scanned_in_linear_time() {
+        let text = "<".repeat(500_000);
+
+        assert!(!looks_like_html(&text));
+        assert!(looks_like_html(&format!("{text}<b>")));
+    }
+
+    #[test]
+    fn many_ampersands_are_decoded_in_linear_time() {
+        let text = "&".repeat(500_000);
+
+        assert_eq!(decode_entities(&text), text);
     }
 
     #[test]
