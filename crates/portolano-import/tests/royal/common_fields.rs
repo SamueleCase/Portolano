@@ -316,3 +316,58 @@ fn an_unknown_type_with_a_nested_secret_keeps_no_ciphertext() {
     assert!(!unsupported.raw.contains(FAKE_CIPHERTEXT));
     assert!(!unsupported.raw.contains("<Options>"));
 }
+
+/// A `Password` element whose value is two or three levels below it.
+fn deep_passwords() -> [String; 2] {
+    [
+        format!("<Password><v>{FAKE_CIPHERTEXT}</v></Password>"),
+        format!("<Password><v><w>{FAKE_CIPHERTEXT}</w></v></Password>"),
+    ]
+}
+
+#[test]
+fn a_value_deep_below_a_secret_element_is_dropped_from_extra() {
+    for settings in deep_passwords() {
+        let outcome = import(&folder_with(&[("Settings", &settings)]));
+
+        let node = find(&outcome.root, uuid(2));
+        assert!(!node.extra.contains_key("royal.Settings"), "{settings}");
+        assert_eq!(
+            reasons(&outcome, 2),
+            vec!["campo cifrato `Settings` non importato"]
+        );
+    }
+}
+
+#[test]
+fn a_value_deep_below_a_secret_element_is_dropped_from_raw() {
+    for settings in deep_passwords() {
+        let xml = document(&[object(
+            "RoyalWebConnection",
+            2,
+            1,
+            &[("URI", "web.example.com"), ("Settings", &settings)],
+        )]);
+
+        let outcome = import(&xml);
+
+        let NodeKind::Unsupported(unsupported) = &find(&outcome.root, uuid(2)).kind else {
+            panic!("expected an unsupported node");
+        };
+        assert!(!unsupported.raw.contains(FAKE_CIPHERTEXT), "{settings}");
+    }
+}
+
+#[test]
+fn a_secret_attribute_on_a_deep_descendant_is_dropped() {
+    let settings = format!("<a><b><c Passphrase=\"{FAKE_CIPHERTEXT}\"/></b></a>");
+
+    let outcome = import(&folder_with(&[("Settings", &settings)]));
+
+    assert!(
+        !find(&outcome.root, uuid(2))
+            .extra
+            .contains_key("royal.Settings")
+    );
+    assert_eq!(status(&outcome, 2), ItemStatus::Partial);
+}

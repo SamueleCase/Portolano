@@ -16,7 +16,9 @@ const FIXTURES: [&str; 3] = [
 ];
 
 /// Elements of the fixtures that hold encrypted values.
-const ENCRYPTED_ELEMENTS: [&str; 7] = [
+/// `Data` and `Item` hold values nested two and three levels under a
+/// `Password` element.
+const ENCRYPTED_ELEMENTS: [&str; 9] = [
     "Password",
     "CredentialPassword",
     "PasswordHash",
@@ -24,6 +26,8 @@ const ENCRYPTED_ELEMENTS: [&str; 7] = [
     "PrivateKeyContent",
     "CustomProtectedField1",
     "SSHKeyPassword",
+    "Data",
+    "Item",
 ];
 
 fn import_fixture(name: &str) -> ImportOutcome {
@@ -51,7 +55,12 @@ fn ciphertexts(name: &str) -> Vec<String> {
             .filter_map(|rest| rest.split_once('"').map(|(value, _)| value.to_owned()))
             .collect::<Vec<_>>()
     });
-    elements.chain(attributes).collect()
+    // An element wrapping others yields markup, not a value: the value is
+    // collected from the innermost element.
+    elements
+        .chain(attributes)
+        .filter(|value| !value.contains('<'))
+        .collect()
 }
 
 /// Everything an outcome can expose: the tree, the report and the debug
@@ -101,7 +110,7 @@ fn counts(
 fn every_fixture_has_encrypted_values_to_check() {
     assert!(ciphertexts("minimal.royal.xml").is_empty());
     assert_eq!(ciphertexts("workspace.royal.xml").len(), 7);
-    assert_eq!(ciphertexts("full-synthetic.royal.xml").len(), 10);
+    assert_eq!(ciphertexts("full-synthetic.royal.xml").len(), 12);
 }
 
 #[test]
@@ -271,7 +280,7 @@ fn full_synthetic_counts() {
         ("RoyalDocument", counts(1, 1, 0, 0, 0)),
         ("RoyalDynamicFolder", counts(1, 0, 0, 1, 0)),
         ("RoyalFileTransferConnection", counts(1, 0, 0, 1, 0)),
-        ("RoyalFolder", counts(3, 2, 1, 0, 0)),
+        ("RoyalFolder", counts(3, 1, 2, 0, 0)),
         ("RoyalHologramConnection", counts(1, 0, 0, 1, 0)),
         ("RoyalRDSConnection", counts(4, 0, 4, 0, 0)),
         ("RoyalRDSGateway", counts(1, 0, 0, 1, 0)),

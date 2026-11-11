@@ -103,6 +103,37 @@ fn a_field_with_a_nested_secret_element_is_secret() {
 }
 
 #[test]
+fn text_deep_below_a_secret_element_is_secret() {
+    for value in ["<v>Y2lwaGVydGV4dA==</v>", "<v><w>Y2lwaGVydGV4dA==</w></v>"] {
+        let xml = format!(
+            "<RTSZDocument><RoyalFolder><ID>a</ID>\
+             <Settings><Password>{value}</Password></Settings>\
+             </RoyalFolder></RTSZDocument>"
+        );
+
+        let objects = parse_document(&xml).unwrap();
+
+        assert!(objects[0].is_secret("Settings"), "{value}");
+        assert_eq!(
+            objects[0].redacted_xml(),
+            "<RoyalFolder><ID>a</ID></RoyalFolder>"
+        );
+    }
+}
+
+#[test]
+fn a_secret_attribute_on_a_deep_descendant_is_secret() {
+    let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\
+               <Settings><a><b><c Passphrase=\"Y2lwaGVydGV4dA==\"/></b></a></Settings>\
+               </RoyalFolder></RTSZDocument>";
+
+    let objects = parse_document(xml).unwrap();
+
+    assert!(objects[0].is_secret("Settings"));
+    assert!(!objects[0].redacted_xml().contains("Y2lwaGVydGV4dA=="));
+}
+
+#[test]
 fn a_field_with_a_secret_attribute_is_secret() {
     let xml = "<RTSZDocument><RoyalFolder><ID>a</ID>\
                <Password value=\"Y2lwaGVydGV4dA==\"/>\

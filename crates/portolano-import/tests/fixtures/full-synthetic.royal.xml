@@ -24,6 +24,7 @@
     <Name>Infrastruttura</Name>
     <PositionNr>1</PositionNr>
     <Created>not a date</Created>
+    <Settings><Password><Data>Pyq+dLx6L9Yq41eq4MxozpPikQmNtd42tmXj15dF5DhsoAE6+Oh9dXxjZCcdjqF9FXJeHTXWAka7+LvZzJRM0ZNnmJxMl9tWgYDs5hxzfqc=</Data></Password></Settings>
   </RoyalFolder>
   <RoyalSecureGateway>
     <ID>f0000000-0000-4000-8000-000000000020</ID>
@@ -159,6 +160,7 @@
     <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
     <Name>intranet</Name>
     <URI>https://intranet.example.com</URI>
+    <Settings><Password><Data><Item>0X8BOk8X0QXkurJCCx7I3Tq8A9dGRLoYw3hY5ZbRcF372Fh6L6Y/TLqzbR7wpBnS95rXQM5aa5dMfkT5sOzh5QallH94dyTLyJdK2RoNljQ=</Item></Data></Password></Settings>
   </RoyalWebConnection>
   <RoyalFileTransferConnection>
     <ID>f0000000-0000-4000-8000-000000000042</ID>

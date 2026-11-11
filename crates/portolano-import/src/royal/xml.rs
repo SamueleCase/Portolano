@@ -215,19 +215,20 @@ fn read_field_value(
     let inner_start = position(reader)?;
     let mut text = String::new();
     let mut secret = has_secret_attribute(field)?;
-    // Open descendant elements with their own text, to check their names.
-    let mut open: Vec<(String, String)> = Vec::new();
+    // Open descendant elements, with the length of `text` when they opened:
+    // at their end, `text` past that length is all the text inside them,
+    // however deep (`<Password><v>…</v></Password>`), without copies.
+    let mut open: Vec<(String, usize)> = Vec::new();
     let mut has_children = false;
     loop {
         let before = position(reader)?;
-        let mut content = String::new();
         match read(reader)? {
-            Event::Text(event) => content.push_str(&event.xml10_content()),
-            Event::CData(event) => content.push_str(&event),
-            Event::GeneralRef(reference) => push_reference(&mut content, &reference),
+            Event::Text(event) => text.push_str(&event.xml10_content()),
+            Event::CData(event) => text.push_str(&event),
+            Event::GeneralRef(reference) => push_reference(&mut text, &reference),
             Event::Start(element) => {
                 secret |= has_secret_attribute(&element)?;
-                open.push((element_name(&element), String::new()));
+                open.push((element_name(&element), text.len()));
                 has_children = true;
             }
             Event::Empty(element) => {
@@ -235,7 +236,9 @@ fn read_field_value(
                 has_children = true;
             }
             Event::End(_) => match open.pop() {
-                Some((name, own_text)) => secret |= is_secret_value(&name, &own_text),
+                Some((name, text_start)) => {
+                    secret |= is_secret_value(&name, &text[text_start..]);
+                }
                 None => {
                     let value = if has_children {
                         RawField::Markup(xml[inner_start..before].to_owned())
@@ -248,10 +251,6 @@ fn read_field_value(
             Event::Eof => return Err(unexpected_end()),
             _ => {}
         }
-        if let Some((_, own_text)) = open.last_mut() {
-            own_text.push_str(&content);
-        }
-        text.push_str(&content);
     }
 }
 
