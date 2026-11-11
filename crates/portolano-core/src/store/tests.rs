@@ -359,3 +359,21 @@ fn load_rejects_duplicate_ids() {
 
     assert!(matches!(error, Error::DuplicateId { id } if id == Uuid::from_u128(7)));
 }
+
+#[test]
+fn icons_live_next_to_the_document() {
+    let dir = TempDir::new().unwrap();
+    let (store, _) = Store::create(document_path(&dir), "Portolano").unwrap();
+    let icon = crate::model::Icon::Custom {
+        sha256: "ab".repeat(32),
+        mime: "image/png".to_owned(),
+    };
+
+    let path = store.icons().path_for(&icon);
+
+    let expected = dir
+        .path()
+        .join("portolano.icons")
+        .join(format!("{}.png", "ab".repeat(32)));
+    assert_eq!(path, Some(expected));
+}
