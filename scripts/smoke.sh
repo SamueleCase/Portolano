@@ -41,6 +41,7 @@ doc="$work/portolano.json"
 vault="$work/vault.json"
 config="$work/config.toml"
 calls="$work/client-calls.log"
+outputs="$work/outputs.log"
 stubs="$work/bin"
 
 # Stubs for every external program a plan could start: they only record the
@@ -103,13 +104,17 @@ fail() {
 }
 
 # portolano EXPECTED_EXIT ARGS...: runs the binary on the test document,
-# vault and configuration; stdout and stderr end up in $out. Stdin is the
-# caller's (a here-string where a secret is read).
+# vault and configuration; stdout and stderr end up in $out and are appended
+# to $outputs, which is searched for the sentinel at every check. Only the
+# command name goes to the log, not its arguments: one test passes the
+# sentinel on purpose to a rejected option. Stdin is the caller's (a
+# here-string where a secret is read).
 portolano() {
     local expected=$1 code=0
     shift
     out=$("$bin" --file "$doc" --vault file --vault-file "$vault" --config "$config" "$@" 2>&1) ||
         code=$?
+    printf '### portolano %s (exit %s)\n%s\n' "$1" "$code" "$out" >>"$outputs"
     [[ $code -eq $expected ]] ||
         fail "portolano $* -> exit $code, atteso $expected"
 }
@@ -134,8 +139,7 @@ file_lacks() {
 }
 
 no_secret_anywhere() {
-    lacks "$sentinel"
-    file_lacks "$sentinel" "$doc" "$doc.bak" "$vault" "$config" "$work"/report-*.json
+    file_lacks "$sentinel" "$outputs" "$doc" "$doc.bak" "$vault" "$config" "$work"/report-*.json
 }
 
 # --- Steps (SPEC §11.4) -------------------------------------------------------
@@ -284,6 +288,25 @@ portolano 0 secret status "$credential"
 contains "password: presente nel vault"
 PORTOLANO_VAULT_PASSWORD="not-the-master-password" portolano 5 secret status "$credential"
 contains "master password errata"
+no_secret_anywhere
+
+# Beyond SPEC §11.4: the commands the steps above leave out.
+step "secret clear" +
+portolano 0 secret clear "$credential"
+contains "Eliminato: password"
+portolano 0 secret status "$credential"
+contains "nessun segreto"
+
+step "config path, show, set" +
+portolano 0 config path
+[[ "$out" == "$config" ]] || fail "config path non indica il file di configurazione di test"
+portolano 0 config set rdp.cert deny
+portolano 0 config show
+contains 'cert = "deny"'
+contains "freerdp_program = \"$stubs/sdl-freerdp\""
+portolano 4 config set rdp.client nessuno
+contains "valore non valido"
+portolano 4 config set chiave_inesistente 1
 no_secret_anywhere
 [[ ! -e "$calls" ]] || fail "un programma esterno è stato avviato: $(cat "$calls")"
 
