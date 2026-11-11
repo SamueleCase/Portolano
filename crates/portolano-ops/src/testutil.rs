@@ -16,7 +16,7 @@ use uuid::Uuid;
 pub(crate) const TEST_MASTER_PASSWORD: &str = "test-only-master-password";
 
 /// The cheapest Argon2id costs, so that file vaults open quickly.
-const TEST_KDF_PARAMS: KdfParams = KdfParams {
+pub(crate) const TEST_KDF_PARAMS: KdfParams = KdfParams {
     m_cost_kib: 8,
     t_cost: 1,
     p_cost: 1,

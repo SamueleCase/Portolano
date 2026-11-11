@@ -6,12 +6,21 @@ use portolano_core::{
     MasterPasswordSource, Secret, SecretRef, Vault, VaultError, VaultSelection, open_vault,
 };
 
+/// Shortest master password accepted when a file vault is created, in
+/// characters (DEC-024.7): the vault file may be copied elsewhere and
+/// attacked offline, where only the length of the password slows down the
+/// guessing that Argon2id makes costly. Existing vaults still open with
+/// their password.
+pub const MIN_MASTER_PASSWORD_CHARS: usize = 12;
+
 /// A vault that is opened only when a secret is first read or written.
 ///
 /// Opening the file vault asks for the master password, and the keychain may
 /// ask the system for access: operations that end up touching no secret,
 /// such as deleting a node without secrets, then ask nothing. A failed
-/// opening is not remembered, so the next use tries again.
+/// opening is not remembered, so the next use tries again. A new file vault
+/// is created only with a master password of at least
+/// [`MIN_MASTER_PASSWORD_CHARS`] characters.
 pub struct LazyVault {
     selection: VaultSelection,
     master_password: Box<dyn MasterPasswordSource + Send + Sync>,
@@ -45,7 +54,10 @@ impl LazyVault {
         let mut slot = self.slot()?;
         let vault = match slot.take() {
             Some(vault) => vault,
-            None => open_vault(&self.selection, self.master_password.as_ref())?,
+            None => open_vault(
+                &self.selection,
+                &NewVaultPolicy(self.master_password.as_ref()),
+            )?,
         };
         let result = operation(vault.as_ref());
         *slot = Some(vault);
@@ -57,6 +69,23 @@ impl LazyVault {
             backend: self.backend(),
             reason: "stato interno non più affidabile dopo un errore precedente".to_owned(),
         })
+    }
+}
+
+/// The master password source of the caller, refusing a short password for
+/// a vault being created: the vault file is written only after the source
+/// answers, so a refused password leaves nothing behind.
+struct NewVaultPolicy<'a>(&'a dyn MasterPasswordSource);
+
+impl MasterPasswordSource for NewVaultPolicy<'_> {
+    fn master_password(&self, creating: bool) -> Result<Secret, VaultError> {
+        let password = self.0.master_password(creating)?;
+        if creating && password.expose().chars().count() < MIN_MASTER_PASSWORD_CHARS {
+            return Err(VaultError::WeakMasterPassword {
+                min_chars: MIN_MASTER_PASSWORD_CHARS,
+            });
+        }
+        Ok(password)
     }
 }
 
@@ -127,6 +156,65 @@ mod tests {
             }
             Ok(Secret::new("test-only-master-password".to_owned()))
         }
+    }
+
+    /// The test master password cut one character short of the minimum.
+    const SHORT_PASSWORD: &str = "test-only-m";
+
+    /// Always answers [`SHORT_PASSWORD`].
+    struct ShortSource;
+
+    impl MasterPasswordSource for ShortSource {
+        fn master_password(&self, _creating: bool) -> Result<Secret, VaultError> {
+            Ok(Secret::new(SHORT_PASSWORD.to_owned()))
+        }
+    }
+
+    #[test]
+    fn new_file_vault_refuses_a_short_master_password() {
+        assert_eq!(
+            SHORT_PASSWORD.chars().count(),
+            MIN_MASTER_PASSWORD_CHARS - 1
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.json");
+        let vault = LazyVault::new(
+            VaultSelection::File { path: path.clone() },
+            Box::new(ShortSource),
+        );
+
+        let result = vault.contains(&SecretRef::new());
+
+        assert!(
+            matches!(
+                result,
+                Err(VaultError::WeakMasterPassword { min_chars: 12 })
+            ),
+            "{result:?}"
+        );
+        assert!(!path.exists());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("almeno 12 caratteri")
+        );
+    }
+
+    #[test]
+    fn existing_file_vault_opens_with_a_short_master_password() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.json");
+        // Created before the rule, without the policy of `LazyVault`.
+        portolano_core::vault::FileVault::with_kdf_params(
+            path.clone(),
+            &ShortSource,
+            crate::testutil::TEST_KDF_PARAMS,
+        )
+        .unwrap();
+        let vault = LazyVault::new(VaultSelection::File { path }, Box::new(ShortSource));
+
+        assert!(!vault.contains(&SecretRef::new()).unwrap());
     }
 
     fn memory_vault() -> LazyVault {

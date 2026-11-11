@@ -99,6 +99,30 @@ fn private_key_is_read_only_from_stdin() {
 }
 
 #[test]
+fn new_file_vault_with_a_short_master_password_exits_with_5() {
+    let workspace = Workspace::new();
+    let vault = workspace.path("new-vault.json");
+    workspace
+        .bare_cmd()
+        .env("PORTOLANO_VAULT_PASSWORD", &TEST_MASTER_PASSWORD[..11])
+        .arg("--vault-file")
+        .arg(&vault)
+        .args([
+            "add",
+            "cred",
+            "/Admin",
+            "--user",
+            "admin",
+            "--password-stdin",
+        ])
+        .write_stdin(format!("{SENTINEL}\n"))
+        .assert()
+        .code(5)
+        .stderr(contains("almeno 12 caratteri"));
+    assert!(!vault.exists());
+}
+
+#[test]
 fn password_from_stdin_beyond_64_kib_is_refused() {
     let workspace = Workspace::new();
     let too_long = format!("{}\n", "x".repeat(64 * 1024 + 1));
