@@ -41,7 +41,9 @@ L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è gi�
   rustup default stable
   ```
 
-- **OpenSSH** (`ssh`, `ssh-add`): è quello di sistema di macOS.
+- **OpenSSH ≥ 8.4** (`ssh`, `ssh-add`): quello di sistema di macOS va bene. La 8.4 serve per l'askpass
+  (`SSH_ASKPASS_REQUIRE`); dalla 9.6 OpenSSH rifiuta anche da solo utenti e host con metacaratteri della shell,
+  che Portolano comunque controlla per conto suo.
 - **FreeRDP 3**, consigliato per RDP: è l'unico client a cui Portolano passa la password salvata (login
   automatico ancora da verificare su un host reale).
 
@@ -179,7 +181,8 @@ portolano add cred Chiavi/ci -p --user ci --key-stdin < ./id_ed25519_ci
 
 Non esiste un'opzione `--password <valore>`: una password sulla riga di comando finirebbe nella cronologia della
 shell e nella lista dei processi. `--key` e `--key-stdin` si escludono; `--key-stdin` non si combina con
-`--password-stdin` (usa `--ask-password`, oppure `secret set` dopo).
+`--password-stdin` (usa `--ask-password`, oppure `secret set` dopo). Un segreto letto da stdin può essere lungo
+al massimo 64 KiB (65536 byte): un input più grande, ad esempio il file sbagliato, viene rifiutato.
 
 **Connessioni SSH**
 
@@ -206,6 +209,34 @@ portolano add ssh Lab/vm2 --host 198.51.100.7 --user root --key ~/.ssh/id_lab \
 - `--x11` attiva l'inoltro X11 (`-X`); `-o CHIAVE=VALORE` è ripetibile e diventa `-o` di `ssh`.
 - `--cred` non si combina con `--user`, `--ask-password` o `--password-stdin`: la password di una credenziale
   collegata si imposta su quella credenziale.
+- L'utente di destinazione segue le regole di OpenSSH: sono ammessi `DOMINIO\utente` (server Windows) e gli
+  spazi, ma non i metacaratteri della shell, i caratteri di controllo, un `-` iniziale o dopo uno spazio, un `\`
+  finale. Con uno spazio nel nome l'askpass non riconosce il prompt di `ssh`, e la password la chiede `ssh`. Utenti
+  e host dei jump host hanno una regola più severa (niente spazi, virgole, backslash né metacaratteri), perché
+  `-J` li separa con virgole.
+
+**Opzioni ssh ammesse.** Un documento può arrivare da altri, quindi non è fidato quanto il proprio
+`~/.ssh/config` (vedi [Sicurezza](#sicurezza)). Con `-o` (e con `edit --set options=…`) sono ammesse **solo**
+queste 23 opzioni, senza distinguere maiuscole e minuscole: non eseguono comandi, non aprono inoltri o tunnel, non
+cambiano destinazione, utente, porta, agent, ambiente o file letti e non indeboliscono la verifica della host key.
+
+| Opzioni | Uso |
+|---|---|
+| `IdentityFile`, `IdentitiesOnly` | la chiave con cui entrare (le scrive `add ssh --key`) |
+| `ConnectTimeout`, `ConnectionAttempts`, `ServerAliveCountMax`, `TCPKeepAlive` | timeout e keepalive (l'intervallo è `--keepalive`) |
+| `PreferredAuthentications`, `PubkeyAuthentication`, `PasswordAuthentication`, `KbdInteractiveAuthentication` | metodi di autenticazione |
+| `Ciphers`, `MACs`, `KexAlgorithms`, `PubkeyAcceptedAlgorithms` | algoritmi della sessione |
+| `Compression`, `LogLevel`, `RequestTTY`, `AddressFamily` | presentazione e trasporto |
+| `AddKeysToAgent` | aggiunge la chiave usata all'agent già attivo |
+| `CheckHostIP`, `VisualHostKey`, `HashKnownHosts` | controlli e visualizzazione della host key |
+| `StrictHostKeyChecking` | solo `yes`, `ask` o `accept-new` |
+
+Tutto il resto (`ProxyCommand`, `LocalForward`, `User`, `Port`, `HostKeyAlgorithms`, …) è rifiutato con codice 4,
+anche in `validate` e in `connect` per un documento scritto a mano o importato: se ti serve, mettilo nel tuo
+`~/.ssh/config`. `HostKeyAlgorithms` è escluso perché un elenco esplicito disattiva l'ordinamento ricavato da
+`known_hosts` e, con `accept-new`, permetterebbe a un intermediario di far accettare una chiave di tipo nuovo.
+Le opzioni sugli algoritmi possono invece abilitare algoritmi deboli (es. `Ciphers=+3des-cbc`): è un rischio
+accettato, perché servono per server vecchi e la scelta è visibile nel documento.
 
 **Connessioni RDP**
 
@@ -366,11 +397,18 @@ Come si comporta:
   agent attivo (`SSH_AUTH_SOCK`).
 - **RDP con FreeRDP**: la password passa via stdin (`/from-stdin:force`). Senza `--wait` FreeRDP si stacca dal
   terminale e i suoi messaggi d'errore vanno in un log. Se la credenziale del gateway coincide con quella della
-  destinazione FreeRDP riusa le stesse credenziali; altrimenti la password del gateway la chiede FreeRDP.
+  destinazione FreeRDP riusa le stesse credenziali; altrimenti passa solo utente e dominio del gateway.
+- **FreeRDP che deve chiedere una password**: se manca la password della destinazione (nessuna salvata, o una
+  password senza utente) oppure il gateway usa una credenziale diversa, FreeRDP viene eseguito **in primo piano**
+  nel terminale invece di staccarsi, con un avviso
+  (`avviso: FreeRDP chiederà la password della destinazione: viene eseguito in primo piano in questo terminale
+  invece di staccarsi`). Come FreeRDP la chieda (sul terminale o in una finestra) è da verificare dal vivo.
 - **RDP con Windows App**: Portolano genera un file `.rdp` senza password e lo apre con l'app, che chiede la
   password.
 - **Client RDP**: `--client` > impostazione `client` della connessione > `[rdp] client` della configurazione;
-  in `auto` si usa FreeRDP se c'è, altrimenti Windows App (con un avviso).
+  in `auto` si usa FreeRDP se c'è, altrimenti Windows App (con un avviso). Se `[rdp] freerdp_program` è
+  configurato ma rifiutato dai controlli (vedi [Configurazione](#configurazione)), `auto` dà errore invece di
+  ripiegare su Windows App.
 - **Credenziale `prompt`**: sul terminale `connect` chiede utente, password (e dominio per RDP); la password resta
   in memoria per quella sola connessione. Senza terminale li chiede il client.
 - **Nuova finestra**: `--new-window` rilancia `portolano connect` nell'app di terminale configurata, con lo stesso
@@ -392,7 +430,10 @@ portolano import ~/Documents/Clienti.rtsz --into Import --on-conflict update
   `--prompt-secrets` l'import chiede ogni password (input nascosto, invio vuoto per saltarla) mostrando percorso
   e utente, e la salva nel vault; richiede un terminale e non si combina con `--dry-run`. Senza, o se la salti,
   l'elemento risulta *parziale* e la password si imposta dopo con `portolano secret set`. Il ciphertext di Royal
-  non viene conservato da nessuna parte.
+  non viene conservato da nessuna parte: i campi cifrati si riconoscono dal nome (password, passphrase, secret,
+  chiave incorporata, campi personalizzati protetti) e, per i nomi non previsti, dal valore (base64 che
+  decodifica ad almeno 32 byte, multiplo di 16, escluse note e immagini). Un campo così viene scartato e
+  l'elemento risulta *parziale*; l'euristica può scartare anche qualche campo che non era cifrato.
 - `--on-conflict fail|update|new-ids` (predefinito `fail`): gli id dei nodi importati sono quelli di Royal, quindi
   reimportare lo stesso file dà conflitti. `update` sostituisce i nodi esistenti mantenendone posizione e segreti;
   `new-ids` importa una copia con id nuovi.
@@ -438,8 +479,9 @@ portolano validate
 ```
 
 Controlla riferimenti rotti, credenziali per nome ambigue o mancanti, host vuoti, impostazioni dei protocolli e
-segreti mancanti nel vault (avviso: il documento può essere usato da macchine con portachiavi diversi). Stampa
-errori, avvisi e note (i nodi non supportati) ed esce con 4 se trova errori.
+segreti mancanti nel vault (avviso: il documento può essere usato da macchine con portachiavi diversi), opzioni
+ssh non ammesse, e con l'avviso `control_characters` nomi, host e utenti che contengono caratteri di controllo.
+Stampa errori, avvisi e note (i nodi non supportati) ed esce con 4 se trova errori.
 
 ### `config`: configurazione
 
@@ -485,11 +527,11 @@ app = "terminal"              # terminal | iterm | ghostty | custom
 # command = "wezterm start -- {cmd}"    # per custom: {cmd} è il comando da eseguire
 
 [ssh]
-program = "ssh"               # nome nel PATH o percorso
+program = "ssh"               # "ssh" = cercato nel PATH; altrimenti un percorso assoluto
 
 [rdp]
 client = "auto"               # auto | freerdp | windows-app
-freerdp_program = ""          # percorso di FreeRDP; vuoto = ricerca automatica
+freerdp_program = ""          # percorso assoluto di FreeRDP; vuoto = ricerca automatica
 cert = "tofu"                 # tofu | ignore | deny (opzione /cert: di FreeRDP)
 ```
 
@@ -499,7 +541,26 @@ Ad esempio il documento è `--file`, altrimenti `PORTOLANO_FILE`, altrimenti `de
 `default_documnt = "…"`) è un errore; una sezione sconosciuta (es. `[foo]`) viene conservata e ignorata.
 `config show` mostra le sezioni `[ssh]` e `[rdp]` solo se sono presenti nel file.
 
+**Programmi configurati.** `[ssh] program` e `[rdp] freerdp_program` ricevono le password, quindi, come fa
+`safe_path()` di OpenSSH, Portolano li accetta solo se:
+
+- il percorso è assoluto (`config set` rifiuta un percorso relativo);
+- è un file regolare eseguibile;
+- il file e tutte le directory del suo percorso, sia come scritto sia dopo aver risolto i symlink, appartengono a
+  te o a root e non sono scrivibili dal gruppo o da altri.
+
+Un programma rifiutato blocca solo il proprio protocollo, con codice 6: un `[ssh] program` non valido non
+impedisce le connessioni RDP e viceversa. Con `client = "auto"`, un FreeRDP configurato e rifiutato dà errore
+invece di ripiegare su Windows App.
+
 ## Sicurezza
+
+**Modello di fiducia.** Il documento può arrivare da altri (un repo condiviso, un import da Royal) e **non** è
+fidato quanto il tuo `~/.ssh/config`: per questo Portolano limita le opzioni ssh a un elenco chiuso, controlla
+utenti e host prima di passarli a `ssh` e FreeRDP e mostra in modo visibile i caratteri di controllo. Sono invece
+dentro il perimetro di fiducia `config.toml` e i processi del tuo stesso utente: un processo che può riscrivere la
+tua configurazione o leggere la memoria di `portolano` può ottenere i segreti. È un rischio residuo accettato, lo
+stesso degli helper di credenziali di git.
 
 **Dove stanno i segreti.** Password, passphrase, chiavi private e proprietà segrete stanno solo nel vault. Il
 documento JSON contiene solo riferimenti opachi (UUID).
@@ -508,10 +569,13 @@ documento JSON contiene solo riferimenti opachi (UUID).
   account = riferimento. Protetto dal sistema e sbloccato con la sessione.
 - **Vault su file** (`--vault file`): `vault.json` cifrato con XChaCha20-Poly1305, chiave derivata con Argon2id
   (64 MiB, 3 iterazioni) dalla master password. Utile senza portachiavi o per tenere vault separati; la master
-  password si chiede con un prompt nascosto (due volte alla creazione).
+  password si chiede con un prompt nascosto (due volte alla creazione) e, quando si crea il vault, deve avere
+  almeno 12 caratteri (altrimenti codice 5).
 - `PORTOLANO_VAULT_PASSWORD` fornisce la master password senza prompt: **solo per automazione e test**. Una
   variabile d'ambiente è visibile ai processi dello stesso utente e rischia di finire nella cronologia della
-  shell. Portolano la toglie dall'ambiente di ogni processo che avvia (`ssh`, FreeRDP, `ssh-add`, terminale).
+  shell; inoltre resta nella memoria del processo `portolano` (il blocco dell'ambiente) per tutta la sua durata,
+  senza essere azzerata. Portolano la toglie dall'ambiente di ogni processo che avvia (`ssh`, FreeRDP, `ssh-add`,
+  terminale).
 
 **Come arrivano ai client.**
 
@@ -531,7 +595,20 @@ della CLI (compreso `--print`, `--json` e `show --resolved`), i messaggi d'error
 variabili d'ambiente dei processi avviati, i file temporanei. Le password non si passano mai come argomento:
 `--ask-password` (prompt nascosto), `--password-stdin` o `secret set --stdin`.
 
+I segreti letti da stdin (`--password-stdin`, `--key-stdin`, `secret set --stdin`) e le risposte dell'askpass
+passano per buffer di dimensione fissa (al massimo 64 KiB) che vengono azzerati dopo l'uso.
+
 I log di FreeRDP (`0600`, nella cartella privata della cache) possono contenere nomi di utenti e host.
+
+**Caratteri di controllo.** Nomi, host, utenti e percorsi di un documento condiviso o importato potrebbero
+contenere sequenze che pilotano il terminale (spostare il cursore, riscrivere righe, cambiare il titolo) o
+controlli bidirezionali che mostrano il testo in un ordine diverso da quello reale. In ogni output della CLI
+(`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) i caratteri di controllo
+C0, DEL, C1 e i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C) compaiono come escape, ad
+esempio `\u{1b}`; nell'output `--json` come escape JSON (`\u001b`). `validate` li segnala con l'avviso
+`control_characters`. `connect` rifiuta caratteri di controllo negli host e negli utenti delle connessioni SSH e
+dei loro jump host, del gateway RDP e del file `.rdp` di Windows App; host e utente di destinazione per FreeRDP
+non sono controllati (arrivano come singoli argomenti, senza shell).
 
 **Prompt del portachiavi dopo ogni ricompilazione.** Con un binario non firmato (come quello di
 `cargo install`), macOS può mostrare "portolano vuole accedere al portachiavi" dopo ogni ricompilazione, anche se
@@ -558,16 +635,21 @@ avevi scelto "Consenti sempre": la firma del binario è cambiata. È normale; sc
   più vecchi di 10 minuti.
 - **Windows App** non fa autologon: la password la chiede l'app.
 - **Gateway RDP**: con una credenziale diversa da quella della destinazione la password del gateway la chiede
-  FreeRDP.
+  FreeRDP, che per questo resta in primo piano nel terminale.
+- **Utenti SSH con spazi**: sono ammessi, ma l'askpass riconosce solo i prompt di `ssh` con utenti senza spazi
+  (le espressioni del prompt della specifica): la password salvata non viene servita e la chiede `ssh`.
+- **Opzioni ssh**: solo le 23 dell'elenco in [Uso](#add-aggiungere-nodi); le altre vanno nel tuo
+  `~/.ssh/config`. Le opzioni sugli algoritmi possono abilitare algoritmi deboli (rischio accettato).
 - **Login automatico non ancora provato su host reali**: che `connect` entri senza chiedere la password salvata,
   in SSH (askpass) e in RDP (FreeRDP con `/from-stdin:force`), è verificato solo sui piani di lancio e con test
   simulati. Manca la verifica manuale su host reali (Definition of Done, SPEC §13).
 - **Da verificare dal vivo**: il testo del prompt della passphrase di `ssh-add` per le chiavi salvate nel vault, e
   il riuso delle credenziali sul gateway RDP insieme a `/from-stdin:force`. Sono implementati secondo la
-  documentazione e i test, ma non ancora provati su un agent e un gateway reali. Da provare anche come FreeRDP
-  chiede una password che Portolano non ha (connessione senza password salvata, gateway con credenziale
-  diversa) quando si stacca dal terminale: senza `--wait` il suo stdin è vuoto o già chiuso; con `--wait` e senza
-  password salvata FreeRDP resta collegato al terminale.
+  documentazione e i test, ma non ancora provati su un agent e un gateway reali. Da provare anche come FreeRDP,
+  eseguito in primo piano, chiede una password che Portolano non ha: sul terminale, in una finestra grafica, o
+  (per il gateway, quando la password della destinazione arriva da stdin) leggendo lo stdin già chiuso.
+- **Help della CLI**: è in italiano, ma restano in inglese `[OPTIONS]` nelle righe d'uso e `[env: …]` accanto alle
+  opzioni globali (limite di clap).
 - **Royal**: alcuni campi (gateway, Secure Gateway, campi personalizzati protetti, chiavi incorporate) sono
   interpretati per ipotesi; gli elementi ricostruiti da questi campi risultano *parziali* nel report e conservano
   l'originale. Controllali dopo l'import.
