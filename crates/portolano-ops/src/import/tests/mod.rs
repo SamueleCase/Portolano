@@ -143,20 +143,18 @@ fn cancelled_prompt_writes_nothing() {
 #[test]
 fn dry_run_writes_nothing() {
     let mut stored = stored(vec![]);
+    let vault = RecordingVault::default();
     let before = stored.file_text();
     let mut dry = request(FULL, ConflictPolicy::Fail);
     dry.dry_run = true;
-    let result = run(
-        &mut stored,
-        &MemoryVault::default(),
-        dry,
-        &mut NonInteractive,
-    )
-    .unwrap();
+    let result = run(&mut stored, &vault, dry, &mut Typist).unwrap();
     assert!(result.dry_run);
     assert!(result.inserted > 0);
+    assert!(result.secrets_written > 0 && result.icons_stored > 0);
     assert_eq!(stored.file_text(), before);
     assert!(stored.doc.nodes.is_empty());
+    assert_eq!(vault.history(), (Vec::new(), Vec::new()));
+    assert!(!stored.dir.path().join("doc.icons").exists());
 }
 
 #[test]

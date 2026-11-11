@@ -183,14 +183,16 @@ fn key_file_and_key_in_the_vault_together_are_refused() {
 #[test]
 fn failed_save_leaves_no_secret_and_no_node() {
     let mut stored = stored(vec![]);
-    let vault = MemoryVault::default();
+    let vault = RecordingVault::default();
     let mut new = cred("/Admin");
     new.secrets.password = Some(secret(SENTINEL));
     stored.modify_externally();
     let result = add(&mut stored, &vault, new);
     assert!(result.is_err());
     assert!(stored.doc.nodes.is_empty());
-    assert!(crate::tree_util::document_secret_refs(&stored.doc).is_empty());
+    let (written, deleted) = vault.history();
+    assert_eq!(written.len(), 1);
+    assert_eq!(written, deleted);
 }
 
 #[test]

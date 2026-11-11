@@ -63,12 +63,15 @@ fn missing_reference_is_created_and_saved() {
 
 #[test]
 fn new_reference_is_rolled_back_when_the_save_fails() {
-    let vault = MemoryVault::default();
+    let vault = RecordingVault::default();
     let mut stored = stored(vec![credential("Admin", "admin", None)]);
     stored.modify_externally();
     let result = set(&mut stored, &vault, "/Admin", SecretSlot::Password);
     assert!(result.is_err());
     assert!(crate::tree_util::document_secret_refs(&stored.doc).is_empty());
+    let (written, deleted) = vault.history();
+    assert_eq!(written.len(), 1);
+    assert_eq!(written, deleted);
 }
 
 #[test]
