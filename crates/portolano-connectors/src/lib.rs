@@ -4,6 +4,7 @@
 //! [`execute`] runs the plan, reading secrets from the vault only at that
 //! point. Secrets never appear in argv, environment variables or files.
 
+mod decode;
 mod env;
 mod exec;
 mod plan;
