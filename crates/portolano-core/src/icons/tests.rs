@@ -19,6 +19,29 @@ fn stored_files(dir: &TempDir) -> usize {
     fs::read_dir(icons_dir(dir)).unwrap().count()
 }
 
+/// Moves the modification time of `path` an hour back, past the grace
+/// period of `gc`.
+fn make_old(path: &Path) {
+    let an_hour_ago = SystemTime::now() - Duration::from_secs(60 * 60);
+    fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(an_hour_ago)
+        .unwrap();
+}
+
+fn modified(path: &Path) -> SystemTime {
+    fs::metadata(path).unwrap().modified().unwrap()
+}
+
+/// Adds an image and makes its file old.
+fn add_old(store: &IconStore, bytes: &[u8]) -> Icon {
+    let icon = store.add(bytes, "application/octet-stream").unwrap();
+    make_old(&store.path_for(&icon).unwrap());
+    icon
+}
+
 fn custom(sha256: &str, mime: &str) -> Icon {
     Icon::Custom {
         sha256: sha256.to_owned(),
@@ -215,8 +238,8 @@ fn gc_without_an_icon_directory_removes_nothing() {
 fn gc_removes_unused_images_and_keeps_used_ones() {
     let dir = TempDir::new().unwrap();
     let store = icon_store(&dir);
-    let used = store.add(PNG, "image/png").unwrap();
-    let unused = store.add(GIF, "image/gif").unwrap();
+    let used = add_old(&store, PNG);
+    let unused = add_old(&store, GIF);
 
     let removed = store.gc(&document_using(used.clone())).unwrap();
 
@@ -230,12 +253,52 @@ fn gc_removes_unused_images_and_keeps_used_ones() {
 fn gc_leaves_files_it_did_not_store() {
     let dir = TempDir::new().unwrap();
     let store = icon_store(&dir);
-    store.add(PNG, "image/png").unwrap();
+    add_old(&store, PNG);
     let foreign = icons_dir(&dir).join("README.txt");
     fs::write(&foreign, "not an icon").unwrap();
+    make_old(&foreign);
 
     let removed = store.gc(&Document::new("Portolano")).unwrap();
 
     assert_eq!(removed, 1);
     assert!(foreign.exists());
+}
+
+#[test]
+fn gc_keeps_an_unused_image_added_within_the_grace_period() {
+    let dir = TempDir::new().unwrap();
+    let store = icon_store(&dir);
+    let recent = store.add(PNG, "image/png").unwrap();
+
+    let removed = store.gc(&Document::new("Portolano")).unwrap();
+
+    assert_eq!(removed, 0);
+    assert!(store.path_for(&recent).unwrap().exists());
+}
+
+#[test]
+fn gc_keeps_an_old_image_that_was_just_added_again() {
+    let dir = TempDir::new().unwrap();
+    let store = icon_store(&dir);
+    let reused = add_old(&store, PNG);
+    store.add(PNG, "image/png").unwrap();
+
+    let removed = store.gc(&Document::new("Portolano")).unwrap();
+
+    assert_eq!(removed, 0);
+    assert!(store.path_for(&reused).unwrap().exists());
+}
+
+#[test]
+fn adding_an_existing_image_refreshes_its_modification_time() {
+    let dir = TempDir::new().unwrap();
+    let store = icon_store(&dir);
+    let icon = add_old(&store, PNG);
+    let path = store.path_for(&icon).unwrap();
+    let before = modified(&path);
+
+    store.add(PNG, "image/png").unwrap();
+
+    assert!(modified(&path) > before);
+    assert_eq!(fs::read(&path).unwrap(), PNG);
 }

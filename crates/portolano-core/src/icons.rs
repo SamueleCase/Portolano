@@ -9,6 +9,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use sha2::{Digest, Sha256};
 
@@ -55,12 +56,21 @@ impl IconStore {
         })?;
         let sha256 = hex::encode(Sha256::digest(bytes));
         let path = self.dir.join(image.file_name(&sha256));
-        // The name is the hash of the content, so an existing file already
-        // holds these bytes.
-        if !path.try_exists().map_err(io_error(&path))? {
-            fs::create_dir_all(&self.dir).map_err(io_error(&self.dir))?;
-            write_atomically(&path, bytes)?;
-        }
+        // Under the shared lock, so that `gc` cannot remove the file between
+        // the check and the refresh of its modification time.
+        with_lock(&self.document, Access::Shared, || {
+            // The name is the hash of the content, so an existing file
+            // already holds these bytes; touching it tells `gc` that it is in
+            // use again.
+            match touch(&path) {
+                Ok(()) => Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                    fs::create_dir_all(&self.dir).map_err(io_error(&self.dir))?;
+                    write_atomically(&path, bytes)
+                }
+                Err(source) => Err(io_error(&path)(source)),
+            }
+        })?;
         Ok(Icon::Custom {
             sha256,
             mime: image.mime().to_owned(),
@@ -87,9 +97,12 @@ impl IconStore {
     /// alone: the store did not put them there.
     ///
     /// It runs under the exclusive lock of the document, so it never races
-    /// with a save. Known limit: an image that another process has added but
-    /// not yet referenced in a saved document is unused for `doc` and is
-    /// removed, so that process saves a reference to a missing file.
+    /// with a save or an [`IconStore::add`]. Images added or reused in the
+    /// last ten minutes are kept even if `doc` does not use them:
+    /// another process may have added them for a document it has not saved
+    /// yet. Known limit: an image added by another process that is still not
+    /// saved after the grace period is removed, and that process then saves
+    /// a reference to a missing file.
     ///
     /// # Errors
     /// [`Error::Io`](crate::Error::Io).
@@ -100,31 +113,69 @@ impl IconStore {
     }
 
     fn remove_unused(&self, doc: &Document) -> Result<usize> {
-        let entries = match fs::read_dir(&self.dir) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
-            Err(source) => {
-                return Err(Error::Io {
-                    path: self.dir.clone(),
-                    source,
-                });
-            }
-        };
+        let candidates = self.old_images()?;
+        // Visiting the tree is only worth it when something could go.
+        if candidates.is_empty() {
+            return Ok(0);
+        }
         let used: HashSet<PathBuf> = doc
             .walk()
             .filter_map(|(_, node)| node.icon.as_ref())
             .filter_map(|icon| self.path_for(icon))
             .collect();
         let mut removed = 0;
-        for entry in entries {
-            let path = entry.map_err(io_error(&self.dir))?.path();
-            if is_stored_image(&path) && !used.contains(&path) {
-                fs::remove_file(&path).map_err(io_error(&path))?;
-                removed += 1;
-            }
+        for path in candidates.iter().filter(|path| !used.contains(*path)) {
+            fs::remove_file(path).map_err(io_error(path))?;
+            removed += 1;
         }
         Ok(removed)
     }
+
+    /// The stored images last added or reused before the grace period.
+    fn old_images(&self) -> Result<Vec<PathBuf>> {
+        let entries = match fs::read_dir(&self.dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(source) => return Err(io_error(&self.dir)(source)),
+        };
+        let now = SystemTime::now();
+        let mut old = Vec::new();
+        for entry in entries {
+            let path = entry.map_err(io_error(&self.dir))?.path();
+            if !is_stored_image(&path) {
+                continue;
+            }
+            let modified = fs::metadata(&path)
+                .and_then(|metadata| metadata.modified())
+                .map_err(io_error(&path))?;
+            if !is_recent(modified, now) {
+                old.push(path);
+            }
+        }
+        Ok(old)
+    }
+}
+
+/// How long [`IconStore::gc`] keeps an unused image after it was added or
+/// reused. Another process (the app while the CLI runs, or the reverse) may
+/// have added it for a document it has not saved yet; ten minutes cover any
+/// realistic edit, and an image that is really unused goes at a later `gc`.
+const GC_GRACE_PERIOD: Duration = Duration::from_secs(10 * 60);
+
+/// Whether a file modified at `modified` is within the grace period. A time
+/// in the future (clock changes) counts as recent: keeping a file is the
+/// safe mistake.
+fn is_recent(modified: SystemTime, now: SystemTime) -> bool {
+    now.duration_since(modified)
+        .map_or(true, |age| age < GC_GRACE_PERIOD)
+}
+
+/// Sets the modification time of an existing file to now.
+fn touch(path: &Path) -> io::Result<()> {
+    fs::File::options()
+        .write(true)
+        .open(path)?
+        .set_modified(SystemTime::now())
 }
 
 /// The accepted image types (SPEC §6.4).
