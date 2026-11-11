@@ -382,4 +382,5 @@ fn invalid_plan(reason: &str) -> ConnectError {
 }
 
 #[cfg(test)]
+#[cfg(unix)]
 mod tests;

@@ -11,29 +11,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use portolano_core::Secret;
 use tempfile::TempDir;
 use zeroize::Zeroizing;
 
 use super::prompt::{PromptPatterns, answers};
 use super::{
     ASKPASS_ENABLED, ASKPASS_ENV, ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV, MAX_MESSAGE_BYTES, Reply,
-    Request,
+    Request, ServedSecret,
 };
 use crate::ConnectError;
-use crate::plan::PromptMatcher;
 
-/// How long the server waits for a client to send its request, so that a
-/// stuck client cannot block the next prompt.
-const READ_TIMEOUT: Duration = Duration::from_secs(10);
+/// How long the server waits for a client to send its request or to read
+/// the answer, so that a stuck client cannot block the next prompt.
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// A secret the server may answer with, already read from the vault.
-pub(crate) struct ServedSecret {
-    /// The prompt it answers.
-    pub(crate) matcher: PromptMatcher,
-    /// The answer.
-    pub(crate) secret: Secret,
-}
+/// How often the idle server checks whether it must stop. It also bounds the
+/// wait of [`AskpassServer`]'s `Drop` when no client is connected.
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Consecutive `accept` failures after which the server gives up instead of
+/// spinning; the prompts then fall back to the terminal.
+const MAX_CONSECUTIVE_ERRORS: u32 = 16;
 
 /// A running askpass server. Dropping it stops the thread, removes the
 /// socket and its directory, and zeroes the secrets not yet served.
@@ -63,6 +61,7 @@ impl AskpassServer {
             .map_err(|source| io_error("permessi della directory dell'askpass", source))?;
         let socket = dir.path().join("askpass.sock");
         let listener = UnixListener::bind(&socket)
+            .and_then(|listener| listener.set_nonblocking(true).map(|()| listener))
             .map_err(|source| io_error("creazione del socket dell'askpass", source))?;
         let token = random_token()?;
         let patterns = PromptPatterns::new().map_err(|error| ConnectError::Askpass {
@@ -124,10 +123,10 @@ impl AskpassServer {
 impl Drop for AskpassServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // The thread blocks in `accept`: a connection wakes it up so that it
-        // sees the flag. Failures are ignored because there is nothing left
-        // to do in a destructor; the directory is removed anyway.
-        let _ = UnixStream::connect(&self.socket);
+        // The thread polls the flag, so the join lasts at most one poll
+        // interval plus the timeout of a client being served, even if the
+        // socket has disappeared. A panic of the thread has nothing left to
+        // clean up, so its result is ignored.
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
@@ -144,22 +143,38 @@ struct ServerState {
 }
 
 fn serve(listener: &UnixListener, mut state: ServerState, stop: &AtomicBool) {
-    for stream in listener.incoming() {
-        if stop.load(Ordering::SeqCst) {
-            break;
-        }
-        let Ok(stream) = stream else {
-            continue;
-        };
-        if let Err(error) = state.handle(&stream) {
-            tracing::debug!(%error, "askpass: richiesta non gestita");
+    let mut errors = 0;
+    while !stop.load(Ordering::SeqCst) {
+        match listener.accept() {
+            Ok((stream, _)) => {
+                errors = 0;
+                // The listener is non-blocking; the exchange is not.
+                let result = stream
+                    .set_nonblocking(false)
+                    .and_then(|()| state.handle(&stream));
+                if let Err(error) = result {
+                    tracing::debug!(%error, "askpass: richiesta non gestita");
+                }
+            }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                std::thread::sleep(POLL_INTERVAL);
+            }
+            Err(error) => {
+                errors += 1;
+                if errors >= MAX_CONSECUTIVE_ERRORS {
+                    tracing::warn!(%error, "askpass: troppi errori del socket, server fermato");
+                    break;
+                }
+                std::thread::sleep(POLL_INTERVAL);
+            }
         }
     }
 }
 
 impl ServerState {
     fn handle(&mut self, stream: &UnixStream) -> io::Result<()> {
-        stream.set_read_timeout(Some(READ_TIMEOUT))?;
+        stream.set_read_timeout(Some(CLIENT_TIMEOUT))?;
+        stream.set_write_timeout(Some(CLIENT_TIMEOUT))?;
         let mut line = String::new();
         BufReader::new(stream.take(MAX_MESSAGE_BYTES)).read_line(&mut line)?;
         let request: Request<String> = match serde_json::from_str(&line) {

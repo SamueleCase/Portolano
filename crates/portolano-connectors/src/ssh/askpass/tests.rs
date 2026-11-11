@@ -211,3 +211,32 @@ fn child_env_points_ssh_to_the_server_without_secrets() {
             .all(|(_, value)| !value.contains(PASSWORD) && !value.contains(PASSPHRASE))
     );
 }
+
+#[test]
+fn password_prompt_for_another_host_gets_a_fallback() {
+    let server = start_default();
+
+    let answer = ask(&server, "admin@evil.example.com's password: ");
+
+    assert_eq!(answer, None);
+}
+
+#[test]
+fn keyboard_interactive_prompt_for_another_user_gets_a_fallback() {
+    let server = start_default();
+
+    let answer = ask(&server, "(root@web01.example.com) Password: ");
+
+    assert_eq!(answer, None);
+}
+
+#[test]
+fn drop_returns_promptly_even_if_the_socket_has_disappeared() {
+    let server = start_default();
+    std::fs::remove_file(server.socket()).unwrap();
+    let started = std::time::Instant::now();
+
+    drop(server);
+
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+}

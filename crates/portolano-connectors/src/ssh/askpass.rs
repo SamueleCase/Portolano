@@ -10,14 +10,22 @@
 //! `{"token": …, "prompt": …}`, the server answers `{"answer": …}`,
 //! `{"fallback": true}` or `{"error": …}`.
 
+#[cfg(unix)]
 mod client;
 mod prompt;
+#[cfg(unix)]
 mod server;
 
+use portolano_core::Secret;
 use serde::{Deserialize, Serialize};
 
 pub(crate) use prompt::SSH_ADD_STDIN_KEY_PATH;
-pub(crate) use server::{AskpassServer, ServedSecret};
+#[cfg(unix)]
+pub(crate) use server::AskpassServer;
+#[cfg(not(unix))]
+pub(crate) use unsupported::AskpassServer;
+
+use crate::plan::PromptMatcher;
 
 /// Set to [`ASKPASS_ENABLED`] in the environment of `ssh`: `portolano`
 /// checks it before parsing arguments and, if set, behaves as the askpass
@@ -53,6 +61,7 @@ pub fn is_client_invocation() -> bool {
 /// Returns the process exit code: 0 when an answer was printed, 1 when there
 /// is no TTY for the fallback or the exchange fails.
 pub fn run_client(prompt: &str) -> i32 {
+    #[cfg(unix)]
     match client::run(prompt) {
         Ok(()) => 0,
         Err(error) => {
@@ -60,6 +69,20 @@ pub fn run_client(prompt: &str) -> i32 {
             1
         }
     }
+    #[cfg(not(unix))]
+    {
+        let _ = prompt;
+        eprintln!("portolano askpass: non supportato su questa piattaforma");
+        1
+    }
+}
+
+/// A secret the server may answer with, already read from the vault.
+pub(crate) struct ServedSecret {
+    /// The prompt it answers.
+    pub(crate) matcher: PromptMatcher,
+    /// The answer.
+    pub(crate) secret: Secret,
 }
 
 /// A request of the client.
@@ -79,5 +102,33 @@ enum Reply<S> {
     Error(S),
 }
 
+/// Without Unix sockets there is no askpass server: plans that need one
+/// fail with [`ConnectError::UnsupportedPlatform`](crate::ConnectError).
+#[cfg(not(unix))]
+mod unsupported {
+    use std::path::Path;
+
+    use super::ServedSecret;
+    use crate::ConnectError;
+
+    /// Placeholder of the askpass server on systems without Unix sockets.
+    pub(crate) struct AskpassServer;
+
+    impl AskpassServer {
+        /// Always fails: askpass needs a Unix socket.
+        pub(crate) fn start(_secrets: Vec<ServedSecret>) -> Result<AskpassServer, ConnectError> {
+            Err(ConnectError::UnsupportedPlatform {
+                feature: "l'askpass di ssh".to_owned(),
+            })
+        }
+
+        /// Never called: [`AskpassServer::start`] always fails.
+        pub(crate) fn child_env(&self, _program: &Path) -> Vec<(String, String)> {
+            Vec::new()
+        }
+    }
+}
+
 #[cfg(test)]
+#[cfg(unix)]
 mod tests;

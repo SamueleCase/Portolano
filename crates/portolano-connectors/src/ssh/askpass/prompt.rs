@@ -5,6 +5,14 @@ use regex::Regex;
 
 use crate::plan::PromptMatcher;
 
+// A password is answered only when the user and the host in the prompt
+// equal those of its entry. A malicious server cannot obtain the password of
+// another host by printing that host's prompt: OpenSSH writes the prompt
+// itself from the user and host it connects to (`user@host's password: `),
+// and since 8.4 it also prefixes the keyboard-interactive prompts chosen by
+// the server with `(user@host) `, so a server only ever sees its own prompts
+// answered. Any other text gets a fallback to the terminal.
+
 /// Password prompt of `ssh`: `user@host's password: `.
 const PASSWORD: &str = r"^(?P<user>[^@\s]+)@(?P<host>[^']+)'s password: ?$";
 

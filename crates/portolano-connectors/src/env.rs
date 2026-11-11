@@ -155,6 +155,7 @@ fn is_executable(path: &Path) -> bool {
 }
 
 #[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
