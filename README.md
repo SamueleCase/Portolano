@@ -607,8 +607,8 @@ controlli bidirezionali che mostrano il testo in un ordine diverso da quello rea
 C0, DEL, C1 e i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C) compaiono come escape, ad
 esempio `\u{1b}`; nell'output `--json` come escape JSON (`\u001b`). `validate` li segnala con l'avviso
 `control_characters`. `connect` rifiuta caratteri di controllo negli host e negli utenti delle connessioni SSH e
-dei loro jump host, del gateway RDP e del file `.rdp` di Windows App; host e utente di destinazione per FreeRDP
-non sono controllati (arrivano come singoli argomenti, senza shell).
+dei loro jump host, negli host, utenti e domini delle connessioni RDP (sia con FreeRDP sia con Windows App) e nei
+valori del gateway RDP che arrivano al client.
 
 **Prompt del portachiavi dopo ogni ricompilazione.** Con un binario non firmato (come quello di
 `cargo install`), macOS può mostrare "portolano vuole accedere al portachiavi" dopo ogni ricompilazione, anche se

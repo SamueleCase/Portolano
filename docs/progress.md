@@ -172,8 +172,6 @@ verificati") e conservano l'originale in `extra`. Per chiuderle serve il documen
 - La master password presa da `PORTOLANO_VAULT_PASSWORD` resta nel blocco dell'ambiente del processo (DEC-024.5);
   `config.toml` e i processi dello stesso utente sono dentro il perimetro di fiducia (DEC-024).
 - Help: restano in inglese `[OPTIONS]` e `[env: …]` (limite di clap, DEC-026.5).
-- FreeRDP: host e utente di destinazione non sono controllati per i caratteri di controllo (passano come singoli
-  argomenti, senza shell); lo sono quelli di SSH, del gateway RDP e del `.rdp` di Windows App (osservazione di WP7).
 
 ### Sicurezza per la UI (FASE 2)
 - Le icone SVG importate si mostrano solo come `<img>`, mai inserite nel DOM (XSS memorizzato, DEC-024).
