@@ -149,11 +149,17 @@ fn jump_connection(doc: &Document, id: Uuid) -> Result<&Connection, ConnectError
 ///
 /// # Errors
 /// [`ConnectError::ClientNotFound`] if a key in the vault needs `ssh-add`
-/// and it is not installed; [`ConnectError::InvalidValue`] for a jump host
-/// whose user or host would break the `-J` list.
+/// and it is not installed; [`ConnectError::InvalidValue`] for a user or
+/// host, of the destination or of a jump host, with a control character or
+/// a character that would break the `-J` list.
 pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
     let mut secrets = HopSecrets::new(launch.ssh_add_available, &launch.askpass_program);
     let target = &launch.target;
+    // The same rules as for the jump hosts (DEC-024.3): ssh may expand the
+    // destination into commands (`%h`, `%r` in a `ProxyCommand` or `Match
+    // exec` of `~/.ssh/config`), and OpenSSH from 8.4 refuses such
+    // characters itself.
+    check_hop(target)?;
     let mut args = vec!["-p".to_owned(), target.port.to_string()];
     if let Some(user) = &target.credential.username {
         args.extend(["-l".to_owned(), user.clone()]);
@@ -205,10 +211,7 @@ fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, Con
         match jump {
             Jump::Address(address) => hops.push(address.clone()),
             Jump::Endpoint(endpoint) => {
-                check_value(endpoint.node, "host", &endpoint.host, &JUMP_FORBIDDEN)?;
-                if let Some(user) = &endpoint.credential.username {
-                    check_value(endpoint.node, "username", user, &JUMP_FORBIDDEN)?;
-                }
+                check_hop(endpoint)?;
                 secrets.add_key(endpoint, Role::Jump)?;
                 secrets.add_password(endpoint);
                 hops.push(jump_address(endpoint));
@@ -216,6 +219,16 @@ fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, Con
         }
     }
     Ok(hops.join(","))
+}
+
+/// Refuses a host or user of `hop` with a control character or one of
+/// [`JUMP_FORBIDDEN`].
+fn check_hop(hop: &Endpoint) -> Result<(), ConnectError> {
+    check_value(hop.node, "host", &hop.host, &JUMP_FORBIDDEN)?;
+    if let Some(user) = &hop.credential.username {
+        check_value(hop.node, "username", user, &JUMP_FORBIDDEN)?;
+    }
+    Ok(())
 }
 
 fn flags(settings: &SshSettings) -> Vec<String> {
