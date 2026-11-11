@@ -241,6 +241,18 @@ mock in `docs/ui/NOTE.md`.
   gateway e `/from-stdin:force` insieme al gateway.
 - Prima dell'host, `ssh` riceve `--`, così un host preso dal documento non può essere interpretato come opzione.
 
+### DEC-021 – Profondità massima dell'albero (decisa dal PM)
+- **Dubbio** (revisione di WP5): `serde_json` ha un limite di ricorsione di 128 livelli, cioè circa 63 cartelle
+  annidate; un albero più profondo si salverebbe ma non si ricaricherebbe. Inoltre le funzioni ricorsive
+  (importer, albero) vanno in stack overflow con annidamenti di migliaia di livelli. §4.1 assumeva < 1000.
+- **Decisione**: profondità massima **50 livelli** di nodi (i figli della radice sono al livello 1), costante pubblica
+  `MAX_DEPTH` nel modello del core. `insert`, `move_node` ed `ensure_parent_path` rifiutano un'operazione che la
+  supererebbe con `Error::TooDeep { max }` ("l'albero supererebbe la profondità massima di {max} livelli"). Lo store
+  verifica che un documento alla profondità massima, con impostazioni annidate, faccia andata e ritorno. L'importer
+  aggancia alla radice, con warning e stato `Partial`, gli oggetti che supererebbero il limite.
+- **Motivo**: un limite esplicito e documentato è più chiaro di un errore di parsing a sorpresa; 50 livelli sono ben
+  oltre l'uso reale (nei campioni la profondità è 3).
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
