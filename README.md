@@ -7,8 +7,9 @@ le password stanno solo nel **Keychain di macOS** o in un **vault su file cifrat
 Questa versione è a riga di comando (`portolano`):
 
 - gestisce l'albero: cartelle, connessioni SSH e RDP, credenziali riusabili ed ereditate dalle cartelle;
-- apre le connessioni con l'OpenSSH di sistema e con FreeRDP 3, passando le password salvate senza
-  richiederle e senza esporle in argomenti, variabili d'ambiente o file;
+- apre le connessioni con l'OpenSSH di sistema e con FreeRDP 3; è progettato per passare le password salvate
+  senza richiederle e senza esporle in argomenti, variabili d'ambiente o file (il login automatico su host reali
+  è ancora da verificare, vedi [limiti noti](#limiti-noti));
 - importa i documenti di Royal TS/TSX (`.rtsz`, `.rtsx`), con un report di cosa è stato importato.
 
 L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è già una libreria riusabile.
@@ -30,22 +31,19 @@ L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è gi�
 
 - **macOS**: è l'unica piattaforma verificata. Il codice prevede anche Linux (portachiavi tramite Secret Service,
   terminale `x-terminal-emulator`), ma non è provato.
-- **Rust stable** (≥ 1.99) installato con `rustup`. Con Homebrew:
+- **Rust stable** (≥ 1.99) installato con `rustup`. Il formula `rustup` di Homebrew è *keg-only*: non viene
+  collegato in `/opt/homebrew/bin`, quindi la sua cartella va aggiunta al `PATH` (anche in `~/.zshrc`, per le
+  sessioni successive), insieme a `~/.cargo/bin`, prima di usarlo:
 
   ```sh
   brew install rustup
+  export PATH="/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin:$PATH"
   rustup default stable
   ```
 
-  Il formula `rustup` di Homebrew è *keg-only*: non viene collegato in `/opt/homebrew/bin`. Aggiungi la sua
-  cartella al `PATH` (ad esempio in `~/.zshrc`), insieme a `~/.cargo/bin`:
-
-  ```sh
-  export PATH="/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin:$PATH"
-  ```
-
 - **OpenSSH** (`ssh`, `ssh-add`): è quello di sistema di macOS.
-- **FreeRDP 3**, consigliato per RDP: è l'unico client che fa il login con la password salvata.
+- **FreeRDP 3**, consigliato per RDP: è l'unico client a cui Portolano passa la password salvata (login
+  automatico ancora da verificare su un host reale).
 
   ```sh
   brew install freerdp
@@ -83,7 +81,7 @@ Su macOS la cartella dei dati è `~/Library/Application Support/dev.portolano.Po
 | Configurazione | `<dati>/config.toml` | `--config` |
 | Vault su file (solo backend `file`) | `<dati>/vault.json` | `--vault-file`, `PORTOLANO_VAULT_FILE`, `[vault] file` |
 | Keychain (backend `keychain`) | portachiavi di login, servizio `dev.portolano`, un elemento per segreto | – |
-| Icone personalizzate | `<cartella del documento>/<nome del documento>.icons/<sha256>.<ext>` (es. `portolano.icons/`) | seguono il documento |
+| Icone personalizzate | `<cartella del documento>/<nome del file del documento senza estensione>.icons/<sha256>.<ext>` (es. `portolano.icons/`) | seguono il documento |
 | Copia di sicurezza | `<documento>.bak`: la versione precedente, riscritta a ogni salvataggio | – |
 | Lock | `<documento>.lock` e `vault.json.lock`: file vuoti usati per coordinare più processi; si possono ignorare | – |
 | File temporanei e log dei client | `~/Library/Caches/dev.portolano.Portolano/tmp/` (cartella `0700`): i `.rdp` per Windows App e i log di FreeRDP (`0600`) | – |
@@ -265,9 +263,10 @@ Credenziale effettiva:
 ### `edit`: modificare
 
 ```sh
-portolano edit Clienti/ACME/web01 --name web01-prod --port 22 --tag prod
+portolano edit Clienti/ACME/web01 --name web01-prod --host web01-new.example.com --port 22 --tag prod
 portolano edit Clienti/ACME/web01 --cred name:"Admin ACME"
 portolano edit Lab/vm1 --user admin                     # utente della credenziale inline
+portolano edit Uffici/ts01 --domain CORP2               # dominio della credenziale inline
 portolano edit Clienti/ACME/web01 --set keepalive_s=30 --set compression=true
 portolano edit Clienti/ACME/dc01 --set scale=140 --unset gateway
 portolano edit Clienti/ACME/web01 --untag prod --unprop owner --description ""
@@ -283,6 +282,10 @@ elencando quelle ammesse:
 
 Un valore vuoto (`--description ""`, `--user ""`, `--color ""`) cancella il campo.
 
+`--host` e `--port` valgono per le connessioni. `--user` e `--domain` modificano i campi di una credenziale, o
+della credenziale inline di una connessione; non si combinano con `--cred`. Come in `add`, una rinomina con
+`--name` è rifiutata se un fratello ha già quel nome; lo stesso vale per `move` nella cartella di destinazione.
+
 ### `move`: spostare e riordinare
 
 ```sh
@@ -293,7 +296,7 @@ portolano move Clienti/ACME/dc01 / --after Clienti     # nella radice
 ```
 
 Per riordinare si indica come destinazione il padre attuale. Una cartella non si può spostare dentro sé stessa o
-un suo discendente.
+un suo discendente, e lo spostamento è rifiutato se nella destinazione c'è già un nodo con lo stesso nome.
 
 ### `delete`: eliminare
 
@@ -323,7 +326,9 @@ portolano secret status "Clienti/ACME/Admin ACME"
 
 - `--field password|passphrase|key|prop:NOME` (predefinito `password`). La chiave privata si legge solo da stdin
   (tutto lo stdin); gli altri campi leggono una riga.
-- Vale su una credenziale o su una connessione con credenziale inline.
+- `password` vale su una credenziale o su un nodo con credenziale inline; `passphrase` e `key` solo su una
+  credenziale; `prop:NOME` su qualsiasi nodo (cartelle comprese). Su un nodo che non può contenere quel segreto
+  il comando fallisce.
 - Se il campo ha già un segreto, la voce del vault viene sovrascritta sul posto e il documento non cambia.
 - `secret status` dice solo *presente* o *assente* nel vault per ogni campo.
 
@@ -338,12 +343,13 @@ portolano connect Clienti/ACME/dc01 --client windows-app
 portolano connect Clienti/ACME/web01 --print             # mostra il piano senza eseguirlo
 ```
 
-`--print` mostra il comando che verrebbe eseguito; i segreti compaiono solo come riferimento `<vault:…>`:
+`--print` mostra il comando che verrebbe eseguito; i segreti compaiono solo come riferimento `<vault:…>`. Per le
+connessioni `db01` e `dc01` degli esempi di `add` (con `bastion` creata con `--user ops`):
 
 ```text
-$ portolano connect --print Clienti/ACME/web01
-/usr/bin/ssh -p 2222 -l administrator -J ops@bastion.example.com:22 -A -o 'NumberOfPasswordPrompts=1' -- web01.example.com
-#   askpass (/Users/me/.cargo/bin/portolano): password di administrator@web01.example.com <- <vault:51c60753-9350-4b29-b081-c615f159bed9>
+$ portolano connect --print Clienti/ACME/db01
+/usr/bin/ssh -p 22 -l administrator -J ops@bastion.example.com:22,ops@edge.example.com:2200 -o 'NumberOfPasswordPrompts=1' -- db01.example.com
+#   askpass (/Users/me/.cargo/bin/portolano): password di administrator@db01.example.com <- <vault:51c60753-9350-4b29-b081-c615f159bed9>
 
 $ portolano connect --print Clienti/ACME/dc01
 avviso: i messaggi d'errore di FreeRDP vengono salvati in un log nella cartella temporanea di Portolano
@@ -394,17 +400,32 @@ portolano import ~/Documents/Clienti.rtsz --into Import --on-conflict update
 - Il report viene stampato come tabella; con `--report FILE` è salvato anche in JSON. Contiene solo nomi,
   percorsi e motivi, mai segreti o ciphertext:
 
+Estratto dell'output reale con la fixture di test `workspace.royal.xml` (le righe omesse sono segnate con `…`):
+
 ```text
-Import di 'Clienti.rtsz' (royal): documento 'Clienti' in /Import/Clienti
+$ portolano import crates/portolano-import/tests/fixtures/workspace.royal.xml --into Import
+Import di 'workspace.royal.xml' (royal): documento 'Workspace di prova' in /Import/Workspace di prova
 TIPO                ORIGINE  IMPORTATI  PARZIALI  NON SUPPORTATI  SALTATI
 RoyalCredential     3        0          3         0               0
 RoyalDocument       1        1          0         0               0
 RoyalFolder         4        3          0         0               1
+RoyalRDSConnection  5        3          1         0               1
 RoyalSSHConnection  4        2          1         0               1
+RoyalTrash          1        0          0         0               1
 
 Elementi non importati completamente:
-  [parziale] Clienti/Credenziali/Admin ACME (RoyalCredential): password Royal cifrata non importata: impostala con `portolano secret set`
-  [saltato] Clienti/Trash (RoyalTrash): cestino di Royal non importato (usa l'opzione per includerlo)
+  [parziale] Workspace di prova/Credenziali/Admin ACME (RoyalCredential): password Royal cifrata non importata: impostala con `portolano secret set`
+  …
+  [saltato] Workspace di prova/Trash (RoyalTrash): cestino di Royal non importato (usa l'opzione per includerlo)
+  [saltato] Workspace di prova/Trash/vecchio (RoyalSSHConnection): nel cestino di Royal
+  …
+
+Campi non mappati (conservati in extra):
+  RoyalFolder: ColorName (1), CustomImageList (1), IsExpanded (1)
+  …
+avviso: documento protetto da password
+
+Fatto: 14 nodi inseriti, 0 aggiornati, 0 segreti, 0 icone.
 ```
 
 Gli oggetti Royal che Portolano non apre (VNC, Web, trasferimento file, cartelle dinamiche, Telnet, …) diventano
@@ -474,9 +495,9 @@ cert = "tofu"                 # tofu | ignore | deny (opzione /cert: di FreeRDP)
 
 Precedenza, dalla più forte: **opzione della riga di comando > variabile d'ambiente > `config.toml` > default**.
 Ad esempio il documento è `--file`, altrimenti `PORTOLANO_FILE`, altrimenti `default_document`, altrimenti
-`portolano.json` nella cartella dei dati. Una chiave di primo livello sconosciuta (es. un refuso in
-`default_document`) è un errore. `config show` mostra le sezioni `[ssh]` e `[rdp]` solo se sono presenti nel
-file.
+`portolano.json` nella cartella dei dati. Un valore di primo livello sconosciuto (es. un refuso come
+`default_documnt = "…"`) è un errore; una sezione sconosciuta (es. `[foo]`) viene conservata e ignorata.
+`config show` mostra le sezioni `[ssh]` e `[rdp]` solo se sono presenti nel file.
 
 ## Sicurezza
 
@@ -501,6 +522,9 @@ documento JSON contiene solo riferimenti opachi (UUID).
 - **Chiavi nel vault**: `ssh-add` le legge da stdin; mai un file temporaneo con la chiave.
 - **RDP**: FreeRDP riceve la password su stdin (`/from-stdin:force`); mai `/p:` negli argomenti. Il file `.rdp`
   per Windows App non contiene password.
+
+Questi meccanismi sono coperti da test automatici (askpass con prompt simulati, piani di lancio con un segreto
+sentinella); il login con host, agent e gateway reali è ancora da verificare (vedi [limiti noti](#limiti-noti)).
 
 **Cosa non contiene mai un segreto:** il documento e il suo `.bak`, `config.toml`, il report d'import, l'output
 della CLI (compreso `--print`, `--json` e `show --resolved`), i messaggi d'errore, i log (`-v`), gli argomenti e le
@@ -535,6 +559,9 @@ avevi scelto "Consenti sempre": la firma del binario è cambiata. È normale; sc
 - **Windows App** non fa autologon: la password la chiede l'app.
 - **Gateway RDP**: con una credenziale diversa da quella della destinazione la password del gateway la chiede
   FreeRDP.
+- **Login automatico non ancora provato su host reali**: che `connect` entri senza chiedere la password salvata,
+  in SSH (askpass) e in RDP (FreeRDP con `/from-stdin:force`), è verificato solo sui piani di lancio e con test
+  simulati. Manca la verifica manuale su host reali (Definition of Done, SPEC §13).
 - **Da verificare dal vivo**: il testo del prompt della passphrase di `ssh-add` per le chiavi salvate nel vault, e
   il riuso delle credenziali sul gateway RDP insieme a `/from-stdin:force`. Sono implementati secondo la
   documentazione e i test, ma non ancora provati su un agent e un gateway reali. Da provare anche come FreeRDP
@@ -563,8 +590,8 @@ docs/                    SPEC.md (specifica), DECISIONS.md (decisioni), royal-fo
 scripts/smoke.sh         test end-to-end
 ```
 
-Le dipendenze vanno verso il core: `cli → ops → {core, connectors, import}`, `connectors → core`,
-`import → core`. Il core non conosce SSH, RDP o Royal.
+Le dipendenze vanno verso il core: `cli → {ops, core, connectors, import}`,
+`ops → {core, connectors, import}`, `connectors → core`, `import → core`. Il core non conosce SSH, RDP o Royal.
 
 ## Test
 
@@ -575,8 +602,10 @@ cargo test --workspace
 scripts/smoke.sh
 ```
 
-`scripts/smoke.sh` compila la CLI e prova tutti i comandi su un documento, una configurazione e un vault su file
-in una cartella temporanea, con la master password di test. Non tocca i tuoi file né il Keychain e non avvia
+`scripts/smoke.sh` compila la CLI ed esegue i passi dello smoke test della specifica (SPEC §11.4), più
+`secret clear` e `config path/show/set`, su un documento, una configurazione e un vault su file in una cartella
+temporanea, con la master password di test. Cerca il segreto di prova nell'output di ogni comando e in tutti i
+file prodotti. Non tocca i tuoi file né il Keychain e non avvia
 client reali: `ssh`, FreeRDP, `ssh-add`, `osascript` e `open` sono sostituiti da stub. Termina con `SMOKE OK`.
 Per provare un binario già compilato: `PORTOLANO_BIN=~/.cargo/bin/portolano scripts/smoke.sh`.
 
