@@ -109,6 +109,7 @@ impl Protocol for SshProtocol {
             &mut warnings,
         );
         let target = Endpoint {
+            node: ctx.node_id,
             host: connection.host.clone(),
             port: connection.port.unwrap_or(SSH_PORT),
             credential,
@@ -143,6 +144,7 @@ fn resolve_jump(doc: &Document, link: JumpLink) -> Result<Jump, ConnectError> {
     match link {
         JumpLink::Address(address) => Ok(Jump::Address(address)),
         JumpLink::Node { id, connection } => Ok(Jump::Endpoint(Endpoint {
+            node: id,
             host: connection.host.clone(),
             port: connection.port.unwrap_or(SSH_PORT),
             credential: doc.resolve_credential(id)?,

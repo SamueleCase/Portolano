@@ -9,10 +9,13 @@ use uuid::Uuid;
 use super::settings::{JumpHost, SshSettings};
 use crate::ConnectError;
 use crate::plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher};
-use crate::protocol::host_port;
+use crate::protocol::{check_value, host_port};
 
 /// Port of SSH when the connection does not set one.
 pub(super) const SSH_PORT: u16 = 22;
+
+/// Characters that would split or end a `-J` entry.
+const JUMP_FORBIDDEN: [char; 2] = [',', ' '];
 
 /// Lifetime of a vault key in `ssh-agent` (`ssh-add -t`), in seconds: long
 /// enough to log in, short enough not to linger.
@@ -22,6 +25,8 @@ const SSH_ADD_LIFETIME_S: u32 = 300;
 /// host given by reference.
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct Endpoint {
+    /// The connection node, named by errors.
+    pub(super) node: Uuid,
     /// Host name or address.
     pub(super) host: String,
     /// Port.
@@ -72,26 +77,31 @@ pub(super) struct SshLaunch<'a> {
 /// # Errors
 /// [`ConnectError::JumpCycle`] if the chain loops back to a node on the
 /// current path, [`ConnectError::InvalidJumpHost`] if a reference does not
-/// point to a valid `ssh` connection.
+/// point to a valid `ssh` connection, [`ConnectError::InvalidValue`] for an
+/// address with a comma, a space or a control character.
 pub(super) fn jump_chain<'a>(
     doc: &'a Document,
     owner: Uuid,
     settings: &SshSettings,
 ) -> Result<Vec<JumpLink<'a>>, ConnectError> {
     let mut chain = Vec::new();
-    follow(doc, settings, &mut vec![owner], &mut chain)?;
+    follow(doc, owner, settings, &mut vec![owner], &mut chain)?;
     Ok(chain)
 }
 
 fn follow<'a>(
     doc: &'a Document,
+    owner: Uuid,
     settings: &SshSettings,
     path: &mut Vec<Uuid>,
     chain: &mut Vec<JumpLink<'a>>,
 ) -> Result<(), ConnectError> {
     for jump in &settings.jump_hosts {
         match jump {
-            JumpHost::Address { address } => chain.push(JumpLink::Address(address.clone())),
+            JumpHost::Address { address } => {
+                check_value(owner, "jump_hosts.address", address, &JUMP_FORBIDDEN)?;
+                chain.push(JumpLink::Address(address.clone()));
+            }
             JumpHost::Ref { id } => {
                 let id = *id;
                 if path.contains(&id) {
@@ -105,7 +115,7 @@ fn follow<'a>(
                     }
                 })?;
                 path.push(id);
-                follow(doc, &jump_settings, path, chain)?;
+                follow(doc, id, &jump_settings, path, chain)?;
                 path.pop();
                 chain.push(JumpLink::Node { id, connection });
             }
@@ -133,7 +143,8 @@ fn jump_connection(doc: &Document, id: Uuid) -> Result<&Connection, ConnectError
 ///
 /// # Errors
 /// [`ConnectError::ClientNotFound`] if a key in the vault needs `ssh-add`
-/// and it is not installed.
+/// and it is not installed; [`ConnectError::InvalidValue`] for a jump host
+/// whose user or host would break the `-J` list.
 pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
     let mut secrets = HopSecrets::new(launch.ssh_add_available);
     let target = &launch.target;
@@ -146,22 +157,9 @@ pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
         args.extend(["-o".to_owned(), "IdentitiesOnly=yes".to_owned()]);
     }
     secrets.add_password(target);
-
     if !launch.jumps.is_empty() {
-        let mut hops = Vec::with_capacity(launch.jumps.len());
-        for jump in &launch.jumps {
-            match jump {
-                Jump::Address(address) => hops.push(address.clone()),
-                Jump::Endpoint(endpoint) => {
-                    secrets.add_key(endpoint, Role::Jump)?;
-                    secrets.add_password(endpoint);
-                    hops.push(jump_address(endpoint));
-                }
-            }
-        }
-        args.extend(["-J".to_owned(), hops.join(",")]);
+        args.extend(["-J".to_owned(), jump_list(&launch.jumps, &mut secrets)?]);
     }
-
     args.extend(flags(launch.settings));
     if !secrets.entries.is_empty() {
         // One attempt per prompt: askpass serves each secret once, and a
@@ -191,6 +189,26 @@ pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
         steps,
         warnings: secrets.warnings,
     })
+}
+
+/// The value of `-J`, collecting the secrets of the jump hosts.
+fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets) -> Result<String, ConnectError> {
+    let mut hops = Vec::with_capacity(jumps.len());
+    for jump in jumps {
+        match jump {
+            Jump::Address(address) => hops.push(address.clone()),
+            Jump::Endpoint(endpoint) => {
+                check_value(endpoint.node, "host", &endpoint.host, &JUMP_FORBIDDEN)?;
+                if let Some(user) = &endpoint.credential.username {
+                    check_value(endpoint.node, "username", user, &JUMP_FORBIDDEN)?;
+                }
+                secrets.add_key(endpoint, Role::Jump)?;
+                secrets.add_password(endpoint);
+                hops.push(jump_address(endpoint));
+            }
+        }
+    }
+    Ok(hops.join(","))
 }
 
 fn flags(settings: &SshSettings) -> Vec<String> {

@@ -311,3 +311,22 @@ fn plan_of_a_folder_is_not_a_connection() {
         "{result:?}"
     );
 }
+
+#[test]
+fn jump_address_with_a_comma_is_rejected() {
+    let conn = connection_node(
+        "ssh",
+        "web01.example.com",
+        CredentialSpec::None,
+        json!({ "jump_hosts": [{ "address": "a.example.com,b.example.com" }] }),
+    );
+    let conn_id = conn.id;
+    let doc = document(vec![conn]);
+
+    let result = plan_with(&SshProtocol, &doc, conn_id, &ConnectOptions::default());
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { id, .. }) if id == conn_id),
+        "{result:?}"
+    );
+}

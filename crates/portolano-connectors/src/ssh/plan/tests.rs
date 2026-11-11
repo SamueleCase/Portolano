@@ -10,6 +10,7 @@ use crate::testutil::{login, run_args};
 
 fn endpoint(host: &str, port: u16, credential: ResolvedCredential) -> Endpoint {
     Endpoint {
+        node: uuid::Uuid::new_v4(),
         host: host.into(),
         port,
         credential,
@@ -325,4 +326,42 @@ fn ssh_runs_in_the_foreground_without_stdin_secret() {
             ..
         })
     ));
+}
+
+#[test]
+fn jump_host_with_a_comma_is_rejected() {
+    let settings = SshSettings::default();
+    let jumps = vec![Jump::Endpoint(endpoint(
+        "gw.example.com,evil.example.com",
+        22,
+        login(None, None),
+    ))];
+    let target = endpoint("web01.example.com", 22, login(None, None));
+
+    let result = build(&launch(target, jumps, &settings));
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "host"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn jump_user_with_a_space_or_control_character_is_rejected() {
+    let settings = SshSettings::default();
+    for user in ["ops admin", "ops\nadmin"] {
+        let jumps = vec![Jump::Endpoint(endpoint(
+            "gw.example.com",
+            22,
+            login(Some(user), None),
+        ))];
+        let target = endpoint("web01.example.com", 22, login(None, None));
+
+        let result = build(&launch(target, jumps, &settings));
+
+        assert!(
+            matches!(result, Err(ConnectError::InvalidValue { ref field, .. }) if field == "username"),
+            "{result:?}"
+        );
+    }
 }
