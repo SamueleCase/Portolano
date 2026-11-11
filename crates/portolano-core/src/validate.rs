@@ -12,6 +12,8 @@ use uuid::Uuid;
 
 use crate::error::{Error, Issue, Severity};
 use crate::model::{CredentialSpec, Document, Folder, Node, NodeKind};
+use crate::secret::SecretRef;
+use crate::tree::collect_secret_refs;
 
 /// Key of a reference object (SPEC §3).
 const REF_KEY: &str = "$ref";
@@ -36,12 +38,13 @@ impl Document {
 
     /// Structural problems of the document, with the codes `duplicate_id`,
     /// `dangling_ref`, `credential_ref_not_credential`, `by_name_unresolved`,
-    /// `by_name_ambiguous` and `empty_host`, all of severity
+    /// `by_name_ambiguous`, `empty_host` and `duplicate_secret_ref`, all of severity
     /// [`Severity::Error`], plus `unsupported_node` of severity
     /// [`Severity::Info`] (DEC-016). Protocol and vault checks are added by the
     /// caller.
     pub fn validate(&self) -> Vec<Issue> {
         let mut issues = self.duplicate_ids();
+        issues.extend(self.duplicate_secret_refs());
         let known: HashSet<Uuid> = self.walk().map(|(_, node)| node.id).collect();
         for (_, node) in self.walk() {
             issues.extend(dangling_references(node, &known));
@@ -87,6 +90,46 @@ impl Document {
                         format!("l'id {} è usato da {count} nodi", node.id),
                     )
                 })
+            })
+            .collect()
+    }
+
+    /// One issue per [`SecretRef`] held in more than one place, on its first
+    /// holder: a secret belongs to a single place, so that deleting a node
+    /// never deletes the secret of another one (DEC-016.4).
+    fn duplicate_secret_refs(&self) -> Vec<Issue> {
+        let mut holders: HashMap<SecretRef, Vec<&Node>> = HashMap::new();
+        let mut first_seen = Vec::new();
+        for (_, node) in self.walk() {
+            let mut refs = Vec::new();
+            collect_secret_refs(node, &mut refs);
+            for secret in refs {
+                let nodes = holders.entry(secret.clone()).or_default();
+                if nodes.is_empty() {
+                    first_seen.push(secret);
+                }
+                nodes.push(node);
+            }
+        }
+        first_seen
+            .into_iter()
+            .filter_map(|secret| {
+                let nodes = holders.get(&secret).filter(|nodes| nodes.len() > 1)?;
+                let mut paths: Vec<String> = nodes
+                    .iter()
+                    .filter_map(|node| self.path_of(node.id))
+                    .collect();
+                paths.dedup();
+                Some(error(
+                    nodes.first()?,
+                    "duplicate_secret_ref",
+                    format!(
+                        "il segreto {} è usato in {} punti: {}",
+                        secret.as_str(),
+                        nodes.len(),
+                        paths.join(", ")
+                    ),
+                ))
             })
             .collect()
     }

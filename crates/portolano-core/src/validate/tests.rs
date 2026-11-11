@@ -11,6 +11,7 @@ const CLIENTS: Uuid = Uuid::from_u128(0xc1);
 const WEB: Uuid = Uuid::from_u128(0x3e);
 const DB: Uuid = Uuid::from_u128(0xdb);
 const OTHER: Uuid = Uuid::from_u128(0xe0);
+const SECOND: Uuid = Uuid::from_u128(0xe1);
 const MISSING: Uuid = Uuid::from_u128(0xf0);
 
 fn by_id(id: Uuid) -> CredentialSpec {
@@ -229,4 +230,66 @@ fn validate_reports_an_unsupported_node_as_info_with_its_source_type() {
     assert_eq!(codes(&issues), vec![("unsupported_node", Some(OTHER))]);
     assert_eq!(issues[0].severity, Severity::Info);
     assert!(issues[0].message.contains("RoyalVNCConnection"));
+}
+
+fn credential_with_password(id: Uuid, name: &str, password: &SecretRef) -> Node {
+    let mut node = credential(id, name);
+    node.as_credential_mut().unwrap().password = Some(password.clone());
+    node
+}
+
+#[test]
+fn validate_reports_a_secret_ref_shared_by_two_nodes() {
+    let shared = SecretRef::new();
+    let mut document = sample();
+    document
+        .nodes
+        .push(credential_with_password(OTHER, "first", &shared));
+    document
+        .nodes
+        .push(credential_with_password(SECOND, "second", &shared));
+
+    let issues = document.validate();
+
+    assert_eq!(codes(&issues), vec![("duplicate_secret_ref", Some(OTHER))]);
+    assert!(issues[0].message.contains(shared.as_str()));
+    assert!(issues[0].message.contains("/second"));
+}
+
+#[test]
+fn validate_reports_a_secret_ref_used_twice_in_the_same_node() {
+    let shared = SecretRef::new();
+    let mut node = credential_with_password(OTHER, "twice", &shared);
+    node.as_credential_mut().unwrap().passphrase = Some(shared);
+    let mut document = sample();
+    document.nodes.push(node);
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("duplicate_secret_ref", Some(OTHER))]
+    );
+}
+
+#[test]
+fn validate_reports_a_secret_ref_repeated_inside_settings() {
+    let shared = SecretRef::new();
+    let mut node = with_spec(
+        connection(OTHER, "rdp"),
+        CredentialSpec::Inline {
+            username: None,
+            domain: None,
+            password: Some(shared.clone()),
+        },
+    );
+    node.as_connection_mut().unwrap().settings.insert(
+        "gateway".to_owned(),
+        json!({ "credential": { "mode": "inline", "password": shared } }),
+    );
+    let mut document = sample();
+    document.nodes.push(node);
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("duplicate_secret_ref", Some(OTHER))]
+    );
 }

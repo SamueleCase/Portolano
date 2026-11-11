@@ -232,8 +232,9 @@ fn find_in_mut(nodes: &mut [Node], id: Uuid) -> Option<&mut Node> {
     })
 }
 
-/// The secret references held by `node` itself, children excluded.
-fn collect_secret_refs(node: &Node, refs: &mut Vec<SecretRef>) {
+/// Appends the secret references held by `node` itself, children excluded,
+/// to `refs`.
+pub(crate) fn collect_secret_refs(node: &Node, refs: &mut Vec<SecretRef>) {
     refs.extend(
         node.custom_properties
             .iter()
