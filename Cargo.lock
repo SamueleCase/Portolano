@@ -1224,6 +1224,7 @@ dependencies = [
 name = "portolano-connectors"
 version = "0.1.0"
 dependencies = [
+ "directories",
  "getrandom",
  "hex",
  "portolano-core",

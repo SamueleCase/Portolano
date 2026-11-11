@@ -60,12 +60,7 @@ pub fn prepare(
     vault: &dyn Vault,
     config: &AppConfig,
 ) -> Result<PreparedLaunch, ConnectError> {
-    prepare_with(
-        plan,
-        vault,
-        config,
-        TempFiles::new(TempFiles::default_dir()),
-    )
+    prepare_with(plan, vault, config, TempFiles::per_user())
 }
 
 fn prepare_with(
@@ -77,7 +72,6 @@ fn prepare_with(
     let Some((last, preliminary)) = plan.steps.split_last() else {
         return Err(invalid_plan("il piano non contiene passi"));
     };
-    temp_files.remove_stale();
     for step in preliminary {
         match step {
             LaunchStep::SshAddKey {

@@ -1,9 +1,13 @@
-//! Temporary files of the plans (the `.rdp` of Windows App, SPEC §7.3), in
-//! a private per-user directory. They never contain secrets.
+//! Temporary files of the plans (the `.rdp` of Windows App, SPEC §7.3), in a
+//! private per-user directory. They never contain secrets.
+//!
+//! The directory lives in the user's cache directory, not in a shared
+//! temporary directory, so another user can neither predict nor plant it; it
+//! is used only after checking, without following links, that it is a
+//! directory of the current user with permissions `0700`.
 
-use std::fs::{self, OpenOptions};
+use std::fs;
 use std::io::{self, Write};
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -13,34 +17,48 @@ use crate::plan::temp_placeholder;
 /// Age after which a temporary file is removed: the client has long read it.
 const STALE_AFTER: Duration = Duration::from_secs(10 * 60);
 
+/// Extension of the files that the cleanup removes (SPEC §7.3).
+const STALE_EXTENSION: &str = "rdp";
+
 /// The temporary files written while running a plan. They outlive the plan,
 /// because a detached client reads them after `connect` returns, and are
 /// removed by a later run once stale.
 pub(super) struct TempFiles {
-    dir: PathBuf,
+    dir: Option<PathBuf>,
+    checked: bool,
     written: Vec<(String, PathBuf)>,
 }
 
 impl TempFiles {
-    /// Files in `dir`, created on the first write.
+    /// Files in `dir`, created and checked on the first write.
+    #[cfg(test)]
     pub(super) fn new(dir: PathBuf) -> TempFiles {
         TempFiles {
-            dir,
+            dir: Some(dir),
+            checked: false,
             written: Vec::new(),
         }
     }
 
-    /// The per-user directory: on macOS the system temporary directory is
-    /// already per user.
-    pub(super) fn default_dir() -> PathBuf {
-        std::env::temp_dir().join("portolano")
+    /// Files in `tmp` inside the per-user cache directory of Portolano, such
+    /// as `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS.
+    pub(super) fn per_user() -> TempFiles {
+        let dir = directories::ProjectDirs::from("dev", "portolano", "Portolano")
+            .map(|dirs| dirs.cache_dir().join("tmp"));
+        TempFiles {
+            dir,
+            checked: false,
+            written: Vec::new(),
+        }
     }
 
     /// Writes `contents` to the file `name` with permissions `mode`,
-    /// replacing an older file of the same name.
+    /// replacing an older file of the same name. The first write checks the
+    /// directory and removes the stale `.rdp` files in it.
     ///
     /// # Errors
-    /// [`ConnectError::Io`] for an invalid name or a filesystem failure.
+    /// [`ConnectError::Io`] for an invalid name, a directory that is not
+    /// private or a filesystem failure.
     pub(super) fn write(
         &mut self,
         name: &str,
@@ -57,19 +75,23 @@ impl TempFiles {
                 "nome di file non valido",
             )));
         }
-        ensure_private_dir(&self.dir).map_err(io_error)?;
-        let path = self.dir.join(name);
+        let dir = self.dir.clone().ok_or_else(|| {
+            io_error(io::Error::new(
+                io::ErrorKind::NotFound,
+                "directory dei file temporanei non determinabile (manca la home)",
+            ))
+        })?;
+        if !self.checked {
+            ensure_private_dir(&dir).map_err(io_error)?;
+            remove_stale(&dir, STALE_AFTER, SystemTime::now());
+            self.checked = true;
+        }
+        let path = dir.join(name);
         match fs::remove_file(&path) {
             Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(io_error(error)),
             _ => {}
         }
-        // `create_new` refuses a file or link planted after the removal.
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(mode)
-            .open(&path)
-            .map_err(io_error)?;
+        let mut file = create_new(&path, mode).map_err(io_error)?;
         file.write_all(contents.as_bytes()).map_err(io_error)?;
         self.written.push((name.to_owned(), path));
         Ok(())
@@ -84,59 +106,141 @@ impl TempFiles {
                 arg.replace(&temp_placeholder(name), &path.to_string_lossy())
             })
     }
-
-    /// Removes the files older than [`STALE_AFTER`]. Best effort: a file
-    /// that cannot be removed now will be removed by a later run.
-    pub(super) fn remove_stale(&self) {
-        remove_older_than(&self.dir, STALE_AFTER, SystemTime::now());
-    }
 }
 
-fn remove_older_than(dir: &Path, age: Duration, now: SystemTime) -> usize {
+/// Creates `path` with permissions `mode`; `create_new` refuses a file or
+/// link planted after the removal of the previous one.
+fn create_new(path: &Path, mode: u32) -> io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(mode);
+    }
+    #[cfg(not(unix))]
+    let _ = mode;
+    options.open(path)
+}
+
+/// Removes the regular `.rdp` files of `dir` older than `age`. Links and
+/// other files are left alone. Best effort: a file that cannot be removed
+/// now will be removed by a later run.
+fn remove_stale(dir: &Path, age: Duration, now: SystemTime) -> usize {
     let Ok(entries) = fs::read_dir(dir) else {
         return 0;
     };
     entries
         .filter_map(Result::ok)
         .filter(|entry| {
-            entry.metadata().is_ok_and(|metadata| {
-                metadata.is_file()
-                    && metadata.modified().is_ok_and(|modified| {
-                        now.duration_since(modified)
-                            .is_ok_and(|elapsed| elapsed > age)
-                    })
-            })
+            let is_rdp = entry
+                .path()
+                .extension()
+                .is_some_and(|ext| ext == STALE_EXTENSION);
+            // `DirEntry::file_type` and `metadata` do not follow links.
+            let is_file = entry.file_type().is_ok_and(|kind| kind.is_file());
+            let is_old = entry.metadata().is_ok_and(|metadata| {
+                metadata.modified().is_ok_and(|modified| {
+                    now.duration_since(modified)
+                        .is_ok_and(|elapsed| elapsed > age)
+                })
+            });
+            is_rdp && is_file && is_old
         })
         .filter(|entry| fs::remove_file(entry.path()).is_ok())
         .count()
 }
 
-/// Creates `dir` if needed and makes it private. Changing the permissions
-/// fails on a directory owned by someone else, and a symbolic link is
-/// refused, so the files cannot be redirected.
+/// Creates `dir` with permissions `0700` if it does not exist, then checks
+/// without following links that it is a private directory of the current
+/// user. An existing directory is never fixed: it is refused.
 fn ensure_private_dir(dir: &Path) -> io::Result<()> {
-    fs::create_dir_all(dir)?;
-    let metadata = fs::symlink_metadata(dir)?;
-    if !metadata.is_dir() {
-        return Err(io::Error::other(
-            "la directory temporanea non è una directory",
-        ));
+    match fs::symlink_metadata(dir) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            if let Some(parent) = dir.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            create_private_dir(dir)?;
+        }
+        Err(error) => return Err(error),
+        Ok(_) => {}
     }
-    fs::set_permissions(dir, fs::Permissions::from_mode(0o700))
+    check_private(dir, &fs::symlink_metadata(dir)?)
+}
+
+#[cfg(unix)]
+fn create_private_dir(dir: &Path) -> io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    fs::DirBuilder::new().mode(0o700).create(dir)
+}
+
+#[cfg(not(unix))]
+fn create_private_dir(dir: &Path) -> io::Result<()> {
+    fs::create_dir(dir)
+}
+
+#[cfg(unix)]
+fn check_private(dir: &Path, metadata: &fs::Metadata) -> io::Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    let refuse = |reason: &str| {
+        Err(io::Error::other(format!(
+            "la directory temporanea '{}' {reason}",
+            dir.display()
+        )))
+    };
+    if !metadata.file_type().is_dir() {
+        return refuse("non è una directory (o è un collegamento simbolico)");
+    }
+    if metadata.uid() != current_uid()? {
+        return refuse("appartiene a un altro utente");
+    }
+    if metadata.mode() & 0o777 != 0o700 {
+        return refuse("non ha i permessi 0700");
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn check_private(dir: &Path, metadata: &fs::Metadata) -> io::Result<()> {
+    if metadata.file_type().is_dir() {
+        Ok(())
+    } else {
+        Err(io::Error::other(format!(
+            "la directory temporanea '{}' non è una directory",
+            dir.display()
+        )))
+    }
+}
+
+/// The effective user id. The owner of a new anonymous file is that user,
+/// which avoids an `unsafe` call to `getuid` (the crate forbids `unsafe`).
+#[cfg(unix)]
+fn current_uid() -> io::Result<u32> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(tempfile::tempfile()?.metadata()?.uid())
 }
 
 #[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use std::fs::File;
+    use std::os::unix::fs::PermissionsExt;
 
     use pretty_assertions::assert_eq;
 
     use super::*;
 
+    fn old_file(path: &Path) {
+        File::create(path)
+            .unwrap()
+            .set_modified(SystemTime::now() - Duration::from_secs(11 * 60))
+            .unwrap();
+    }
+
     #[test]
     fn written_file_is_private_and_substituted_in_arguments() {
         let root = tempfile::tempdir().unwrap();
-        let dir = root.path().join("portolano");
+        let dir = root.path().join("cache").join("tmp");
         let mut files = TempFiles::new(dir.clone());
 
         files
@@ -156,21 +260,19 @@ mod tests {
     #[test]
     fn writing_again_replaces_the_file() {
         let root = tempfile::tempdir().unwrap();
-        let mut files = TempFiles::new(root.path().to_path_buf());
+        let dir = root.path().join("tmp");
+        let mut files = TempFiles::new(dir.clone());
         files.write("a.rdp", "old", 0o600).unwrap();
 
         files.write("a.rdp", "new", 0o600).unwrap();
 
-        assert_eq!(
-            fs::read_to_string(root.path().join("a.rdp")).unwrap(),
-            "new"
-        );
+        assert_eq!(fs::read_to_string(dir.join("a.rdp")).unwrap(), "new");
     }
 
     #[test]
     fn names_that_leave_the_directory_are_rejected() {
         let root = tempfile::tempdir().unwrap();
-        let mut files = TempFiles::new(root.path().to_path_buf());
+        let mut files = TempFiles::new(root.path().join("tmp"));
 
         for name in ["../escape.rdp", "..", "", "a/b.rdp"] {
             assert!(files.write(name, "x", 0o600).is_err(), "{name}");
@@ -178,20 +280,71 @@ mod tests {
     }
 
     #[test]
-    fn only_files_older_than_the_limit_are_removed() {
+    fn symlink_in_place_of_the_directory_is_refused_and_nothing_outside_is_removed() {
         let root = tempfile::tempdir().unwrap();
-        let old = root.path().join("old.rdp");
-        let fresh = root.path().join("fresh.rdp");
-        File::create(&old)
-            .unwrap()
-            .set_modified(SystemTime::now() - Duration::from_secs(11 * 60))
-            .unwrap();
-        File::create(&fresh).unwrap();
+        let outside = root.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::set_permissions(&outside, fs::Permissions::from_mode(0o700)).unwrap();
+        let victim = outside.join("victim.rdp");
+        old_file(&victim);
+        let link = root.path().join("tmp");
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+        let mut files = TempFiles::new(link);
 
-        let removed = remove_older_than(root.path(), STALE_AFTER, SystemTime::now());
+        let result = files.write("dc01.rdp", "x", 0o600);
 
-        assert_eq!(removed, 1);
-        assert!(!old.exists());
-        assert!(fresh.exists());
+        assert!(result.is_err());
+        assert!(victim.exists());
+        assert!(!outside.join("dc01.rdp").exists());
+    }
+
+    #[test]
+    fn existing_directory_with_open_permissions_is_refused() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("tmp");
+        fs::create_dir(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o777)).unwrap();
+        let mut files = TempFiles::new(dir.clone());
+
+        let result = files.write("dc01.rdp", "x", 0o600);
+
+        assert!(result.is_err());
+        assert!(!dir.join("dc01.rdp").exists());
+    }
+
+    #[test]
+    fn first_write_removes_only_old_regular_rdp_files() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("tmp");
+        fs::create_dir(&dir).unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+        let old_rdp = dir.join("old.rdp");
+        let old_other = dir.join("old.txt");
+        let fresh_rdp = dir.join("fresh.rdp");
+        old_file(&old_rdp);
+        old_file(&old_other);
+        File::create(&fresh_rdp).unwrap();
+        let mut files = TempFiles::new(dir);
+
+        files.write("new.rdp", "x", 0o600).unwrap();
+
+        assert!(!old_rdp.exists());
+        assert!(old_other.exists());
+        assert!(fresh_rdp.exists());
+    }
+
+    #[test]
+    fn stale_cleanup_does_not_follow_links() {
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("target.rdp");
+        old_file(&target);
+        let dir = root.path().join("tmp");
+        fs::create_dir(&dir).unwrap();
+        std::os::unix::fs::symlink(&target, dir.join("link.rdp")).unwrap();
+
+        let removed = remove_stale(&dir, STALE_AFTER, SystemTime::now());
+
+        assert_eq!(removed, 0);
+        assert!(target.exists());
     }
 }

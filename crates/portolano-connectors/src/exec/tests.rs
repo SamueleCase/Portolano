@@ -262,6 +262,24 @@ fn temporary_file_path_replaces_its_placeholder() {
 }
 
 #[test]
+fn plan_without_temporary_files_does_not_clean_the_directory() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().join("files");
+    fs::create_dir(&dir).unwrap();
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+    let stale = dir.join("old.rdp");
+    fs::File::create(&stale)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(3600))
+        .unwrap();
+    let plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);
+
+    execute_in(&plan, &TestVault::default(), &temp).unwrap();
+
+    assert!(stale.exists());
+}
+
+#[test]
 fn detached_program_returns_zero_without_waiting() {
     let temp = tempfile::tempdir().unwrap();
     let mut plan = run(
