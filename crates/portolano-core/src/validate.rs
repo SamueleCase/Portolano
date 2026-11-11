@@ -7,8 +7,9 @@ use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
-use crate::error::{Error, Issue, Severity};
+use crate::error::{Issue, Severity};
 use crate::model::{CredentialSpec, Document, Node, NodeKind};
+use crate::resolve::CredentialNames;
 use crate::secret::SecretRef;
 use crate::tree::collect_secret_refs;
 
@@ -25,10 +26,12 @@ impl Document {
     pub fn validate(&self) -> Vec<Issue> {
         let mut issues = self.duplicate_ids();
         issues.extend(self.duplicate_secret_refs());
-        let known: HashSet<Uuid> = self.walk().map(|(_, node)| node.id).collect();
+        let lookup = Lookup::new(self);
         for (_, node) in self.walk() {
-            issues.extend(dangling_references(node, &known));
-            issues.extend(self.credential_spec_issue(node));
+            issues.extend(dangling_references(node, &lookup.nodes));
+            if let Some(spec) = credential_spec(node) {
+                issues.extend(lookup.credential_spec_issue(node, spec));
+            }
             if let Some(connection) = node.as_connection()
                 && connection.host.trim().is_empty()
             {
@@ -113,41 +116,61 @@ impl Document {
             })
             .collect()
     }
+}
+
+/// Lookups built once per validation, so that each check is a map access
+/// and validation stays linear in the document size.
+struct Lookup<'a> {
+    nodes: HashMap<Uuid, &'a Node>,
+    credentials: CredentialNames<'a>,
+}
+
+impl<'a> Lookup<'a> {
+    fn new(document: &'a Document) -> Self {
+        let mut nodes = HashMap::new();
+        for (_, node) in document.walk() {
+            // With duplicate ids the first node wins, as in `Document::find`.
+            nodes.entry(node.id).or_insert(node);
+        }
+        Self {
+            nodes,
+            credentials: CredentialNames::new(document),
+        }
+    }
 
     /// Checks the node's own credential spec. `$ref`s inside `settings` that
     /// point to credentials are checked by their protocol: the core cannot
     /// tell them apart from references to other kinds of node.
-    fn credential_spec_issue(&self, node: &Node) -> Option<Issue> {
-        match credential_spec(node)? {
+    fn credential_spec_issue(&self, node: &Node, spec: &CredentialSpec) -> Option<Issue> {
+        match spec {
             CredentialSpec::ById { id } => {
-                let target = self.find(*id)?;
+                let target = self.nodes.get(id)?;
                 target.as_credential().is_none().then(|| {
                     error(
                         node,
                         "credential_ref_not_credential",
                         format!(
-                            "la credenziale del nodo '{}' fa riferimento a '{}', che non è una credenziale",
+                            "una credenziale del nodo '{}' fa riferimento a '{}', che non è una credenziale",
                             node.name, target.name
                         ),
                     )
                 })
             }
-            CredentialSpec::ByName { name } => match self.credential_named(name) {
-                Ok(_) => None,
-                Err(Error::Ambiguous { candidates, .. }) => Some(error(
-                    node,
-                    "by_name_ambiguous",
-                    format!(
-                        "la credenziale '{name}' del nodo '{}' corrisponde a {} credenziali",
-                        node.name,
-                        candidates.len()
-                    ),
-                )),
-                Err(_) => Some(error(
+            CredentialSpec::ByName { name } => match self.credentials.matching(name).len() {
+                1 => None,
+                0 => Some(error(
                     node,
                     "by_name_unresolved",
                     format!(
                         "nessuna credenziale si chiama '{name}' (richiesta dal nodo '{}')",
+                        node.name
+                    ),
+                )),
+                count => Some(error(
+                    node,
+                    "by_name_ambiguous",
+                    format!(
+                        "la credenziale '{name}' del nodo '{}' corrisponde a {count} credenziali",
                         node.name
                     ),
                 )),
@@ -158,11 +181,11 @@ impl Document {
 }
 
 /// One `dangling_ref` issue per `$ref` of `node` whose value is not the id of
-/// a node in `known`, including values that are not ids at all.
-fn dangling_references(node: &Node, known: &HashSet<Uuid>) -> Vec<Issue> {
+/// a node in `nodes`, including values that are not ids at all.
+fn dangling_references(node: &Node, nodes: &HashMap<Uuid, &Node>) -> Vec<Issue> {
     reference_values(node)
         .into_iter()
-        .filter(|value| referenced_id(value).is_none_or(|id| !known.contains(&id)))
+        .filter(|value| referenced_id(value).is_none_or(|id| !nodes.contains_key(&id)))
         .map(|value| {
             error(
                 node,
