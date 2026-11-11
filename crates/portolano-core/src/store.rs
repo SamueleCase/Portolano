@@ -268,7 +268,7 @@ fn reject_duplicate_ids(doc: &Document) -> Result<()> {
 }
 
 /// The directory of `path`, `.` for a bare file name.
-fn parent_dir(path: &Path) -> &Path {
+pub(crate) fn parent_dir(path: &Path) -> &Path {
     match path.parent() {
         Some(dir) if !dir.as_os_str().is_empty() => dir,
         _ => Path::new("."),
