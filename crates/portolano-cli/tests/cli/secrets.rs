@@ -144,6 +144,17 @@ fn password_from_stdin_beyond_64_kib_is_refused() {
 }
 
 #[test]
+fn secret_from_stdin_beyond_64_kib_states_the_reason_once() {
+    let workspace = Workspace::new();
+    workspace.add_admin();
+    let too_long = format!("{}\n", "x".repeat(64 * 1024 + 1));
+    workspace
+        .run_with_stdin(&["secret", "set", "/Admin", "--stdin"], &too_long)
+        .code(1)
+        .stderr("errore: stdin: il segreto supera il limite di 65536 byte\n");
+}
+
+#[test]
 fn private_key_from_stdin_beyond_64_kib_is_refused() {
     let workspace = Workspace::new();
     let too_long = "k".repeat(64 * 1024 + 1);

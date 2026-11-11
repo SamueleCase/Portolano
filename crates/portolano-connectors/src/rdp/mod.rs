@@ -19,7 +19,7 @@ use crate::decode::decode_section;
 use crate::env::Environment;
 use crate::plan::LaunchPlan;
 use crate::protocol::{
-    PlanContext, Protocol, apply_session_credential, connection_node, error_issue,
+    PlanContext, Protocol, apply_session_credential, check_value, connection_node, error_issue,
 };
 
 /// Port of RDP when the connection does not set one.
@@ -171,6 +171,26 @@ struct RdpTarget<'a> {
     credential: ResolvedCredential,
     settings: &'a RdpSettings,
     gateway: Option<GatewayLogin<'a>>,
+}
+
+impl RdpTarget<'_> {
+    /// Rejects control characters in the host, user and domain of the
+    /// destination, which every client receives as text: they would end a
+    /// line of the `.rdp` file or reach FreeRDP's arguments and its log.
+    ///
+    /// # Errors
+    /// [`ConnectError::InvalidValue`] naming the field.
+    fn check_login_values(&self) -> Result<(), ConnectError> {
+        let id = self.node_id;
+        check_value(id, "host", self.host, &[])?;
+        if let Some(user) = &self.credential.username {
+            check_value(id, "username", user, &[])?;
+        }
+        if let Some(domain) = &self.credential.domain {
+            check_value(id, "domain", domain, &[])?;
+        }
+        Ok(())
+    }
 }
 
 /// The gateway of a connection with its login data resolved.

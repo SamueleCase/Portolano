@@ -203,6 +203,49 @@ fn freerdp_gateway_host_with_a_control_character_is_rejected() {
     );
 }
 
+fn assert_invalid_field(result: &Result<LaunchPlan, ConnectError>, expected: &str) {
+    assert!(
+        matches!(
+            result,
+            Err(ConnectError::InvalidValue { field, reason, .. })
+                if field == expected && reason.contains("carattere di controllo")
+        ),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn freerdp_host_with_a_control_character_is_rejected() {
+    let settings = RdpSettings::default();
+    let mut rdp = target(&settings, login(Some("administrator"), None));
+    rdp.host = "dc01\u{1b}x.example.com";
+
+    let result = freerdp_result(&rdp);
+
+    assert_invalid_field(&result, "host");
+}
+
+#[test]
+fn freerdp_user_with_a_control_character_is_rejected() {
+    let settings = RdpSettings::default();
+
+    let result = freerdp_result(&target(&settings, login(Some("admin\u{1b}x"), None)));
+
+    assert_invalid_field(&result, "username");
+}
+
+#[test]
+fn freerdp_domain_with_a_control_character_is_rejected() {
+    let settings = RdpSettings::default();
+
+    let result = freerdp_result(&target(
+        &settings,
+        domain_login("administrator", "ACME\n", None),
+    ));
+
+    assert_invalid_field(&result, "domain");
+}
+
 #[test]
 fn freerdp_password_without_user_is_not_sent() {
     let settings = RdpSettings::default();
