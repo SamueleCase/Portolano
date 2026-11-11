@@ -107,7 +107,11 @@ pub(super) fn exchange(
     stream.write_all(&request)?;
 
     // The reply holds the answer: it is read into a zeroed buffer of fixed
-    // size (DEC-024.5), and the answer moves from the parser into a `Secret`.
+    // size (DEC-024.5). Without escapes `serde_json` copies the answer once,
+    // into the `String` that becomes the `Secret`. Known limit: an answer
+    // with characters that JSON escapes (quotes, backslashes, controls) is
+    // first rebuilt in an internal buffer of `serde_json`, freed without
+    // being zeroed.
     let line = read_secret(&mut stream, SecretEnd::Line, MAX_MESSAGE_BYTES).map_err(io_error)?;
     match serde_json::from_str::<Reply<String>>(line.expose()).map_err(io::Error::from)? {
         Reply::Answer(answer) => Ok(ServerAnswer::Answer(Secret::new(answer))),
