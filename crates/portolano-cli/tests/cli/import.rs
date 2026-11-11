@@ -149,3 +149,21 @@ fn unrecognized_file_is_refused() {
         .code(1)
         .stderr(contains("non riconosciuto"));
 }
+
+#[test]
+fn unknown_format_is_a_usage_error() {
+    let workspace = Workspace::new();
+    import(&workspace, "minimal.royal.xml", &["--format", "mremoteng"])
+        .code(2)
+        .stderr(contains("formato d'importazione sconosciuto"));
+}
+
+#[test]
+fn import_too_deep_for_the_destination_exits_with_4() {
+    let workspace = Workspace::new();
+    let path = "/l".repeat(portolano_core::MAX_DEPTH);
+    workspace.ok(&["add", "folder", "-p", &path]);
+    import(&workspace, "minimal.royal.xml", &["--into", &path])
+        .code(4)
+        .stderr(contains("scegli una cartella meno profonda"));
+}

@@ -124,9 +124,14 @@ fn ops_code(error: &OpsError) -> i32 {
         OpsError::Core(error) => core_code(error),
         OpsError::Vault(_) => EXIT_VAULT,
         OpsError::Connect(error) => connect_code(error),
-        OpsError::VaultFileConflict { .. } | OpsError::KeyFileAndVaultKey => EXIT_USAGE,
+        OpsError::VaultFileConflict { .. }
+        | OpsError::KeyFileAndVaultKey
+        | OpsError::UnknownImportFormat { .. } => EXIT_USAGE,
         OpsError::NotAConnection { .. } => EXIT_CONNECT,
-        OpsError::EmptyHost { .. }
+        OpsError::EmptyName
+        | OpsError::NotACredential { .. }
+        | OpsError::ImportTooDeep { .. }
+        | OpsError::EmptyHost { .. }
         | OpsError::InvalidPort { .. }
         | OpsError::InvalidColor { .. }
         | OpsError::UnknownProtocol { .. }
@@ -150,6 +155,7 @@ fn core_code(error: &portolano_core::Error) -> i32 {
         portolano_core::Error::NotFound { .. }
         | portolano_core::Error::Ambiguous { .. }
         | portolano_core::Error::NodeNotFound { .. } => EXIT_NOT_FOUND,
+        portolano_core::Error::TooDeep { .. } => EXIT_VALIDATION,
         _ => EXIT_ERROR,
     }
 }

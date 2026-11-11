@@ -345,3 +345,35 @@ fn forced_deletion_of_two_credentials_used_by_one_node_reports_no_leftover() {
     assert!(output.contains("1 nodi ora chiedono le credenziali"));
     assert!(!output.contains("restano riferimenti"));
 }
+
+#[test]
+fn credential_path_to_a_folder_exits_with_4() {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "folder", "/Rete"]);
+    workspace
+        .run(&[
+            "add",
+            "ssh",
+            "/web01",
+            "--host",
+            "web01.example.com",
+            "--cred",
+            "/Rete",
+        ])
+        .code(4)
+        .stderr(contains("non è una credenziale"));
+}
+
+#[test]
+fn blank_name_exits_with_4() {
+    Workspace::new().run(&["add", "folder", "/ "]).code(4);
+}
+
+#[test]
+fn tree_deeper_than_the_maximum_exits_with_4() {
+    let path = "/l".repeat(portolano_core::MAX_DEPTH + 1);
+    Workspace::new()
+        .run(&["add", "folder", "-p", &path])
+        .code(4)
+        .stderr(contains("profondità massima"));
+}
