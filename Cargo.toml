@@ -22,6 +22,9 @@ uuid = { version = "1.29.2", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std", "serde"] }
 quick-xml = "0.42.0"
 base64 = "0.23.1"
+flate2 = "1.1.11"
+# Royal documents only need deflate: no C codecs (zstd, bzip2) and no AES.
+zip = { version = "9.5.1", default-features = false, features = ["deflate-flate2"] }
 hex = "0.4.3"
 
 # Errors
@@ -34,7 +37,6 @@ anyhow = "1.0.104"
 keyring = { version = "4.2.0", default-features = false, features = ["v1"] }
 argon2 = "0.6.0"
 chacha20poly1305 = "0.11.0"
-rand = "0.10.3"
 getrandom = "0.4.3"
 sha2 = "0.11.1"
 zeroize = "1.9.1"
