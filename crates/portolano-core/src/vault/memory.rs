@@ -1,9 +1,8 @@
 //! In-memory vault, for tests and the hidden `--vault memory` option.
 
-use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
-use super::Vault;
+use super::{SecretMap, Vault, copy_secret, lock_secrets};
 use crate::error::VaultError;
 use crate::secret::{Secret, SecretRef};
 
@@ -12,18 +11,7 @@ const BACKEND: &str = "memory";
 /// A vault that keeps secrets in a map; its content is lost on drop.
 #[derive(Debug, Default)]
 pub struct MemoryVault {
-    entries: Mutex<HashMap<SecretRef, Secret>>,
-}
-
-impl MemoryVault {
-    /// The map, or an error if a thread panicked while holding the lock: the
-    /// map may then be half-updated, so it is not trusted any more.
-    fn entries(&self) -> Result<MutexGuard<'_, HashMap<SecretRef, Secret>>, VaultError> {
-        self.entries.lock().map_err(|_| VaultError::Backend {
-            backend: BACKEND,
-            reason: "stato interno non più affidabile dopo un errore precedente".to_owned(),
-        })
-    }
+    entries: Mutex<SecretMap>,
 }
 
 impl Vault for MemoryVault {
@@ -32,20 +20,18 @@ impl Vault for MemoryVault {
     }
 
     fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
-        Ok(self
-            .entries()?
+        Ok(lock_secrets(&self.entries, BACKEND)?
             .get(reference)
-            .map(|secret| Secret::new(secret.expose().to_owned())))
+            .map(copy_secret))
     }
 
     fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
-        self.entries()?
-            .insert(reference.clone(), Secret::new(secret.expose().to_owned()));
+        lock_secrets(&self.entries, BACKEND)?.insert(reference.clone(), copy_secret(secret));
         Ok(())
     }
 
     fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
-        self.entries()?.remove(reference);
+        lock_secrets(&self.entries, BACKEND)?.remove(reference);
         Ok(())
     }
 }
