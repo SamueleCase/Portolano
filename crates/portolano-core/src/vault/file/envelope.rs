@@ -146,6 +146,7 @@ pub(super) fn serialize(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use serde_json::Value;
 
     use super::*;
@@ -175,8 +176,10 @@ mod tests {
     fn serialized_file_parses_back() {
         let sealed = parse_value(&valid_file()).unwrap();
 
-        assert!(sealed.kdf.params == TEST_KDF_PARAMS && sealed.kdf.salt == vec![7; 16]);
-        assert!(sealed.nonce == [9; NONCE_LEN] && sealed.ciphertext == b"ciphertext");
+        assert_eq!(sealed.kdf.params, TEST_KDF_PARAMS);
+        assert_eq!(sealed.kdf.salt, vec![7; 16]);
+        assert_eq!(sealed.nonce, [9; NONCE_LEN]);
+        assert_eq!(sealed.ciphertext, b"ciphertext");
     }
 
     #[test]
