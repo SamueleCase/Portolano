@@ -1,127 +1,8 @@
+//! Path lookup: ids, names, ambiguity, case and parent paths.
+
 use pretty_assertions::assert_eq;
 
 use super::*;
-use crate::testutil::{connection, document, folder};
-
-const CLIENTI: Uuid = Uuid::from_u128(0x1c000000_0000_4000_8000_000000000001);
-const ACME: Uuid = Uuid::from_u128(0xacacac00_0000_4000_8000_000000000002);
-const WEB01: Uuid = Uuid::from_u128(0xabcdef01_0000_4000_8000_000000000003);
-const WEB02: Uuid = Uuid::from_u128(0xabcdef02_0000_4000_8000_000000000004);
-const SLASHED: Uuid = Uuid::from_u128(0x51000000_0000_4000_8000_000000000005);
-const BACKSLASHED: Uuid = Uuid::from_u128(0xb5000000_0000_4000_8000_000000000006);
-const PROD_UPPER: Uuid = Uuid::from_u128(0x90000000_0000_4000_8000_000000000007);
-const DB_UPPER: Uuid = Uuid::from_u128(0x9d000000_0000_4000_8000_000000000008);
-const PROD_LOWER: Uuid = Uuid::from_u128(0x91000000_0000_4000_8000_000000000009);
-const DB_LOWER: Uuid = Uuid::from_u128(0x9e000000_0000_4000_8000_00000000000a);
-const LINUX_FIRST: Uuid = Uuid::from_u128(0x11000000_0000_4000_8000_00000000000b);
-const LINUX_SECOND: Uuid = Uuid::from_u128(0x12000000_0000_4000_8000_00000000000c);
-const ONLY_IN_SECOND: Uuid = Uuid::from_u128(0x13000000_0000_4000_8000_00000000000d);
-const MISSING: Uuid = Uuid::from_u128(0xf0000000_0000_4000_8000_00000000000e);
-
-/// ```text
-/// /Clienti/ACME/web01            (abcdef01…)
-/// /Clienti/ACME/web02            (abcdef02…)
-/// /Clienti/a\/b
-/// /Clienti/back\\slash
-/// /Prod/db
-/// /prod/db
-/// /Linux, /Linux/only-in-second  (two sibling folders named Linux)
-/// ```
-fn sample() -> Document {
-    document(vec![
-        folder(
-            CLIENTI,
-            "Clienti",
-            vec![
-                folder(
-                    ACME,
-                    "ACME",
-                    vec![connection(WEB01, "web01"), connection(WEB02, "web02")],
-                ),
-                connection(SLASHED, "a/b"),
-                connection(BACKSLASHED, "back\\slash"),
-            ],
-        ),
-        folder(PROD_UPPER, "Prod", vec![connection(DB_UPPER, "db")]),
-        folder(PROD_LOWER, "prod", vec![connection(DB_LOWER, "db")]),
-        folder(LINUX_FIRST, "Linux", vec![]),
-        folder(
-            LINUX_SECOND,
-            "Linux",
-            vec![connection(ONLY_IN_SECOND, "only-in-second")],
-        ),
-    ])
-}
-
-fn invalid_reason(result: Result<impl std::fmt::Debug>) -> String {
-    match result {
-        Err(Error::InvalidPath { reason, .. }) => reason,
-        other => panic!("expected InvalidPath, got {other:?}"),
-    }
-}
-
-#[test]
-fn path_of_starts_with_a_slash_and_omits_the_document_name() {
-    let document = sample();
-
-    assert_eq!(
-        document.path_of(WEB01).as_deref(),
-        Some("/Clienti/ACME/web01")
-    );
-}
-
-#[test]
-fn path_of_escapes_slashes_and_backslashes() {
-    let document = sample();
-
-    assert_eq!(document.path_of(SLASHED).as_deref(), Some("/Clienti/a\\/b"));
-    assert_eq!(
-        document.path_of(BACKSLASHED).as_deref(),
-        Some("/Clienti/back\\\\slash")
-    );
-}
-
-#[test]
-fn path_of_a_missing_node_is_none() {
-    let document = sample();
-
-    assert_eq!(document.path_of(MISSING), None);
-}
-
-#[test]
-fn resolve_path_accepts_paths_with_and_without_leading_slash() {
-    let document = sample();
-
-    assert_eq!(document.resolve_path("/Clienti/ACME/web01").unwrap(), WEB01);
-    assert_eq!(document.resolve_path("Clienti/ACME/web01").unwrap(), WEB01);
-}
-
-#[test]
-fn resolve_path_unescapes_names() {
-    let document = sample();
-
-    assert_eq!(document.resolve_path("Clienti/a\\/b").unwrap(), SLASHED);
-    assert_eq!(
-        document.resolve_path("Clienti/back\\\\slash").unwrap(),
-        BACKSLASHED
-    );
-}
-
-#[test]
-fn resolve_path_inverts_path_of() {
-    let document = sample();
-
-    // The two sibling folders named "Linux" share a path, so it is ambiguous.
-    let unambiguous = document
-        .walk()
-        .map(|(_, node)| node.id)
-        .filter(|id| ![LINUX_FIRST, LINUX_SECOND].contains(id));
-
-    for id in unambiguous {
-        let path = document.path_of(id).unwrap();
-        assert_eq!(document.resolve_path(&path).unwrap(), id, "{path}");
-    }
-}
 
 #[test]
 fn resolve_path_by_full_uuid() {
@@ -266,57 +147,6 @@ fn resolve_path_unknown_name_is_not_found() {
 }
 
 #[test]
-fn resolve_path_of_the_root_is_rejected() {
-    let document = sample();
-
-    let reason = invalid_reason(document.resolve_path("/"));
-
-    assert_eq!(reason, "la radice non è un nodo");
-}
-
-#[test]
-fn resolve_path_rejects_a_trailing_slash() {
-    let document = sample();
-
-    invalid_reason(document.resolve_path("Clienti/"));
-}
-
-#[test]
-fn resolve_path_rejects_an_empty_segment() {
-    let document = sample();
-
-    invalid_reason(document.resolve_path("Clienti//ACME"));
-}
-
-#[test]
-fn resolve_path_rejects_an_unknown_escape() {
-    let document = sample();
-
-    invalid_reason(document.resolve_path("Clienti\\n"));
-}
-
-#[test]
-fn resolve_path_rejects_a_trailing_backslash() {
-    let document = sample();
-
-    invalid_reason(document.resolve_path("Clienti\\"));
-}
-
-#[test]
-fn resolve_path_rejects_an_empty_path() {
-    let document = sample();
-
-    invalid_reason(document.resolve_path(""));
-}
-
-#[test]
-fn resolve_location_of_the_slash_is_the_root() {
-    let document = sample();
-
-    assert_eq!(document.resolve_location("/").unwrap(), None);
-}
-
-#[test]
 fn resolve_location_of_a_node_is_its_id() {
     let document = sample();
 
@@ -345,15 +175,6 @@ fn resolve_parent_path_of_a_top_level_name_is_the_root() {
 }
 
 #[test]
-fn resolve_parent_path_unescapes_the_last_name() {
-    let document = sample();
-
-    let resolved = document.resolve_parent_path("Clienti/x\\/y").unwrap();
-
-    assert_eq!(resolved, (Some(CLIENTI), "x/y".to_owned()));
-}
-
-#[test]
 fn resolve_parent_path_under_a_connection_is_rejected() {
     let document = sample();
 
@@ -369,20 +190,6 @@ fn resolve_parent_path_with_a_missing_parent_is_not_found() {
     let result = document.resolve_parent_path("Clienti/Nuovo/x");
 
     assert!(matches!(result, Err(Error::NotFound { query }) if query == "/Clienti/Nuovo"));
-}
-
-#[test]
-fn resolve_parent_path_of_the_root_is_rejected() {
-    let document = sample();
-
-    invalid_reason(document.resolve_parent_path("/"));
-}
-
-#[test]
-fn resolve_parent_path_ending_with_an_id_is_rejected() {
-    let document = sample();
-
-    invalid_reason(document.resolve_parent_path("Clienti/@abcdef01"));
 }
 
 #[test]
