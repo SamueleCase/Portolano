@@ -190,7 +190,8 @@ impl Document {
     }
 }
 
-/// Whether two names are equal ignoring case, with Unicode case folding.
+/// Whether two names are equal ignoring case, comparing their Unicode
+/// lowercase forms (`char::to_lowercase`, not full case folding).
 pub(crate) fn same_name_ignoring_case(left: &str, right: &str) -> bool {
     left.chars()
         .flat_map(char::to_lowercase)
