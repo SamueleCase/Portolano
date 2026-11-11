@@ -108,7 +108,7 @@ impl Store {
     /// [`Error::Io`](crate::Error::Io).
     pub fn load(&self) -> Result<Document> {
         let bytes = with_lock(&self.path, Access::Shared, || read(&self.path))?;
-        let doc = self.parse(&bytes)?;
+        let doc = parse_document(&self.path, &bytes)?;
         // Only a successful load counts as having seen these bytes: after a
         // failure the caller holds no document that reflects them.
         *self.fingerprint() = fingerprint_of(&bytes);
@@ -171,51 +171,6 @@ impl Store {
             .unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Parses the bytes of a document file of any supported schema version.
-    fn parse(&self, bytes: &[u8]) -> Result<Document> {
-        let value: Value = serde_json::from_slice(bytes).map_err(|e| self.invalid(e))?;
-        let found = self.schema_version_of(&value)?;
-        let parsed = match found.cmp(&SCHEMA_VERSION) {
-            Ordering::Greater => {
-                return Err(Error::UnsupportedSchema {
-                    found,
-                    supported: SCHEMA_VERSION,
-                });
-            }
-            // Parsed again from the bytes so that errors carry line and column.
-            Ordering::Equal => serde_json::from_slice(bytes),
-            Ordering::Less => {
-                serde_json::from_value(migrate(value, found, SCHEMA_VERSION, MIGRATIONS)?)
-            }
-        };
-        let doc: Document = parsed.map_err(|e| self.invalid(e))?;
-        reject_duplicate_ids(&doc)?;
-        Ok(doc)
-    }
-
-    /// The `schema_version` of a Portolano document; anything else is not a
-    /// document.
-    fn schema_version_of(&self, value: &Value) -> Result<u32> {
-        let not_a_document = || Error::NotADocument {
-            path: self.path.clone(),
-        };
-        if value.get("format").and_then(Value::as_str) != Some(FORMAT_ID) {
-            return Err(not_a_document());
-        }
-        value
-            .get("schema_version")
-            .and_then(Value::as_u64)
-            .and_then(|version| u32::try_from(version).ok())
-            .ok_or_else(not_a_document)
-    }
-
-    fn invalid(&self, source: serde_json::Error) -> Error {
-        Error::InvalidDocument {
-            path: self.path.clone(),
-            source,
-        }
-    }
-
     fn modified_externally(&self) -> Error {
         Error::ModifiedExternally {
             path: self.path.clone(),
@@ -225,6 +180,54 @@ impl Store {
 
 fn read(path: &Path) -> Result<Vec<u8>> {
     fs::read(path).map_err(io_error(path))
+}
+
+/// Reads and parses the document file at `path`, as [`Store::load`] does,
+/// without locking it: the caller holds the lock.
+pub(crate) fn read_document(path: &Path) -> Result<Document> {
+    parse_document(path, &read(path)?)
+}
+
+/// Parses the bytes of a document file of any supported schema version.
+fn parse_document(path: &Path, bytes: &[u8]) -> Result<Document> {
+    let invalid = |source| Error::InvalidDocument {
+        path: path.to_owned(),
+        source,
+    };
+    let value: Value = serde_json::from_slice(bytes).map_err(invalid)?;
+    let found = schema_version_of(path, &value)?;
+    let parsed = match found.cmp(&SCHEMA_VERSION) {
+        Ordering::Greater => {
+            return Err(Error::UnsupportedSchema {
+                found,
+                supported: SCHEMA_VERSION,
+            });
+        }
+        // Parsed again from the bytes so that errors carry line and column.
+        Ordering::Equal => serde_json::from_slice(bytes),
+        Ordering::Less => {
+            serde_json::from_value(migrate(value, found, SCHEMA_VERSION, MIGRATIONS)?)
+        }
+    };
+    let doc: Document = parsed.map_err(invalid)?;
+    reject_duplicate_ids(&doc)?;
+    Ok(doc)
+}
+
+/// The `schema_version` of a Portolano document; anything else is not a
+/// document.
+fn schema_version_of(path: &Path, value: &Value) -> Result<u32> {
+    let not_a_document = || Error::NotADocument {
+        path: path.to_owned(),
+    };
+    if value.get("format").and_then(Value::as_str) != Some(FORMAT_ID) {
+        return Err(not_a_document());
+    }
+    value
+        .get("schema_version")
+        .and_then(Value::as_u64)
+        .and_then(|version| u32::try_from(version).ok())
+        .ok_or_else(not_a_document)
 }
 
 fn fingerprint_of(bytes: &[u8]) -> Fingerprint {

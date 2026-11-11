@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 
 use crate::error::{Error, Result};
 use crate::model::{Document, Icon};
-use crate::store::{Access, io_error, with_lock, write_atomically};
+use crate::store::{Access, io_error, read_document, with_lock, write_atomically};
 
 /// The icon directory of one document. Obtained from
 /// [`Store::icons`](crate::store::Store::icons).
@@ -96,16 +96,23 @@ impl IconStore {
     /// removed. Files whose name is not that of a stored image are left
     /// alone: the store did not put them there.
     ///
-    /// It runs under the exclusive lock of the document, so it never races
-    /// with a save or an [`IconStore::add`]. Images added or reused in the
-    /// last ten minutes are kept even if `doc` does not use them:
-    /// another process may have added them for a document it has not saved
-    /// yet. Known limit: an image added by another process that is still not
+    /// An image counts as used if `doc` or the document currently on disk
+    /// uses it: `doc` may hold icons not saved yet, and the file may have
+    /// been saved by another process since `doc` was loaded.
+    ///
+    /// It runs under the exclusive lock of the document, so no
+    /// [`Store::save`](crate::store::Store::save) or [`IconStore::add`]
+    /// happens while it reads the file and removes images. Images added or
+    /// reused in the last ten minutes are kept even if unused: another
+    /// process may have added them for a document it has not saved yet.
+    /// Known limit: an image added by another process that is still not
     /// saved after the grace period is removed, and that process then saves
     /// a reference to a missing file.
     ///
     /// # Errors
-    /// [`Error::Io`](crate::Error::Io).
+    /// The errors of [`Store::load`](crate::store::Store::load) when the
+    /// document on disk cannot be read or is not valid, in which case
+    /// nothing is removed; [`Error::Io`](crate::Error::Io).
     pub fn gc(&self, doc: &Document) -> Result<usize> {
         with_lock(&self.document, Access::Exclusive, || {
             self.remove_unused(doc)
@@ -114,12 +121,15 @@ impl IconStore {
 
     fn remove_unused(&self, doc: &Document) -> Result<usize> {
         let candidates = self.old_images()?;
-        // Visiting the tree is only worth it when something could go.
+        // Reading the file and visiting the trees are only worth it when
+        // something could go.
         if candidates.is_empty() {
             return Ok(0);
         }
-        let used: HashSet<PathBuf> = doc
-            .walk()
+        let on_disk = read_document(&self.document)?;
+        let used: HashSet<PathBuf> = [doc, &on_disk]
+            .into_iter()
+            .flat_map(|document| document.walk())
             .filter_map(|(_, node)| node.icon.as_ref())
             .filter_map(|icon| self.path_for(icon))
             .collect();

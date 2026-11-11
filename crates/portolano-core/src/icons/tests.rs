@@ -3,12 +3,20 @@ use tempfile::TempDir;
 
 use super::*;
 use crate::model::Node;
+use crate::store::Store;
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nnot really pixels";
 const GIF: &[u8] = b"GIF89a-not-really-pixels";
 
 fn icon_store(dir: &TempDir) -> IconStore {
     IconStore::for_document(&dir.path().join("portolano.json"))
+}
+
+/// The icon store of an empty document saved in `dir`, and its store.
+fn saved_document(dir: &TempDir) -> (Store, IconStore) {
+    let (store, _) = Store::create(dir.path().join("portolano.json"), "Portolano").unwrap();
+    let icons = store.icons();
+    (store, icons)
 }
 
 fn icons_dir(dir: &TempDir) -> PathBuf {
@@ -233,11 +241,12 @@ fn gc_without_an_icon_directory_removes_nothing() {
     assert_eq!(removed, 0);
 }
 
-// Depends on WP1: `gc` visits the tree with `Document::walk`.
+// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
+// and visits the trees (`Document::walk`).
 #[test]
 fn gc_removes_unused_images_and_keeps_used_ones() {
     let dir = TempDir::new().unwrap();
-    let store = icon_store(&dir);
+    let (_document, store) = saved_document(&dir);
     let used = add_old(&store, PNG);
     let unused = add_old(&store, GIF);
 
@@ -248,11 +257,12 @@ fn gc_removes_unused_images_and_keeps_used_ones() {
     assert!(!store.path_for(&unused).unwrap().exists());
 }
 
-// Depends on WP1: `gc` visits the tree with `Document::walk`.
+// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
+// and visits the trees (`Document::walk`).
 #[test]
 fn gc_leaves_files_it_did_not_store() {
     let dir = TempDir::new().unwrap();
-    let store = icon_store(&dir);
+    let (_document, store) = saved_document(&dir);
     add_old(&store, PNG);
     let foreign = icons_dir(&dir).join("README.txt");
     fs::write(&foreign, "not an icon").unwrap();
@@ -301,4 +311,48 @@ fn adding_an_existing_image_refreshes_its_modification_time() {
 
     assert!(modified(&path) > before);
     assert_eq!(fs::read(&path).unwrap(), PNG);
+}
+
+// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
+// and visits the trees (`Document::walk`).
+#[test]
+fn gc_with_a_stale_document_keeps_an_image_used_by_the_file_on_disk() {
+    let dir = TempDir::new().unwrap();
+    let (_document, store) = saved_document(&dir);
+    let stale = Document::new("Portolano");
+    let icon = add_old(&store, PNG);
+    let mut current = document_using(icon.clone());
+    // Saved by another process, which loaded the file before the icon existed.
+    let other = Store::open(dir.path().join("portolano.json")).unwrap();
+    other.save(&mut current).unwrap();
+
+    let removed = store.gc(&stale).unwrap();
+
+    assert_eq!(removed, 0);
+    assert!(store.path_for(&icon).unwrap().exists());
+}
+
+#[test]
+fn gc_removes_nothing_when_the_document_on_disk_is_invalid() {
+    let dir = TempDir::new().unwrap();
+    let (_document, store) = saved_document(&dir);
+    let icon = add_old(&store, PNG);
+    fs::write(dir.path().join("portolano.json"), "{ not json").unwrap();
+
+    let error = store.gc(&Document::new("Portolano")).unwrap_err();
+
+    assert!(matches!(error, Error::InvalidDocument { .. }));
+    assert!(store.path_for(&icon).unwrap().exists());
+}
+
+#[test]
+fn gc_removes_nothing_when_the_document_on_disk_is_missing() {
+    let dir = TempDir::new().unwrap();
+    let store = icon_store(&dir);
+    let icon = add_old(&store, PNG);
+
+    let error = store.gc(&Document::new("Portolano")).unwrap_err();
+
+    assert!(matches!(error, Error::Io { .. }));
+    assert!(store.path_for(&icon).unwrap().exists());
 }
