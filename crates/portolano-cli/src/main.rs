@@ -10,7 +10,9 @@
 )]
 mod args;
 mod commands;
+mod failure;
 mod output;
+mod prompt;
 
 use clap::Parser;
 
