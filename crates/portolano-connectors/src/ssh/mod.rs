@@ -3,7 +3,7 @@
 // Stub (WP0): the parameters are used once WP4 implements the bodies.
 #![expect(unused_variables)]
 
-mod askpass;
+pub mod askpass;
 mod settings;
 
 use portolano_core::{Document, Issue, Node};
