@@ -76,17 +76,14 @@ fn build_node(
     kind: NewNodeKind,
     secrets: NodeSecrets,
 ) -> Result<Node> {
-    let NodeSecrets {
-        password,
-        passphrase,
-        private_key,
-        properties,
-    } = secrets;
+    let login = LoginSecrets {
+        password: secrets.password,
+        passphrase: secrets.passphrase,
+        private_key: secrets.private_key,
+    };
     let mut new = match kind {
         NewNodeKind::Folder => {
-            refuse(path, password, SecretSlot::Password)?;
-            refuse(path, passphrase, SecretSlot::Passphrase)?;
-            refuse(path, private_key, SecretSlot::PrivateKey)?;
+            login.refuse_all(path)?;
             Node::folder(name)
         }
         NewNodeKind::Connection {
@@ -96,8 +93,7 @@ fn build_node(
             credential,
             settings,
         } => {
-            refuse(path, passphrase, SecretSlot::Passphrase)?;
-            refuse(path, private_key, SecretSlot::PrivateKey)?;
+            let password = login.password_only(path)?;
             let target = ConnectionTarget {
                 protocol,
                 host,
@@ -110,16 +106,10 @@ fn build_node(
             username,
             domain,
             key_file,
-        } => {
-            let secrets = CredentialSecrets {
-                password,
-                passphrase,
-                private_key,
-            };
-            build_credential(change, name, username, domain, key_file, secrets)?
-        }
+        } => build_credential(change, name, username, domain, key_file, login)?,
     };
-    let property_refs = properties
+    let property_refs = secrets
+        .properties
         .into_iter()
         .map(|(name, secret)| (name, change.add_secret(secret)))
         .collect();
@@ -167,11 +157,26 @@ fn build_connection(
     Ok(node)
 }
 
-/// The secrets of a new credential.
-struct CredentialSecrets {
+/// The login secrets typed for a new node.
+struct LoginSecrets {
     password: Option<portolano_core::Secret>,
     passphrase: Option<portolano_core::Secret>,
     private_key: Option<portolano_core::Secret>,
+}
+
+impl LoginSecrets {
+    /// A folder holds none of them.
+    fn refuse_all(self, path: &str) -> Result<()> {
+        let password = self.password_only(path)?;
+        refuse(path, password, SecretSlot::Password)
+    }
+
+    /// A connection holds only a password, in its inline credential.
+    fn password_only(self, path: &str) -> Result<Option<portolano_core::Secret>> {
+        refuse(path, self.passphrase, SecretSlot::Passphrase)?;
+        refuse(path, self.private_key, SecretSlot::PrivateKey)?;
+        Ok(self.password)
+    }
 }
 
 fn build_credential(
@@ -180,7 +185,7 @@ fn build_credential(
     username: Option<String>,
     domain: Option<String>,
     key_file: Option<String>,
-    secrets: CredentialSecrets,
+    secrets: LoginSecrets,
 ) -> Result<Node> {
     let private_key = match (key_file.and_then(non_empty), secrets.private_key) {
         (Some(_), Some(_)) => return Err(OpsError::KeyFileAndVaultKey),

@@ -167,3 +167,19 @@ fn tags_and_properties_are_removed() {
     assert_eq!(node(&stored, "/Admin").tags, vec!["prod".to_owned()]);
     assert_eq!(node(&stored, "/Admin").description, None);
 }
+
+#[test]
+fn credential_together_with_a_user_is_refused() {
+    let mut stored = stored(vec![connection("web01", "ssh")]);
+    let result = edit(
+        &mut stored,
+        &MemoryVault::default(),
+        "/web01",
+        NodeEdit {
+            credential: Some(CredentialInput::Prompt),
+            username: Some("deploy".to_owned()),
+            ..NodeEdit::default()
+        },
+    );
+    assert!(matches!(result, Err(OpsError::CredentialWithLogin { .. })));
+}

@@ -133,6 +133,7 @@ fn ops_code(error: &OpsError) -> i32 {
         OpsError::Connect(error) => connect_code(error),
         OpsError::VaultFileConflict { .. }
         | OpsError::KeyFileAndVaultKey
+        | OpsError::CredentialWithLogin { .. }
         | OpsError::UnknownImportFormat { .. } => EXIT_USAGE,
         OpsError::NotAConnection { .. } => EXIT_CONNECT,
         OpsError::EmptyName

@@ -121,6 +121,13 @@ pub enum OpsError {
         reason: String,
     },
 
+    /// An edit gives a credential together with a user or a domain.
+    #[error("per '{path}' indica la credenziale oppure utente e dominio, non entrambi")]
+    CredentialWithLogin {
+        /// The node.
+        path: String,
+    },
+
     /// A field that this kind of node does not have.
     #[error("il campo '{field}' non si può modificare su '{path}'")]
     NotEditable {
