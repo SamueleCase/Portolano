@@ -132,17 +132,34 @@ mod tests {
         ));
     }
 
+    /// Deletes the test entry when dropped, so that a failed assertion does
+    /// not leave it in the user's keychain.
+    struct EntryCleanup<'a>(&'a SecretRef);
+
+    impl Drop for EntryCleanup<'_> {
+        fn drop(&mut self) {
+            if let Err(error) = KeychainVault.delete(self.0) {
+                eprintln!(
+                    "could not delete the test entry {} from the keychain: {error}",
+                    self.0.as_str()
+                );
+            }
+        }
+    }
+
     /// Touches the real system keychain, which may show an access prompt, so
     /// it runs only on request.
     #[test]
     #[ignore = "uses the system keychain: set PORTOLANO_TEST_KEYCHAIN=1 and pass --ignored"]
     fn keychain_creates_reads_and_deletes_an_entry() {
         if std::env::var("PORTOLANO_TEST_KEYCHAIN").as_deref() != Ok("1") {
+            eprintln!("skipped: set PORTOLANO_TEST_KEYCHAIN=1 to use the system keychain");
             return;
         }
         let vault = KeychainVault;
         // A fresh v4 UUID: the test account cannot clash with a real entry.
         let reference = SecretRef::new();
+        let _cleanup = EntryCleanup(&reference);
 
         vault
             .set(&reference, &Secret::new(SENTINEL.to_owned()))
