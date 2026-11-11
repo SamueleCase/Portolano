@@ -1,0 +1,35 @@
+[package]
+name = "portolano-cli"
+description = "Portolano command-line interface (the `portolano` binary)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "portolano"
+path = "src/main.rs"
+
+[dependencies]
+portolano-core.workspace = true
+portolano-connectors.workspace = true
+portolano-import.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+uuid.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+rpassword.workspace = true
+zeroize.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

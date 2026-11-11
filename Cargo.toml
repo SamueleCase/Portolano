@@ -1,0 +1,71 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[workspace.dependencies]
+# Internal crates
+portolano-core = { path = "crates/portolano-core" }
+portolano-connectors = { path = "crates/portolano-connectors" }
+portolano-import = { path = "crates/portolano-import" }
+
+# Serialization and data
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = "1.2.1"
+uuid = { version = "1.29.2", features = ["v4", "serde"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std", "serde"] }
+quick-xml = "0.42.0"
+base64 = "0.23.1"
+flate2 = "1.1.11"
+# Royal documents only need deflate: no C codecs (zstd, bzip2) and no AES.
+zip = { version = "9.5.1", default-features = false, features = ["deflate-flate2"] }
+hex = "0.4.3"
+
+# Errors
+thiserror = "2.0.21"
+anyhow = "1.0.104"
+
+# Secrets and cryptography
+# keyring 4: the `v1` feature selects the native store of each platform
+# (macOS Keychain, Windows Credential Manager, Linux Secret Service via zbus).
+keyring = { version = "4.2.0", default-features = false, features = ["v1"] }
+argon2 = "0.6.0"
+chacha20poly1305 = "0.11.0"
+getrandom = "0.4.3"
+sha2 = "0.11.1"
+zeroize = "1.9.1"
+rpassword = "7.5.4"
+
+# Filesystem and processes
+directories = "6.0.0"
+tempfile = "3.27.0"
+fd-lock = "4.0.4"
+which = "8.0.6"
+shell-words = "1.1.1"
+regex = "1.13.1"
+
+# CLI and logging
+clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+
+# Test-only
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+pretty_assertions = "1.4.1"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"
+
+# SPEC §11.3: no unwrap/expect/panic outside tests (clippy.toml allows them in tests).
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
