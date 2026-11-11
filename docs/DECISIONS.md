@@ -253,6 +253,39 @@ mock in `docs/ui/NOTE.md`.
 - **Motivo**: un limite esplicito e documentato è più chiaro di un errore di parsing a sorpresa; 50 livelli sono ben
   oltre l'uso reale (nei campioni la profondità è 3).
 
+### DEC-022 – API di `portolano-ops` e dettagli della CLI (piano di WP6, approvato dal PM)
+- **API**: approvata come proposta da WP6. Principi: nessuna stampa/TTY/exit; le funzioni che modificano lavorano su
+  una copia e sostituiscono il documento solo se tutto riesce; un unico percorso di salvataggio (segreti → icone →
+  documento, rollback dei segreti se il salvataggio fallisce, cancellazione dei segreti non più usati dopo il
+  salvataggio, con gli errori di pulizia riportati nell'esito); conferme e richieste all'utente come API in due fasi
+  (`preview_delete` → `delete`, `login_request` → `plan_connection`); vault aperto al primo uso (`LazyVault`);
+  `SessionVault` per DEC-016.3; `validate` con vault facoltativo (vault bloccato nella UI).
+1. `secret set` su un segreto già referenziato **sovrascrive la voce sul posto** senza cambiare il documento (il
+   documento può essere condiviso fra macchine con portachiavi diversi). Lo staging con riferimento nuovo resta
+   un'esigenza dell'editor della UI in FASE 2.
+2. `add ssh --key FILE`: la chiave va in `settings.options` come `IdentityFile=<path>` e `IdentitiesOnly=yes`
+   (`CredentialSpec::Inline` non ha un campo per la chiave). Limite: `show --resolved` non la mostra come chiave della
+   credenziale. Per una chiave riusabile si usa `add cred --key` più `--cred`.
+3. `--jump`: se il valore risolve a un nodo diventa `$ref` (deve essere una connessione `ssh`); `NotFound` senza `/`
+   né `@` iniziale → indirizzo; `NotFound` con `/` o `@` → errore; `Ambiguous` → errore.
+4. `missing_secret` ha severità **Warning** (multi-macchina: il documento è coerente, manca la voce nel vault locale).
+5. `add`, la rinomina di `edit` e `move` rifiutano un nome già usato da un fratello (`NameTaken`, confronto esatto);
+   l'import resta libero.
+6. `--vault-file`/`PORTOLANO_VAULT_FILE` senza `--vault`/`PORTOLANO_VAULT` implica il backend `file`; con
+   `--vault keychain` esplicito è un errore d'uso (exit 2).
+7. Codici d'uscita: 2 uso (clap, `--json` su un comando di scrittura); 3 non trovato/ambiguo; 4 validazione e input
+   che renderebbe invalidi documento o config; 5 vault (anche segreti rimasti dopo un salvataggio riuscito, con
+   avviso); 6 connessione prima del lancio; 1 il resto (inclusi riferimenti senza `--force`, cartella non vuota
+   senza `-r`, `ModifiedExternally`, `DocumentMissing`); altrimenti il codice del client.
+8. `relaunch_args` contiene anche i valori arrivati da variabili d'ambiente, con percorsi assoluti;
+   `PORTOLANO_VAULT_PASSWORD` non si passa mai.
+9. `import --verbose`: non offerto (l'importer conserva negli `items` solo i non `Imported`); limite annotato.
+10. `init --force` sovrascrive il documento (resta il `.bak`) e non tocca il vault: i segreti del vecchio documento
+    restano nel vault; da documentare nel README.
+- Limiti annotati: `secret set/clear` non raggiunge le credenziali inline dentro i `settings` (es. gateway RDP
+  importato) e l'`update` dell'import non le conserva; `config show` mostra le sezioni dei protocolli solo se
+  presenti nel file.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
