@@ -115,6 +115,20 @@ mod tests {
         }
     }
 
+    /// Fails the first time, then answers the test password.
+    struct FailsOnce(AtomicUsize);
+
+    impl MasterPasswordSource for FailsOnce {
+        fn master_password(&self, _creating: bool) -> Result<Secret, VaultError> {
+            if self.0.fetch_add(1, Ordering::SeqCst) == 0 {
+                return Err(VaultError::MasterPasswordUnavailable {
+                    reason: "annullato".to_owned(),
+                });
+            }
+            Ok(Secret::new("test-only-master-password".to_owned()))
+        }
+    }
+
     fn memory_vault() -> LazyVault {
         LazyVault::new(VaultSelection::Memory, Box::new(FailingSource))
     }
@@ -178,5 +192,20 @@ mod tests {
             Err(VaultError::MasterPasswordUnavailable { .. })
         ));
         assert!(!vault.is_open());
+    }
+
+    #[test]
+    fn vault_opens_on_the_use_after_a_failed_opening() {
+        let dir = tempfile::tempdir().unwrap();
+        let vault = LazyVault::new(
+            VaultSelection::File {
+                path: crate::testutil::fast_file_vault(dir.path()),
+            },
+            Box::new(FailsOnce(AtomicUsize::new(0))),
+        );
+        let reference = SecretRef::new();
+        assert!(vault.contains(&reference).is_err());
+        assert!(!vault.contains(&reference).unwrap());
+        assert!(vault.is_open());
     }
 }
