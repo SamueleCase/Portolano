@@ -209,6 +209,27 @@ mock in `docs/ui/NOTE.md`.
 - **Motivo**: l'app della FASE 2 esegue gli stessi flussi (import, validazione, eliminazione, segreti); senza una
   libreria Tauri dovrebbe duplicare la logica (SPEC §0: "il core va esposto come libreria pulita").
 
+### DEC-019 – Scelte dell'importer Royal sui campi [ipo] (proposte da WP5, approvate dal PM)
+1. Nomi di campo ipotizzati: `SecureGatewayID`, `RDSGatewayID`, `GatewayHostName`, `GatewayUsageMethod`,
+   `CustomProtectedField1..10`, `PrivateKeyContent` (con `PrivateKeyMode` ≠ 0), `Passphrase`. Ogni dato ricostruito
+   da questi campi lascia l'originale in `extra` e rende il nodo `Partial` ("campi Royal non verificati").
+   `GatewayUsageMethod`: 1/2 → gateway usato; 0/4 → nessun gateway; altro o assente → nessun gateway e `Partial`.
+2. `RoyalRDSGateway` diventa un nodo `Unsupported` (un `RdpGateway` non può riferirsi a un nodo); host e porta sono
+   copiati nelle connessioni che lo usano, la credenziale del gateway resta `Inherit`.
+3. I campi cifrati si riconoscono per nome (password, passphrase, secret, chiave incorporata, campi custom
+   protetti) e non vengono mai conservati, nemmeno nel `raw` dei nodi `Unsupported` (D3). Un campo cifrato non
+   gestito viene scartato e il nodo è `Partial`.
+4. La password si chiede solo per il modo di credenziale attivo; `CredentialPassword` con un altro modo si scarta.
+5. `DOMINIO\utente` si divide anche nelle credenziali inline (modo 2).
+6. Fermano l'import (`InvalidInput`): `ID` mancante, non valido o duplicato; `RoyalDocument` assente o ripetuto.
+   `ParentID` inesistente, non cartella o ciclico → nodo sotto la radice con warning.
+7. Valori non validi (porta, colore, date, immagine) restano in `extra` e contano fra i campi non mappati; un'immagine
+   non riconosciuta rende il nodo `Partial`. Con `CustomImage` e `CustomImageName` insieme vince l'immagine.
+8. Nei test d'integrazione un `#![allow]` di crate per `unwrap`/`expect`/`panic`, motivato (le funzioni di supporto
+   dei test non sono `#[test]`).
+- **Campioni reali**: con `PORTOLANO_SAMPLES_DIR=samples` dalla radice del repo il test di conteggio passa; i 7
+  `Partial` del documento con password sono le 7 password cifrate attese.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
