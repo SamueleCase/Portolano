@@ -22,6 +22,10 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 4. Per il WP in revisione: rieseguire i quality gate (SPEC §11.2) sul suo branch e ripetere la revisione
    indipendente prima del merge.
 
+## Seguiti da fare dopo l'integrazione dell'ondata 1
+- Test di WP2 sul segreto sentinella: usare `MemoryVault` (WP3) invece della verifica sul solo `SecretRef`.
+- Verifica dal vivo del prompt di `ssh-add` (DEC-015) con agent e chiave temporanei.
+
 ## Lavori rimandati
 - RDP integrato nell'app con IronRDP (DEC-013): dopo la UI della FASE 2.
 
