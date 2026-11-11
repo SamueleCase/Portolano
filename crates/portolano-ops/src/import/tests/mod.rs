@@ -273,3 +273,10 @@ fn unrecognized_file_is_refused() {
         Err(OpsError::UnrecognizedImportFile { .. })
     ));
 }
+
+#[test]
+fn request_debug_shows_the_length_of_the_input_only() {
+    let text = format!("{:?}", request(MINIMAL, ConflictPolicy::Fail));
+    assert!(text.contains(&format!("{} byte", MINIMAL.len())));
+    assert!(!text.contains("RTSZDocument"));
+}

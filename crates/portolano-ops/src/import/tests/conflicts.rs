@@ -193,3 +193,68 @@ fn update_with_new_secrets_deletes_the_replaced_ones() {
             .all(|reference| !vault.contains(reference).unwrap())
     );
 }
+
+/// Changes the saved document as the user would between two imports.
+fn edit_saved(stored: &mut Stored, edit: impl FnOnce(&mut Document)) {
+    let mut doc = stored.doc.clone();
+    edit(&mut doc);
+    stored.store.save(&mut doc).unwrap();
+    stored.doc = doc;
+}
+
+fn first_ssh_connection(doc: &Document) -> Uuid {
+    doc.walk()
+        .find(|(_, node)| node.as_connection().is_some_and(|c| c.protocol == "ssh"))
+        .map(|(_, node)| node.id)
+        .unwrap()
+}
+
+/// A workspace where `MINIMAL` was imported once.
+fn imported_once() -> (Stored, MemoryVault, ImportResult) {
+    let mut stored = stored(vec![]);
+    let vault = MemoryVault::default();
+    let first = run(
+        &mut stored,
+        &vault,
+        request(MINIMAL, ConflictPolicy::Fail),
+        &mut NonInteractive,
+    )
+    .unwrap();
+    (stored, vault, first)
+}
+
+#[test]
+fn update_refuses_a_change_of_kind() {
+    let (mut stored, vault, _) = imported_once();
+    let ssh = first_ssh_connection(&stored.doc);
+    edit_saved(&mut stored, |doc| {
+        doc.find_mut(ssh).unwrap().kind = Node::credential("x").kind;
+    });
+    let update = request(MINIMAL, ConflictPolicy::Update);
+    let result = run(&mut stored, &vault, update, &mut NonInteractive);
+    assert!(matches!(result, Err(OpsError::ImportKindChanged { .. })));
+}
+
+#[test]
+fn update_keeps_children_added_by_the_user() {
+    let (mut stored, vault, first) = imported_once();
+    let mine = Node::folder("Mia cartella");
+    let mine_id = mine.id;
+    edit_saved(&mut stored, |doc| {
+        doc.insert(Some(first.root), None, mine).unwrap();
+    });
+    let update = request(MINIMAL, ConflictPolicy::Update);
+    run(&mut stored, &vault, update, &mut NonInteractive).unwrap();
+    assert_eq!(stored.doc.parent_of(mine_id), Some(Some(first.root)));
+}
+
+#[test]
+fn update_leaves_a_moved_node_where_the_user_put_it() {
+    let (mut stored, vault, _) = imported_once();
+    let ssh = first_ssh_connection(&stored.doc);
+    edit_saved(&mut stored, |doc| doc.move_node(ssh, None, None).unwrap());
+    let update = request(MINIMAL, ConflictPolicy::Update);
+    let result = run(&mut stored, &vault, update, &mut NonInteractive).unwrap();
+    assert_eq!(stored.doc.parent_of(ssh), Some(None));
+    assert_eq!(result.inserted, 0);
+}

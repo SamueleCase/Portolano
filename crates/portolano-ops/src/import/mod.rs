@@ -8,6 +8,7 @@
 mod merge;
 mod remap;
 
+use std::fmt;
 use std::path::Path;
 
 use portolano_core::{Document, Icon, Node, Store, Vault};
@@ -18,6 +19,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::commit::{Change, CleanupFailure};
+use crate::nodes::collect_unused_icons;
 use crate::tree_util::{for_each_node_mut, location_path, node_path, subtree_ids};
 use crate::{OpsError, Result};
 
@@ -39,7 +41,6 @@ pub enum ConflictPolicy {
 }
 
 /// An import to insert.
-#[derive(Debug)]
 pub struct ImportRequest<'a> {
     /// The content of the file.
     pub input: &'a [u8],
@@ -56,6 +57,22 @@ pub struct ImportRequest<'a> {
     pub include_trash: bool,
     /// Do everything in memory and write nothing.
     pub dry_run: bool,
+}
+
+/// Shows the length of the input, not its content: a foreign document can
+/// hold encrypted secrets, which must not reach logs (D3).
+impl fmt::Debug for ImportRequest<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ImportRequest")
+            .field("input", &format_args!("{} byte", self.input.len()))
+            .field("file_name", &self.file_name)
+            .field("format", &self.format)
+            .field("into", &self.into)
+            .field("on_conflict", &self.on_conflict)
+            .field("include_trash", &self.include_trash)
+            .field("dry_run", &self.dry_run)
+            .finish()
+    }
 }
 
 /// The result of [`import`].
@@ -89,7 +106,8 @@ pub struct ImportResult {
 /// [`portolano_core::Error::NotAFolder`] for the destination,
 /// [`OpsError::ImportConflicts`], [`OpsError::ImportKindChanged`],
 /// [`OpsError::ImportTooDeep`], errors of the vault, the icon store and the
-/// store. On error nothing is written.
+/// store. On error the document and the vault are unchanged; images already
+/// stored are removed by a later cleanup of the unused icons.
 pub fn import(
     store: &Store,
     doc: &mut Document,
@@ -107,26 +125,20 @@ pub fn import(
         include_trash: request.include_trash,
     };
     let ImportOutcome {
-        mut root,
+        root,
         secrets,
         icons,
         report,
     } = importer.import(request.input, &options, prompter)?;
     let mut change = Change::from(doc);
     let mut warnings = Vec::new();
-    let mut root_id = root.id;
-    let (inserted, updated) = match request.on_conflict {
-        ConflictPolicy::Fail => {
-            refuse_conflicts(&change.doc, &root)?;
-            (insert(&mut change.doc, request.into, root)?, 0)
-        }
-        ConflictPolicy::NewIds => {
-            remap::regenerate_ids(&mut root)?;
-            root_id = root.id;
-            (insert(&mut change.doc, request.into, root)?, 0)
-        }
-        ConflictPolicy::Update => merge::merge(&mut change.doc, request.into, root, &mut warnings)?,
-    };
+    let placed = place(
+        &mut change.doc,
+        request.into,
+        request.on_conflict,
+        root,
+        &mut warnings,
+    )?;
     finish(
         store,
         vault,
@@ -134,15 +146,58 @@ pub fn import(
         change,
         Finish {
             report,
-            root: root_id,
-            inserted,
-            updated,
+            root: placed.root,
+            inserted: placed.inserted,
+            updated: placed.updated,
             secrets,
             icons,
             warnings,
             dry_run: request.dry_run,
         },
     )
+}
+
+/// Where the imported tree went.
+struct Placed {
+    root: Uuid,
+    inserted: usize,
+    updated: usize,
+}
+
+/// Puts the imported tree in `doc` under `into`, resolving the ids that
+/// already exist as `policy` says.
+fn place(
+    doc: &mut Document,
+    into: Option<Uuid>,
+    policy: ConflictPolicy,
+    mut root: Node,
+    warnings: &mut Vec<String>,
+) -> Result<Placed> {
+    let (inserted, updated) = match policy {
+        ConflictPolicy::Fail => {
+            refuse_conflicts(doc, &root)?;
+            (0, 0)
+        }
+        ConflictPolicy::NewIds => {
+            remap::regenerate_ids(&mut root)?;
+            (0, 0)
+        }
+        ConflictPolicy::Update => {
+            let root_id = root.id;
+            let (inserted, updated) = merge::merge(doc, into, root, warnings)?;
+            return Ok(Placed {
+                root: root_id,
+                inserted,
+                updated,
+            });
+        }
+    };
+    let root_id = root.id;
+    Ok(Placed {
+        root: root_id,
+        inserted: inserted + insert(doc, into, root)?,
+        updated,
+    })
 }
 
 /// The importer chosen by `--format`, or the one that recognizes the file.
@@ -234,6 +289,8 @@ fn finish(
     change.new_secrets = finish.secrets;
     let icons = finish.icons;
     let committed = change.commit(store, vault, doc, |doc| store_icons(store, doc, icons))?;
+    // An update may have replaced custom icons of existing nodes.
+    collect_unused_icons(store, doc);
     result.cleanup_failures = committed.cleanup_failures;
     Ok(result)
 }

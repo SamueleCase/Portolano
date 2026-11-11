@@ -20,8 +20,8 @@ use crate::{OpsError, Result};
 /// Returns the numbers of inserted and replaced nodes.
 ///
 /// # Errors
-/// [`OpsError::ImportKindChanged`] if a folder would become another kind of
-/// node or the opposite, insertion errors.
+/// [`OpsError::ImportKindChanged`] if a node would change kind (folder,
+/// connection, credential, unsupported), insertion errors.
 pub(super) fn merge(
     doc: &mut Document,
     into: Option<Uuid>,
@@ -53,7 +53,7 @@ fn place(
     let path = node_path(doc, id);
     match doc.find_mut(id) {
         Some(existing) => {
-            if existing.is_folder() != node.is_folder() {
+            if mem::discriminant(&existing.kind) != mem::discriminant(&node.kind) {
                 return Err(OpsError::ImportKindChanged { path });
             }
             keep_secrets(existing, &mut node);

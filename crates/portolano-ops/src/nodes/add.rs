@@ -28,7 +28,9 @@ use crate::{OpsError, Result};
 /// [`OpsError::EmptyHost`], [`OpsError::InvalidPort`],
 /// [`OpsError::NotACredential`], [`OpsError::SecretNotApplicable`],
 /// [`OpsError::KeyFileAndVaultKey`], [`OpsError::InvalidColor`], errors of
-/// the vault, the icon store and the store. On error nothing is written.
+/// the vault, the icon store and the store. On error the document and the vault
+/// are unchanged; an image already stored is removed by a later cleanup of
+/// the unused icons.
 pub fn add_node(
     store: &Store,
     doc: &mut Document,

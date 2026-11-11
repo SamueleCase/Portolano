@@ -194,11 +194,9 @@ pub enum OpsError {
         conflicts: Vec<(Uuid, String)>,
     },
 
-    /// An update would turn a folder into another kind of node, or the
-    /// opposite.
-    #[error(
-        "l'import cambierebbe il tipo di '{path}' (cartella / non cartella): usa un'altra strategia per i conflitti"
-    )]
+    /// An update would change the kind of a node (folder, connection,
+    /// credential, unsupported).
+    #[error("l'import cambierebbe il tipo di '{path}': usa un'altra strategia per i conflitti")]
     ImportKindChanged {
         /// The existing node.
         path: String,
