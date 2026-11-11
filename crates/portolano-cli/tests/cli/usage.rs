@@ -94,3 +94,19 @@ fn verbose_logs_contain_no_secret() {
         assert!(!output.contains(TEST_MASTER_PASSWORD));
     }
 }
+
+#[test]
+fn invalid_port_is_a_usage_error_in_italian() {
+    Workspace::new()
+        .run(&[
+            "add",
+            "ssh",
+            "/web01",
+            "--host",
+            "web01.example.com",
+            "--port",
+            "abc",
+        ])
+        .code(2)
+        .stderr(contains("cifra non valida"));
+}

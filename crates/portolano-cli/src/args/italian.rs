@@ -2,11 +2,16 @@
 //! English, so the command is adjusted before parsing (headings, help and
 //! version flags) and the main errors are rewritten, keeping exit code 2.
 
+use std::num::{IntErrorKind, ParseIntError};
+
 use clap::error::{ContextKind, ErrorKind};
 use clap::{Arg, ArgAction, Command, CommandFactory, FromArgMatches};
 
 use super::Cli;
 use crate::failure::EXIT_USAGE;
+
+/// What clap writes between a number and the range it is not in.
+const CLAP_OUT_OF_RANGE: &str = " is not in ";
 
 /// Parses the process arguments. On a usage error, or after printing the
 /// help or the version, returns the exit code instead.
@@ -116,7 +121,7 @@ fn message(error: &clap::Error) -> String {
         }
         ErrorKind::ValueValidation => {
             let reason = std::error::Error::source(error)
-                .map(|source| format!(": {source}"))
+                .map(|source| format!(": {}", reason(source)))
                 .unwrap_or_default();
             format!(
                 "valore non valido '{}' per {}{reason}",
@@ -135,6 +140,27 @@ fn message(error: &clap::Error) -> String {
         ),
         _ => "uso errato degli argomenti".to_owned(),
     }
+}
+
+/// Why a value was rejected: our parsers already explain it in Italian;
+/// the numeric parsers of the standard library and of clap in English.
+fn reason(source: &(dyn std::error::Error + 'static)) -> String {
+    let Some(error) = source.downcast_ref::<ParseIntError>() else {
+        let text = source.to_string();
+        // Message of clap's integer parser: "<value> is not in <range>".
+        return match text.split_once(CLAP_OUT_OF_RANGE) {
+            Some((_, range)) => format!("valore fuori intervallo ({range})"),
+            None => text,
+        };
+    };
+    match error.kind() {
+        IntErrorKind::Empty => "valore vuoto",
+        IntErrorKind::InvalidDigit => "cifra non valida",
+        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => "valore fuori intervallo",
+        IntErrorKind::Zero => "lo zero non è ammesso",
+        _ => "numero non valido",
+    }
+    .to_owned()
 }
 
 #[cfg(test)]
@@ -202,5 +228,64 @@ mod tests {
         ] {
             assert!(help.contains(heading), "{heading}");
         }
+    }
+
+    #[test]
+    fn numbers_too_large_for_the_type_are_explained_in_italian() {
+        assert_eq!(
+            error_of(&[
+                "portolano",
+                "add",
+                "ssh",
+                "/x",
+                "--host",
+                "h",
+                "--port",
+                "70000"
+            ]),
+            "valore non valido '70000' per --port <PORT>: valore fuori intervallo (0..=65535)"
+        );
+    }
+
+    #[test]
+    fn invalid_digits_are_explained_in_italian() {
+        assert_eq!(
+            error_of(&[
+                "portolano",
+                "add",
+                "ssh",
+                "/x",
+                "--host",
+                "h",
+                "--port",
+                "abc"
+            ]),
+            "valore non valido 'abc' per --port <PORT>: cifra non valida"
+        );
+    }
+
+    #[test]
+    fn numbers_out_of_range_are_explained_in_italian() {
+        assert_eq!(
+            error_of(&[
+                "portolano",
+                "add",
+                "rdp",
+                "/x",
+                "--host",
+                "h",
+                "--scale",
+                "99999999999"
+            ]),
+            "valore non valido '99999999999' per --scale <N>: valore fuori intervallo (0..=4294967295)"
+        );
+    }
+
+    #[test]
+    fn empty_numbers_are_explained_in_italian() {
+        assert_eq!(
+            error_of(&["portolano", "tree", "--depth", ""]),
+            "valore non valido '' per --depth <N>: valore vuoto"
+        );
     }
 }
