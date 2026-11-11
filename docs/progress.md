@@ -150,6 +150,9 @@ verificati") e conservano l'originale in `extra`. Per chiuderle serve il documen
 - Un nodo chiamato come un riferimento per id è raggiungibile solo per id (DEC-014.3).
 - I log dei client e i `.rdp` si cancellano al `connect` successivo dopo 10 minuti.
 
+### Sicurezza per la UI (FASE 2)
+- Le icone SVG importate si mostrano solo come `<img>`, mai inserite nel DOM (XSS memorizzato, DEC-024).
+
 ### Esigenze della UI (FASE 2) aggiungibili senza rompere il core
 Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
 - traccia dell'ereditarietà della credenziale (`resolve_trace`: da quale cartella arriva);
