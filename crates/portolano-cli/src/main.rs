@@ -27,6 +27,10 @@ use crate::context::Context;
 use crate::failure::CliError;
 
 fn main() {
+    // Before clap: `ssh` passes its prompt, not Portolano's arguments.
+    if let Some(code) = commands::askpass::run_if_invoked() {
+        exit(code);
+    }
     let cli = Cli::parse();
     init_logging(cli.global.verbose);
     let code = run(cli).unwrap_or_else(|error| failure::report(&error));
