@@ -2,6 +2,7 @@
 //! rendering, contains the value of a secret. The secrets hold a sentinel in
 //! an in-memory vault; every kind of plan is built and inspected.
 
+use portolano_core::vault::MemoryVault;
 use portolano_core::{CredentialSpec, PrivateKey, SecretRef, Vault};
 use serde_json::json;
 
@@ -9,7 +10,7 @@ use crate::protocol::{ConnectOptions, Protocol};
 use crate::rdp::{RdpClient, RdpProtocol};
 use crate::ssh::SshProtocol;
 use crate::testutil::{
-    SENTINEL, TestVault, assert_no_secret, connection_node, credential_node, document, plan_with,
+    SENTINEL, assert_no_secret, connection_node, credential_node, document, plan_with, vault_with,
 };
 
 #[test]
@@ -17,7 +18,7 @@ fn no_plan_exposes_a_secret_of_the_vault() {
     let password = SecretRef::new();
     let key = SecretRef::new();
     let passphrase = SecretRef::new();
-    let vault = TestVault::with(&[
+    let vault = vault_with(&[
         (&password, SENTINEL),
         (&key, SENTINEL),
         (&passphrase, SENTINEL),
@@ -156,7 +157,7 @@ mod runtime {
         node_id: Uuid,
         protocol: &dyn Protocol,
         env: &Environment,
-        vault: &TestVault,
+        vault: &MemoryVault,
     ) {
         let config = AppConfig::default();
         let options = ConnectOptions {
@@ -194,7 +195,7 @@ mod runtime {
         let env = probe_environment(&dir);
         let password = SecretRef::new();
         let passphrase = SecretRef::new();
-        let vault = TestVault::with(&[(&password, SENTINEL), (&passphrase, SENTINEL)]);
+        let vault = vault_with(&[(&password, SENTINEL), (&passphrase, SENTINEL)]);
         let jump_cred = credential_node("Jump", "jumper", Some(&password), None);
         let key = PrivateKey::File {
             path: "/keys/id_test".into(),
@@ -232,7 +233,7 @@ mod runtime {
         let dir = tempfile::tempdir().unwrap();
         let env = probe_environment(&dir);
         let password = SecretRef::new();
-        let vault = TestVault::with(&[(&password, SENTINEL)]);
+        let vault = vault_with(&[(&password, SENTINEL)]);
         let cred = credential_node("Admin", "administrator", Some(&password), None);
         let conn = connection_node(
             "rdp",

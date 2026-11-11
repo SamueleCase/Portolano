@@ -10,7 +10,9 @@ use tempfile::TempDir;
 
 use super::*;
 use crate::plan::AskpassEntry;
-use crate::testutil::{SENTINEL, TestVault};
+use portolano_core::vault::MemoryVault;
+
+use crate::testutil::{SENTINEL, vault_with};
 
 /// A script in a temporary directory that receives the output file as `$1`.
 fn script(dir: &TempDir, body: &str) -> PathBuf {
@@ -55,7 +57,7 @@ fn password_askpass(secret: &SecretRef) -> AskpassSpec {
     }
 }
 
-fn execute_in(plan: &LaunchPlan, vault: &TestVault, temp: &TempDir) -> Result<i32, ConnectError> {
+fn execute_in(plan: &LaunchPlan, vault: &MemoryVault, temp: &TempDir) -> Result<i32, ConnectError> {
     let files = TempFiles::new(temp.path().join("files"));
     prepare_with(plan, vault, &AppConfig::default(), files)?.launch()
 }
@@ -70,7 +72,7 @@ fn exit_code_of_the_program_is_returned() {
         None,
     );
 
-    let code = execute_in(&plan, &TestVault::default(), &temp).unwrap();
+    let code = execute_in(&plan, &MemoryVault::default(), &temp).unwrap();
 
     assert_eq!(code, 7);
 }
@@ -80,7 +82,7 @@ fn stdin_secret_is_written_with_a_newline_and_closed() {
     let temp = tempfile::tempdir().unwrap();
     let output = temp.path().join("stdin.txt");
     let reference = SecretRef::new();
-    let vault = TestVault::with(&[(&reference, SENTINEL)]);
+    let vault = vault_with(&[(&reference, SENTINEL)]);
     // `cat` ends only when stdin is closed.
     let program = script(&temp, "cat > \"$1\"");
     let plan = run(
@@ -102,7 +104,7 @@ fn secrets_never_reach_argv_or_environment_of_the_child() {
     let output = temp.path().join("seen.txt");
     let password = SecretRef::new();
     let stdin = SecretRef::new();
-    let vault = TestVault::with(&[(&password, SENTINEL), (&stdin, SENTINEL)]);
+    let vault = vault_with(&[(&password, SENTINEL), (&stdin, SENTINEL)]);
     let program = script(
         &temp,
         "out=\"$1\"; env > \"$out\"; printf '%s\\n' \"$@\" >> \"$out\"; cat > /dev/null",
@@ -128,7 +130,7 @@ fn askpass_socket_is_removed_when_the_program_exits() {
     let temp = tempfile::tempdir().unwrap();
     let output = temp.path().join("socket.txt");
     let password = SecretRef::new();
-    let vault = TestVault::with(&[(&password, SENTINEL)]);
+    let vault = vault_with(&[(&password, SENTINEL)]);
     let program = script(
         &temp,
         "test -S \"$PORTOLANO_ASKPASS_SOCK\" && echo \"$PORTOLANO_ASKPASS_SOCK\" > \"$1\"",
@@ -151,7 +153,7 @@ fn askpass_socket_is_removed_when_the_program_exits() {
 fn ssh_askpass_is_the_program_of_the_plan() {
     let temp = tempfile::tempdir().unwrap();
     let password = SecretRef::new();
-    let vault = TestVault::with(&[(&password, SENTINEL)]);
+    let vault = vault_with(&[(&password, SENTINEL)]);
     let plan = run(
         PathBuf::from("/usr/bin/true"),
         vec![],
@@ -179,7 +181,7 @@ fn ssh_askpass_is_the_program_of_the_plan() {
 fn prepared_launch_exposes_the_askpass_environment_until_dropped() {
     let temp = tempfile::tempdir().unwrap();
     let password = SecretRef::new();
-    let vault = TestVault::with(&[(&password, SENTINEL)]);
+    let vault = vault_with(&[(&password, SENTINEL)]);
     let plan = run(
         PathBuf::from("/usr/bin/true"),
         vec![],
@@ -212,7 +214,7 @@ fn prepared_launch_exposes_the_askpass_environment_until_dropped() {
 fn prepared_launch_holds_the_stdin_secret_and_no_secret_in_args_or_env() {
     let temp = tempfile::tempdir().unwrap();
     let reference = SecretRef::new();
-    let vault = TestVault::with(&[(&reference, SENTINEL)]);
+    let vault = vault_with(&[(&reference, SENTINEL)]);
     let plan = run(
         PathBuf::from("/usr/bin/true"),
         vec!["/v:192.0.2.10".into()],
@@ -250,7 +252,7 @@ fn missing_secret_is_reported_before_starting_anything() {
         None,
     );
 
-    let result = execute_in(&plan, &TestVault::default(), &temp);
+    let result = execute_in(&plan, &MemoryVault::default(), &temp);
 
     assert!(
         matches!(result, Err(ConnectError::MissingSecret { reference: ref missing }) if *missing == reference),
@@ -284,7 +286,7 @@ fn temporary_file_path_replaces_its_placeholder() {
         warnings: vec![],
     };
 
-    let code = execute_in(&plan, &TestVault::default(), &temp).unwrap();
+    let code = execute_in(&plan, &MemoryVault::default(), &temp).unwrap();
 
     assert_eq!(code, 0);
     assert_eq!(
@@ -306,7 +308,7 @@ fn plan_without_temporary_files_does_not_clean_the_directory() {
         .unwrap();
     let plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);
 
-    execute_in(&plan, &TestVault::default(), &temp).unwrap();
+    execute_in(&plan, &MemoryVault::default(), &temp).unwrap();
 
     assert!(stale.exists());
 }
@@ -324,7 +326,7 @@ fn detached_program_returns_zero_without_waiting() {
         *wait = false;
     }
 
-    let code = execute_in(&plan, &TestVault::default(), &temp).unwrap();
+    let code = execute_in(&plan, &MemoryVault::default(), &temp).unwrap();
 
     assert_eq!(code, 0);
 }
@@ -334,7 +336,7 @@ fn detached_program_gets_its_stdin_secret_and_runs_to_completion() {
     let temp = tempfile::tempdir().unwrap();
     let output = temp.path().join("detached.txt");
     let reference = SecretRef::new();
-    let vault = TestVault::with(&[(&reference, SENTINEL)]);
+    let vault = vault_with(&[(&reference, SENTINEL)]);
     let program = script(
         &temp,
         "echo noise; cat > \"$1.tmp\" && mv \"$1.tmp\" \"$1\"",
@@ -363,7 +365,7 @@ fn detached_program_gets_its_stdin_secret_and_runs_to_completion() {
 fn empty_plan_is_rejected() {
     let temp = tempfile::tempdir().unwrap();
 
-    let result = execute_in(&LaunchPlan::default(), &TestVault::default(), &temp);
+    let result = execute_in(&LaunchPlan::default(), &MemoryVault::default(), &temp);
 
     assert!(
         matches!(result, Err(ConnectError::InvalidPlan { .. })),
@@ -384,7 +386,7 @@ fn command_before_the_last_step_is_rejected_without_running() {
     let mut plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);
     plan.steps.insert(0, first.steps[0].clone());
 
-    let result = execute_in(&plan, &TestVault::default(), &temp);
+    let result = execute_in(&plan, &MemoryVault::default(), &temp);
 
     assert!(
         matches!(result, Err(ConnectError::InvalidPlan { .. })),
@@ -398,7 +400,7 @@ fn missing_program_is_a_spawn_error() {
     let temp = tempfile::tempdir().unwrap();
     let plan = run(temp.path().join("missing"), vec![], None, None);
 
-    let result = execute_in(&plan, &TestVault::default(), &temp);
+    let result = execute_in(&plan, &MemoryVault::default(), &temp);
 
     assert!(
         matches!(result, Err(ConnectError::Spawn { .. })),

@@ -1,13 +1,12 @@
 //! Builders and fixtures shared by the tests of the crate. Only example hosts
 //! (RFC 2606, RFC 5737) and fake users (SPEC §1.3).
 
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
 
+use portolano_core::vault::MemoryVault;
 use portolano_core::{
     AppConfig, CredentialOrigin, CredentialSpec, Document, Node, NodeKind, PrivateKey,
-    ResolvedCredential, Secret, SecretRef, Vault, VaultError,
+    ResolvedCredential, Secret, SecretRef, Vault,
 };
 use serde_json::Value;
 use uuid::Uuid;
@@ -147,45 +146,13 @@ pub(crate) fn assert_no_secret(plan: &LaunchPlan, secret: &str) {
     }
 }
 
-/// A vault in memory for the tests of this crate.
-#[derive(Default)]
-pub(crate) struct TestVault {
-    entries: Mutex<HashMap<SecretRef, String>>,
-}
-
-impl TestVault {
-    /// A vault with one entry per `(reference, value)`.
-    pub(crate) fn with(entries: &[(&SecretRef, &str)]) -> TestVault {
-        let vault = TestVault::default();
-        for (reference, value) in entries {
-            vault
-                .set(reference, &Secret::new((*value).to_owned()))
-                .unwrap();
-        }
+/// An in-memory vault with one entry per `(reference, value)`.
+pub(crate) fn vault_with(entries: &[(&SecretRef, &str)]) -> MemoryVault {
+    let vault = MemoryVault::default();
+    for (reference, value) in entries {
         vault
+            .set(reference, &Secret::new((*value).to_owned()))
+            .unwrap();
     }
-}
-
-impl Vault for TestVault {
-    fn backend(&self) -> &'static str {
-        "memory"
-    }
-
-    fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
-        let entries = self.entries.lock().unwrap();
-        Ok(entries
-            .get(reference)
-            .map(|value| Secret::new(value.clone())))
-    }
-
-    fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
-        let mut entries = self.entries.lock().unwrap();
-        entries.insert(reference.clone(), secret.expose().to_owned());
-        Ok(())
-    }
-
-    fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
-        self.entries.lock().unwrap().remove(reference);
-        Ok(())
-    }
+    vault
 }
