@@ -2,11 +2,6 @@
 //! directories, the file vault with the test master password, and probe
 //! scripts instead of real clients.
 
-#![allow(
-    dead_code,
-    unused_imports,
-    reason = "helpers used by tests added in the following commits"
-)]
 // Test code: clippy.toml allows these in `#[test]` functions only, while the
 // shared helpers of an integration test crate must fail loudly too.
 #![cfg(unix)]
@@ -14,6 +9,8 @@
 
 mod connect;
 mod document;
+mod import;
 mod nodes;
 mod secrets;
 mod testutil;
+mod validate;
