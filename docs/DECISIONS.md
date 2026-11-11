@@ -112,6 +112,26 @@ Risposta dell'utente: "Va bene b". Interpretata come approvazione di tutte le ra
 - **Motivo**: scelta dell'utente; il core attuale (modello, vault, piani di lancio) resta la base anche per la
   versione integrata.
 
+### DEC-014 – Dettagli di percorsi e riferimenti (domande di WP1, decise dal PM)
+1. **Radice**: si aggiunge `pub fn resolve_location(&self, path: &str) -> Result<Option<Uuid>>`, dove `None` è
+   la radice (coerente con `children(Option<Uuid>)` e `move_node(.., Option<Uuid>, ..)`). `resolve_path("/")`
+   restituisce `InvalidPath` ("la radice non è un nodo"). La CLI usa `resolve_location` dove la radice è un
+   valore valido (`tree /`, `list /`, `move X /`).
+2. **`@id` dopo il primo segmento**: si cerca fra i **discendenti** (a qualsiasi profondità) dei candidati
+   correnti; in prima posizione equivale a tutto il documento.
+3. **Nomi che sembrano un id**: è un riferimento per id solo `@` + UUID o `@` + ≥ 6 cifre esadecimali; il resto è
+   un nome. Un nodo chiamato esattamente come un riferimento per id è raggiungibile solo per id (limite accettato,
+   nessun escape `\@`).
+4. **`references_to` e `ByName`**: conta un `ByName` che **risolve** al target secondo il §4.3 (incluso il
+   fallback case-insensitive), così `delete` non lascia riferimenti rotti senza avviso.
+5. **`secret_refs_in` e i `settings`**: il core cerca anche nei `settings` gli oggetti nella forma di una propria
+   `CredentialSpec::Inline` (`"mode": "inline"`) e ne raccoglie la `password`. È il formato di un tipo del core,
+   come la convenzione `$ref`, quindi il core non conosce i protocolli; evita segreti orfani nel vault quando si
+   cancella una connessione RDP con gateway inline (possibile da import).
+6. **Forma di `path_of`**: con lo `/` iniziale (`/Clienti/ACME/web01`), senza il nome del documento.
+- Inoltre approvato: escape sconosciuti, `\` finale e `/` finale danno `InvalidPath`; tutti i codici di
+  `validate` del core hanno severità `Error`.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
