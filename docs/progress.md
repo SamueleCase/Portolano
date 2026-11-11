@@ -47,4 +47,9 @@ Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
 - operazione "Duplica" che rigenera id e `SecretRef` (DEC-016.4);
 - estensione del file del documento (`.portolano` nel mock, `portolano.json` nella SPEC) da decidere per
   l'associazione dei file;
-- "utente proposto" per la modalità "chiedi all'avvio".
+- "utente proposto" per la modalità "chiedi all'avvio";
+- segreti dell'editor in staging: tenuti in memoria come `Secret` fino al Salva, poi `vault.set` → `save` con
+  rollback; una sostituzione usa un nuovo `SecretRef` e il vecchio si cancella dopo il salvataggio; "Cancella"
+  differito al Salva (evita segreti orfani nel Keychain dopo Annulla);
+- salvataggio dell'editor dopo `ModifiedExternally`: modifiche tenute come patch e riapplicate dopo il reload;
+- "Ricontrolla" con il vault bloccato: una sola nota invece di un `missing_secret` per ogni password.

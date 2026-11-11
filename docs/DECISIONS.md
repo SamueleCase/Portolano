@@ -191,6 +191,24 @@ mock in `docs/ui/NOTE.md`.
   un file manomesso non blocca il processo; abilitata la feature `zeroize` di `chacha20poly1305` e `argon2`; il
   modulo `vault/file.rs` è diviso in sottomoduli `vault/file/*.rs`.
 
+### DEC-018 – Eliminazione e orchestrazione riusabile dall'app (decise dal PM, dal mock aggiornato)
+1. **Regola di `delete`** (sostituisce la riga `delete` del §10.2 per la parte sui riferimenti): si contano i
+   riferimenti **da fuori** del sottoalbero eliminato verso **qualunque** nodo del sottoalbero (credenziali, jump
+   host, …), usando `references_to`. Senza `--force` l'eliminazione si rifiuta per ogni tipo di nodo, con l'elenco
+   dei riferimenti. Con `--force`: per ogni credenziale del sottoalbero si chiama `detach_credential_references`
+   (i nodi passano a `Prompt`, DEC-016.5); gli altri riferimenti (es. `$ref` dei jump) restano e `validate` li
+   segnala come `dangling_ref`, così il core non conosce i protocolli. Restano invariati `-r`, `-y` e la
+   cancellazione dei segreti del sottoalbero dopo il salvataggio.
+2. **Orchestrazione in una libreria**: le operazioni che la SPEC assegna alla CLI e che l'app dovrà rifare
+   (inserimento dell'import §8.4 con conflitti, ordine segreti → icone → documento e rollback; composizione di
+   `validate` con protocolli e `missing_secret`; `delete` con riferimenti e segreti; `secret set/clear`; `add`/`edit`
+   con i segreti) vanno in un nuovo crate **`portolano-ops`** (`crates/portolano-ops`, dipende da core, connectors,
+   import). Funzioni pubbliche senza stampe né TTY: ricevono `&Store`, `&dyn Vault`, i registry e callback per
+   prompt e conferme, e restituiscono risultati strutturati. La CLI (`portolano-cli`) dipende da `portolano-ops` e i
+   suoi `commands/*.rs` sono adattatori sottili (parsing, I/O, output). Entrambi i crate sono di WP6.
+- **Motivo**: l'app della FASE 2 esegue gli stessi flussi (import, validazione, eliminazione, segreti); senza una
+  libreria Tauri dovrebbe duplicare la logica (SPEC §0: "il core va esposto come libreria pulita").
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
