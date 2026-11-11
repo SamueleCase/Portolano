@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
-use crate::royal::tree::{Tree, TreeNode};
+use crate::royal::tree::Tree;
 use crate::royal::types;
 use crate::royal::xml::RawObject;
 
@@ -25,6 +25,8 @@ pub(super) struct References {
 }
 
 impl References {
+    /// Every object of the tree is imported unless it is in a skipped trash,
+    /// so a flat scan is enough.
     pub(super) fn collect(objects: &[RawObject], tree: &Tree, include_trash: bool) -> Self {
         let mut references = Self {
             in_file: tree.ids.iter().copied().collect(),
@@ -32,22 +34,15 @@ impl References {
             secure_gateways: HashSet::new(),
             rds_gateways: HashMap::new(),
         };
-        references.add_subtree(objects, &tree.ids, &tree.root, include_trash);
+        for (index, object) in objects.iter().enumerate() {
+            if !tree.is_skipped_trash(index, include_trash) {
+                references.add(object, tree.ids[index]);
+            }
+        }
         references
     }
 
-    fn add_subtree(
-        &mut self,
-        objects: &[RawObject],
-        ids: &[Uuid],
-        node: &TreeNode,
-        include_trash: bool,
-    ) {
-        let object = &objects[node.object];
-        if is_skipped_trash(object, include_trash) {
-            return;
-        }
-        let id = ids[node.object];
+    fn add(&mut self, object: &RawObject, id: Uuid) {
         match object.type_name.as_str() {
             types::CREDENTIAL => {
                 self.credentials.insert(id);
@@ -69,13 +64,5 @@ impl References {
             }
             _ => {}
         }
-        for child in &node.children {
-            self.add_subtree(objects, ids, child, include_trash);
-        }
     }
-}
-
-/// Whether the object is the trash and the trash is not imported.
-pub(super) fn is_skipped_trash(object: &RawObject, include_trash: bool) -> bool {
-    object.type_name == types::TRASH && !include_trash
 }

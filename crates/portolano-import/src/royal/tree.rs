@@ -2,8 +2,9 @@
 //! parents from `ParentID`, siblings ordered by numeric `PositionNr` and then
 //! by file order.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
+use portolano_core::MAX_DEPTH;
 use uuid::Uuid;
 
 use super::xml::RawObject;
@@ -25,12 +26,27 @@ pub(super) struct Tree {
     pub(super) root: TreeNode,
     /// The `ID` of each object, by index.
     pub(super) ids: Vec<Uuid>,
+    /// Whether each object, by index, is the trash or is in it according
+    /// to its `ParentID`s, wherever it ended up in the tree.
+    pub(super) in_trash: Vec<bool>,
+    /// Objects moved under the root because they were deeper than
+    /// [`MAX_DEPTH`] (DEC-021).
+    pub(super) too_deep: HashSet<usize>,
     /// Objects moved under the root, with the reason.
     pub(super) warnings: Vec<String>,
 }
 
+impl Tree {
+    /// Whether the object is skipped as part of the trash.
+    pub(super) fn is_skipped_trash(&self, object: usize, include_trash: bool) -> bool {
+        !include_trash && self.in_trash[object]
+    }
+}
+
 /// Builds the tree. Objects whose parent is missing, is not a container or
-/// is part of a `ParentID` cycle go under the root, with a warning.
+/// is part of a `ParentID` cycle go under the root, with a warning; so do
+/// objects deeper than [`MAX_DEPTH`] levels, the `RoyalDocument` being the
+/// first level, since the import root is inserted as one node.
 ///
 /// # Errors
 /// [`ImportError::InvalidInput`] if an object has no valid `ID`, two objects
@@ -61,10 +77,17 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
         siblings.sort_by_key(|&object| (position_nr(&objects[object]), object));
     }
 
-    let mut visited = vec![false; objects.len()];
-    let mut root_node = subtree(root, &children, &mut visited);
+    let mut builder = Builder {
+        objects,
+        children: &children,
+        visited: vec![false; objects.len()],
+        overflow: VecDeque::new(),
+        too_deep: HashSet::new(),
+    };
+    let mut root_node = builder.subtree(root, 1);
+    builder.attach_overflow(&mut root_node, &mut warnings);
     for object in 0..objects.len() {
-        if !visited[object] {
+        if !builder.visited[object] {
             // Not reachable from the root: its ancestors end in a cycle. Only
             // that cycle member is detached; the rest keeps its parent.
             let member = cycle_member(object, &parents);
@@ -72,16 +95,96 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
                 "{}: ParentID ciclico, inserito nella radice",
                 describe(&objects[member])
             ));
-            root_node
-                .children
-                .push(subtree(member, &children, &mut visited));
+            root_node.children.push(builder.subtree(member, 2));
+            builder.attach_overflow(&mut root_node, &mut warnings);
         }
     }
     Ok(Tree {
         root: root_node,
         ids,
+        in_trash: trash_membership(objects, &parents, root),
+        too_deep: builder.too_deep,
         warnings,
     })
+}
+
+/// Builds subtrees no deeper than [`MAX_DEPTH`]: the recursion stays
+/// shallow however deep the document is.
+struct Builder<'a> {
+    objects: &'a [RawObject],
+    children: &'a [Vec<usize>],
+    visited: Vec<bool>,
+    /// Objects found beyond the maximum depth, to attach to the root.
+    overflow: VecDeque<usize>,
+    too_deep: HashSet<usize>,
+}
+
+impl Builder<'_> {
+    /// The subtree of `object`, placed at `level`.
+    fn subtree(&mut self, object: usize, level: usize) -> TreeNode {
+        self.visited[object] = true;
+        let mut node = TreeNode {
+            object,
+            children: Vec::new(),
+        };
+        for &child in &self.children[object] {
+            if self.visited[child] {
+                continue;
+            }
+            if level < MAX_DEPTH {
+                node.children.push(self.subtree(child, level + 1));
+            } else {
+                self.visited[child] = true;
+                self.overflow.push_back(child);
+            }
+        }
+        node
+    }
+
+    /// Attaches the objects beyond the maximum depth to the root, as its
+    /// children at level 2; their own deep descendants follow in turn.
+    fn attach_overflow(&mut self, root: &mut TreeNode, warnings: &mut Vec<String>) {
+        while let Some(object) = self.overflow.pop_front() {
+            warnings.push(format!(
+                "{}: oltre la profondità massima di {MAX_DEPTH} livelli, inserito nella radice",
+                describe(&self.objects[object])
+            ));
+            self.too_deep.insert(object);
+            root.children.push(self.subtree(object, 2));
+        }
+    }
+}
+
+/// Whether each object is the trash or descends from it through its
+/// parents, computed once per object even on long chains.
+fn trash_membership(objects: &[RawObject], parents: &[usize], root: usize) -> Vec<bool> {
+    let mut known: Vec<Option<bool>> = vec![None; objects.len()];
+    known[root] = Some(false);
+    for start in 0..objects.len() {
+        let mut path = Vec::new();
+        let mut on_path = HashSet::new();
+        let mut current = start;
+        let in_trash = loop {
+            if let Some(in_trash) = known[current] {
+                break in_trash;
+            }
+            path.push(current);
+            if objects[current].type_name == types::TRASH {
+                break true;
+            }
+            if !on_path.insert(current) {
+                break false;
+            }
+            current = parents[current];
+        };
+        for object in path {
+            known[object] = Some(in_trash);
+        }
+    }
+    known
+        .into_iter()
+        .map(|in_trash| in_trash == Some(true))
+        .collect()
 }
 
 fn parse_ids(objects: &[RawObject]) -> Result<Vec<Uuid>, ImportError> {
@@ -158,20 +261,6 @@ fn cycle_member(object: usize, parents: &[usize]) -> usize {
         current = parents[current];
     }
     current
-}
-
-fn subtree(object: usize, children: &[Vec<usize>], visited: &mut [bool]) -> TreeNode {
-    visited[object] = true;
-    let mut node = TreeNode {
-        object,
-        children: Vec::new(),
-    };
-    for &child in &children[object] {
-        if !visited[child] {
-            node.children.push(subtree(child, children, visited));
-        }
-    }
-    node
 }
 
 /// `PositionNr` is a string to be compared as a number (`"10"` after `"8"`).

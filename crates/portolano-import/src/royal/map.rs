@@ -15,7 +15,7 @@ mod references;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use portolano_core::{Folder, Node, NodeKind, SourceInfo, Unsupported};
+use portolano_core::{Folder, MAX_DEPTH, Node, NodeKind, SourceInfo, Unsupported};
 use serde_json::Value;
 
 use self::context::{ObjectContext, SecretCollector};
@@ -41,17 +41,17 @@ const EXTRA_PREFIX: &str = "royal.";
 /// The error of the prompter, such as [`ImportError::Cancelled`].
 pub(super) fn map_document(
     objects: &[RawObject],
-    tree: Tree,
+    mut tree: Tree,
     opts: &ImportOptions,
     prompter: &mut dyn SecretPrompter,
 ) -> Result<ImportOutcome, ImportError> {
     let imported_at = Utc::now();
     let references = References::collect(objects, &tree, opts.include_trash);
     let mut report = ImportReport::new(IMPORTER_ID, &opts.source_file_name, imported_at);
-    report.warnings = tree.warnings;
+    report.warnings = std::mem::take(&mut tree.warnings);
     let mut mapper = Mapper {
         objects,
-        ids: &tree.ids,
+        tree: &tree,
         references,
         opts,
         imported_at,
@@ -86,7 +86,7 @@ enum Kind {
 
 struct Mapper<'a, 'p> {
     objects: &'a [RawObject],
-    ids: &'a [uuid::Uuid],
+    tree: &'a Tree,
     references: References,
     opts: &'a ImportOptions,
     imported_at: DateTime<Utc>,
@@ -112,7 +112,8 @@ impl Mapper<'_, '_> {
     }
 
     fn is_skipped_trash(&self, tree: &TreeNode) -> bool {
-        references::is_skipped_trash(&self.objects[tree.object], self.opts.include_trash)
+        self.tree
+            .is_skipped_trash(tree.object, self.opts.include_trash)
     }
 
     /// Records the trash and everything in it as skipped.
@@ -154,11 +155,16 @@ impl Mapper<'_, '_> {
         };
         let path = join_path(parent_path, name);
         let mut ctx = ObjectContext::new(fields, path.clone());
+        if self.tree.too_deep.contains(&index) {
+            ctx.add_reason(format!(
+                "oltre la profondità massima di {MAX_DEPTH} livelli: spostato nella radice"
+            ));
+        }
         let created = ctx.fields.take_with("Created", parse_date);
         let modified = ctx.fields.take_with("Modified", parse_date);
         // The constructor fills the common fields; the kind is set below.
         let mut node = Node::folder(name);
-        node.id = self.ids[index];
+        node.id = self.tree.ids[index];
         node.created = created.unwrap_or(self.imported_at);
         node.modified = modified.unwrap_or(self.imported_at);
         node.source = Some(self.source_info(index));
@@ -241,7 +247,7 @@ impl Mapper<'_, '_> {
         SourceInfo {
             system: SOURCE_SYSTEM.to_owned(),
             source_type: self.objects[index].type_name.clone(),
-            source_id: Some(self.ids[index].to_string()),
+            source_id: Some(self.tree.ids[index].to_string()),
             file,
             imported_at: self.imported_at,
         }
@@ -250,7 +256,7 @@ impl Mapper<'_, '_> {
     fn record(&mut self, index: usize, path: &str, status: ItemStatus, reasons: Vec<String>) {
         self.report.record(ReportItem {
             source_type: self.objects[index].type_name.clone(),
-            source_id: self.ids[index].to_string(),
+            source_id: self.tree.ids[index].to_string(),
             path: path.to_owned(),
             status,
             reasons,

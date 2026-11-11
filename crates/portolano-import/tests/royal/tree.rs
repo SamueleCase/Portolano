@@ -120,6 +120,60 @@ fn a_descendant_of_a_cycle_keeps_its_valid_parent() {
     );
 }
 
+/// Folders 2..=last, each the child of the previous one (1 is the document).
+fn folder_chain(first_parent: u32, last: u32) -> Vec<String> {
+    (first_parent + 1..=last)
+        .map(|n| folder(n, n - 1, &format!("f{n}"), None))
+        .collect()
+}
+
+/// Levels of the deepest node, the import root being level 1.
+fn depth(node: &portolano_core::Node) -> usize {
+    1 + node.as_folder().map_or(0, |folder| {
+        folder.children.iter().map(depth).max().unwrap_or(0)
+    })
+}
+
+#[test]
+fn objects_beyond_the_maximum_depth_go_under_the_root() {
+    let xml = document(&folder_chain(1, 201));
+
+    let outcome = import(&xml);
+
+    assert_eq!(depth(&outcome.root), portolano_core::MAX_DEPTH);
+    assert_eq!(
+        child_names(&outcome.root),
+        vec!["f2", "f51", "f100", "f149", "f198"]
+    );
+    assert_eq!(status(&outcome, 51), ItemStatus::Partial);
+    assert_eq!(
+        reasons(&outcome, 51),
+        vec!["oltre la profondità massima di 50 livelli: spostato nella radice"]
+    );
+    assert_eq!(status(&outcome, 52), ItemStatus::Imported);
+    assert_eq!(outcome.report.warnings.len(), 4);
+    assert_eq!(outcome.report.counts["RoyalFolder"].source, 200);
+}
+
+#[test]
+fn a_deep_chain_in_the_trash_stays_skipped() {
+    let mut objects = vec![object("RoyalTrash", 2, 1, &[("Name", "Trash")])];
+    objects.extend(folder_chain(2, 150));
+
+    let outcome = import(&document(&objects));
+
+    assert!(child_names(&outcome.root).is_empty());
+    assert_eq!(outcome.report.counts["RoyalFolder"].skipped, 148);
+}
+
+#[test]
+fn a_very_deep_chain_does_not_overflow_the_stack() {
+    let outcome = import(&document(&folder_chain(1, 20_000)));
+
+    assert_eq!(depth(&outcome.root), portolano_core::MAX_DEPTH);
+    assert_eq!(outcome.report.counts["RoyalFolder"].source, 19_999);
+}
+
 #[test]
 fn node_ids_are_the_royal_ids() {
     let xml = document(&[folder(2, 1, "cartella", None)]);
