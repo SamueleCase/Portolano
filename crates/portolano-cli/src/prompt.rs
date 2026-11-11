@@ -13,7 +13,7 @@ use portolano_core::vault::MASTER_PASSWORD_ENV;
 use portolano_core::{MasterPasswordSource, Secret, VaultError};
 use portolano_import::{ImportError, SecretField, SecretPrompter, SecretRequest};
 use portolano_ops::connect::LoginRequest;
-use portolano_ops::vault::Login;
+use portolano_ops::vault::{Login, MIN_MASTER_PASSWORD_CHARS};
 
 use crate::failure::CliError;
 use crate::output::visible;
@@ -105,18 +105,20 @@ impl MasterPasswordSource for MasterPassword {
                 .map(Secret::new)
                 .map_err(|_| unavailable(format!("{MASTER_PASSWORD_ENV} non è UTF-8 valido")));
         }
-        let label = if creating {
-            "Nuova master password del vault"
-        } else {
-            "Master password del vault"
-        };
         let result = if creating {
-            new_secret(label)
+            new_secret(&new_master_password_label())
         } else {
+            let label = "Master password del vault";
             require_terminal(label).and_then(|()| hidden(&format!("{label}: ")))
         };
         result.map_err(|error| unavailable(error.to_string()))
     }
+}
+
+/// The prompt of a new master password, with the minimum length that the
+/// vault requires (DEC-026.6).
+fn new_master_password_label() -> String {
+    format!("Nuova master password del vault (almeno {MIN_MASTER_PASSWORD_CHARS} caratteri)")
 }
 
 fn unavailable(reason: String) -> VaultError {
@@ -198,5 +200,15 @@ impl Tty {
             .read_line(&mut line)
             .map_err(CliError::Terminal)?;
         Ok(line.trim_end_matches(['\n', '\r']).to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_master_password_prompt_states_the_minimum_length() {
+        assert!(new_master_password_label().contains("almeno 12 caratteri"));
     }
 }
