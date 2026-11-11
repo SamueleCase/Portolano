@@ -73,10 +73,10 @@ fn resolve_path_ambiguous_id_prefix_lists_the_candidates() {
 fn resolve_path_short_id_prefix_is_a_name() {
     let mut document = sample();
     document
-        .insert(None, None, connection(MISSING, "@abcde"))
+        .insert(None, None, connection(NAMED_LIKE_AN_ID, "@abcde"))
         .unwrap();
 
-    assert_eq!(document.resolve_path("@abcde").unwrap(), MISSING);
+    assert_eq!(document.resolve_path("@abcde").unwrap(), NAMED_LIKE_AN_ID);
 }
 
 #[test]

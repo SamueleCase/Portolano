@@ -279,6 +279,35 @@ fn move_to_the_root_appends_by_default() {
 }
 
 #[test]
+fn move_to_the_root_at_an_explicit_position() {
+    let mut document = sample();
+
+    document.move_node(A2, None, Some(1)).unwrap();
+
+    assert_eq!(child_ids(&document, None), vec![A, A2, B, C]);
+}
+
+#[test]
+fn move_of_a_missing_node_is_rejected() {
+    let mut document = sample();
+
+    let result = document.move_node(MISSING, None, None);
+
+    assert!(matches!(result, Err(Error::NodeNotFound { id }) if id == MISSING));
+}
+
+#[test]
+fn move_under_a_missing_parent_is_rejected_and_leaves_the_tree_unchanged() {
+    let mut document = sample();
+    let before = document.clone();
+
+    let result = document.move_node(A1, Some(MISSING), None);
+
+    assert!(matches!(result, Err(Error::NodeNotFound { id }) if id == MISSING));
+    assert_eq!(document, before);
+}
+
+#[test]
 fn move_into_itself_is_rejected() {
     let mut document = sample();
 
