@@ -13,6 +13,9 @@ use crate::model::{CredentialSpec, Node, NodeKind};
 /// Tag key of a serialized [`CredentialSpec`].
 const MODE_KEY: &str = "mode";
 
+/// Tag value of [`CredentialSpec::Prompt`].
+const PROMPT_MODE: &str = "prompt";
+
 /// Calls `visit` on every JSON object inside `value`, `value` included, in
 /// pre-order. Core formats embedded in protocol data (`$ref`, inline
 /// credential specs) are found this way without knowing the protocols.
@@ -75,12 +78,11 @@ pub(crate) fn embedded_spec(object: &Value) -> Option<CredentialSpec> {
 }
 
 /// The JSON form of [`CredentialSpec::Prompt`], to replace an embedded spec.
+/// Built by hand because the variant has no fields: only the tag.
 pub(crate) fn prompt_value() -> Value {
-    #[expect(
-        clippy::expect_used,
-        reason = "a unit variant tagged by a string always serializes to a JSON object"
-    )]
-    serde_json::to_value(CredentialSpec::Prompt).expect("CredentialSpec::Prompt serializes to JSON")
+    let mut object = serde_json::Map::new();
+    object.insert(MODE_KEY.to_owned(), Value::from(PROMPT_MODE));
+    Value::Object(object)
 }
 
 /// The credential spec of a folder or a connection; other kinds have none.
@@ -98,5 +100,26 @@ pub(crate) fn credential_spec_mut(node: &mut Node) -> Option<&mut CredentialSpec
         NodeKind::Folder(folder) => Some(&mut folder.credential),
         NodeKind::Connection(connection) => Some(&mut connection.credential),
         NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn prompt_value_is_the_serialized_form_of_prompt() {
+        let expected = serde_json::to_value(CredentialSpec::Prompt).unwrap();
+
+        assert_eq!(prompt_value(), expected);
+    }
+
+    #[test]
+    fn embedded_spec_ignores_objects_whose_mode_is_not_a_credential_mode() {
+        let resolution = serde_json::json!({ "mode": "fit" });
+
+        assert_eq!(embedded_spec(&resolution), None);
     }
 }
