@@ -1,10 +1,19 @@
 //! `portolano`: command-line interface of Portolano.
 //!
-//! A thin layer over the core, connectors and importers: argument parsing,
-//! terminal I/O and output formatting only (SPEC §2, §10).
+//! A thin layer over `portolano-ops`: argument parsing, terminal I/O and
+//! output formatting only (SPEC §2, §10, DEC-018.2).
 
+#![allow(
+    dead_code,
+    unused_imports,
+    reason = "the commands are implemented in the following commits"
+)]
 mod args;
 mod commands;
 mod output;
 
-fn main() {}
+use clap::Parser;
+
+fn main() {
+    let _cli = args::Cli::parse();
+}
