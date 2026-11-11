@@ -9,7 +9,6 @@ mod memory;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
 
 pub use file::{FileVault, KdfParams};
 pub use keychain::{KEYCHAIN_SERVICE, KeychainVault};
@@ -94,23 +93,9 @@ pub fn open_vault(
     })
 }
 
-/// Decrypted secrets held in memory by the memory and file backends.
+/// Secrets by reference: the content of the memory vault, and of the file
+/// vault while one operation decrypts and rewrites it.
 type SecretMap = HashMap<SecretRef, Secret>;
-
-/// Locks the secrets of a backend.
-///
-/// A poisoned lock means that a thread panicked in the middle of an update:
-/// the map may be inconsistent with the backend, so it is reported as an
-/// error instead of being used.
-fn lock_secrets<'a>(
-    secrets: &'a Mutex<SecretMap>,
-    backend: &'static str,
-) -> Result<MutexGuard<'a, SecretMap>, VaultError> {
-    secrets.lock().map_err(|_| VaultError::Backend {
-        backend,
-        reason: "stato interno non più affidabile dopo un errore precedente".to_owned(),
-    })
-}
 
 /// An owned copy of `secret`. `Secret` is not `Clone`, so that every copy of
 /// a secret value is explicit; this one lives in a zeroizing buffer too.

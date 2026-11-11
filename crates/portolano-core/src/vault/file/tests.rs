@@ -10,6 +10,8 @@ use tempfile::TempDir;
 use super::*;
 use crate::vault::testutil::{FixedPassword, NoPassword, TEST_KDF_PARAMS};
 
+mod shared;
+
 const SENTINEL: &str = "sentinel-file-vault-secret";
 
 /// A temporary directory and the path of a vault file inside it; the
@@ -311,17 +313,18 @@ fn file_does_not_contain_the_secret_in_clear() {
 }
 
 #[test]
-fn no_temporary_file_is_left_after_a_write() {
+fn only_the_vault_and_its_lock_file_are_left_after_a_write() {
     let (dir, path) = vault_path();
     let vault = open_test_vault(&path);
 
     vault.set(&SecretRef::new(), &sentinel()).unwrap();
 
-    let names: Vec<_> = fs::read_dir(dir.path())
+    let mut names: Vec<_> = fs::read_dir(dir.path())
         .unwrap()
-        .map(|entry| entry.unwrap().file_name())
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
         .collect();
-    assert_eq!(names, vec![std::ffi::OsString::from("vault.json")]);
+    names.sort();
+    assert_eq!(names, vec!["vault.json", "vault.json.lock"]);
 }
 
 #[cfg(unix)]
@@ -344,7 +347,7 @@ mod unix {
     }
 
     #[test]
-    fn failed_write_keeps_the_previous_state() {
+    fn failed_write_leaves_the_vault_unchanged() {
         let (dir, path) = vault_path();
         let vault = open_test_vault(&path);
         let reference = SecretRef::new();

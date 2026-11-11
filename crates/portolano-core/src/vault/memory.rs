@@ -1,8 +1,8 @@
 //! In-memory vault, for tests and the hidden `--vault memory` option.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
-use super::{SecretMap, Vault, copy_secret, lock_secrets};
+use super::{SecretMap, Vault, copy_secret};
 use crate::error::VaultError;
 use crate::secret::{Secret, SecretRef};
 
@@ -14,24 +14,34 @@ pub struct MemoryVault {
     entries: Mutex<SecretMap>,
 }
 
+impl MemoryVault {
+    /// The map, or an error if a thread panicked while holding the lock: the
+    /// map may then be half-updated, so it is not used any more.
+    fn entries(&self) -> Result<MutexGuard<'_, SecretMap>, VaultError> {
+        self.entries.lock().map_err(|_| VaultError::Backend {
+            backend: BACKEND,
+            reason: "stato interno non più affidabile dopo un errore precedente".to_owned(),
+        })
+    }
+}
+
 impl Vault for MemoryVault {
     fn backend(&self) -> &'static str {
         BACKEND
     }
 
     fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
-        Ok(lock_secrets(&self.entries, BACKEND)?
-            .get(reference)
-            .map(copy_secret))
+        Ok(self.entries()?.get(reference).map(copy_secret))
     }
 
     fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
-        lock_secrets(&self.entries, BACKEND)?.insert(reference.clone(), copy_secret(secret));
+        self.entries()?
+            .insert(reference.clone(), copy_secret(secret));
         Ok(())
     }
 
     fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
-        lock_secrets(&self.entries, BACKEND)?.remove(reference);
+        self.entries()?.remove(reference);
         Ok(())
     }
 }

@@ -34,6 +34,8 @@ pub(super) fn argon2(params: KdfParams) -> Result<Argon2<'static>, argon2::Error
 }
 
 /// The key derivation settings of one vault file, fixed when it is created.
+/// Two files with different settings are different vaults.
+#[derive(PartialEq, Eq)]
 pub(super) struct KdfSetup {
     pub(super) params: KdfParams,
     pub(super) salt: Vec<u8>,
