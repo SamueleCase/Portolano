@@ -13,6 +13,7 @@ publish = false
 portolano-core = { path = "crates/portolano-core" }
 portolano-connectors = { path = "crates/portolano-connectors" }
 portolano-import = { path = "crates/portolano-import" }
+portolano-ops = { path = "crates/portolano-ops" }
 
 # Serialization and data
 serde = { version = "1.0.229", features = ["derive"] }

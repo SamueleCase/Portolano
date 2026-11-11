@@ -1,0 +1,25 @@
+[package]
+name = "portolano-ops"
+description = "Portolano operations: the workflows shared by the CLI and the app (import, validation, deletion, secrets, nodes, connect)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+portolano-core.workspace = true
+portolano-connectors.workspace = true
+portolano-import.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
