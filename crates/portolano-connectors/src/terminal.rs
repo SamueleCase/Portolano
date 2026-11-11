@@ -44,56 +44,51 @@ pub(crate) fn launcher(
     argv: &[String],
 ) -> Result<Launcher, ConnectError> {
     let cmd = shell_words::join(argv);
-    if terminal.app == TerminalApp::Custom {
-        return custom_launcher(terminal.command.as_deref(), &cmd);
-    }
-    let program = |name: &str| PathBuf::from(name);
     match (os, terminal.app) {
-        (Os::MacOs, TerminalApp::Terminal) => Ok(Launcher {
-            program: program("osascript"),
-            args: vec![
-                "-e".to_owned(),
-                format!(
-                    "tell application \"Terminal\" to do script {}",
-                    applescript_string(&cmd)
-                ),
-                "-e".to_owned(),
-                "tell application \"Terminal\" to activate".to_owned(),
-            ],
-        }),
-        (Os::MacOs, TerminalApp::Iterm) => Ok(Launcher {
-            program: program("osascript"),
-            args: vec![
-                "-e".to_owned(),
-                format!(
-                    "tell application \"iTerm\" to create window with default profile command {}",
-                    applescript_string(&cmd)
-                ),
-                "-e".to_owned(),
-                "tell application \"iTerm\" to activate".to_owned(),
-            ],
-        }),
-        (Os::MacOs, _) => {
-            let mut args = ["-na", "Ghostty", "--args", "-e"]
-                .map(str::to_owned)
-                .to_vec();
-            args.extend(argv.iter().cloned());
-            Ok(Launcher {
-                program: program("open"),
-                args,
-            })
-        }
-        (Os::Linux, _) => {
-            let mut args = vec!["-e".to_owned()];
-            args.extend(argv.iter().cloned());
-            Ok(Launcher {
-                program: program("x-terminal-emulator"),
-                args,
-            })
-        }
+        (_, TerminalApp::Custom) => custom_launcher(terminal.command.as_deref(), &cmd),
+        (Os::MacOs, TerminalApp::Terminal) => Ok(applescript_launcher(
+            "Terminal",
+            &format!("do script {}", applescript_string(&cmd)),
+        )),
+        (Os::MacOs, TerminalApp::Iterm) => Ok(applescript_launcher(
+            "iTerm",
+            &format!(
+                "create window with default profile command {}",
+                applescript_string(&cmd)
+            ),
+        )),
+        (Os::MacOs, TerminalApp::Ghostty) => Ok(argv_launcher(
+            "open",
+            &["-na", "Ghostty", "--args", "-e"],
+            argv,
+        )),
+        (Os::Linux, _) => Ok(argv_launcher("x-terminal-emulator", &["-e"], argv)),
         _ => Err(ConnectError::UnsupportedPlatform {
             feature: "l'apertura in una nuova finestra".to_owned(),
         }),
+    }
+}
+
+/// `osascript` telling `app` to run `action`, then to come to the front.
+fn applescript_launcher(app: &str, action: &str) -> Launcher {
+    Launcher {
+        program: PathBuf::from("osascript"),
+        args: vec![
+            "-e".to_owned(),
+            format!("tell application \"{app}\" to {action}"),
+            "-e".to_owned(),
+            format!("tell application \"{app}\" to activate"),
+        ],
+    }
+}
+
+/// `program` with `options` followed by `argv`, unquoted.
+fn argv_launcher(program: &str, options: &[&str], argv: &[String]) -> Launcher {
+    let mut args: Vec<String> = options.iter().map(|option| (*option).to_owned()).collect();
+    args.extend(argv.iter().cloned());
+    Launcher {
+        program: PathBuf::from(program),
+        args,
     }
 }
 

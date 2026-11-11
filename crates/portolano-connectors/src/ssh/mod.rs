@@ -4,7 +4,7 @@ pub mod askpass;
 mod plan;
 mod settings;
 
-use portolano_core::{Document, Issue, Node};
+use portolano_core::{Connection, Document, Issue, Node};
 use serde_json::Value;
 
 pub use settings::{JumpHost, SshConfig, SshSettings};
@@ -91,29 +91,10 @@ impl Protocol for SshProtocol {
                 reason,
             }
         })?;
-        let ssh = ctx
-            .env
-            .ssh
-            .clone()
-            .ok_or_else(|| ConnectError::ClientNotFound {
-                client: "ssh".to_owned(),
-                hint:
-                    "installa OpenSSH o imposta `program` nella sezione [ssh] della configurazione"
-                        .to_owned(),
-            })?;
+        let ssh = ctx.env.ssh.clone().ok_or_else(ssh_not_found)?;
 
         let mut warnings = Vec::new();
-        let credential = apply_session_credential(
-            ctx.doc.resolve_credential(ctx.node_id)?,
-            ctx.options,
-            &mut warnings,
-        );
-        let target = Endpoint {
-            node: ctx.node_id,
-            host: connection.host.clone(),
-            port: connection.port.unwrap_or(SSH_PORT),
-            credential,
-        };
+        let target = target_endpoint(ctx, connection, &mut warnings)?;
         let jumps = plan::jump_chain(ctx.doc, ctx.node_id, &settings)?
             .into_iter()
             .map(|link| resolve_jump(ctx.doc, link))
@@ -139,6 +120,33 @@ impl Protocol for SshProtocol {
         plan.warnings = warnings;
         Ok(plan)
     }
+}
+
+fn ssh_not_found() -> ConnectError {
+    ConnectError::ClientNotFound {
+        client: "ssh".to_owned(),
+        hint: "installa OpenSSH o imposta `program` nella sezione [ssh] della configurazione"
+            .to_owned(),
+    }
+}
+
+/// The destination, with the session credential applied (DEC-016.3).
+fn target_endpoint(
+    ctx: &PlanContext,
+    connection: &Connection,
+    warnings: &mut Vec<String>,
+) -> Result<Endpoint, ConnectError> {
+    let credential = apply_session_credential(
+        ctx.doc.resolve_credential(ctx.node_id)?,
+        ctx.options,
+        warnings,
+    );
+    Ok(Endpoint {
+        node: ctx.node_id,
+        host: connection.host.clone(),
+        port: connection.port.unwrap_or(SSH_PORT),
+        credential,
+    })
 }
 
 fn resolve_jump(doc: &Document, link: JumpLink) -> Result<Jump, ConnectError> {

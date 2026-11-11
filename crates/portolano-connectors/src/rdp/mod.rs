@@ -120,14 +120,6 @@ impl Protocol for RdpProtocol {
             ctx.options,
             &mut warnings,
         );
-        let gateway = match &settings.gateway {
-            Some(gateway) => Some(GatewayLogin {
-                host: &gateway.host,
-                port: gateway.port,
-                credential: ctx.doc.resolve_spec(ctx.node_id, &gateway.credential)?,
-            }),
-            None => None,
-        };
         let target = RdpTarget {
             node_id: ctx.node_id,
             name: &node.name,
@@ -135,7 +127,7 @@ impl Protocol for RdpProtocol {
             port: connection.port.unwrap_or(RDP_PORT),
             credential,
             settings: &settings,
-            gateway,
+            gateway: gateway_login(ctx, &settings)?,
         };
 
         let mut plan = match client {
@@ -150,6 +142,22 @@ impl Protocol for RdpProtocol {
         plan.warnings = warnings;
         Ok(plan)
     }
+}
+
+/// The gateway of the connection, if any, with its credential resolved in
+/// the context of the connection.
+fn gateway_login<'a>(
+    ctx: &PlanContext,
+    settings: &'a RdpSettings,
+) -> Result<Option<GatewayLogin<'a>>, ConnectError> {
+    let Some(gateway) = &settings.gateway else {
+        return Ok(None);
+    };
+    Ok(Some(GatewayLogin {
+        host: &gateway.host,
+        port: gateway.port,
+        credential: ctx.doc.resolve_spec(ctx.node_id, &gateway.credential)?,
+    }))
 }
 
 /// An RDP connection with its login data resolved.
