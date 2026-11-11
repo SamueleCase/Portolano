@@ -28,3 +28,20 @@ Riguardano solo testi e presentazione: il codice del core segue già queste rego
   su file indicare il file cifrato. Con il vault bloccato usare il badge "Vault bloccato", non "Assente".
 - **Import**: i formati accettati sono `.rtsz`, `.rtsx` e XML (anche compressi gzip o zip).
 - **Livelli della validazione**: Errore, Avviso, Nota (DEC-016.6).
+
+## Dalla tavola App aggiornata (11/11)
+Nessuna delle correzioni sopra risultava ancora applicata. In più:
+- **Eliminazione** (dialogo generico): un nodo usato da altri (credenziale, jump host come `bastion`, o una
+  cartella che li contiene) mostra l'elenco degli utilizzi e "Elimina comunque"; le credenziali eliminate
+  lasciano i nodi in "Chiedi all'avvio", i jump host eliminati vengono segnalati dalla validazione (DEC-018.1).
+  Per una cartella mostrare quanti elementi e segreti verranno cancellati.
+- **Editor in due passi**: "Salva" disponibile anche al passo 1 (per cambiare solo il nome).
+- **"+ Connessione"**: far scegliere il protocollo (SSH o RDP) e la cartella di destinazione; una porta lasciata
+  al valore predefinito si salva come "predefinita", non come numero.
+- **Dialogo password**: il titolo indica il campo e il nodo (password, passphrase, proprietà "Token API"…), non
+  un testo fisso.
+- **Validazione**: ogni riga porta al nodo, compresa quella d'errore; il numero di problemi non è fisso.
+- **Segreti nell'editor**: "Imposta", "Sostituisci" e "Cancella" non scrivono subito nel portachiavi; si
+  applicano al Salva e si annullano con Annulla (vedi `progress.md`).
+- Togliere l'apertura del primo avvio dal logo e i valori d'esempio (jump host, gateway, opzioni) nell'editor di un
+  nodo nuovo.
