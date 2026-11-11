@@ -2,7 +2,6 @@
 
 use predicates::str::contains;
 
-use crate::document::sample;
 use crate::testutil::*;
 
 #[test]

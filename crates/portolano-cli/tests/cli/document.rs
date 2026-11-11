@@ -8,34 +8,6 @@ use serde_json::Value;
 
 use crate::testutil::*;
 
-/// A document with folders, a credential and two connections.
-pub fn sample() -> Workspace {
-    let workspace = Workspace::new();
-    workspace.ok(&["add", "folder", "-p", "/Clienti/ACME"]);
-    workspace.add_admin();
-    workspace.ok(&[
-        "add",
-        "ssh",
-        "/Clienti/ACME/web01",
-        "--host",
-        "web01.example.com",
-        "--cred",
-        "/Admin",
-    ]);
-    workspace.ok(&[
-        "add",
-        "rdp",
-        "/Clienti/ACME/dc01",
-        "--host",
-        "192.0.2.10",
-        "--user",
-        "administrator",
-        "--domain",
-        "ACME",
-    ]);
-    workspace
-}
-
 #[test]
 fn init_creates_the_document_with_the_given_name() {
     let workspace = Workspace::empty();
