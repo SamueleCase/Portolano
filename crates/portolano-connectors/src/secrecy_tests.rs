@@ -133,12 +133,14 @@ mod runtime {
     use crate::protocol::PlanContext;
     use crate::testutil::environment;
 
-    /// Appends argv and environment to `seen.txt` and stdin to `stdin.txt`,
-    /// next to itself.
+    /// Appends argv and environment to `seen.txt`, next to itself. It reads
+    /// stdin into `stdin.txt` only when asked to (`/from-stdin:force`, where
+    /// stdin is a pipe written by `execute`): otherwise stdin is the one of
+    /// `cargo test`, possibly a terminal that never ends.
     const PROBE: &str = "#!/bin/sh\n\
         dir=$(dirname \"$0\")\n\
         { printf '%s\\n' \"$@\"; env; } >> \"$dir/seen.txt\"\n\
-        cat >> \"$dir/stdin.txt\"\n";
+        case \" $* \" in *' /from-stdin:force '*) cat >> \"$dir/stdin.txt\" ;; esac\n";
 
     fn probe_environment(dir: &TempDir) -> Environment {
         let probe = dir.path().join("probe");
@@ -225,7 +227,7 @@ mod runtime {
         assert!(seen.contains("web01.example.com"));
         assert!(seen.contains("SSH_ASKPASS_REQUIRE=force"));
         assert!(!seen.contains(SENTINEL));
-        assert!(!read(dir.path(), "stdin.txt").contains(SENTINEL));
+        assert!(!dir.path().join("stdin.txt").exists());
     }
 
     #[test]
