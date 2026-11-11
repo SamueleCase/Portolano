@@ -1291,6 +1291,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "portolano-ops"
+version = "0.1.0"
+dependencies = [
+ "portolano-connectors",
+ "portolano-core",
+ "portolano-import",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "toml",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "predicates"
 version = "3.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

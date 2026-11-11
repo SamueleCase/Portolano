@@ -1,0 +1,27 @@
+//! Portolano operations (DEC-018.2, DEC-022).
+//!
+//! The workflows that the CLI and the future app share: inserting an import,
+//! composed validation, deletion with references and secrets, secrets,
+//! creation and editing of nodes, moves and the preparation of `connect`.
+//!
+//! Functions here never print, never read a terminal and never exit the
+//! process. They receive the [`Store`](portolano_core::Store), the document,
+//! the [`Vault`](portolano_core::Vault) and the registries, and return
+//! structured results. Questions to the user are two-phase APIs (a preview or
+//! a request, then the operation), so that a graphical interface can show its
+//! own dialogs.
+//!
+//! An operation that fails leaves the document it was given unchanged: it
+//! works on a copy and replaces the caller's document only on success.
+
+pub mod document;
+mod error;
+pub mod locations;
+#[cfg(test)]
+mod testutil;
+pub mod vault;
+
+pub use error::OpsError;
+
+/// Result type of the operations, with [`OpsError`] as the default error.
+pub type Result<T, E = OpsError> = std::result::Result<T, E>;
