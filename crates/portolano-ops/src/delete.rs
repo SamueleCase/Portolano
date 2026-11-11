@@ -47,6 +47,31 @@ pub struct DeletePreview {
     pub references: Vec<ExternalReference>,
 }
 
+impl DeletePreview {
+    /// Whether [`delete`] with `options` would be refused, so that a caller
+    /// can tell before asking for confirmation.
+    ///
+    /// # Errors
+    /// [`OpsError::FolderNotEmpty`] for a folder with children without
+    /// `recursive`, [`OpsError::Referenced`] for references from outside
+    /// without `force`.
+    pub fn check(&self, options: DeleteOptions) -> Result<()> {
+        if self.children > 0 && !options.recursive {
+            return Err(OpsError::FolderNotEmpty {
+                path: self.path.clone(),
+                children: self.children,
+            });
+        }
+        if !self.references.is_empty() && !options.force {
+            return Err(OpsError::Referenced {
+                path: self.path.clone(),
+                references: self.references.clone(),
+            });
+        }
+        Ok(())
+    }
+}
+
 /// Options of [`delete`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DeleteOptions {
@@ -126,18 +151,7 @@ pub fn delete(
     options: DeleteOptions,
 ) -> Result<DeleteOutcome> {
     let preview = preview_delete(doc, id)?;
-    if preview.children > 0 && !options.recursive {
-        return Err(OpsError::FolderNotEmpty {
-            path: preview.path,
-            children: preview.children,
-        });
-    }
-    if !preview.references.is_empty() && !options.force {
-        return Err(OpsError::Referenced {
-            path: preview.path,
-            references: preview.references,
-        });
-    }
+    preview.check(options)?;
     let mut change = Change::from(doc);
     let detached = if options.force {
         detach_credentials(&mut change.doc, id)

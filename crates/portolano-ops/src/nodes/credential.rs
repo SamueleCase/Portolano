@@ -33,7 +33,7 @@ impl CredentialInput {
     ///
     /// # Errors
     /// Path resolution errors, [`OpsError::NotACredential`].
-    pub(crate) fn resolve(self, doc: &Document) -> Result<CredentialSpec> {
+    pub fn resolve(self, doc: &Document) -> Result<CredentialSpec> {
         Ok(match self {
             CredentialInput::Inherit => CredentialSpec::Inherit,
             CredentialInput::None => CredentialSpec::None,
