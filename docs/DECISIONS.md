@@ -331,6 +331,35 @@ mock in `docs/ui/NOTE.md`.
   ereditato) con un warning che lo spiega; negli altri casi resta staccato. Comportamento da confermare nella verifica
   manuale dell'utente.
 
+### DEC-026 – Opzioni ssh ammesse invece che vietate, e rifiniture dell'indurimento (revisione di WP8, decise dal PM)
+1. **Lista di opzioni ammesse** (sostituisce l'elenco di divieti di DEC-024.1): la revisione ha trovato alias e opzioni
+   non elencate che eseguono programmi (`SmartcardDevice`, `XAuthLocation`) o aprono la rete dell'utente e
+   silenziano il controllo della host key (`RemoteForward`, `DynamicForward`, `StrictHostKeyChecking=no`, …). Una lista
+   di divieti insegue sempre nuove parole chiave: `SshSettings.options` accetta **solo** opzioni di un elenco chiuso
+   che non eseguono comandi, non aprono inoltri o tunnel, non cambiano destinazione, utente, porta, agent, ambiente o
+   file letti, e non indeboliscono la verifica della host key. Esempi: `IdentityFile` e `IdentitiesOnly` (DEC-022.2),
+   `ConnectTimeout`, `ConnectionAttempts`, `ServerAliveCountMax`, `TCPKeepAlive`, `PreferredAuthentications`,
+   `PubkeyAuthentication`, `PasswordAuthentication`, `KbdInteractiveAuthentication`, gli algoritmi (`Ciphers`,
+   `MACs`, `KexAlgorithms`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`), `Compression`, `LogLevel`,
+   `RequestTTY`, `AddKeysToAgent`, `CheckHostIP`, `VisualHostKey`, `AddressFamily`; `StrictHostKeyChecking` solo con
+   `yes`, `ask` o `accept-new`. L'elenco definitivo, con il motivo di ciascuna voce, sta nel codice. Tutto il resto va
+   nel `~/.ssh/config` dell'utente.
+2. **Utente di destinazione SSH**: allineato a OpenSSH (`valid_ruser`): ammessi lo spazio non seguito da `-` e il
+   backslash non finale (es. `DOMINIO\utente` per server Windows); restano vietati i metacaratteri della shell e i
+   caratteri di controllo. Gli utenti e gli host dei jump mantengono la regola più severa (`-J` è separato da
+   virgole).
+3. **Programmi in config** (DEC-024.2 rafforzata come `safe_path()` di OpenSSH): il file e tutte le directory del suo
+   percorso (anche dopo i symlink) devono appartenere all'utente o a root e non essere scrivibili da gruppo o altri.
+   Un `[ssh] program` non valido non impedisce le connessioni RDP e viceversa: l'errore riguarda solo il protocollo
+   usato.
+4. **Output**: anche l'output `--json` rende visibili DEL e i caratteri di controllo C1 (serde_json esegue l'escape
+   solo di U+0000–U+001F); anche i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E/F, U+061C) sono resi visibili.
+5. **Help in italiano**: la localizzazione dell'help (intestazioni "Opzioni globali", "Valori ammessi",
+   "predefinito") è un'estensione di DEC-023.2; restano in inglese `[OPTIONS]` e `[env: …]` (limite di clap).
+6. Il prompt della nuova master password indica il minimo di 12 caratteri.
+- **Da verificare dal vivo** (DEC-025): con password della destinazione su stdin e gateway con credenziale diversa,
+  FreeRDP potrebbe leggere anche la password del gateway da stdin (chiuso) o chiederla con una finestra grafica.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
