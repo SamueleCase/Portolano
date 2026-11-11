@@ -5,6 +5,7 @@ use std::io;
 use std::path::PathBuf;
 
 use portolano_connectors::ConnectError;
+use portolano_connectors::secret_input::SecretInputError;
 use portolano_core::{Document, VaultError};
 use portolano_ops::OpsError;
 
@@ -72,9 +73,10 @@ pub enum CliError {
     /// A private key typed at a prompt.
     #[error("la chiave privata si legge solo da stdin: usa --stdin")]
     KeyNeedsStdin,
-    /// Reading stdin failed.
-    #[error("lettura da stdin non riuscita")]
-    Stdin(#[source] io::Error),
+    /// A secret could not be read from stdin: too long, not UTF-8, or an
+    /// I/O error.
+    #[error("stdin: {0}")]
+    Stdin(#[from] SecretInputError),
     /// The terminal could not be used.
     #[error("terminale non disponibile")]
     Terminal(#[source] io::Error),

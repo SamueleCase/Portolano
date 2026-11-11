@@ -177,7 +177,8 @@ impl ServerState {
         stream.set_read_timeout(Some(CLIENT_TIMEOUT))?;
         stream.set_write_timeout(Some(CLIENT_TIMEOUT))?;
         let mut line = String::new();
-        BufReader::new(stream.take(MAX_MESSAGE_BYTES)).read_line(&mut line)?;
+        // A request holds no secret of the user: a plain buffered read.
+        BufReader::new(stream.take(MAX_MESSAGE_BYTES as u64)).read_line(&mut line)?;
         let request: Request<String> = match serde_json::from_str(&line) {
             Ok(request) => request,
             Err(_) => return write_reply(stream, &Reply::Error("richiesta non valida")),

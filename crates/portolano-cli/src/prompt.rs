@@ -6,14 +6,14 @@
 //! which option to use instead.
 
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, BufReader, IsTerminal, Read, Write};
+use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 
+use portolano_connectors::secret_input::{SecretEnd, read_stdin_secret};
 use portolano_core::vault::MASTER_PASSWORD_ENV;
 use portolano_core::{MasterPasswordSource, Secret, VaultError};
 use portolano_import::{ImportError, SecretField, SecretPrompter, SecretRequest};
 use portolano_ops::connect::LoginRequest;
 use portolano_ops::vault::Login;
-use zeroize::Zeroizing;
 
 use crate::failure::CliError;
 use crate::output::visible;
@@ -37,30 +37,26 @@ pub fn new_secret(label: &str) -> Result<Secret, CliError> {
     Ok(first)
 }
 
-/// One line of stdin, without the line ending; empty lines are refused.
+/// One line of stdin, without the line ending; empty lines are refused, and
+/// so are lines longer than [`MAX_SECRET_INPUT_BYTES`](portolano_connectors::secret_input::MAX_SECRET_INPUT_BYTES)
+/// (DEC-024.5).
 pub fn stdin_line() -> Result<Secret, CliError> {
-    let mut line = Zeroizing::new(String::new());
-    io::stdin()
-        .lock()
-        .read_line(&mut line)
-        .map_err(CliError::Stdin)?;
-    let value = line.trim_end_matches(['\n', '\r']);
-    if value.is_empty() {
+    let secret = read_stdin_secret(SecretEnd::Line)?;
+    if secret.expose().is_empty() {
         return Err(CliError::EmptySecret);
     }
-    Ok(Secret::new(value.to_owned()))
+    Ok(secret)
 }
 
-/// All of stdin (a private key); empty input is refused.
+/// All of stdin (a private key); empty input is refused, and so is input
+/// longer than [`MAX_SECRET_INPUT_BYTES`](portolano_connectors::secret_input::MAX_SECRET_INPUT_BYTES)
+/// (DEC-024.5).
 pub fn stdin_all() -> Result<Secret, CliError> {
-    let mut text = Zeroizing::new(String::new());
-    io::stdin()
-        .read_to_string(&mut text)
-        .map_err(CliError::Stdin)?;
-    if text.trim().is_empty() {
+    let secret = read_stdin_secret(SecretEnd::Eof)?;
+    if secret.expose().trim().is_empty() {
         return Err(CliError::EmptySecret);
     }
-    Ok(Secret::new(text.to_string()))
+    Ok(secret)
 }
 
 /// Asks a yes/no question on the terminal; the default is no.

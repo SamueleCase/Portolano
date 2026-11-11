@@ -99,6 +99,55 @@ fn private_key_is_read_only_from_stdin() {
 }
 
 #[test]
+fn password_from_stdin_beyond_64_kib_is_refused() {
+    let workspace = Workspace::new();
+    let too_long = format!("{}\n", "x".repeat(64 * 1024 + 1));
+    workspace
+        .run_with_stdin(
+            &[
+                "add",
+                "cred",
+                "/Admin",
+                "--user",
+                "admin",
+                "--password-stdin",
+            ],
+            &too_long,
+        )
+        .code(1)
+        .stderr(contains("supera il limite di 65536 byte"));
+    workspace.run(&["show", "/Admin"]).code(3);
+}
+
+#[test]
+fn private_key_from_stdin_beyond_64_kib_is_refused() {
+    let workspace = Workspace::new();
+    let too_long = "k".repeat(64 * 1024 + 1);
+    workspace
+        .run_with_stdin(&["add", "cred", "/Deploy", "--key-stdin"], &too_long)
+        .code(1)
+        .stderr(contains("supera il limite"));
+}
+
+#[test]
+fn private_key_from_stdin_keeps_every_line() {
+    let workspace = Workspace::new();
+    let key = "-----BEGIN TEST KEY-----\nAAAA\n-----END TEST KEY-----\n";
+    workspace.ok(&["add", "cred", "/Deploy"]);
+    workspace
+        .run_with_stdin(
+            &["secret", "set", "/Deploy", "--field", "key", "--stdin"],
+            key,
+        )
+        .success();
+    let status = workspace.ok(&["secret", "status", "/Deploy"]);
+    assert!(
+        status.contains("chiave privata: presente nel vault"),
+        "{status}"
+    );
+}
+
+#[test]
 fn missing_secret_is_reported_as_absent() {
     let workspace = Workspace::new();
     workspace.add_admin();

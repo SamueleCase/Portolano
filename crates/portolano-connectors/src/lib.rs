@@ -13,6 +13,7 @@ mod registry;
 mod terminal;
 
 pub mod rdp;
+pub mod secret_input;
 pub mod ssh;
 
 #[cfg(test)]
