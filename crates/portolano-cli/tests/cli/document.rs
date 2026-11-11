@@ -227,3 +227,15 @@ fn vault_file_with_the_keychain_backend_is_a_usage_error() {
         .code(2)
         .stderr(contains("vale solo con il backend 'file'"));
 }
+
+#[test]
+fn config_path_works_with_an_invalid_configuration() {
+    let workspace = Workspace::new();
+    workspace.write_config("questo non è toml = = =\n");
+    let path = workspace.ok(&["config", "path"]);
+    assert_eq!(path.trim(), workspace.path("config.toml").to_string_lossy());
+    workspace
+        .run(&["tree"])
+        .code(1)
+        .stderr(contains("configurazione"));
+}

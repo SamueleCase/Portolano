@@ -19,6 +19,8 @@ mod validate;
 
 use anyhow::Result;
 
+pub use config::path as config_path;
+
 use crate::args::Command;
 use crate::context::Context;
 

@@ -15,7 +15,7 @@ use std::process::exit;
 use anyhow::Result;
 use tracing::Level;
 
-use crate::args::Cli;
+use crate::args::{Cli, Command, ConfigCommand};
 use crate::context::Context;
 use crate::failure::CliError;
 
@@ -36,6 +36,9 @@ fn main() {
 fn run(cli: Cli) -> Result<i32> {
     if cli.global.json && !cli.command.is_read_only() {
         return Err(CliError::JsonNotSupported.into());
+    }
+    if let Command::Config(ConfigCommand::Path) = cli.command {
+        return commands::config_path(&cli.global);
     }
     let ctx = Context::new(&cli.global)?;
     commands::run(&ctx, cli.command)
