@@ -116,8 +116,12 @@ fn with_italian_values(mut arg: Arg) -> Arg {
         return arg;
     }
     let help = arg.get_help().map(ToString::to_string).unwrap_or_default();
+    // A long help written for the argument is kept, with the notes after it.
+    let long_base = arg
+        .get_long_help()
+        .map_or_else(|| help.clone(), ToString::to_string);
     let short_help = format!("{help} {}", short.join(" "));
-    let long_help = format!("{help}\n\n{}", long.join("\n\n"));
+    let long_help = format!("{long_base}\n\n{}", long.join("\n\n"));
     arg.help(short_help).long_help(long_help)
 }
 
@@ -191,6 +195,22 @@ mod tests {
 
         assert!(help.contains("Valori ammessi:\n"), "{help}");
         assert!(help.contains("- new-ids: Importa con id nuovi"), "{help}");
+    }
+
+    #[test]
+    fn an_existing_long_help_is_kept() {
+        let arg = Arg::new("mode")
+            .long("mode")
+            .action(ArgAction::Set)
+            .value_parser(["a", "b"])
+            .help("Modo")
+            .long_help("Modo, spiegato a lungo");
+
+        let localized = with_italian_values(arg);
+
+        let long = localized.get_long_help().unwrap().to_string();
+        assert!(long.starts_with("Modo, spiegato a lungo\n\n"), "{long}");
+        assert!(long.contains("[valori ammessi: a, b]"), "{long}");
     }
 
     #[test]
