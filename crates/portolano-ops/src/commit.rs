@@ -105,9 +105,7 @@ impl Change {
         }
         Ok(committed)
     }
-}
 
-impl Change {
     /// Saves a change that adds and removes no secret, such as a move, so
     /// that the vault is not needed. On success the saved document replaces
     /// `target`.
@@ -119,6 +117,10 @@ impl Change {
         store: &Store,
         target: &mut Document,
     ) -> Result<()> {
+        // Programming errors, not user errors: a caller that queued or
+        // dropped secrets must use `commit`, or the vault would keep secrets
+        // that nothing references (or lose ones still in use). Checked in
+        // debug builds and tests only, since walking the document has a cost.
         debug_assert!(self.new_secrets.is_empty());
         debug_assert_eq!(self.previous_refs, document_secret_refs(&self.doc));
         store.save(&mut self.doc)?;
