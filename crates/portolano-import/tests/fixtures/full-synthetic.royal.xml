@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SYNTHETIC FIXTURE: written by hand for the tests of portolano-import, it is not a document
+  saved by Royal TS/TSX. It covers the cases marked [ipo] in docs/royal-format.md, which no real
+  document has shown yet: Secure Gateway, Remote Desktop Gateway (object and inline fields),
+  HTML notes, custom fields, protected custom fields, library and embedded icons, templates,
+  embedded private key and passphrase, unsupported and unknown types, an orphan object.
+  The NAMES of these fields are hypotheses (SecureGatewayID, RDSGatewayID, GatewayHostName,
+  GatewayUsageMethod, CustomProtectedFieldN, PrivateKeyContent, Passphrase): they must be
+  checked against a real document before being trusted.
+  Hosts and users are fake (RFC 5737, example.com). Every encrypted value is a random base64
+  string of 80 bytes, not derived from any password.
+-->
+<RTSZDocument>
+  <RoyalDocument>
+    <ID>f0000000-0000-4000-8000-000000000001</ID>
+    <Name>Sintetico completo</Name>
+    <DocumentType>Workspace</DocumentType>
+  </RoyalDocument>
+  <RoyalFolder>
+    <ID>f0000000-0000-4000-8000-000000000010</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Infrastruttura</Name>
+    <PositionNr>1</PositionNr>
+    <Created>not a date</Created>
+  </RoyalFolder>
+  <RoyalSecureGateway>
+    <ID>f0000000-0000-4000-8000-000000000020</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>gw-ssh</Name>
+    <PositionNr>1</PositionNr>
+    <URI>jump.example.com</URI>
+    <Port>22</Port>
+    <CredentialMode>3</CredentialMode>
+    <CredentialId>f0000000-0000-4000-8000-000000000030</CredentialId>
+  </RoyalSecureGateway>
+  <RoyalSSHConnection>
+    <ID>f0000000-0000-4000-8000-000000000021</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>interno</Name>
+    <PositionNr>2</PositionNr>
+    <URI>198.51.100.20</URI>
+    <SecureGatewayID>f0000000-0000-4000-8000-000000000020</SecureGatewayID>
+    <CustomImageName>Flat/Hardware/Server</CustomImageName>
+    <Notes>&lt;html&gt;&lt;body&gt;&lt;p&gt;Server &lt;b&gt;interno&lt;/b&gt; &amp;amp; riservato&lt;/p&gt;&lt;ul&gt;&lt;li&gt;backup notturno&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</Notes>
+    <CustomField1>rack 4</CustomField1>
+    <CustomField2 />
+    <CustomField3>contratto 2026</CustomField3>
+    <CustomProtectedField1>Gx3txilZi/D+KCFTzefg0nGAkOY5Iq6ZuMrJUhwCJnkvEYFcipjxXxhVC0fvksuuwChc0PmlU1Ko3q8dxLIcXmYWOh74mteeRL55+ZDCVfk=</CustomProtectedField1>
+  </RoyalSSHConnection>
+  <RoyalSSHConnection>
+    <ID>f0000000-0000-4000-8000-000000000022</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>switch-telnet</Name>
+    <PositionNr>3</PositionNr>
+    <URI>switch.example.com</URI>
+    <IsTelnetConnection>True</IsTelnetConnection>
+    <CredentialMode>2</CredentialMode>
+    <CredentialUsername>netadmin</CredentialUsername>
+    <CredentialPassword>ro4KpYnFHq861FBNg003t4qJdp6iVqo+cOhkeweGD9U+HMrv4jty67BffUdklbCsQRyAMd0wksQLC2YnS750PLBSdTsM3YVJj0SqJEUymkg=</CredentialPassword>
+  </RoyalSSHConnection>
+  <RoyalSSHConnection>
+    <ID>f0000000-0000-4000-8000-000000000023</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>console-seriale</Name>
+    <PositionNr>4</PositionNr>
+    <IsSerialPortConnection>True</IsSerialPortConnection>
+  </RoyalSSHConnection>
+  <RoyalRDSGateway>
+    <ID>f0000000-0000-4000-8000-000000000024</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>rdgw</Name>
+    <PositionNr>5</PositionNr>
+    <URI>rdgw.example.com</URI>
+    <Port>443</Port>
+  </RoyalRDSGateway>
+  <RoyalRDSConnection>
+    <ID>f0000000-0000-4000-8000-000000000025</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>terminal-server</Name>
+    <PositionNr>6</PositionNr>
+    <URI>ts.example.com</URI>
+    <RDSGatewayID>f0000000-0000-4000-8000-000000000024</RDSGatewayID>
+    <CustomImage>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==</CustomImage>
+    <CustomImageName>Flat/Hardware/Monitor</CustomImageName>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>f0000000-0000-4000-8000-000000000026</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>legacy-gw</Name>
+    <PositionNr>7</PositionNr>
+    <URI>legacy.example.com</URI>
+    <GatewayHostName>oldgw.example.com:8443</GatewayHostName>
+    <GatewayUsageMethod>1</GatewayUsageMethod>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>f0000000-0000-4000-8000-000000000027</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>modello-rdp</Name>
+    <PositionNr>8</PositionNr>
+    <URI>template.example.com</URI>
+    <IsConnectionTemplate>True</IsConnectionTemplate>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>f0000000-0000-4000-8000-000000000028</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>credenziale-esterna</Name>
+    <PositionNr>9</PositionNr>
+    <URI>ext.example.com</URI>
+    <CredentialMode>3</CredentialMode>
+    <CredentialId>e0000000-0000-4000-8000-0000000000ee</CredentialId>
+  </RoyalRDSConnection>
+  <RoyalFolder>
+    <ID>f0000000-0000-4000-8000-000000000011</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Credenziali</Name>
+    <PositionNr>2</PositionNr>
+  </RoyalFolder>
+  <RoyalCredential>
+    <ID>f0000000-0000-4000-8000-000000000030</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>chiave incorporata</Name>
+    <UserName>svc</UserName>
+    <PrivateKeyMode>1</PrivateKeyMode>
+    <PrivateKeyContent>FKGyfdtzXmLa9pbNBbg56m4gptId9aG12ykIPqqJwx1dRUFbcg5Hr6IP0mKWiQ42nsZWj5jZwxapL1/pjAqIpxo0uPoXJHIgxTl4n0y86Oo=</PrivateKeyContent>
+    <Passphrase>QgnH2+mDnjPs6sqAtD8VhuYjJTaCQKonrx5dgGcxAHvsD98cqwrL23l94/H821ToR9/MxreenWP3x8I08f2nqi3eIgsXd0/mDRTX3Wf3oi4=</Passphrase>
+  </RoyalCredential>
+  <RoyalCredential>
+    <ID>f0000000-0000-4000-8000-000000000031</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>con dominio</Name>
+    <UserName>mario</UserName>
+    <Domain>ACME</Domain>
+  </RoyalCredential>
+  <RoyalFolder>
+    <ID>f0000000-0000-4000-8000-000000000012</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Altri tipi</Name>
+    <PositionNr>3</PositionNr>
+  </RoyalFolder>
+  <RoyalVNCConnection>
+    <ID>f0000000-0000-4000-8000-000000000040</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>vnc</Name>
+    <URI>vnc.example.com</URI>
+    <CredentialMode>2</CredentialMode>
+    <CredentialPassword>xGNEFxwAo6Oj5bJ/kSpVk5yB8pgJsbsLmzmdfEcQLDFp2oZfflUm0YvYm2z3Ah5o7IogJe3FZ0GM6rWrXtTouG8Hw1+7ITmusjm+I5nbJJk=</CredentialPassword>
+  </RoyalVNCConnection>
+  <RoyalWebConnection>
+    <ID>f0000000-0000-4000-8000-000000000041</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>intranet</Name>
+    <URI>https://intranet.example.com</URI>
+  </RoyalWebConnection>
+  <RoyalFileTransferConnection>
+    <ID>f0000000-0000-4000-8000-000000000042</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>sftp</Name>
+    <URI>files.example.com</URI>
+  </RoyalFileTransferConnection>
+  <RoyalDynamicFolder>
+    <ID>f0000000-0000-4000-8000-000000000043</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>dinamica</Name>
+  </RoyalDynamicFolder>
+  <RoyalHologramConnection>
+    <ID>f0000000-0000-4000-8000-000000000044</ID>
+    <ParentID>f0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>tipo-sconosciuto</Name>
+    <Passphrase>nG9AEebDSR+kt1eXKtUW7SNAXxUoOdqNnQALsPlIwp9DmL/QJ3u7wIWhu/IT7pXpR5Ubx1QgLiDDIPxf+f+WvOv4h/Cy+EtGZPhnJrOAbJ8=</Passphrase>
+  </RoyalHologramConnection>
+  <RoyalSSHConnection>
+    <ID>f0000000-0000-4000-8000-000000000050</ID>
+    <ParentID>f0000000-0000-4000-8000-0000000000ff</ParentID>
+    <Name>orfano</Name>
+    <URI>orphan.example.com</URI>
+    <SSHKeyPassword>z3iHo/0moCBByCd+5pfvakB0Fl7lYh873xK/gCW3ZoTovnMoX54wHhkANKqm+E3F47NkYbX5tyUS15Mg4IHwJ63suKd5b2nGGnDgX1zSFHc=</SSHKeyPassword>
+  </RoyalSSHConnection>
+</RTSZDocument>

@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SYNTHETIC FIXTURE: written by hand for the tests of portolano-import, it is not a document
+  saved by Royal TS/TSX. It follows the shape of document A of docs/royal-format.md: a workspace
+  protected by a document password, credentials in modes 2/3/4, trash, colors, terminal fields.
+  Hosts and users are fake (RFC 5737, example.com). PasswordHash, Password and
+  CredentialPassword hold random base64 strings (80 and 192 bytes), not derived from any
+  password.
+-->
+<RTSZDocument>
+  <RoyalDocument>
+    <ID>a0000000-0000-4000-8000-000000000001</ID>
+    <Name>Workspace di prova</Name>
+    <DocumentType>Workspace</DocumentType>
+    <PasswordHash>w6bn2UDoRFdmSVTNh7nHTz2Vg5HqqOnhhU3fuQ6zo3O9dkGgI2ledpCpL8vLe6c3ARTK1U0LJMBK51Hsh3KHggGECsNuAsEdv2EDzCn4qcnMDGR9EGoB8JNihL8ErArQ126QYsmpGc56gZIIQo4WL1Io3bnG0cxQQ+IwKfhKTwSWkTFxZUwdDMSL76/qtq56s/nzmGUksFkosSrghKOhM6wQoVIaQSarAtnN4ErFJpLSH0j7Ha+/SnAKRRjENAOC</PasswordHash>
+    <SaveOption>0</SaveOption>
+    <AutoMergeOption>1</AutoMergeOption>
+    <LockdownFeaturesInUse>False</LockdownFeaturesInUse>
+    <DeletedObjectHistory />
+    <IsExpanded>True</IsExpanded>
+    <Created>02/01/2026 08:30:00.000</Created>
+    <CreatedBy>tester</CreatedBy>
+    <Modified>11/09/2026 17:45:12.345</Modified>
+    <ModifiedBy>tester</ModifiedBy>
+  </RoyalDocument>
+  <RoyalTrash>
+    <ID>a0000000-0000-4000-8000-000000000002</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Trash</Name>
+    <PositionNr>8</PositionNr>
+  </RoyalTrash>
+  <RoyalFolder>
+    <ID>a0000000-0000-4000-8000-000000000010</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Credenziali</Name>
+    <PositionNr>2</PositionNr>
+    <Color>#3A6EA5</Color>
+    <ColorName>Royal.Mariner</ColorName>
+    <IsExpanded>True</IsExpanded>
+    <CustomImageList>{}</CustomImageList>
+  </RoyalFolder>
+  <RoyalCredential>
+    <ID>a0000000-0000-4000-8000-000000000020</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>Admin ACME</Name>
+    <PositionNr>2</PositionNr>
+    <UserName>ACME\administrator</UserName>
+    <Password>5eXJxWIvWWg82M3WsGsgpFUC40Nm4IpHI1GDJcoRdnqXNGISBJLX7UqEBmAhp+0Fu62n60CA+0O2yrQ8JXa2s+1qkDJ5st6pM/D1owbOnQ0=</Password>
+  </RoyalCredential>
+  <RoyalCredential>
+    <ID>a0000000-0000-4000-8000-000000000021</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>Root Linux</Name>
+    <PositionNr>4</PositionNr>
+    <UserName>root</UserName>
+    <Password>+G6ahcsHH5pbEWf5tM1Y4vR99d/6UWkv+6ArF2LKNy4sCJFxnFU8bssiph8bSG/w9rgR+sf9Zpjcrbaug5wz+qwjVeMPfS0vpqvuQrwhLW4=</Password>
+    <PrivateKeyPath>~/.ssh/id_ed25519</PrivateKeyPath>
+    <PrivateKeyMode>0</PrivateKeyMode>
+  </RoyalCredential>
+  <RoyalCredential>
+    <ID>a0000000-0000-4000-8000-000000000022</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000010</ParentID>
+    <Name>Deploy</Name>
+    <PositionNr>6</PositionNr>
+    <UserName>deploy@acme.example.com</UserName>
+    <Password>vpCCF3Al+1fTbUZghP1GbKD/8syaBEbjl3jGjmYW9S0uivyOmRaYCHxbQSdZTwrj1NhOQ0vx3ihMSG0BAuSD4xncrHCd7d7kWkeIFoDkGMM=</Password>
+  </RoyalCredential>
+  <RoyalFolder>
+    <ID>a0000000-0000-4000-8000-000000000011</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Server Linux</Name>
+    <Description>Macchine Linux di prova</Description>
+    <PositionNr>4</PositionNr>
+    <Color>#2E8B57</Color>
+    <CredentialMode>3</CredentialMode>
+    <CredentialId>a0000000-0000-4000-8000-000000000021</CredentialId>
+  </RoyalFolder>
+  <RoyalSSHConnection>
+    <ID>a0000000-0000-4000-8000-000000000030</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>web01</Name>
+    <PositionNr>10</PositionNr>
+    <URI>web01.example.com</URI>
+    <Port>22</Port>
+    <ConnectionType>ssh;SSH</ConnectionType>
+    <IsTelnetConnection>False</IsTelnetConnection>
+    <IsSerialPortConnection>False</IsSerialPortConnection>
+    <CredentialFromParent>True</CredentialFromParent>
+    <SSHAllowAgentForwarding>True</SSHAllowAgentForwarding>
+    <KeepAliveInterval>30</KeepAliveInterval>
+    <WarnFingerprintMismatch>True</WarnFingerprintMismatch>
+    <IPVersionOSX>0</IPVersionOSX>
+    <FontNameOSX>Menlo</FontNameOSX>
+    <FontSizeOSX>12</FontSizeOSX>
+    <TerminalColumns>120</TerminalColumns>
+    <TerminalRows>40</TerminalRows>
+    <CursorAppearance>1</CursorAppearance>
+    <BlinkCursor>True</BlinkCursor>
+    <Favorite>True</Favorite>
+    <Created>02/01/2026 08:31:00.000</Created>
+    <Modified>11/09/2026 17:40:00.000</Modified>
+  </RoyalSSHConnection>
+  <RoyalSSHConnection>
+    <ID>a0000000-0000-4000-8000-000000000031</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>db01</Name>
+    <PositionNr>8</PositionNr>
+    <URI>192.0.2.21</URI>
+    <Port>2222</Port>
+    <ConnectionType>ssh;SSH</ConnectionType>
+    <CredentialMode>4</CredentialMode>
+    <CredentialName>Deploy</CredentialName>
+    <CredentialId>a0000000-0000-4000-8000-000000000022</CredentialId>
+    <SSHEnableCompression>True</SSHEnableCompression>
+    <SSHEnableX11Forwarding>True</SSHEnableX11Forwarding>
+  </RoyalSSHConnection>
+  <RoyalSSHConnection>
+    <ID>a0000000-0000-4000-8000-000000000032</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000011</ParentID>
+    <Name>bastion</Name>
+    <PositionNr>2</PositionNr>
+    <URI>bastion.example.com</URI>
+    <ConnectionType>ssh;SSH</ConnectionType>
+    <CredentialMode>2</CredentialMode>
+    <CredentialUsername>ops</CredentialUsername>
+    <CredentialPassword>V88nwY5MJjGTQt8iQLT9HRoMcluUU+SazE7AvNm86n7b5vqk07wsL5IygFiTyDQ7C28ZsmnA459hWugKbkI3cmxMwgakHquORESef+CzuqM=</CredentialPassword>
+  </RoyalSSHConnection>
+  <RoyalFolder>
+    <ID>a0000000-0000-4000-8000-000000000012</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000001</ParentID>
+    <Name>Windows</Name>
+    <PositionNr>6</PositionNr>
+  </RoyalFolder>
+  <RoyalRDSConnection>
+    <ID>a0000000-0000-4000-8000-000000000040</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>dc01</Name>
+    <PositionNr>2</PositionNr>
+    <URI>192.0.2.10</URI>
+    <RDPPort>3389</RDPPort>
+    <CredentialMode>3</CredentialMode>
+    <CredentialId>a0000000-0000-4000-8000-000000000020</CredentialId>
+    <DesktopWidth>0</DesktopWidth>
+    <DesktopHeight>0</DesktopHeight>
+    <ColorDepth>32</ColorDepth>
+    <ScaleFactor>0</ScaleFactor>
+    <AutomaticallyCalculateScaleFactor>True</AutomaticallyCalculateScaleFactor>
+    <SmartSizing>True</SmartSizing>
+    <PhysicalAddress>00:00:5E:00:53:01</PhysicalAddress>
+    <Color>#B22222</Color>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>a0000000-0000-4000-8000-000000000041</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>app01</Name>
+    <PositionNr>4</PositionNr>
+    <URI>app01.example.com</URI>
+    <RDPPort>3390</RDPPort>
+    <CredentialMode>2</CredentialMode>
+    <CredentialUsername>ACME\operator</CredentialUsername>
+    <CredentialPassword>tgvj7DFo5Ho/0NtIFgQyA1ofYEsstDhU1pHyo8SMycPZMxn0o+ylq8NKrWCnN5Jf/AiC+sRx4L5bM9IPN2JCqL1tq/lnAdKc5iWohmkq06Q=</CredentialPassword>
+    <CredentialAutologon>True</CredentialAutologon>
+    <DesktopWidth>1920</DesktopWidth>
+    <DesktopHeight>1080</DesktopHeight>
+    <ScaleFactor>140</ScaleFactor>
+    <UseRetinaResolution>True</UseRetinaResolution>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>a0000000-0000-4000-8000-000000000042</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>kiosk</Name>
+    <PositionNr>6</PositionNr>
+    <URI>kiosk.example.com</URI>
+    <CredentialMode>1</CredentialMode>
+  </RoyalRDSConnection>
+  <RoyalRDSConnection>
+    <ID>a0000000-0000-4000-8000-000000000043</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000012</ParentID>
+    <Name>public</Name>
+    <PositionNr>8</PositionNr>
+    <URI>public.example.com</URI>
+    <CredentialMode>0</CredentialMode>
+  </RoyalRDSConnection>
+  <RoyalSSHConnection>
+    <ID>a0000000-0000-4000-8000-000000000050</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000002</ParentID>
+    <Name>vecchio</Name>
+    <URI>old.example.com</URI>
+    <CredentialMode>2</CredentialMode>
+    <CredentialUsername>legacy</CredentialUsername>
+    <CredentialPassword>sxh0NXzoCCefLtbxz4PonA5dXHKF/Mlysp58CaCzWInbPuYoKmFsV9CDKQve8kYY7qCgaqtYv8xJ7GWhPqiasnTvUy5YhG2SSoObTyM347c=</CredentialPassword>
+  </RoyalSSHConnection>
+  <RoyalFolder>
+    <ID>a0000000-0000-4000-8000-000000000013</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000002</ParentID>
+    <Name>Dismessi</Name>
+  </RoyalFolder>
+  <RoyalRDSConnection>
+    <ID>a0000000-0000-4000-8000-000000000051</ID>
+    <ParentID>a0000000-0000-4000-8000-000000000013</ParentID>
+    <Name>ts-vecchio</Name>
+    <URI>198.51.100.99</URI>
+  </RoyalRDSConnection>
+</RTSZDocument>
