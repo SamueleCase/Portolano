@@ -66,6 +66,14 @@ pub enum Error {
         new_parent: Uuid,
     },
 
+    /// An insert, a move or the creation of a path would put a node deeper
+    /// than [`MAX_DEPTH`](crate::model::MAX_DEPTH) (DEC-021).
+    #[error("l'albero supererebbe la profondità massima di {max} livelli")]
+    TooDeep {
+        /// The maximum depth.
+        max: usize,
+    },
+
     /// A path is syntactically invalid or cannot be used for the operation.
     #[error("percorso non valido '{path}': {reason}")]
     InvalidPath {
