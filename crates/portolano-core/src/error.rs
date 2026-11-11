@@ -185,8 +185,11 @@ pub enum Error {
         source: serde_json::Error,
     },
 
-    /// An icon image has a type that is not supported (SPEC §6.4).
-    #[error("formato immagine non supportato per l'icona: {mime}")]
+    /// The bytes of an icon image are not of an accepted type (SPEC §6.4),
+    /// whatever type was declared.
+    #[error(
+        "il contenuto dell'icona non corrisponde a nessun formato immagine ammesso (dichiarato: {mime})"
+    )]
     UnsupportedIcon {
         /// The declared MIME type.
         mime: String,
