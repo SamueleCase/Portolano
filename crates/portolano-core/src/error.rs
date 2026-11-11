@@ -284,6 +284,9 @@ pub enum Severity {
     Error,
     /// Suspicious but usable.
     Warning,
+    /// Worth knowing, not a problem: for example a node kept verbatim because
+    /// Portolano does not support it (DEC-016). Never affects the exit code.
+    Info,
 }
 
 /// A problem found by validation (SPEC §4.4), by a protocol or by the CLI.
