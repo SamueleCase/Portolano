@@ -3,7 +3,7 @@
 
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use chacha20poly1305::{AeadInOut, Key, KeyInit, XChaCha20Poly1305, XNonce};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use super::KdfParams;
 use crate::error::VaultError;
@@ -17,7 +17,22 @@ const SALT_LEN: usize = 16;
 const KEY_LEN: usize = 32;
 
 /// The key derived from the master password, wiped on drop.
-pub(super) type DerivedKey = Zeroizing<[u8; KEY_LEN]>;
+///
+/// It lives on the heap: moving it (into the `FileVault`, out of a function)
+/// moves only the pointer, instead of leaving copies of the key on the stack.
+pub(super) struct DerivedKey(Box<[u8; KEY_LEN]>);
+
+impl DerivedKey {
+    fn zeroed() -> Self {
+        Self(Box::new([0; KEY_LEN]))
+    }
+}
+
+impl Drop for DerivedKey {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
 
 /// The Argon2id instance for `params`.
 ///
@@ -66,12 +81,12 @@ impl KdfSetup {
             .try_reserve_exact(block_count)
             .map_err(|_| crypto_error(argon2::Error::OutOfMemory))?;
         blocks.resize(block_count, Block::new());
-        let mut key = Zeroizing::new([0; KEY_LEN]);
+        let mut key = DerivedKey::zeroed();
         argon2
             .hash_password_into_with_memory(
                 password.expose().as_bytes(),
                 &self.salt,
-                &mut key[..],
+                &mut key.0[..],
                 &mut blocks[..],
             )
             .map_err(crypto_error)?;
@@ -117,7 +132,7 @@ pub(super) fn open(
 }
 
 fn cipher(key: &DerivedKey) -> XChaCha20Poly1305 {
-    XChaCha20Poly1305::new(<&Key>::from(&**key))
+    XChaCha20Poly1305::new(<&Key>::from(&*key.0))
 }
 
 fn fill_random(buffer: &mut [u8]) -> Result<(), VaultError> {
