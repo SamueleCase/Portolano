@@ -139,6 +139,76 @@ fn validate_reports_an_unsupported_node_as_info_with_its_source_type() {
     assert!(issues[0].message.contains("RoyalVNCConnection"));
 }
 
+#[test]
+fn validate_warns_about_control_characters_in_a_name() {
+    let mut document = sample();
+    document.find_mut(DB).unwrap().name = "db\u{1b}[2J".to_owned();
+
+    let issues = document.validate();
+
+    assert_eq!(codes(&issues), vec![("control_characters", Some(DB))]);
+    assert_eq!(issues[0].severity, Severity::Warning);
+    assert!(!issues[0].message.contains('\u{1b}'));
+}
+
+#[test]
+fn validate_warns_about_control_characters_in_a_host() {
+    let mut document = sample();
+    document
+        .find_mut(DB)
+        .unwrap()
+        .as_connection_mut()
+        .unwrap()
+        .host = "db.example.com\r".to_owned();
+
+    let issues = document.validate();
+
+    assert_eq!(codes(&issues), vec![("control_characters", Some(DB))]);
+    assert!(issues[0].message.contains("host"));
+}
+
+#[test]
+fn validate_warns_about_control_characters_in_the_user_of_a_credential() {
+    let mut document = sample();
+    document
+        .find_mut(ADMIN)
+        .unwrap()
+        .as_credential_mut()
+        .unwrap()
+        .username = Some("admin\u{7}".to_owned());
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("control_characters", Some(ADMIN))]
+    );
+}
+
+#[test]
+fn validate_warns_about_control_characters_in_an_inline_user_inside_settings() {
+    let mut document = sample();
+    document.nodes.push(with_setting(
+        connection(OTHER, "rdp"),
+        "gateway",
+        json!({ "credential": { "mode": "inline", "username": "gw\nuser" } }),
+    ));
+
+    assert_eq!(
+        codes(&document.validate()),
+        vec![("control_characters", Some(OTHER))]
+    );
+}
+
+#[test]
+fn validate_warns_about_control_characters_in_the_document_name() {
+    let mut document = sample();
+    document.name = "Portolano\u{1b}]0;titolo\u{7}".to_owned();
+
+    let issues = document.validate();
+
+    assert_eq!(codes(&issues), vec![("control_characters", None)]);
+    assert_eq!(issues[0].severity, Severity::Warning);
+}
+
 fn credential_with_password(id: Uuid, name: &str, password: &SecretRef) -> Node {
     let mut node = credential(id, name);
     node.as_credential_mut().unwrap().password = Some(password.clone());

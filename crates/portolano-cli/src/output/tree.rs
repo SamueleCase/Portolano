@@ -3,7 +3,7 @@
 use portolano_ops::inspect::{Entry, NodeType};
 use uuid::Uuid;
 
-use super::{display_width, pad, short_id};
+use super::{display_width, pad, short_id, visible};
 
 /// Icon of a folder; the only emoji of the output, kept in constants
 /// (SPEC §11.3).
@@ -43,7 +43,10 @@ impl Header {
 /// The tree as text: the header, then one line per entry with the branch
 /// drawing, the label and the summary aligned in a column.
 pub fn render_tree(header: Header, entries: &[Entry], ids: bool) -> String {
-    let mut lines = vec![(header.label, header.summary)];
+    let mut lines = vec![(
+        visible(&header.label).into_owned(),
+        visible(&header.summary).into_owned(),
+    )];
     // For each depth, whether the current node at that depth is the last
     // of its siblings: it decides between a continuation and a blank.
     let mut last_at_depth: Vec<bool> = Vec::new();
@@ -60,7 +63,10 @@ pub fn render_tree(header: Header, entries: &[Entry], ids: bool) -> String {
         prefix.push_str(if is_last { LAST_BRANCH } else { BRANCH });
         last_at_depth.push(is_last);
         let text = label(&entry.node_type, &entry.name, entry.id, ids);
-        lines.push((format!("{prefix}{text}"), entry.summary.clone()));
+        lines.push((
+            format!("{prefix}{text}"),
+            visible(&entry.summary).into_owned(),
+        ));
     }
     let width = lines
         .iter()
@@ -83,9 +89,10 @@ pub fn render_tree(header: Header, entries: &[Entry], ids: bool) -> String {
 }
 
 fn label(node_type: &NodeType, name: &str, id: Uuid, ids: bool) -> String {
+    let name = visible(name);
     let mark = match node_type {
         NodeType::Folder => FOLDER_ICON.to_owned(),
-        NodeType::Connection { protocol } => format!("[{protocol}]"),
+        NodeType::Connection { protocol } => format!("[{}]", visible(protocol)),
         NodeType::Credential => CREDENTIAL_ICON.to_owned(),
         NodeType::Unsupported { .. } => UNSUPPORTED_MARK.to_owned(),
     };
@@ -156,6 +163,22 @@ Portolano
 │   └── 🔑 Admin ACME    ACME\\administrator
 └── [?]  vnc-legacy      non supportato: RoyalVNCConnection";
         assert_eq!(render_tree(header, &entries, false), expected);
+    }
+
+    #[test]
+    fn control_characters_in_names_and_summaries_are_escaped() {
+        let header = Header {
+            label: "Doc\u{1b}]0;x\u{7}".to_owned(),
+            summary: String::new(),
+        };
+        let entries = [entry(0, ssh(), "web\u{1b}[2J", "admin\r@web01:22")];
+
+        let text = render_tree(header, &entries, false);
+
+        assert_eq!(
+            text,
+            "Doc\\u{1b}]0;x\\u{7}\n└── [ssh] web\\u{1b}[2J  admin\\u{d}@web01:22"
+        );
     }
 
     #[test]

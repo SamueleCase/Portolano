@@ -169,6 +169,27 @@ fn silent_server_is_an_io_error_after_the_timeout() {
 }
 
 #[test]
+fn reply_beyond_the_limit_is_an_io_error() {
+    use std::io::{Read, Write};
+
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("askpass.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = [0_u8; 256];
+        let _ = stream.read(&mut request);
+        let answer = "x".repeat(MAX_MESSAGE_BYTES + 1);
+        let _ = writeln!(stream, "{{\"answer\":\"{answer}\"}}");
+    });
+
+    let result = exchange(&socket, "token", "Password: ", REPLY_TIMEOUT);
+
+    assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
+    server.join().unwrap();
+}
+
+#[test]
 fn wrong_token_is_refused() {
     let server = start_default();
     let wrong = "0".repeat(64);

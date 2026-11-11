@@ -4,6 +4,8 @@
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use chrono::{DateTime, NaiveDateTime, Utc};
 
 use super::xml::{RawField, RawObject};
@@ -151,6 +153,40 @@ fn is_secret_name(name: &str) -> bool {
         || lower.starts_with("customprotectedfield")
 }
 
+/// Fields that hold base64 or long free text by design: the notes and the
+/// images. They are never taken for ciphertext by their value.
+const FREE_FORM_FIELDS: [&str; 3] = ["Notes", "CustomImage", "CustomImageList"];
+
+/// Royal encrypts with a 16-byte block cipher.
+const CIPHER_BLOCK_BYTES: usize = 16;
+
+/// Shortest ciphertext recognized by its value: two blocks, such as an IV
+/// and one block of data.
+const MIN_CIPHERTEXT_BYTES: usize = 2 * CIPHER_BLOCK_BYTES;
+
+/// Whether the value of `field` looks like Royal ciphertext even though the
+/// field name does not say so (DEC-024.4): the encrypted fields of Royal are
+/// only partly known, and one with an unexpected name must not end up in
+/// `extra`. The value must be canonical base64 that decodes to at least
+/// [`MIN_CIPHERTEXT_BYTES`], a multiple of [`CIPHER_BLOCK_BYTES`]. Notes
+/// and images are never ciphertext; nor is a value made of hex digits only,
+/// such as a hash or a key fingerprint, which base64 would accept too.
+pub(super) fn looks_like_ciphertext(field: &str, value: &str) -> bool {
+    // A cheap filter first: the parser asks for every field of the document.
+    const MIN_ENCODED_LENGTH: usize = MIN_CIPHERTEXT_BYTES.div_ceil(3) * 4;
+    let value = value.trim();
+    if value.len() < MIN_ENCODED_LENGTH
+        || !value.len().is_multiple_of(4)
+        || FREE_FORM_FIELDS.contains(&field)
+        || value.chars().all(|c| c.is_ascii_hexdigit())
+    {
+        return false;
+    }
+    STANDARD.decode(value).is_ok_and(|bytes| {
+        bytes.len() >= MIN_CIPHERTEXT_BYTES && bytes.len().is_multiple_of(CIPHER_BLOCK_BYTES)
+    })
+}
+
 fn is_plain_setting(value: &str) -> bool {
     value.is_empty()
         || value.eq_ignore_ascii_case("true")
@@ -217,5 +253,58 @@ mod tests {
     fn ordinary_fields_are_not_secret() {
         assert!(!is_secret_value("UserName", "admin"));
         assert!(!is_secret_value("URI", "web01.example.com"));
+    }
+
+    /// Base64 of `len` bytes that are neither text nor hex.
+    fn ciphertext(len: usize) -> String {
+        let bytes: Vec<u8> = (0..len).map(|i| (i * 37 % 251) as u8 | 0x80).collect();
+        STANDARD.encode(bytes)
+    }
+
+    #[test]
+    fn block_aligned_base64_looks_like_ciphertext_under_any_name() {
+        for len in [32, 48, 64, 1024] {
+            assert!(
+                looks_like_ciphertext("SomeUnknownField", &ciphertext(len)),
+                "{len}"
+            );
+        }
+        assert!(looks_like_ciphertext(
+            "Description",
+            &format!("  {}\n", ciphertext(32))
+        ));
+    }
+
+    #[test]
+    fn short_or_unaligned_base64_is_not_ciphertext() {
+        for len in [16, 31, 33, 40, 47] {
+            assert!(
+                !looks_like_ciphertext("SomeUnknownField", &ciphertext(len)),
+                "{len}"
+            );
+        }
+    }
+
+    #[test]
+    fn notes_and_images_are_never_ciphertext() {
+        for field in FREE_FORM_FIELDS {
+            assert!(!looks_like_ciphertext(field, &ciphertext(64)), "{field}");
+        }
+    }
+
+    #[test]
+    fn hex_hashes_and_plain_text_are_not_ciphertext() {
+        // 64 hex digits decode as base64 to 48 bytes: a SHA-256 in hex.
+        let sha256 = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+        assert!(!looks_like_ciphertext("Thumbprint", sha256));
+        assert!(!looks_like_ciphertext("URI", "web01.example.com"));
+        assert!(!looks_like_ciphertext(
+            "ID",
+            "b0000000-0000-4000-8000-000000000001"
+        ));
+        assert!(!looks_like_ciphertext(
+            "Description",
+            "Server web di produzione del cliente ACME, sede di Milano"
+        ));
     }
 }

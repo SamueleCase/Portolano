@@ -9,6 +9,7 @@ use portolano_ops::vault::SessionVault;
 
 use crate::args::{ClientArg, ConnectArgs};
 use crate::context::Context;
+use crate::output::visible;
 use crate::prompt;
 
 /// With `--print` prints the plan; otherwise asks the login data of a
@@ -34,7 +35,11 @@ pub fn run(ctx: &Context, args: ConnectArgs) -> Result<i32> {
     if args.print {
         let plan = plan_connection(&doc, &ctx.config, &env, &ctx.protocols, id, &options)?;
         print_warnings(&plan.warnings);
-        println!("{}", render(&plan));
+        // One command per line: each line is escaped on its own, so the
+        // steps stay on separate lines.
+        for line in render(&plan).lines() {
+            println!("{}", visible(line));
+        }
         return Ok(0);
     }
     let vault = ctx.vault();
@@ -59,6 +64,6 @@ pub fn run(ctx: &Context, args: ConnectArgs) -> Result<i32> {
 
 fn print_warnings(warnings: &[String]) {
     for warning in warnings {
-        eprintln!("avviso: {warning}");
+        eprintln!("avviso: {}", visible(warning));
     }
 }

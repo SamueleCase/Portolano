@@ -3,6 +3,7 @@ use pretty_assertions::assert_eq;
 use super::*;
 use crate::model::MAX_DEPTH;
 use crate::testutil::folder_chain;
+use crate::vault::{MemoryVault, Vault};
 
 /// An RDP connection with an inline credential and a gateway whose own
 /// inline credential is nested in the settings.
@@ -46,9 +47,15 @@ fn saved_json_holds_secret_refs_but_never_secret_values() {
     let dir = TempDir::new().unwrap();
     let (store, _) = Store::create(document_path(&dir), "Portolano").unwrap();
     let (password, token) = (SecretRef::new(), SecretRef::new());
-    // The secret value only exists in memory, next to its reference, as the
-    // vault would hold it.
-    let _vault_entry = (password.clone(), Secret::new(SENTINEL.to_owned()));
+    // The secret values live in the vault; the document only holds their
+    // references.
+    let vault = MemoryVault::default();
+    vault
+        .set(&password, &Secret::new(SENTINEL.to_owned()))
+        .unwrap();
+    vault
+        .set(&token, &Secret::new(format!("{SENTINEL}-token")))
+        .unwrap();
     let mut doc = sample_document(&password, &token);
 
     store.save(&mut doc).unwrap();
@@ -57,6 +64,14 @@ fn saved_json_holds_secret_refs_but_never_secret_values() {
     assert!(!written.contains(SENTINEL));
     assert!(written.contains(password.as_str()));
     assert!(written.contains(token.as_str()));
+    // The references written resolve to the sentinel through the vault.
+    let loaded = store.load().unwrap();
+    let NodeKind::Credential(credential) = &loaded.nodes[0].as_folder().unwrap().children[1].kind
+    else {
+        panic!("the second child of the sample folder is the credential");
+    };
+    let stored = credential.password.as_ref().unwrap();
+    assert_eq!(vault.get(stored).unwrap().unwrap().expose(), SENTINEL);
 }
 
 #[test]

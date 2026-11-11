@@ -246,6 +246,14 @@ pub enum VaultError {
         reason: String,
     },
 
+    /// The master password chosen for a new file vault is too short
+    /// (DEC-024.7).
+    #[error("la master password del vault deve avere almeno {min_chars} caratteri")]
+    WeakMasterPassword {
+        /// The minimum number of characters.
+        min_chars: usize,
+    },
+
     /// A filesystem operation on the vault file failed.
     #[error("errore di I/O sul vault '{path}'")]
     Io {

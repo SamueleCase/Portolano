@@ -1,6 +1,7 @@
 //! The SSH protocol, through the system OpenSSH (SPEC §7.2).
 
 pub mod askpass;
+mod options;
 mod plan;
 mod settings;
 
@@ -40,7 +41,7 @@ impl Protocol for SshProtocol {
     }
 
     fn validate_config(&self, section: &toml::Value) -> Result<(), String> {
-        decode_section::<SshConfig>(section).map(drop)
+        decode_section::<SshConfig>(section)?.validate()
     }
 
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue> {
@@ -91,7 +92,11 @@ impl Protocol for SshProtocol {
                 reason,
             }
         })?;
-        let ssh = ctx.env.ssh.clone().ok_or_else(ssh_not_found)?;
+        let ssh = ctx
+            .env
+            .ssh
+            .clone()
+            .ok_or_else(|| ctx.env.rejection(self.id()).unwrap_or_else(ssh_not_found))?;
 
         let mut warnings = Vec::new();
         let target = target_endpoint(ctx, connection, &mut warnings)?;

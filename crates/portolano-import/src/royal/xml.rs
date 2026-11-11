@@ -4,19 +4,23 @@
 //! a field (`docs/royal-format.md` §3). No field is interpreted here.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::ops::Range;
 
 use quick_xml::Reader;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::{BytesRef, BytesStart, Event};
 
-use super::fields::is_secret_value;
+use super::fields::{is_secret_value, looks_like_ciphertext};
 use crate::ImportError;
 
 const ROOT_ELEMENT: &str = "RTSZDocument";
 
 /// The value of a field.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `Debug` shows only the kind and the length: a value may be ciphertext
+/// (D3, DEC-024.6).
+#[derive(Clone, PartialEq, Eq)]
 pub(super) enum RawField {
     /// Text content, unescaped.
     Text(String),
@@ -32,8 +36,21 @@ impl RawField {
     }
 }
 
+impl fmt::Debug for RawField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (kind, value) = match self {
+            Self::Text(text) => ("Text", text),
+            Self::Markup(markup) => ("Markup", markup),
+        };
+        write!(f, "{kind}(<{} byte>)", value.len())
+    }
+}
+
 /// One object of the document, before mapping.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `Debug` shows the type, the field names and the values as [`RawField`]
+/// does, never the values nor the XML (DEC-024.6).
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct RawObject {
     /// Element name, such as `RoyalSSHConnection`.
     pub(super) type_name: String,
@@ -48,6 +65,18 @@ pub(super) struct RawObject {
     /// elements holding secrets, or the start tag if it has secret
     /// attributes. In document order.
     redactions: Vec<(Range<usize>, String)>,
+}
+
+impl fmt::Debug for RawObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RawObject")
+            .field("type_name", &self.type_name)
+            .field("fields", &self.fields)
+            .field("raw_xml", &format_args!("<{} byte>", self.raw_xml.len()))
+            .field("secret_fields", &self.secret_fields)
+            .field("redactions", &self.redactions.len())
+            .finish()
+    }
 }
 
 impl RawObject {
@@ -190,7 +219,8 @@ fn read_fields(
             Event::Eof => return Err(unexpected_end()),
             _ => continue,
         };
-        if field.secret || is_secret_value(&name, field.value.as_str()) {
+        let value = field.value.as_str();
+        if field.secret || is_secret_value(&name, value) || looks_like_ciphertext(&name, value) {
             let span = field_start - start..position(reader)? - start;
             object.redactions.push((span, String::new()));
             object.secret_fields.insert(name.clone());
@@ -256,7 +286,7 @@ fn read_field_value(
 
 /// Whether an attribute of the element holds a secret: the attribute has a
 /// secret name, or the element has one, and the value is not a plain
-/// setting.
+/// setting; or the value looks like ciphertext.
 fn has_secret_attribute(element: &BytesStart<'_>) -> Result<bool, ImportError> {
     let name = element_name(element);
     for attribute in element.attributes() {
@@ -264,7 +294,10 @@ fn has_secret_attribute(element: &BytesStart<'_>) -> Result<bool, ImportError> {
             reason: "attributo non valido".to_owned(),
         })?;
         let value = attribute.value.as_ref();
-        if is_secret_value(attribute.key.as_ref(), value) || is_secret_value(&name, value) {
+        if is_secret_value(attribute.key.as_ref(), value)
+            || is_secret_value(&name, value)
+            || looks_like_ciphertext(&name, value)
+        {
             return Ok(true);
         }
     }

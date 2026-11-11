@@ -52,7 +52,7 @@ pub const ASKPASS_TOKEN_ENV: &str = "PORTOLANO_ASKPASS_TOKEN";
 
 /// Upper bound of a message on the socket; longer lines are rejected.
 #[cfg(unix)]
-const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
+const MAX_MESSAGE_BYTES: usize = 64 * 1024;
 
 /// Whether this process was started by `ssh` as its askpass program, that is
 /// [`ASKPASS_ENV`] equals [`ASKPASS_ENABLED`]. `main` checks it before

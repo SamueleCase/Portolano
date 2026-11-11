@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::context::Context;
 use crate::failure::EXIT_VALIDATION;
-use crate::output::print_json;
+use crate::output::{print_json, visible};
 
 /// An issue with the path of its node, for the output.
 #[derive(Serialize)]
@@ -39,13 +39,14 @@ pub fn run(ctx: &Context) -> Result<i32> {
         print_json(&located)?;
     } else {
         for issue in &issues {
-            println!(
+            let line = format!(
                 "{:<7} {}  [{}] {}",
                 severity(issue.severity),
                 path(issue.node).unwrap_or_else(|| "/".to_owned()),
                 issue.code,
                 issue.message
             );
+            println!("{}", visible(&line));
         }
         let count = |wanted| issues.iter().filter(|i| i.severity == wanted).count();
         println!(

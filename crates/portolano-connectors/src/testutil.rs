@@ -27,7 +27,23 @@ pub(crate) fn environment() -> Environment {
         freerdp: Some(PathBuf::from("/opt/homebrew/bin/sdl-freerdp")),
         windows_app: Some(PathBuf::from("/Applications/Windows App.app")),
         self_exe: PathBuf::from("/usr/local/bin/portolano"),
+        rejected: Vec::new(),
     }
+}
+
+/// The full environment, except that the program of `section` was refused
+/// by the discovery (DEC-026.3).
+pub(crate) fn environment_rejecting(section: &str) -> Environment {
+    let mut env = environment();
+    match section {
+        "ssh" => env.ssh = None,
+        _ => env.freerdp = None,
+    }
+    env.rejected.push(crate::RejectedProgram {
+        section: section.to_owned(),
+        reason: "'program': '/tmp/x' è scrivibile dal gruppo o da altri".to_owned(),
+    });
+    env
 }
 
 /// Inline login data with optional user and password.

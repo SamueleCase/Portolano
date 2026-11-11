@@ -6,6 +6,7 @@ use portolano_core::AppConfig;
 
 use crate::ConnectError;
 use crate::rdp::RdpConfig;
+use crate::safe_path::check_trusted_program;
 use crate::ssh::SshConfig;
 
 /// FreeRDP programs, in order of preference (SPEC §7.3).
@@ -14,6 +15,14 @@ const FREERDP_PROGRAMS: [&str; 4] = ["sdl-freerdp3", "sdl-freerdp", "xfreerdp3",
 /// Directories searched for FreeRDP after the `PATH`: Homebrew installs
 /// there, and GUI launches often have a minimal `PATH`.
 const FREERDP_EXTRA_DIRS: [&str; 2] = ["/opt/homebrew/bin", "/usr/local/bin"];
+
+/// `ssh` is looked up in the `PATH` unless the configuration names a program.
+pub(crate) const DEFAULT_SSH_PROGRAM: &str = "ssh";
+
+const SSH_SECTION: &str = "ssh";
+const SSH_PROGRAM_KEY: &str = "program";
+const RDP_SECTION: &str = "rdp";
+const FREERDP_PROGRAM_KEY: &str = "freerdp_program";
 
 /// Windows App bundles, in order of preference (SPEC §7.3).
 const WINDOWS_APP_BUNDLES: [&str; 2] = [
@@ -66,26 +75,61 @@ pub struct Environment {
     pub windows_app: Option<PathBuf>,
     /// The running `portolano` executable, used for askpass and new windows.
     pub self_exe: PathBuf,
+    /// Programs of the configuration that were refused; the matching field
+    /// above is `None`. Only the protocol that needs one fails (DEC-026.3).
+    pub rejected: Vec<RejectedProgram>,
+}
+
+/// A client program set in the configuration that Portolano refuses to run,
+/// or a configuration section that could not be read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RejectedProgram {
+    /// The configuration section, such as `"ssh"`.
+    pub section: String,
+    /// Why, in Italian.
+    pub reason: String,
 }
 
 impl Environment {
     /// Looks for the client programs, honoring the overrides in `config`.
     ///
+    /// A program set in the configuration (`[ssh] program`,
+    /// `[rdp] freerdp_program`) must pass the checks of
+    /// `safe_path::check_trusted_program` (DEC-024.2, DEC-026.3): it receives
+    /// the passwords, so it must not be replaceable by someone else. A
+    /// program that fails them, or a section that cannot be read, is listed
+    /// in [`Environment::rejected`] instead of failing the discovery, so that
+    /// a bad `[ssh]` section does not prevent RDP connections and vice versa.
+    ///
     /// # Errors
-    /// [`ConnectError::InvalidConfig`] for an invalid protocol section,
     /// [`ConnectError::Io`] if the running executable cannot be determined.
     pub fn discover(config: &AppConfig) -> Result<Environment, ConnectError> {
-        let ssh_config = SshConfig::from_app_config(config)?;
-        let rdp_config = RdpConfig::from_app_config(config)?;
         let path = path_dirs();
         let os = Os::current();
+        let mut rejected = Vec::new();
 
-        let freerdp = match rdp_config.freerdp_program {
-            Some(program) if !program.as_os_str().is_empty() => locate(&program, &path),
-            _ => {
+        let ssh_program = SshConfig::from_app_config(config)
+            .map(|ssh| ssh.configured_program().map(Path::to_path_buf));
+        let ssh = match configured(SSH_SECTION, SSH_PROGRAM_KEY, ssh_program) {
+            Ok(Some(program)) => Some(program),
+            Ok(None) => find_first(&[DEFAULT_SSH_PROGRAM], &path),
+            Err(rejection) => {
+                rejected.push(rejection);
+                None
+            }
+        };
+        let freerdp_program = RdpConfig::from_app_config(config)
+            .map(|rdp| rdp.configured_freerdp_program().map(Path::to_path_buf));
+        let freerdp = match configured(RDP_SECTION, FREERDP_PROGRAM_KEY, freerdp_program) {
+            Ok(Some(program)) => Some(program),
+            Ok(None) => {
                 let mut dirs = path.clone();
                 dirs.extend(FREERDP_EXTRA_DIRS.iter().map(PathBuf::from));
                 find_first(&FREERDP_PROGRAMS, &dirs)
+            }
+            Err(rejection) => {
+                rejected.push(rejection);
+                None
             }
         };
         let windows_app = match os {
@@ -102,12 +146,50 @@ impl Environment {
 
         Ok(Environment {
             os,
-            ssh: locate(&ssh_config.program, &path),
+            ssh,
             ssh_add: find_ssh_add(),
             freerdp,
             windows_app,
             self_exe,
+            rejected,
         })
+    }
+
+    /// The refusal of the program of `section`, as the error of a plan that
+    /// needs it.
+    pub(crate) fn rejection(&self, section: &str) -> Option<ConnectError> {
+        self.rejected
+            .iter()
+            .find(|rejected| rejected.section == section)
+            .map(|rejected| ConnectError::InvalidConfig {
+                section: rejected.section.clone(),
+                reason: rejected.reason.clone(),
+            })
+    }
+}
+
+/// The program set as `[section] key`, checked; `Ok(None)` when the section
+/// sets none.
+fn configured(
+    section: &str,
+    key: &str,
+    program: Result<Option<PathBuf>, ConnectError>,
+) -> Result<Option<PathBuf>, RejectedProgram> {
+    let rejected = |reason| RejectedProgram {
+        section: section.to_owned(),
+        reason,
+    };
+    let program = program.map_err(|error| {
+        rejected(match error {
+            ConnectError::InvalidConfig { reason, .. } => reason,
+            other => other.to_string(),
+        })
+    })?;
+    match program {
+        Some(program) => check_trusted_program(key, &program)
+            .map(|()| Some(program))
+            .map_err(rejected),
+        None => Ok(None),
     }
 }
 
@@ -120,14 +202,6 @@ fn path_dirs() -> Vec<PathBuf> {
     std::env::var_os("PATH")
         .map(|path| std::env::split_paths(&path).collect())
         .unwrap_or_default()
-}
-
-/// `program` itself if it is a path, otherwise its first match in `dirs`.
-fn locate(program: &Path, dirs: &[PathBuf]) -> Option<PathBuf> {
-    if program.components().count() > 1 {
-        return is_executable(program).then(|| program.to_path_buf());
-    }
-    program.to_str().and_then(|name| find_first(&[name], dirs))
 }
 
 /// The first executable among `names`, in order of preference; each name is
@@ -195,22 +269,72 @@ mod tests {
         assert_eq!(found, Some(executable));
     }
 
-    #[test]
-    fn locate_accepts_an_explicit_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let ssh = program(dir.path(), "my-ssh", 0o755);
-
-        let found = locate(&ssh, &[]);
-
-        assert_eq!(found, Some(ssh));
+    fn config_with(text: &str) -> AppConfig {
+        let mut config = AppConfig::default();
+        let table: toml::Table = toml::from_str(text).unwrap();
+        config.protocols.extend(table);
+        config
     }
 
     #[test]
-    fn locate_rejects_a_missing_explicit_path() {
+    fn discover_uses_a_trusted_configured_program() {
         let dir = tempfile::tempdir().unwrap();
+        let ssh = program(dir.path(), "probe-ssh", 0o700);
+        let freerdp = program(dir.path(), "probe-freerdp", 0o500);
+        let config = config_with(&format!(
+            "[ssh]\nprogram = {:?}\n[rdp]\nfreerdp_program = {:?}\n",
+            ssh.display().to_string(),
+            freerdp.display().to_string()
+        ));
 
-        let found = locate(&dir.path().join("missing"), &[]);
+        let env = Environment::discover(&config).unwrap();
 
-        assert_eq!(found, None);
+        assert_eq!(env.ssh, Some(ssh));
+        assert_eq!(env.freerdp, Some(freerdp));
+    }
+
+    #[test]
+    fn a_rejected_freerdp_leaves_ssh_usable() {
+        let dir = tempfile::tempdir().unwrap();
+        let ssh = program(dir.path(), "probe-ssh", 0o700);
+        let freerdp = program(dir.path(), "probe-freerdp", 0o775);
+        let config = config_with(&format!(
+            "[ssh]\nprogram = {:?}\n[rdp]\nfreerdp_program = {:?}\n",
+            ssh.display().to_string(),
+            freerdp.display().to_string()
+        ));
+
+        let env = Environment::discover(&config).unwrap();
+
+        assert_eq!(env.ssh, Some(ssh));
+        assert_eq!(env.freerdp, None);
+        let error = env.rejection("rdp").unwrap();
+        assert!(
+            matches!(&error, ConnectError::InvalidConfig { section, reason }
+                if section == "rdp" && reason.contains("freerdp_program")),
+            "{error}"
+        );
+        assert!(env.rejection("ssh").is_none());
+    }
+
+    #[test]
+    fn a_rejected_ssh_program_is_recorded_for_ssh_only() {
+        let config = config_with("[ssh]\nprogram = \"bin/ssh\"\n");
+
+        let env = Environment::discover(&config).unwrap();
+
+        assert_eq!(env.ssh, None);
+        assert!(env.rejection("ssh").is_some());
+        assert!(env.rejection("rdp").is_none());
+    }
+
+    #[test]
+    fn an_unreadable_section_is_recorded_as_rejected() {
+        let config = config_with("[ssh]\nprogramm = \"ssh\"\n");
+
+        let env = Environment::discover(&config).unwrap();
+
+        assert_eq!(env.ssh, None);
+        assert!(env.rejection("ssh").is_some());
     }
 }

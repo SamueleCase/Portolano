@@ -1,14 +1,16 @@
-//! Help and usage errors in Italian (DEC-023.2): clap writes them in
-//! English, so the command is adjusted before parsing (headings, help and
-//! version flags) and the main errors are rewritten, keeping exit code 2.
+//! Usage errors in Italian (DEC-023.2): clap writes them in English, so the
+//! main errors are rewritten, keeping exit code 2. The help is localized by
+//! [`super::help`].
 
 use std::num::{IntErrorKind, ParseIntError};
 
+use clap::FromArgMatches;
 use clap::error::{ContextKind, ErrorKind};
-use clap::{Arg, ArgAction, Command, CommandFactory, FromArgMatches};
 
 use super::Cli;
+use super::help::command;
 use crate::failure::EXIT_USAGE;
+use crate::output::visible;
 
 /// What clap writes between a number and the range it is not in.
 const CLAP_OUT_OF_RANGE: &str = " is not in ";
@@ -20,46 +22,6 @@ pub fn parse() -> Result<Cli, i32> {
         .try_get_matches()
         .map_err(|error| report(&error))?;
     Cli::from_arg_matches(&matches).map_err(|error| report(&error))
-}
-
-/// The command of [`Cli`] with Italian headings and help flags.
-pub fn command() -> Command {
-    let version = Arg::new("version")
-        .short('V')
-        .long("version")
-        .action(ArgAction::Version)
-        .help("Mostra la versione");
-    localize(Cli::command())
-        .disable_version_flag(true)
-        .arg(version)
-}
-
-fn localize(command: Command) -> Command {
-    let template = template(&command);
-    let help = Arg::new("help")
-        .short('h')
-        .long("help")
-        .action(ArgAction::Help)
-        .help("Mostra l'aiuto");
-    command
-        .disable_help_flag(true)
-        .disable_help_subcommand(true)
-        .arg(help)
-        .help_template(template)
-        .mut_subcommands(localize)
-}
-
-/// Headings in Italian; only the sections the command has.
-fn template(command: &Command) -> String {
-    let mut template = String::from("{about-with-newline}\nUso: {usage}\n");
-    if command.has_subcommands() {
-        template.push_str("\nComandi:\n{subcommands}\n");
-    }
-    if command.get_positionals().next().is_some() {
-        template.push_str("\nArgomenti:\n{positionals}\n");
-    }
-    template.push_str("\nOpzioni:\n{options}\n{after-help}");
-    template
 }
 
 /// Prints the help, the version or the error, and returns the exit code.
@@ -74,7 +36,7 @@ fn report(error: &clap::Error) -> i32 {
             EXIT_USAGE
         }
         _ => {
-            eprintln!("errore: {}", message(error));
+            eprintln!("errore: {}", visible(&message(error)));
             eprintln!("\nPer l'aiuto: portolano --help, oppure portolano <comando> --help");
             EXIT_USAGE
         }
@@ -175,11 +137,6 @@ mod tests {
     }
 
     #[test]
-    fn localized_command_is_consistent() {
-        command().debug_assert();
-    }
-
-    #[test]
     fn missing_argument_is_explained_in_italian() {
         assert_eq!(
             error_of(&["portolano", "add", "ssh", "/web01"]),
@@ -214,20 +171,6 @@ mod tests {
             "--password-stdin",
         ]);
         assert!(text.contains("non si può usare insieme a"), "{text}");
-    }
-
-    #[test]
-    fn help_has_italian_headings() {
-        let help = command().render_help().to_string();
-        for heading in [
-            "Uso: ",
-            "Comandi:",
-            "Opzioni:",
-            "Mostra l'aiuto",
-            "Mostra la versione",
-        ] {
-            assert!(help.contains(heading), "{heading}");
-        }
     }
 
     #[test]

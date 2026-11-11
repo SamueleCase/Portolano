@@ -1,6 +1,8 @@
 //! Launch plan of an SSH connection (SPEC §7.2): the jump chain, the
 //! arguments of `ssh`, keys and passwords.
 
+mod values;
+
 use std::path::{Path, PathBuf};
 
 use portolano_core::{Connection, Document, PrivateKey, ResolvedCredential};
@@ -9,17 +11,10 @@ use uuid::Uuid;
 use super::settings::{JumpHost, SshSettings};
 use crate::ConnectError;
 use crate::plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher};
-use crate::protocol::{check_value, host_port};
+use crate::protocol::host_port;
 
 /// Port of SSH when the connection does not set one.
 pub(super) const SSH_PORT: u16 = 22;
-
-/// Characters that would split or end a `-J` entry, or that a shell would
-/// interpret: OpenSSH may turn the jump hosts into a proxy command run by
-/// the shell, so quotes, substitutions and separators are refused too.
-const JUMP_FORBIDDEN: [char; 14] = [
-    ',', ' ', '\'', '"', '`', ';', '$', '|', '&', '<', '>', '(', ')', '\\',
-];
 
 /// Lifetime of a vault key in `ssh-agent` (`ssh-add -t`), in seconds: long
 /// enough to log in, short enough not to linger.
@@ -105,7 +100,7 @@ fn follow<'a>(
     for jump in &settings.jump_hosts {
         match jump {
             JumpHost::Address { address } => {
-                check_value(owner, "jump_hosts.address", address, &JUMP_FORBIDDEN)?;
+                values::check_jump_address(owner, address)?;
                 chain.push(JumpLink::Address(address.clone()));
             }
             JumpHost::Ref { id } => {
@@ -149,11 +144,14 @@ fn jump_connection(doc: &Document, id: Uuid) -> Result<&Connection, ConnectError
 ///
 /// # Errors
 /// [`ConnectError::ClientNotFound`] if a key in the vault needs `ssh-add`
-/// and it is not installed; [`ConnectError::InvalidValue`] for a jump host
-/// whose user or host would break the `-J` list.
+/// and it is not installed; [`ConnectError::InvalidValue`] for a user or
+/// host, of the destination or of a jump host, with a control character, a
+/// shell metacharacter or, for the jump hosts, a character that would break
+/// the `-J` list.
 pub(super) fn build(launch: &SshLaunch) -> Result<LaunchPlan, ConnectError> {
     let mut secrets = HopSecrets::new(launch.ssh_add_available, &launch.askpass_program);
     let target = &launch.target;
+    values::check_target(target)?;
     let mut args = vec!["-p".to_owned(), target.port.to_string()];
     if let Some(user) = &target.credential.username {
         args.extend(["-l".to_owned(), user.clone()]);
@@ -205,10 +203,7 @@ fn jump_list(jumps: &[Jump], secrets: &mut HopSecrets<'_>) -> Result<String, Con
         match jump {
             Jump::Address(address) => hops.push(address.clone()),
             Jump::Endpoint(endpoint) => {
-                check_value(endpoint.node, "host", &endpoint.host, &JUMP_FORBIDDEN)?;
-                if let Some(user) = &endpoint.credential.username {
-                    check_value(endpoint.node, "username", user, &JUMP_FORBIDDEN)?;
-                }
+                values::check_jump(endpoint)?;
                 secrets.add_key(endpoint, Role::Jump)?;
                 secrets.add_password(endpoint);
                 hops.push(jump_address(endpoint));

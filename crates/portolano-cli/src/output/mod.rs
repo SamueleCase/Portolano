@@ -1,5 +1,6 @@
 //! Output formatting: tree, tables, details and JSON (SPEC §10.2).
 
+mod escape;
 mod report;
 mod show;
 mod tree;
@@ -8,6 +9,7 @@ use anyhow::Result;
 use serde::Serialize;
 use uuid::Uuid;
 
+pub use escape::visible;
 pub use report::print_import;
 pub use show::print_show;
 pub use tree::{Header, render_tree};
@@ -21,25 +23,33 @@ pub fn short_id(id: Uuid) -> String {
     id.simple().to_string()[..SHORT_ID_DIGITS].to_owned()
 }
 
-/// Prints `value` as pretty JSON on stdout.
+/// Prints `value` as pretty JSON on stdout. `serde_json` escapes only the
+/// C0 controls: DEL, the C1 controls and the bidi controls are escaped here
+/// (DEC-026.4).
 ///
 /// # Errors
 /// Serialization errors.
 pub fn print_json(value: &impl Serialize) -> Result<()> {
-    println!("{}", serde_json::to_string_pretty(value)?);
+    let json = serde_json::to_string_pretty(value)?;
+    println!("{}", escape::json_visible(&json));
     Ok(())
 }
 
-/// Prints rows as a table with a header, columns separated by two spaces.
+/// Prints rows as a table with a header, columns separated by two spaces;
+/// the cells are made [`visible`].
 pub fn print_table(header: &[&str], rows: &[Vec<String>]) {
+    let rows: Vec<Vec<String>> = rows
+        .iter()
+        .map(|row| row.iter().map(|cell| visible(cell).into_owned()).collect())
+        .collect();
     let mut widths: Vec<usize> = header.iter().map(|title| display_width(title)).collect();
-    for row in rows {
+    for row in &rows {
         for (width, cell) in widths.iter_mut().zip(row) {
             *width = (*width).max(display_width(cell));
         }
     }
     let header: Vec<String> = header.iter().map(|title| (*title).to_owned()).collect();
-    for row in std::iter::once(&header).chain(rows) {
+    for row in std::iter::once(&header).chain(&rows) {
         let cells: Vec<String> = row
             .iter()
             .zip(&widths)

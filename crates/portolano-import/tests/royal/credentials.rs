@@ -10,12 +10,6 @@ use crate::testutil::*;
 const SKIPPED_PASSWORD: &str =
     "password Royal cifrata non importata: impostala con `portolano secret set`";
 
-fn ssh_with(fields: &[(&str, &str)]) -> String {
-    let mut all = vec![("Name", "web01"), ("URI", "web01.example.com")];
-    all.extend_from_slice(fields);
-    document(&[object("RoyalSSHConnection", 2, 1, &all)])
-}
-
 fn spec_of(xml: &str) -> CredentialSpec {
     connection(&import(xml).root, 2).credential.clone()
 }
@@ -238,12 +232,6 @@ fn a_cancelled_prompt_aborts_the_import() {
     assert!(matches!(error, ImportError::Cancelled));
 }
 
-fn credential_with(fields: &[(&str, &str)]) -> String {
-    let mut all = vec![("Name", "cred")];
-    all.extend_from_slice(fields);
-    document(&[object("RoyalCredential", 2, 1, &all)])
-}
-
 #[test]
 fn a_credential_splits_domain_backslash_user() {
     let outcome = import(&credential_with(&[("UserName", "ACME\\administrator")]));
@@ -356,19 +344,5 @@ fn a_skipped_embedded_key_makes_the_credential_partial() {
     assert_eq!(
         reasons(&outcome, 2),
         vec!["chiave privata Royal cifrata non importata: impostala con `portolano secret set`"]
-    );
-}
-
-#[test]
-fn an_unknown_encrypted_field_is_dropped_and_reported() {
-    let xml = credential_with(&[("SSHKeyPassword", FAKE_CIPHERTEXT)]);
-
-    let outcome = import(&xml);
-
-    let node = find(&outcome.root, uuid(2));
-    assert!(!node.extra.contains_key("royal.SSHKeyPassword"));
-    assert_eq!(
-        reasons(&outcome, 2),
-        vec!["campo cifrato `SSHKeyPassword` non importato"]
     );
 }

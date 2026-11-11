@@ -6,16 +6,17 @@
 //! which option to use instead.
 
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, BufReader, IsTerminal, Read, Write};
+use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 
+use portolano_connectors::secret_input::{SecretEnd, read_stdin_secret};
 use portolano_core::vault::MASTER_PASSWORD_ENV;
 use portolano_core::{MasterPasswordSource, Secret, VaultError};
 use portolano_import::{ImportError, SecretField, SecretPrompter, SecretRequest};
 use portolano_ops::connect::LoginRequest;
-use portolano_ops::vault::Login;
-use zeroize::Zeroizing;
+use portolano_ops::vault::{Login, MIN_MASTER_PASSWORD_CHARS};
 
 use crate::failure::CliError;
+use crate::output::visible;
 
 /// Whether the user is at a terminal and can answer questions.
 pub fn interactive() -> bool {
@@ -36,36 +37,32 @@ pub fn new_secret(label: &str) -> Result<Secret, CliError> {
     Ok(first)
 }
 
-/// One line of stdin, without the line ending; empty lines are refused.
+/// One line of stdin, without the line ending; empty lines are refused, and
+/// so are lines longer than [`MAX_SECRET_INPUT_BYTES`](portolano_connectors::secret_input::MAX_SECRET_INPUT_BYTES)
+/// (DEC-024.5).
 pub fn stdin_line() -> Result<Secret, CliError> {
-    let mut line = Zeroizing::new(String::new());
-    io::stdin()
-        .lock()
-        .read_line(&mut line)
-        .map_err(CliError::Stdin)?;
-    let value = line.trim_end_matches(['\n', '\r']);
-    if value.is_empty() {
+    let secret = read_stdin_secret(SecretEnd::Line)?;
+    if secret.expose().is_empty() {
         return Err(CliError::EmptySecret);
     }
-    Ok(Secret::new(value.to_owned()))
+    Ok(secret)
 }
 
-/// All of stdin (a private key); empty input is refused.
+/// All of stdin (a private key); empty input is refused, and so is input
+/// longer than [`MAX_SECRET_INPUT_BYTES`](portolano_connectors::secret_input::MAX_SECRET_INPUT_BYTES)
+/// (DEC-024.5).
 pub fn stdin_all() -> Result<Secret, CliError> {
-    let mut text = Zeroizing::new(String::new());
-    io::stdin()
-        .read_to_string(&mut text)
-        .map_err(CliError::Stdin)?;
-    if text.trim().is_empty() {
+    let secret = read_stdin_secret(SecretEnd::Eof)?;
+    if secret.expose().trim().is_empty() {
         return Err(CliError::EmptySecret);
     }
-    Ok(Secret::new(text.to_string()))
+    Ok(secret)
 }
 
 /// Asks a yes/no question on the terminal; the default is no.
 pub fn confirm(question: &str) -> Result<bool, CliError> {
     require_terminal("la conferma")?;
-    let answer = visible(&format!("{question} [s/N] "))?;
+    let answer = echoed(&format!("{question} [s/N] "))?;
     Ok(matches!(
         answer.trim(),
         "s" | "S" | "si" | "sì" | "y" | "yes"
@@ -79,7 +76,7 @@ pub fn login(request: &LoginRequest) -> Result<Option<Login>, CliError> {
         return Ok(None);
     }
     let tty = Tty::open()?;
-    eprintln!("Credenziali per {}", request.path);
+    eprintln!("Credenziali per {}", visible(&request.path));
     let username = tty.ask("Utente: ")?;
     let domain = if request.ask_domain {
         tty.ask("Dominio (invio per nessuno): ")?
@@ -108,18 +105,20 @@ impl MasterPasswordSource for MasterPassword {
                 .map(Secret::new)
                 .map_err(|_| unavailable(format!("{MASTER_PASSWORD_ENV} non è UTF-8 valido")));
         }
-        let label = if creating {
-            "Nuova master password del vault"
-        } else {
-            "Master password del vault"
-        };
         let result = if creating {
-            new_secret(label)
+            new_secret(&new_master_password_label())
         } else {
+            let label = "Master password del vault";
             require_terminal(label).and_then(|()| hidden(&format!("{label}: ")))
         };
         result.map_err(|error| unavailable(error.to_string()))
     }
+}
+
+/// The prompt of a new master password, with the minimum length that the
+/// vault requires (DEC-026.6).
+fn new_master_password_label() -> String {
+    format!("Nuova master password del vault (almeno {MIN_MASTER_PASSWORD_CHARS} caratteri)")
 }
 
 fn unavailable(reason: String) -> VaultError {
@@ -143,6 +142,8 @@ impl SecretPrompter for ImportPrompter {
             .map(|user| format!(" (utente {user})"))
             .unwrap_or_default();
         let prompt = format!("{what} di {}{user}, invio per saltare: ", request.node_path);
+        // The path, user and property name come from the imported file.
+        let prompt = visible(&prompt);
         let secret = hidden(&prompt).map_err(|error| ImportError::Prompt {
             source: io::Error::other(error.to_string()),
         })?;
@@ -166,7 +167,8 @@ fn hidden(prompt: &str) -> Result<Secret, CliError> {
         .map_err(CliError::Terminal)
 }
 
-fn visible(prompt: &str) -> Result<String, CliError> {
+/// An answer typed with echo, for questions that are not secrets.
+fn echoed(prompt: &str) -> Result<String, CliError> {
     Tty::open()?.ask(prompt)
 }
 
@@ -198,5 +200,15 @@ impl Tty {
             .read_line(&mut line)
             .map_err(CliError::Terminal)?;
         Ok(line.trim_end_matches(['\n', '\r']).to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_master_password_prompt_states_the_minimum_length() {
+        assert!(new_master_password_label().contains("almeno 12 caratteri"));
     }
 }

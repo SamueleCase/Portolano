@@ -47,7 +47,7 @@ impl Protocol for RdpProtocol {
     }
 
     fn validate_config(&self, section: &toml::Value) -> Result<(), String> {
-        decode_section::<RdpConfig>(section).map(drop)
+        decode_section::<RdpConfig>(section)?.validate()
     }
 
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue> {
@@ -221,9 +221,14 @@ fn choose_client(
         Some(RdpClient::WindowsApp) => RdpClientChoice::WindowsApp,
         None => configured,
     };
-    let freerdp_missing = || ConnectError::ClientNotFound {
-        client: "FreeRDP".to_owned(),
-        hint: "installalo con `brew install freerdp`".to_owned(),
+    // A FreeRDP set in the configuration but refused is reported as such,
+    // and `auto` does not silently fall back to Windows App instead.
+    let freerdp_missing = || {
+        env.rejection("rdp")
+            .unwrap_or_else(|| ConnectError::ClientNotFound {
+                client: "FreeRDP".to_owned(),
+                hint: "installalo con `brew install freerdp`".to_owned(),
+            })
     };
     match choice {
         RdpClientChoice::FreeRdp => env
@@ -244,6 +249,7 @@ fn choose_client(
             }),
         RdpClientChoice::Auto => match (&env.freerdp, &env.windows_app) {
             (Some(freerdp), _) => Ok(ChosenClient::FreeRdp(freerdp.clone())),
+            (None, _) if env.rejection("rdp").is_some() => Err(freerdp_missing()),
             (None, Some(app)) => Ok(ChosenClient::WindowsApp {
                 app: app.clone(),
                 fallback: true,

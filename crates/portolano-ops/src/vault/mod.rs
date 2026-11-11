@@ -5,5 +5,5 @@
 mod lazy;
 mod session;
 
-pub use lazy::LazyVault;
+pub use lazy::{LazyVault, MIN_MASTER_PASSWORD_CHARS};
 pub use session::{Login, SessionVault};

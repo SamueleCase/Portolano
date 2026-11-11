@@ -6,6 +6,7 @@ use portolano_ops::nodes::{NodeEdit, edit_node};
 use super::common::{details, report_cleanup};
 use crate::args::EditArgs;
 use crate::context::Context;
+use crate::output::visible;
 
 /// Applies the changes and saves; secrets no longer used are deleted from
 /// the vault.
@@ -32,6 +33,6 @@ pub fn run(ctx: &Context, args: EditArgs) -> Result<i32> {
     };
     let vault = ctx.vault();
     let outcome = edit_node(&store, &mut doc, &vault, &ctx.protocols, id, edit)?;
-    println!("Modificato {}", outcome.path);
+    println!("Modificato {}", visible(&outcome.path));
     Ok(report_cleanup(&outcome.cleanup_failures))
 }

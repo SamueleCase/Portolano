@@ -17,6 +17,7 @@ use crate::args::{
     AddCommand, AddCredArgs, AddFolderArgs, AddRdpArgs, AddSshArgs, CommonArgs, ConnectionArgs,
 };
 use crate::context::Context;
+use crate::output::visible;
 use crate::prompt;
 
 /// Adds the node and writes its secrets.
@@ -46,7 +47,7 @@ pub fn run(ctx: &Context, command: AddCommand) -> Result<i32> {
     };
     let vault = ctx.vault();
     let outcome = add_node(&store, &mut doc, &vault, &ctx.protocols, node)?;
-    println!("Aggiunto {}", outcome.path);
+    println!("Aggiunto {}", visible(&outcome.path));
     Ok(0)
 }
 

@@ -35,6 +35,11 @@ const GATEWAY_FORBIDDEN: [char; 1] = [','];
 
 /// The plan that runs FreeRDP; the password, if any, goes to its stdin.
 ///
+/// FreeRDP runs detached unless `wait`, or unless it will have to ask the
+/// user for a password (DEC-025): the destination has none, or the gateway
+/// uses another credential. Detached, it would have no terminal to ask on,
+/// so it then runs in the foreground with a warning that says why.
+///
 /// # Errors
 /// [`ConnectError::InvalidValue`] for a gateway value that would break the
 /// `/gateway:` option.
@@ -54,8 +59,11 @@ pub(super) fn plan(
     }
     args.push(format!("/cert:{}", cert.as_freerdp_value()));
     args.extend(display_args(target.settings));
+    let mut gateway_prompts = false;
     if let Some(gateway) = &target.gateway {
-        args.push(gateway_arg(target, gateway, &mut warnings)?);
+        let (arg, prompts) = gateway_arg(target, gateway, &mut warnings)?;
+        args.push(arg);
+        gateway_prompts = prompts;
     }
     // The password never goes to argv (`/p:`): FreeRDP reads it from stdin,
     // and only with a user, as for SSH, so it cannot be sent for another one.
@@ -74,6 +82,19 @@ pub(super) fn plan(
     if stdin_secret.is_some() {
         args.push(FROM_STDIN.to_owned());
     }
+    let asks = match (stdin_secret.is_none(), gateway_prompts) {
+        (true, true) => Some("la password della destinazione e quella del gateway"),
+        (true, false) => Some("la password della destinazione"),
+        (false, true) => Some("la password del gateway"),
+        (false, false) => None,
+    };
+    if let Some(what) = asks.filter(|_| !wait) {
+        warnings.push(format!(
+            "FreeRDP chiederà {what}: viene eseguito in primo piano in questo terminale \
+             invece di staccarsi"
+        ));
+    }
+    let wait = wait || asks.is_some();
     if !wait {
         // Its stderr goes to a log (see `PreparedLaunch::log_path`): only
         // warnings and errors, never debug dumps of the settings, even with
@@ -123,12 +144,14 @@ fn display_args(settings: &RdpSettings) -> Vec<String> {
     args
 }
 
-/// `/gateway:g:<host>[:<port>][,u:<user>][,d:<domain>]`, never with `p:`.
+/// `/gateway:g:<host>[:<port>][,u:<user>][,d:<domain>]`, never with `p:`,
+/// and whether FreeRDP will ask for the gateway login: it does unless the
+/// gateway uses the credential of the destination.
 fn gateway_arg(
     target: &RdpTarget,
     gateway: &GatewayLogin,
     warnings: &mut Vec<String>,
-) -> Result<String, ConnectError> {
+) -> Result<(String, bool), ConnectError> {
     let id = target.node_id;
     check_value(id, "gateway.host", gateway.host, &GATEWAY_FORBIDDEN)?;
     let mut arg = format!("/gateway:g:{}", gateway.address());
@@ -138,10 +161,10 @@ fn gateway_arg(
             "credenziale del gateway {} da chiedere all'avvio: la chiederà FreeRDP",
             gateway.host
         ));
-        return Ok(arg);
+        return Ok((arg, true));
     }
     if same_login(login, &target.credential) {
-        return Ok(arg);
+        return Ok((arg, false));
     }
     if let Some(user) = &login.username {
         check_value(id, "gateway.username", user, &GATEWAY_FORBIDDEN)?;
@@ -151,14 +174,17 @@ fn gateway_arg(
         check_value(id, "gateway.domain", domain, &GATEWAY_FORBIDDEN)?;
         arg.push_str(&format!(",d:{domain}"));
     }
-    if login.username.is_some() || login.domain.is_some() {
+    // Without a user or a domain FreeRDP logs in to the gateway with the
+    // credentials of the destination (DEC-020), so it asks nothing more.
+    let other_login = login.username.is_some() || login.domain.is_some();
+    if other_login {
         warnings.push(format!(
             "il gateway {} usa una credenziale diversa da quella di destinazione: \
              la sua password la chiederà FreeRDP",
             gateway.host
         ));
     }
-    Ok(arg)
+    Ok((arg, other_login))
 }
 
 fn same_login(gateway: &ResolvedCredential, target: &ResolvedCredential) -> bool {

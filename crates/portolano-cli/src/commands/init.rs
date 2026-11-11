@@ -5,6 +5,7 @@ use portolano_ops::document::init_document;
 
 use crate::args::InitArgs;
 use crate::context::Context;
+use crate::output::visible;
 
 /// Creates the document at the effective location.
 ///
@@ -13,6 +14,10 @@ use crate::context::Context;
 pub fn run(ctx: &Context, args: InitArgs) -> Result<i32> {
     let path = &ctx.locations.document;
     let (_, doc) = init_document(path, &args.name, args.force)?;
-    println!("Documento '{}' creato in {}", doc.name, path.display());
+    println!(
+        "Documento '{}' creato in {}",
+        visible(&doc.name),
+        visible(&path.display().to_string())
+    );
     Ok(0)
 }

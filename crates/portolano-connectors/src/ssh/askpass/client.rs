@@ -2,16 +2,17 @@
 //! terminal as a fallback (SPEC §7.2 points 3 and 5).
 
 use std::fmt;
-use std::fs::OpenOptions;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write};
+use std::os::fd::AsFd;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::Duration;
 
 use portolano_core::Secret;
-use zeroize::Zeroizing;
 
 use super::{ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV, MAX_MESSAGE_BYTES, Reply, Request};
+use crate::secret_input::{MAX_SECRET_INPUT_BYTES, SecretEnd, SecretInputError, read_secret};
 
 /// How long the client waits for the answer of the server, which answers
 /// immediately while it runs; after that the client asks on the terminal.
@@ -78,10 +79,11 @@ pub(super) fn run(prompt: &str) -> Result<(), ClientError> {
         }
         Err(error) => return Err(error),
     };
-    let mut stdout = io::stdout().lock();
+    // Straight to the descriptor: the buffer of `Stdout` would keep a copy
+    // of the answer for the life of the process.
+    let mut stdout = File::from(io::stdout().as_fd().try_clone_to_owned()?);
     stdout.write_all(answer.expose().as_bytes())?;
     stdout.write_all(b"\n")?;
-    stdout.flush()?;
     Ok(())
 }
 
@@ -104,14 +106,26 @@ pub(super) fn exchange(
     request.push(b'\n');
     stream.write_all(&request)?;
 
-    // Preallocated so that reading a typical answer does not reallocate and
-    // leave unzeroed copies behind.
-    let mut line = Zeroizing::new(String::with_capacity(4096));
-    BufReader::new(stream.take(MAX_MESSAGE_BYTES)).read_line(&mut line)?;
-    match serde_json::from_str::<Reply<String>>(&line).map_err(io::Error::from)? {
+    // The reply holds the answer: it is read into a zeroed buffer of fixed
+    // size (DEC-024.5). Without escapes `serde_json` copies the answer once,
+    // into the `String` that becomes the `Secret`. Known limit: an answer
+    // with characters that JSON escapes (quotes, backslashes, controls) is
+    // first rebuilt in an internal buffer of `serde_json`, freed without
+    // being zeroed.
+    let line = read_secret(&mut stream, SecretEnd::Line, MAX_MESSAGE_BYTES).map_err(io_error)?;
+    match serde_json::from_str::<Reply<String>>(line.expose()).map_err(io::Error::from)? {
         Reply::Answer(answer) => Ok(ServerAnswer::Answer(Secret::new(answer))),
         Reply::Fallback(_) => Ok(ServerAnswer::Fallback),
         Reply::Error(reason) => Err(ClientError::Refused(reason)),
+    }
+}
+
+/// A failed read of the reply as an I/O error, so that the client falls
+/// back to the terminal as for any other socket failure.
+fn io_error(error: SecretInputError) -> io::Error {
+    match error {
+        SecretInputError::Io(error) => error,
+        other => io::Error::new(io::ErrorKind::InvalidData, other.to_string()),
     }
 }
 
@@ -124,8 +138,6 @@ fn ask_on_tty(prompt: &str) -> Result<Secret, ClientError> {
     let mut tty = OpenOptions::new().read(true).write(true).open("/dev/tty")?;
     tty.write_all(prompt.as_bytes())?;
     tty.flush()?;
-    let mut line = String::new();
-    BufReader::new(tty).read_line(&mut line)?;
-    let answer = line.trim_end_matches(['\r', '\n']).to_owned();
-    Ok(Secret::new(answer))
+    read_secret(&mut tty, SecretEnd::Line, MAX_SECRET_INPUT_BYTES)
+        .map_err(|error| ClientError::Io(io_error(error)))
 }

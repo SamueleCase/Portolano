@@ -4,20 +4,23 @@
 use portolano_import::{ImportReport, ItemStatus};
 use portolano_ops::import::ImportResult;
 
-use super::print_table;
+use super::{print_table, visible};
 
 /// Prints the report of an import and what was written.
 pub fn print_import(result: &ImportResult, root_path: &str) {
     let report = &result.report;
     println!(
-        "Import di '{}' ({}): documento '{}' in {root_path}",
-        report.source_file, report.importer, report.document_name
+        "Import di '{}' ({}): documento '{}' in {}",
+        visible(&report.source_file),
+        visible(&report.importer),
+        visible(&report.document_name),
+        visible(root_path)
     );
     print_counts(report);
     print_items(report);
     print_unmapped(report);
     for warning in report.warnings.iter().chain(&result.warnings) {
-        println!("avviso: {warning}");
+        println!("avviso: {}", visible(warning));
     }
     let verb = if result.dry_run {
         "Simulazione, nessuna modifica scritta"
@@ -67,9 +70,9 @@ fn print_items(report: &ImportReport) {
         println!(
             "  [{}] {} ({}): {}",
             status(item.status),
-            item.path,
-            item.source_type,
-            item.reasons.join("; ")
+            visible(&item.path),
+            visible(&item.source_type),
+            visible(&item.reasons.join("; "))
         );
     }
 }
@@ -85,7 +88,11 @@ fn print_unmapped(report: &ImportReport) {
             .iter()
             .map(|(field, count)| format!("{field} ({count})"))
             .collect();
-        println!("  {source_type}: {}", fields.join(", "));
+        println!(
+            "  {}: {}",
+            visible(source_type),
+            visible(&fields.join(", "))
+        );
     }
 }
 
