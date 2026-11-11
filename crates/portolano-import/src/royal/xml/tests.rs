@@ -22,6 +22,35 @@ fn objects_keep_file_order_type_and_fields() {
 }
 
 #[test]
+fn debug_of_raw_fields_hides_the_values() {
+    let sentinel = "sentinel-raw-field-value";
+
+    let debug = format!(
+        "{:?} {:?}",
+        text(sentinel),
+        RawField::Markup(format!("<v>{sentinel}</v>"))
+    );
+
+    assert_eq!(debug, "Text(<24 byte>) Markup(<31 byte>)");
+}
+
+#[test]
+fn debug_of_raw_objects_shows_names_but_no_values_nor_xml() {
+    let sentinel = "sentinel-raw-object-value";
+    let xml = format!(
+        "<RTSZDocument><RoyalFolder><ID>a</ID><Name>{sentinel}</Name>\
+         <Password>{sentinel}</Password></RoyalFolder></RTSZDocument>"
+    );
+    let objects = parse_document(&xml).unwrap();
+
+    let debug = format!("{objects:?}");
+
+    assert!(!debug.contains(sentinel), "{debug}");
+    assert!(debug.contains("RoyalFolder"), "{debug}");
+    assert!(debug.contains("\"Name\""), "{debug}");
+}
+
+#[test]
 fn raw_xml_is_the_original_fragment() {
     let fragment = "<RoyalVNCConnection><ID>a</ID><URI>vnc.example.com</URI></RoyalVNCConnection>";
     let xml = format!("<RTSZDocument>\n  {fragment}\n</RTSZDocument>");
