@@ -150,4 +150,33 @@ pub enum ConnectError {
         /// The feature, such as "l'apertura in una nuova finestra".
         feature: String,
     },
+
+    /// A preliminary program of the plan, such as `ssh-add`, failed.
+    #[error("'{program}' è uscito con codice {code}")]
+    ClientFailed {
+        /// The program name, such as `"ssh-add"`.
+        program: String,
+        /// Its exit code.
+        code: i32,
+    },
+
+    /// A launch plan cannot be executed: no final command, or a step that
+    /// cannot run before it.
+    #[error("piano di lancio non valido: {reason}")]
+    InvalidPlan {
+        /// What is wrong.
+        reason: String,
+    },
+
+    /// A value of a node cannot be passed safely to a client: it would change
+    /// the meaning of an option or of a `.rdp` file.
+    #[error("valore non ammesso in '{field}' del nodo {id}: {reason}")]
+    InvalidValue {
+        /// The node that holds the value.
+        id: Uuid,
+        /// The field, such as `"host"` or `"gateway.username"`.
+        field: String,
+        /// What is wrong, such as "contiene una virgola".
+        reason: String,
+    },
 }

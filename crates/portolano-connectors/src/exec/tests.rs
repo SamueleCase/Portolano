@@ -285,7 +285,32 @@ fn empty_plan_is_rejected() {
 
     let result = execute_in(&LaunchPlan::default(), &TestVault::default(), &temp);
 
-    assert!(matches!(result, Err(ConnectError::Io { .. })), "{result:?}");
+    assert!(
+        matches!(result, Err(ConnectError::InvalidPlan { .. })),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn command_before_the_last_step_is_rejected_without_running() {
+    let temp = tempfile::tempdir().unwrap();
+    let marker = temp.path().join("ran");
+    let first = run(
+        PathBuf::from("/usr/bin/touch"),
+        vec![marker.to_string_lossy().into_owned()],
+        None,
+        None,
+    );
+    let mut plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);
+    plan.steps.insert(0, first.steps[0].clone());
+
+    let result = execute_in(&plan, &TestVault::default(), &temp);
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidPlan { .. })),
+        "{result:?}"
+    );
+    assert!(!marker.exists());
 }
 
 #[test]

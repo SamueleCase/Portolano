@@ -52,8 +52,9 @@ pub fn execute(
 /// closes the socket, removes its directory and zeroes the secrets.
 ///
 /// # Errors
-/// As [`execute`]; [`ConnectError::Io`] also for a plan that does not end
-/// with a `Run` or `OpenInTerminal` step.
+/// As [`execute`]; [`ConnectError::InvalidPlan`] for a plan that does not
+/// end with its only `Run` or `OpenInTerminal` step;
+/// [`ConnectError::ClientFailed`] if `ssh-add` fails.
 pub fn prepare(
     plan: &LaunchPlan,
     vault: &dyn Vault,
@@ -74,7 +75,7 @@ fn prepare_with(
     mut temp_files: TempFiles,
 ) -> Result<PreparedLaunch, ConnectError> {
     let Some((last, preliminary)) = plan.steps.split_last() else {
-        return Err(invalid_plan());
+        return Err(invalid_plan("il piano non contiene passi"));
     };
     temp_files.remove_stale();
     for step in preliminary {
@@ -90,14 +91,7 @@ fn prepare_with(
                 mode,
             } => temp_files.write(name, contents, *mode)?,
             LaunchStep::Run { .. } | LaunchStep::OpenInTerminal { .. } => {
-                let program = program_of(step);
-                let code = prepare_step(step, vault, config, &temp_files)?.launch()?;
-                if code != 0 {
-                    return Err(failed(
-                        &format!("esecuzione di '{}'", program.display()),
-                        code,
-                    ));
-                }
+                return Err(invalid_plan("un comando può essere solo l'ultimo passo"));
             }
         }
     }
@@ -141,15 +135,9 @@ fn prepare_step(
                 true,
             )
         }
-        LaunchStep::SshAddKey { .. } | LaunchStep::WriteTempFile { .. } => Err(invalid_plan()),
-    }
-}
-
-fn program_of(step: &LaunchStep) -> PathBuf {
-    match step {
-        LaunchStep::Run { program, .. } => program.clone(),
-        LaunchStep::OpenInTerminal { argv } => argv.first().map(PathBuf::from).unwrap_or_default(),
-        LaunchStep::SshAddKey { .. } | LaunchStep::WriteTempFile { .. } => PathBuf::new(),
+        LaunchStep::SshAddKey { .. } | LaunchStep::WriteTempFile { .. } => Err(invalid_plan(
+            "l'ultimo passo deve essere un comando (Run o OpenInTerminal)",
+        )),
     }
 }
 
@@ -182,10 +170,10 @@ fn add_key(
     match PreparedLaunch::new(program, args, Vec::new(), Some(key), served, true)?.launch()? {
         0 => Ok(()),
         SSH_ADD_NO_AGENT => Err(ConnectError::AgentUnavailable),
-        code => Err(failed(
-            "aggiunta della chiave a ssh-agent con ssh-add",
+        code => Err(ConnectError::ClientFailed {
+            program: "ssh-add".to_owned(),
             code,
-        )),
+        }),
     }
 }
 
@@ -352,17 +340,9 @@ fn exit_code(status: ExitStatus) -> i32 {
     status.code().unwrap_or(1)
 }
 
-fn invalid_plan() -> ConnectError {
-    ConnectError::Io {
-        context: "piano di lancio non valido: manca il comando finale".to_owned(),
-        source: io::Error::new(io::ErrorKind::InvalidInput, "piano senza comando finale"),
-    }
-}
-
-fn failed(context: &str, code: i32) -> ConnectError {
-    ConnectError::Io {
-        context: format!("{context}: uscito con codice {code}"),
-        source: io::Error::other("comando non riuscito"),
+fn invalid_plan(reason: &str) -> ConnectError {
+    ConnectError::InvalidPlan {
+        reason: reason.to_owned(),
     }
 }
 
