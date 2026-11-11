@@ -1,15 +1,20 @@
 //! Typed RDP settings of a connection and the `[rdp]` configuration section.
 
-// Stub (WP0): the parameters are used once WP4 implements the bodies.
-#![expect(unused_variables)]
-
 use std::path::PathBuf;
 
 use portolano_core::model::is_false;
 use portolano_core::{AppConfig, CredentialSpec};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::ConnectError;
+use crate::decode::{decode_config_section, decode_settings};
+
+/// Scale factors accepted by FreeRDP (`/scale:`).
+const SCALES: [u32; 3] = [100, 140, 180];
+
+/// Color depths accepted by RDP.
+const COLOR_DEPTHS: [u8; 4] = [15, 16, 24, 32];
 
 /// The `settings` of an `rdp` connection. Fields at their default are
 /// omitted when serialized.
@@ -40,6 +45,10 @@ pub struct RdpSettings {
     /// MAC address for Wake-on-LAN; only stored in this phase.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wol_mac: Option<String>,
+    /// Client of this connection; `--client` overrides it and it overrides
+    /// `[rdp] client` (DEC-016.7).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client: Option<RdpClient>,
 }
 
 impl Default for RdpSettings {
@@ -53,7 +62,47 @@ impl Default for RdpSettings {
             admin: false,
             clipboard: true,
             wol_mac: None,
+            client: None,
         }
+    }
+}
+
+impl RdpSettings {
+    /// Decodes the `settings` of an `rdp` connection and checks the values
+    /// that RDP clients accept.
+    ///
+    /// # Errors
+    /// A description of the first problem, in Italian.
+    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<RdpSettings, String> {
+        let parsed: RdpSettings = decode_settings(settings)?;
+        if let Some(scale) = parsed.scale.filter(|scale| !SCALES.contains(scale)) {
+            return Err(format!(
+                "campo 'scale': {scale} non ammesso (ammessi: 100, 140, 180)"
+            ));
+        }
+        if let Some(depth) = parsed
+            .color_depth
+            .filter(|depth| !COLOR_DEPTHS.contains(depth))
+        {
+            return Err(format!(
+                "campo 'color_depth': {depth} non ammesso (ammessi: 15, 16, 24, 32)"
+            ));
+        }
+        if let Resolution::Fixed { width, height } = parsed.resolution
+            && (width == 0 || height == 0)
+        {
+            return Err(
+                "campo 'resolution': larghezza e altezza devono essere positive".to_owned(),
+            );
+        }
+        if parsed
+            .gateway
+            .as_ref()
+            .is_some_and(|gateway| gateway.host.trim().is_empty())
+        {
+            return Err("campo 'gateway': host vuoto".to_owned());
+        }
+        Ok(parsed)
     }
 }
 
@@ -97,12 +146,15 @@ pub struct RdpGateway {
     pub credential: CredentialSpec,
 }
 
-/// An RDP client program.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// An RDP client program. Serialized as in `[rdp] client`: `"freerdp"`,
+/// `"windows-app"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RdpClient {
     /// FreeRDP 3: supports the password on stdin.
+    #[serde(rename = "freerdp")]
     FreeRdp,
     /// Microsoft Windows App: asks for the password itself.
+    #[serde(rename = "windows-app")]
     WindowsApp,
 }
 
@@ -126,7 +178,7 @@ impl RdpConfig {
     /// # Errors
     /// [`ConnectError::InvalidConfig`] if the section does not match.
     pub fn from_app_config(config: &AppConfig) -> Result<RdpConfig, ConnectError> {
-        todo!()
+        decode_config_section(config, "rdp")
     }
 }
 
@@ -156,4 +208,151 @@ pub enum CertPolicy {
     Ignore,
     /// Reject unknown certificates.
     Deny,
+}
+
+impl CertPolicy {
+    /// The value of FreeRDP's `/cert:` option.
+    pub(crate) fn as_freerdp_value(self) -> &'static str {
+        match self {
+            CertPolicy::Tofu => "tofu",
+            CertPolicy::Ignore => "ignore",
+            CertPolicy::Deny => "deny",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use uuid::Uuid;
+
+    use super::*;
+
+    fn map(value: Value) -> Map<String, Value> {
+        value.as_object().cloned().unwrap()
+    }
+
+    #[test]
+    fn default_settings_serialize_to_an_empty_object() {
+        let json = serde_json::to_value(RdpSettings::default()).unwrap();
+
+        assert_eq!(json, json!({}));
+    }
+
+    #[test]
+    fn omitted_clipboard_defaults_to_true() {
+        let settings = RdpSettings::parse(&map(json!({ "multimon": true }))).unwrap();
+
+        assert!(settings.clipboard);
+    }
+
+    #[test]
+    fn disabled_clipboard_is_serialized() {
+        let settings = RdpSettings {
+            clipboard: false,
+            ..RdpSettings::default()
+        };
+
+        let json = serde_json::to_value(&settings).unwrap();
+
+        assert_eq!(json, json!({ "clipboard": false }));
+    }
+
+    #[test]
+    fn full_settings_round_trip() {
+        let credential = Uuid::new_v4();
+        let settings = RdpSettings {
+            resolution: Resolution::Fixed {
+                width: 1920,
+                height: 1080,
+            },
+            scale: Some(140),
+            color_depth: Some(24),
+            gateway: Some(RdpGateway {
+                host: "gw.example.com".into(),
+                port: Some(443),
+                credential: CredentialSpec::ById { id: credential },
+            }),
+            multimon: true,
+            admin: true,
+            clipboard: false,
+            wol_mac: Some("00:00:5E:00:53:01".into()),
+            client: Some(RdpClient::WindowsApp),
+        };
+
+        let json = serde_json::to_value(&settings).unwrap();
+        let back = RdpSettings::parse(&map(json.clone())).unwrap();
+
+        assert_eq!(
+            json["resolution"],
+            json!({ "mode": "fixed", "width": 1920, "height": 1080 })
+        );
+        assert_eq!(json["client"], json!("windows-app"));
+        assert_eq!(
+            json["gateway"]["credential"],
+            json!({ "mode": "by_id", "$ref": credential.to_string() })
+        );
+        assert_eq!(back, settings);
+    }
+
+    #[test]
+    fn unknown_gateway_field_names_the_gateway() {
+        let error = RdpSettings::parse(&map(
+            json!({ "gateway": { "host": "gw.example.com", "prot": 1 } }),
+        ))
+        .unwrap_err();
+
+        assert!(
+            error.starts_with("campo 'gateway': campo sconosciuto 'prot'"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn unknown_resolution_mode_is_rejected() {
+        let error =
+            RdpSettings::parse(&map(json!({ "resolution": { "mode": "huge" } }))).unwrap_err();
+
+        assert!(error.contains("'huge'"), "{error}");
+    }
+
+    #[test]
+    fn unsupported_scale_is_rejected() {
+        let error = RdpSettings::parse(&map(json!({ "scale": 150 }))).unwrap_err();
+
+        assert!(error.contains("150"), "{error}");
+    }
+
+    #[test]
+    fn unsupported_color_depth_is_rejected() {
+        let error = RdpSettings::parse(&map(json!({ "color_depth": 8 }))).unwrap_err();
+
+        assert!(error.contains("color_depth"), "{error}");
+    }
+
+    #[test]
+    fn config_section_is_read_with_defaults() {
+        let mut app = AppConfig::default();
+        app.protocols.insert(
+            "rdp".into(),
+            toml::from_str("client = \"windows-app\"").unwrap(),
+        );
+
+        let config = RdpConfig::from_app_config(&app).unwrap();
+
+        assert_eq!(config.client, RdpClientChoice::WindowsApp);
+        assert_eq!(config.cert, CertPolicy::Tofu);
+    }
+
+    #[test]
+    fn invalid_config_value_is_an_invalid_config_error() {
+        let mut app = AppConfig::default();
+        app.protocols
+            .insert("rdp".into(), toml::from_str("cert = \"maybe\"").unwrap());
+
+        let error = RdpConfig::from_app_config(&app).unwrap_err();
+
+        assert!(error.to_string().contains("'maybe'"), "{error}");
+    }
 }

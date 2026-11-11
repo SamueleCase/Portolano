@@ -1,7 +1,10 @@
 //! The [`Protocol`] extension point and the inputs of a launch plan
 //! (SPEC §7.1).
 
-use portolano_core::{AppConfig, Document, Issue, Node};
+use portolano_core::{
+    AppConfig, Connection, CredentialOrigin, Document, Issue, Node, ResolvedCredential, SecretRef,
+    Severity,
+};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -71,7 +74,8 @@ pub struct PlanContext<'a> {
 pub struct ConnectOptions {
     /// Open the connection in a new terminal window.
     pub new_window: bool,
-    /// RDP client chosen on the command line; it overrides the configuration.
+    /// RDP client chosen on the command line; it overrides the connection's
+    /// setting and the configuration (DEC-016.7).
     pub rdp_client: Option<RdpClient>,
     /// Wait for the client to exit (RDP detaches by default).
     pub wait: bool,
@@ -79,4 +83,121 @@ pub struct ConnectOptions {
     /// window (`--file`, `--vault`, `--vault-file`, `--config`), DEC-004.
     /// They are never secrets.
     pub relaunch_args: Vec<String>,
+    /// Login data entered at connection time, used when the connection's
+    /// credential resolves to "ask at launch" (`Prompt`), DEC-016.3.
+    pub session_credential: Option<SessionCredential>,
+}
+
+/// Login data asked at connection time for a credential in `Prompt` mode
+/// (DEC-016.3). It is used like an inline credential; the password stays in
+/// a vault, usually an in-memory one that lives for the session only.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SessionCredential {
+    /// User name.
+    pub username: Option<String>,
+    /// Windows domain.
+    pub domain: Option<String>,
+    /// Password, in the vault passed to [`execute`](crate::execute).
+    pub password: Option<SecretRef>,
+}
+
+/// The node `id` of `doc` and its connection data.
+///
+/// # Errors
+/// [`ConnectError::Core`] if the node does not exist,
+/// [`ConnectError::NotAConnection`] if it is not a connection.
+pub(crate) fn connection_node(
+    doc: &Document,
+    id: Uuid,
+) -> Result<(&Node, &Connection), ConnectError> {
+    let node = doc
+        .find(id)
+        .ok_or(portolano_core::Error::NodeNotFound { id })?;
+    let connection = node
+        .as_connection()
+        .ok_or(ConnectError::NotAConnection { id })?;
+    Ok((node, connection))
+}
+
+/// `host:port`, with an IPv6 address in brackets as `ssh -J` and FreeRDP's
+/// `/v:` expect.
+pub(crate) fn host_port(host: &str, port: u16) -> String {
+    if host.contains(':') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+/// Applies the session credential to a credential in `Prompt` mode
+/// (DEC-016.3): with one, it acts as inline data; without, the client asks
+/// for the login itself and a warning says so.
+pub(crate) fn apply_session_credential(
+    credential: ResolvedCredential,
+    options: &ConnectOptions,
+    warnings: &mut Vec<String>,
+) -> ResolvedCredential {
+    if credential.origin != CredentialOrigin::Prompt {
+        return credential;
+    }
+    match &options.session_credential {
+        Some(session) => ResolvedCredential {
+            username: session.username.clone(),
+            domain: session.domain.clone(),
+            password: session.password.clone(),
+            ..credential
+        },
+        None => {
+            warnings.push(
+                "credenziale da chiedere all'avvio: utente e password li chiederà il client"
+                    .to_owned(),
+            );
+            ResolvedCredential {
+                username: None,
+                domain: None,
+                password: None,
+                ..credential
+            }
+        }
+    }
+}
+
+/// Checks that `value`, the field `field` of the node `id`, contains neither
+/// control characters nor any of `forbidden`: such characters would change
+/// the meaning of a client option or of a file line.
+///
+/// # Errors
+/// [`ConnectError::InvalidValue`] naming the field and the character.
+pub(crate) fn check_value(
+    id: Uuid,
+    field: &str,
+    value: &str,
+    forbidden: &[char],
+) -> Result<(), ConnectError> {
+    let Some(found) = value
+        .chars()
+        .find(|c| c.is_control() || forbidden.contains(c))
+    else {
+        return Ok(());
+    };
+    let reason = if found.is_control() {
+        "contiene un carattere di controllo".to_owned()
+    } else {
+        format!("contiene il carattere '{found}'")
+    };
+    Err(ConnectError::InvalidValue {
+        id,
+        field: field.to_owned(),
+        reason,
+    })
+}
+
+/// An error [`Issue`] reported by a protocol about `node`.
+pub(crate) fn error_issue(node: Uuid, code: &'static str, message: String) -> Issue {
+    Issue {
+        severity: Severity::Error,
+        node: Some(node),
+        code,
+        message,
+    }
 }

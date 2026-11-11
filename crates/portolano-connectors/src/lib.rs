@@ -4,6 +4,7 @@
 //! [`execute`] runs the plan, reading secrets from the vault only at that
 //! point. Secrets never appear in argv, environment variables or files.
 
+mod decode;
 mod env;
 mod exec;
 mod plan;
@@ -14,15 +15,21 @@ mod terminal;
 pub mod rdp;
 pub mod ssh;
 
+#[cfg(test)]
+mod testutil;
+
+#[cfg(test)]
+mod secrecy_tests;
+
 use std::path::PathBuf;
 
 use portolano_core::{SecretRef, VaultError};
 use uuid::Uuid;
 
 pub use env::{Environment, Os};
-pub use exec::execute;
+pub use exec::{PreparedLaunch, execute, prepare};
 pub use plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher, render};
-pub use protocol::{ConnectOptions, PlanContext, Protocol};
+pub use protocol::{ConnectOptions, PlanContext, Protocol, SessionCredential};
 pub use rdp::RdpClient;
 pub use registry::Registry;
 
@@ -142,5 +149,34 @@ pub enum ConnectError {
     UnsupportedPlatform {
         /// The feature, such as "l'apertura in una nuova finestra".
         feature: String,
+    },
+
+    /// A preliminary program of the plan, such as `ssh-add`, failed.
+    #[error("'{program}' è uscito con codice {code}")]
+    ClientFailed {
+        /// The program name, such as `"ssh-add"`.
+        program: String,
+        /// Its exit code.
+        code: i32,
+    },
+
+    /// A launch plan cannot be executed: no final command, or a step that
+    /// cannot run before it.
+    #[error("piano di lancio non valido: {reason}")]
+    InvalidPlan {
+        /// What is wrong.
+        reason: String,
+    },
+
+    /// A value of a node cannot be passed safely to a client: it would change
+    /// the meaning of an option or of a `.rdp` file.
+    #[error("valore non ammesso in '{field}' del nodo {id}: {reason}")]
+    InvalidValue {
+        /// The node that holds the value.
+        id: Uuid,
+        /// The field, such as `"host"` or `"gateway.username"`.
+        field: String,
+        /// What is wrong, such as "contiene una virgola".
+        reason: String,
     },
 }

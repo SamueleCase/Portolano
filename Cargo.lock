@@ -1227,6 +1227,7 @@ dependencies = [
 name = "portolano-connectors"
 version = "0.1.0"
 dependencies = [
+ "directories",
  "getrandom",
  "hex",
  "portolano-core",
@@ -1241,7 +1242,6 @@ dependencies = [
  "toml",
  "tracing",
  "uuid",
- "which",
  "zeroize",
 ]
 
@@ -1930,15 +1930,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b1f9c3798725016c6ee5f2f57869ec0831e8bbc0ab0310a86e787e97f41389e"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "which"
-version = "8.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bae2f2b2b816647a1cab1acc91f5bd20812d53cb344382635ec2181940c8034f"
-dependencies = [
- "libc",
 ]
 
 [[package]]

@@ -49,7 +49,6 @@ rpassword = "7.5.4"
 directories = "6.0.0"
 tempfile = "3.27.0"
 fd-lock = "4.0.4"
-which = "8.0.6"
 shell-words = "1.1.1"
 regex = "1.13.1"
 

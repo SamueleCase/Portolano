@@ -1,17 +1,16 @@
 //! Typed SSH settings of a connection and the `[ssh]` configuration section.
 
-// Stub (WP0): the parameters are used once WP4 implements the bodies.
-#![expect(unused_variables)]
-
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use portolano_core::AppConfig;
 use portolano_core::model::is_false;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use uuid::Uuid;
 
 use crate::ConnectError;
+use crate::decode::{decode_config_section, decode_settings};
 
 /// The `settings` of an `ssh` connection. Fields at their default are
 /// omitted when serialized.
@@ -41,9 +40,41 @@ pub struct SshSettings {
     pub options: BTreeMap<String, String>,
 }
 
+impl SshSettings {
+    /// Decodes the `settings` of an `ssh` connection.
+    ///
+    /// # Errors
+    /// A description of the first problem, in Italian.
+    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<SshSettings, String> {
+        // `JumpHost` is untagged, so serde can only say that "no variant
+        // matched": point at the faulty entry and show the two accepted forms.
+        if let Some(Value::Array(jumps)) = settings.get("jump_hosts") {
+            for (index, jump) in jumps.iter().enumerate() {
+                if serde_json::from_value::<JumpHost>(jump.clone()).is_err() {
+                    return Err(format!(
+                        "campo 'jump_hosts', elemento {index}: atteso {{\"$ref\": \"<uuid>\"}} \
+                         oppure {{\"address\": \"[utente@]host[:porta]\"}}"
+                    ));
+                }
+            }
+        }
+        let parsed: SshSettings = decode_settings(settings)?;
+        if let Some(key) = parsed
+            .options
+            .keys()
+            .find(|key| key.is_empty() || key.contains('='))
+        {
+            return Err(format!(
+                "campo 'options': nome di opzione non valido '{key}'"
+            ));
+        }
+        Ok(parsed)
+    }
+}
+
 /// A jump host: another SSH connection of the document, or a literal address.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(untagged, deny_unknown_fields)]
 pub enum JumpHost {
     /// An SSH connection node, serialized as `{"$ref": "<uuid>"}`.
     Ref {
@@ -80,6 +111,126 @@ impl SshConfig {
     /// # Errors
     /// [`ConnectError::InvalidConfig`] if the section does not match.
     pub fn from_app_config(config: &AppConfig) -> Result<SshConfig, ConnectError> {
-        todo!()
+        decode_config_section(config, "ssh")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    fn map(value: Value) -> Map<String, Value> {
+        match value {
+            Value::Object(map) => map,
+            other => panic!("not an object: {other}"),
+        }
+    }
+
+    #[test]
+    fn default_settings_serialize_to_an_empty_object() {
+        let json = serde_json::to_value(SshSettings::default()).unwrap();
+
+        assert_eq!(json, json!({}));
+    }
+
+    #[test]
+    fn settings_round_trip_through_json() {
+        let id = Uuid::new_v4();
+        let settings = SshSettings {
+            jump_hosts: vec![
+                JumpHost::Ref { id },
+                JumpHost::Address {
+                    address: "ops@bastion.example.com:2222".into(),
+                },
+            ],
+            agent_forwarding: true,
+            keepalive_s: Some(30),
+            options: BTreeMap::from([("StrictHostKeyChecking".into(), "yes".into())]),
+            ..SshSettings::default()
+        };
+
+        let json = serde_json::to_value(&settings).unwrap();
+        let back = SshSettings::parse(&map(json.clone())).unwrap();
+
+        assert_eq!(json["jump_hosts"][0], json!({ "$ref": id.to_string() }));
+        assert_eq!(back, settings);
+    }
+
+    #[test]
+    fn unknown_field_is_rejected_in_italian() {
+        let error = SshSettings::parse(&map(json!({ "agent_forwading": true }))).unwrap_err();
+
+        assert!(
+            error.starts_with("campo sconosciuto 'agent_forwading'"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn wrong_type_names_the_field() {
+        let error = SshSettings::parse(&map(json!({ "compression": "yes" }))).unwrap_err();
+
+        assert!(
+            error.starts_with("campo 'compression': tipo non valido"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn invalid_jump_host_points_at_the_entry() {
+        let settings =
+            map(json!({ "jump_hosts": [{ "address": "a.example.com" }, { "host": "b" }] }));
+
+        let error = SshSettings::parse(&settings).unwrap_err();
+
+        assert!(error.contains("elemento 1"), "{error}");
+        assert!(error.contains("$ref"), "{error}");
+    }
+
+    #[test]
+    fn jump_host_with_both_forms_is_rejected() {
+        let jump = json!({ "$ref": Uuid::new_v4().to_string(), "address": "a.example.com" });
+
+        let result = serde_json::from_value::<JumpHost>(jump);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn jump_host_ref_must_be_a_uuid() {
+        let result = serde_json::from_value::<JumpHost>(json!({ "$ref": "not-a-uuid" }));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn option_names_with_equals_are_rejected() {
+        let error = SshSettings::parse(&map(json!({ "options": { "A=B": "C" } }))).unwrap_err();
+
+        assert!(error.contains("'A=B'"), "{error}");
+    }
+
+    #[test]
+    fn missing_config_section_gives_the_default_program() {
+        let config = SshConfig::from_app_config(&AppConfig::default()).unwrap();
+
+        assert_eq!(config.program, PathBuf::from("ssh"));
+    }
+
+    #[test]
+    fn unknown_config_key_is_an_invalid_config_error() {
+        let mut app = AppConfig::default();
+        app.protocols
+            .insert("ssh".into(), toml::from_str("programm = \"ssh\"").unwrap());
+
+        let error = SshConfig::from_app_config(&app).unwrap_err();
+
+        assert!(
+            matches!(error, ConnectError::InvalidConfig { ref section, .. } if section == "ssh"),
+            "{error}"
+        );
     }
 }
