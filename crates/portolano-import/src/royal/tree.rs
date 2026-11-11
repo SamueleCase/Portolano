@@ -26,9 +26,10 @@ pub(super) struct Tree {
     pub(super) root: TreeNode,
     /// The `ID` of each object, by index.
     pub(super) ids: Vec<Uuid>,
-    /// Whether each object, by index, is the trash or is in it according
-    /// to its `ParentID`s, wherever it ended up in the tree.
-    pub(super) in_trash: Vec<bool>,
+    /// Whether each object, by index, is skipped: the trash is not imported
+    /// and the object is the trash or is in it according to its `ParentID`s,
+    /// wherever it ended up in the tree.
+    skipped_trash: Vec<bool>,
     /// Objects moved under the root because they were deeper than
     /// [`MAX_DEPTH`] (DEC-021).
     pub(super) too_deep: HashSet<usize>,
@@ -38,20 +39,21 @@ pub(super) struct Tree {
 
 impl Tree {
     /// Whether the object is skipped as part of the trash.
-    pub(super) fn is_skipped_trash(&self, object: usize, include_trash: bool) -> bool {
-        !include_trash && self.in_trash[object]
+    pub(super) fn is_skipped_trash(&self, object: usize) -> bool {
+        self.skipped_trash[object]
     }
 }
 
 /// Builds the tree. Objects whose parent is missing, is not a container or
 /// is part of a `ParentID` cycle go under the root, with a warning; so do
 /// objects deeper than [`MAX_DEPTH`] levels, the `RoyalDocument` being the
-/// first level, since the import root is inserted as one node.
+/// first level, since the import root is inserted as one node. Objects of a
+/// trash that is not imported are moved silently: they are skipped anyway.
 ///
 /// # Errors
 /// [`ImportError::InvalidInput`] if an object has no valid `ID`, two objects
 /// share one, or there is not exactly one `RoyalDocument`.
-pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
+pub(super) fn build(objects: &[RawObject], include_trash: bool) -> Result<Tree, ImportError> {
     let ids = parse_ids(objects)?;
     let root = find_document(objects)?;
     let index: HashMap<Uuid, usize> = ids.iter().enumerate().map(|(i, id)| (*id, i)).collect();
@@ -77,9 +79,14 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
         siblings.sort_by_key(|&object| (position_nr(&objects[object]), object));
     }
 
+    let skipped_trash: Vec<bool> = trash_membership(objects, &parents, root)
+        .into_iter()
+        .map(|in_trash| in_trash && !include_trash)
+        .collect();
     let mut builder = Builder {
         objects,
         children: &children,
+        skipped: &skipped_trash,
         visited: vec![false; objects.len()],
         overflow: VecDeque::new(),
         too_deep: HashSet::new(),
@@ -102,8 +109,8 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
     Ok(Tree {
         root: root_node,
         ids,
-        in_trash: trash_membership(objects, &parents, root),
         too_deep: builder.too_deep,
+        skipped_trash,
         warnings,
     })
 }
@@ -113,6 +120,8 @@ pub(super) fn build(objects: &[RawObject]) -> Result<Tree, ImportError> {
 struct Builder<'a> {
     objects: &'a [RawObject],
     children: &'a [Vec<usize>],
+    /// Objects of a trash that is not imported, by index.
+    skipped: &'a [bool],
     visited: Vec<bool>,
     /// Objects found beyond the maximum depth, to attach to the root.
     overflow: VecDeque<usize>,
@@ -143,13 +152,17 @@ impl Builder<'_> {
 
     /// Attaches the objects beyond the maximum depth to the root, as its
     /// children at level 2; their own deep descendants follow in turn.
+    /// Objects of a skipped trash are attached silently: they are reported
+    /// as skipped, not as moved.
     fn attach_overflow(&mut self, root: &mut TreeNode, warnings: &mut Vec<String>) {
         while let Some(object) = self.overflow.pop_front() {
-            warnings.push(format!(
-                "{}: oltre la profondità massima di {MAX_DEPTH} livelli, inserito nella radice",
-                describe(&self.objects[object])
-            ));
-            self.too_deep.insert(object);
+            if !self.skipped[object] {
+                warnings.push(format!(
+                    "{}: oltre la profondità massima di {MAX_DEPTH} livelli, inserito nella radice",
+                    describe(&self.objects[object])
+                ));
+                self.too_deep.insert(object);
+            }
             root.children.push(self.subtree(object, 2));
         }
     }

@@ -46,7 +46,7 @@ pub(super) fn map_document(
     prompter: &mut dyn SecretPrompter,
 ) -> Result<ImportOutcome, ImportError> {
     let imported_at = Utc::now();
-    let references = References::collect(objects, &tree, opts.include_trash);
+    let references = References::collect(objects, &tree);
     let mut report = ImportReport::new(IMPORTER_ID, &opts.source_file_name, imported_at);
     report.warnings = std::mem::take(&mut tree.warnings);
     let mut mapper = Mapper {
@@ -112,8 +112,7 @@ impl Mapper<'_, '_> {
     }
 
     fn is_skipped_trash(&self, tree: &TreeNode) -> bool {
-        self.tree
-            .is_skipped_trash(tree.object, self.opts.include_trash)
+        self.tree.is_skipped_trash(tree.object)
     }
 
     /// Records the trash and everything in it as skipped.

@@ -167,6 +167,42 @@ fn a_deep_chain_in_the_trash_stays_skipped() {
 }
 
 #[test]
+fn a_deep_chain_in_a_skipped_trash_is_not_reported_as_moved() {
+    let mut objects = vec![object("RoyalTrash", 2, 1, &[("Name", "Trash")])];
+    objects.extend(folder_chain(2, 150));
+
+    let outcome = import(&document(&objects));
+
+    assert!(outcome.report.warnings.is_empty());
+    assert!(
+        outcome
+            .report
+            .items
+            .iter()
+            .all(|item| item.reasons == ["nel cestino di Royal"]
+                || item.reasons
+                    == ["cestino di Royal non importato (usa l'opzione per includerlo)"])
+    );
+}
+
+#[test]
+fn a_deep_chain_in_an_included_trash_is_reported_as_moved() {
+    let mut objects = vec![object("RoyalTrash", 2, 1, &[("Name", "Trash")])];
+    objects.extend(folder_chain(2, 150));
+    let opts = ImportOptions {
+        include_trash: true,
+        ..options()
+    };
+
+    let outcome = import_bytes(document(&objects).as_bytes(), &opts, &mut NonInteractive).unwrap();
+
+    // The trash is at level 2, so folder n is at level n: 51, 100 and 149
+    // are moved.
+    assert_eq!(outcome.report.warnings.len(), 3);
+    assert_eq!(status(&outcome, 51), ItemStatus::Partial);
+}
+
+#[test]
 fn a_very_deep_chain_does_not_overflow_the_stack() {
     let outcome = import(&document(&folder_chain(1, 20_000)));
 

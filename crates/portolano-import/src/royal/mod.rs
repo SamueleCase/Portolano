@@ -63,7 +63,7 @@ impl Importer for RoyalImporter {
     ) -> Result<ImportOutcome, ImportError> {
         let text = sniff::decode(input)?;
         let objects = xml::parse_document(&text)?;
-        let tree = tree::build(&objects)?;
+        let tree = tree::build(&objects, opts.include_trash)?;
         map::map_document(&objects, tree, opts, prompter)
     }
 }

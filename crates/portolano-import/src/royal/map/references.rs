@@ -27,7 +27,7 @@ pub(super) struct References {
 impl References {
     /// Every object of the tree is imported unless it is in a skipped trash,
     /// so a flat scan is enough.
-    pub(super) fn collect(objects: &[RawObject], tree: &Tree, include_trash: bool) -> Self {
+    pub(super) fn collect(objects: &[RawObject], tree: &Tree) -> Self {
         let mut references = Self {
             in_file: tree.ids.iter().copied().collect(),
             credentials: HashSet::new(),
@@ -35,7 +35,7 @@ impl References {
             rds_gateways: HashMap::new(),
         };
         for (index, object) in objects.iter().enumerate() {
-            if !tree.is_skipped_trash(index, include_trash) {
+            if !tree.is_skipped_trash(index) {
                 references.add(object, tree.ids[index]);
             }
         }
