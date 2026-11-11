@@ -3,9 +3,6 @@
 //! A plan holds secrets only as [`SecretRef`]s; [`execute`](crate::execute)
 //! reads them from the vault.
 
-// Stub (WP0): the parameters are used once WP4 implements the bodies.
-#![expect(unused_variables)]
-
 use std::path::PathBuf;
 
 use portolano_core::SecretRef;
@@ -97,8 +94,218 @@ pub enum PromptMatcher {
     },
 }
 
+/// Placeholder in [`LaunchStep::Run`] arguments for the path of the file
+/// written by the [`LaunchStep::WriteTempFile`] step called `name`.
+pub(crate) fn temp_placeholder(name: &str) -> String {
+    format!("{{temp:{name}}}")
+}
+
 /// Renders a plan for `connect --print`: one quoted command line per step,
-/// with secrets shown as `<vault:ref>`.
+/// with secrets shown as `<vault:ref>`. Lines starting with `#` describe what
+/// is not a command line (askpass answers, temporary files, new windows).
 pub fn render(plan: &LaunchPlan) -> String {
-    todo!()
+    let mut lines = Vec::new();
+    for step in &plan.steps {
+        match step {
+            LaunchStep::SshAddKey {
+                key,
+                passphrase,
+                lifetime_s,
+            } => {
+                let lifetime = lifetime_s.to_string();
+                let mut line = format!(
+                    "{} < {}",
+                    shell_words::join(["ssh-add", "-t", lifetime.as_str(), "-"]),
+                    vault_ref(key)
+                );
+                if let Some(passphrase) = passphrase {
+                    line.push_str(&format!(
+                        "  # passphrase via askpass: {}",
+                        vault_ref(passphrase)
+                    ));
+                }
+                lines.push(line);
+            }
+            LaunchStep::WriteTempFile {
+                name,
+                contents,
+                mode,
+            } => {
+                lines.push(format!(
+                    "# file temporaneo {} (permessi {mode:04o}):",
+                    temp_placeholder(name)
+                ));
+                lines.extend(contents.lines().map(|line| format!("#   {line}")));
+            }
+            LaunchStep::Run {
+                program,
+                args,
+                env,
+                stdin_secret,
+                askpass,
+                wait,
+            } => render_run(
+                &mut lines,
+                program,
+                args,
+                env,
+                stdin_secret.as_ref(),
+                askpass.as_ref(),
+                *wait,
+            ),
+            LaunchStep::OpenInTerminal { argv } => {
+                lines.push(format!(
+                    "{}  # in una nuova finestra del terminale",
+                    shell_words::join(argv)
+                ));
+            }
+        }
+    }
+    lines.join("\n")
+}
+
+fn render_run(
+    lines: &mut Vec<String>,
+    program: &std::path::Path,
+    args: &[String],
+    env: &[(String, String)],
+    stdin_secret: Option<&SecretRef>,
+    askpass: Option<&AskpassSpec>,
+    wait: bool,
+) {
+    let mut words: Vec<String> = env
+        .iter()
+        .map(|(key, value)| format!("{key}={value}"))
+        .collect();
+    words.push(program.to_string_lossy().into_owned());
+    words.extend(args.iter().cloned());
+    let mut line = shell_words::join(&words);
+    if let Some(secret) = stdin_secret {
+        line.push_str(&format!(" < {}", vault_ref(secret)));
+    }
+    if !wait {
+        line.push_str(" &");
+    }
+    lines.push(line);
+    for entry in askpass.iter().flat_map(|spec| &spec.entries) {
+        let prompt = match &entry.matcher {
+            PromptMatcher::Password { user, host } => format!("password di {user}@{host}"),
+            PromptMatcher::Passphrase { key_path } => format!("passphrase di '{key_path}'"),
+        };
+        lines.push(format!(
+            "#   askpass: {prompt} <- {}",
+            vault_ref(&entry.secret)
+        ));
+    }
+}
+
+fn vault_ref(reference: &SecretRef) -> String {
+    format!("<vault:{}>", reference.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn secret_ref(text: &str) -> SecretRef {
+        serde_json::from_value(serde_json::Value::String(text.to_owned())).unwrap()
+    }
+
+    #[test]
+    fn render_quotes_arguments_and_shows_stdin_secrets_as_references() {
+        let plan = LaunchPlan {
+            steps: vec![LaunchStep::Run {
+                program: PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
+                args: vec!["/v:rdp.example.com:3389".into(), "/u:Mario Rossi".into()],
+                env: vec![],
+                stdin_secret: Some(secret_ref("ref-1")),
+                askpass: None,
+                wait: false,
+            }],
+            warnings: vec![],
+        };
+
+        let text = render(&plan);
+
+        assert_eq!(
+            text,
+            "/opt/homebrew/bin/sdl-freerdp /v:rdp.example.com:3389 '/u:Mario Rossi' < <vault:ref-1> &"
+        );
+    }
+
+    #[test]
+    fn render_lists_askpass_entries_and_ssh_add_steps() {
+        let plan = LaunchPlan {
+            steps: vec![
+                LaunchStep::SshAddKey {
+                    key: secret_ref("key-ref"),
+                    passphrase: Some(secret_ref("pass-ref")),
+                    lifetime_s: 300,
+                },
+                LaunchStep::Run {
+                    program: PathBuf::from("/usr/bin/ssh"),
+                    args: vec![
+                        "-p".into(),
+                        "22".into(),
+                        "--".into(),
+                        "web01.example.com".into(),
+                    ],
+                    env: vec![],
+                    stdin_secret: None,
+                    askpass: Some(AskpassSpec {
+                        entries: vec![AskpassEntry {
+                            matcher: PromptMatcher::Password {
+                                user: "admin".into(),
+                                host: "web01.example.com".into(),
+                            },
+                            secret: secret_ref("pw-ref"),
+                        }],
+                    }),
+                    wait: true,
+                },
+            ],
+            warnings: vec![],
+        };
+
+        let text = render(&plan);
+
+        assert_eq!(
+            text,
+            "ssh-add -t 300 - < <vault:key-ref>  # passphrase via askpass: <vault:pass-ref>\n\
+             /usr/bin/ssh -p 22 -- web01.example.com\n\
+             #   askpass: password di admin@web01.example.com <- <vault:pw-ref>"
+        );
+    }
+
+    #[test]
+    fn render_shows_temporary_files_and_new_windows_as_comments() {
+        let plan = LaunchPlan {
+            steps: vec![
+                LaunchStep::WriteTempFile {
+                    name: "dc01.rdp".into(),
+                    contents: "full address:s:192.0.2.10:3389\n".into(),
+                    mode: 0o600,
+                },
+                LaunchStep::OpenInTerminal {
+                    argv: vec![
+                        "/usr/local/bin/portolano".into(),
+                        "connect".into(),
+                        "@abc".into(),
+                    ],
+                },
+            ],
+            warnings: vec![],
+        };
+
+        let text = render(&plan);
+
+        assert_eq!(
+            text,
+            "# file temporaneo {temp:dc01.rdp} (permessi 0600):\n\
+             #   full address:s:192.0.2.10:3389\n\
+             /usr/local/bin/portolano connect @abc  # in una nuova finestra del terminale"
+        );
+    }
 }

@@ -15,6 +15,9 @@ mod terminal;
 pub mod rdp;
 pub mod ssh;
 
+#[cfg(test)]
+mod testutil;
+
 use std::path::PathBuf;
 
 use portolano_core::{SecretRef, VaultError};
