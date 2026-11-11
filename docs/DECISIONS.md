@@ -286,6 +286,15 @@ mock in `docs/ui/NOTE.md`.
   importato) e l'`update` dell'import non le conserva; `config show` mostra le sezioni dei protocolli solo se
   presenti nel file.
 
+### DEC-023 – Master password del vault mai nell'ambiente dei figli; CLI in italiano (decise dal PM)
+1. **Problema** (revisione di WP6): `PORTOLANO_VAULT_PASSWORD`, letta dalla CLI, restava nell'ambiente ereditato da
+   `ssh`, FreeRDP, `ssh-add` e terminale (§1.1 lo vieta). **Decisione**: il nome della variabile diventa una costante
+   pubblica del core (`portolano_core::vault::MASTER_PASSWORD_ENV`), usata dalla CLI; `portolano-connectors` la toglie
+   (`env_remove`) dall'ambiente di **ogni** processo figlio che lancia. Test con una sonda che fallisce se la variabile
+   è presente. Eccezione di proprietà: WP6 modifica per questo `vault/mod.rs` del core e `exec.rs` dei connettori.
+2. **Messaggi della CLI**: gli errori d'uso e l'help di clap vanno in italiano (§10.3): `try_parse`, traduzione dei
+   tipi di errore principali mantenendo l'exit 2, intestazioni e descrizioni dei flag di aiuto in italiano.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
