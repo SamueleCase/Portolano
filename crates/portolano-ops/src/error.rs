@@ -96,6 +96,13 @@ pub enum OpsError {
         path: String,
     },
 
+    /// A jump host that is not an SSH connection.
+    #[error("il jump host '{path}' non è una connessione ssh")]
+    InvalidJumpHost {
+        /// The node given as jump host.
+        path: String,
+    },
+
     /// A protocol that is not registered.
     #[error("protocollo sconosciuto '{protocol}' (disponibili: {})", .known.join(", "))]
     UnknownProtocol {

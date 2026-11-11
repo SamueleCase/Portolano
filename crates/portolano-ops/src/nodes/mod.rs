@@ -5,6 +5,7 @@ mod add;
 mod credential;
 mod details;
 mod edit;
+mod jump;
 
 use portolano_core::{Document, Secret, Store};
 use serde::Serialize;
@@ -14,6 +15,7 @@ pub use add::add_node;
 pub use credential::CredentialInput;
 pub use details::{IconInput, NodeDetails};
 pub use edit::edit_node;
+pub use jump::JumpInput;
 
 pub(crate) use credential::{credential_spec, credential_spec_mut};
 pub(crate) use details::set_secret_properties;

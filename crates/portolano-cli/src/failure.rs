@@ -63,19 +63,12 @@ pub enum CliError {
         #[source]
         source: io::Error,
     },
-    /// `--jump` points to a node that is not an SSH connection.
-    #[error("il jump host '{path}' non è una connessione ssh")]
-    InvalidJumpHost {
-        /// The node.
-        path: String,
-    },
 }
 
 impl CliError {
     fn exit_code(&self) -> i32 {
         match self {
             CliError::JsonNotSupported | CliError::KeyNeedsStdin => EXIT_USAGE,
-            CliError::InvalidJumpHost { .. } => EXIT_VALIDATION,
             _ => EXIT_ERROR,
         }
     }
@@ -130,6 +123,7 @@ fn ops_code(error: &OpsError) -> i32 {
         OpsError::NotAConnection { .. } => EXIT_CONNECT,
         OpsError::EmptyName
         | OpsError::NotACredential { .. }
+        | OpsError::InvalidJumpHost { .. }
         | OpsError::ImportTooDeep { .. }
         | OpsError::EmptyHost { .. }
         | OpsError::InvalidPort { .. }
