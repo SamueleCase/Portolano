@@ -93,6 +93,13 @@ pub enum Error {
         target: Uuid,
     },
 
+    /// The node has no credential to resolve (an unsupported node, DEC-010).
+    #[error("il nodo {id} non ha credenziali")]
+    NoCredential {
+        /// The node.
+        id: Uuid,
+    },
+
     /// A filesystem operation failed.
     #[error("errore di I/O su '{path}'")]
     Io {

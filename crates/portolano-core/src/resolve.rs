@@ -48,12 +48,17 @@ pub struct ResolvedCredential {
 }
 
 impl Document {
-    /// Resolves the credential of a node from its own spec (connection or
-    /// folder).
+    /// Resolves the credential of a node, by kind (DEC-010):
+    /// - a connection or a folder resolves its own `credential` spec, as
+    ///   [`Document::resolve_spec`] with the node as context;
+    /// - a credential returns its own fields, with
+    ///   `origin = CredentialOrigin::Credential { node: <itself> }`;
+    /// - an unsupported node has nothing to resolve.
     ///
     /// # Errors
     /// [`Error::NodeNotFound`](crate::Error::NodeNotFound) if the node does
-    /// not exist, plus the errors of [`Document::resolve_spec`].
+    /// not exist, [`Error::NoCredential`](crate::Error::NoCredential) for an
+    /// unsupported node, plus the errors of [`Document::resolve_spec`].
     pub fn resolve_credential(&self, node_id: Uuid) -> Result<ResolvedCredential> {
         todo!()
     }
