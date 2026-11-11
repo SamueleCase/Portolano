@@ -7,7 +7,7 @@
 // Stub (WP0): the parameters are used once WP2 implements the bodies.
 #![expect(unused_variables)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::error::Result;
 use crate::model::{Document, Icon};
@@ -22,6 +22,18 @@ pub struct IconStore {
 }
 
 impl IconStore {
+    /// The icon store of the document at `document`:
+    /// `<dir>/<stem>.icons/`. The directory is created on the first
+    /// [`IconStore::add`].
+    pub(crate) fn for_document(document: &Path) -> IconStore {
+        let stem = document.file_stem().unwrap_or_default();
+        let mut name = stem.to_os_string();
+        name.push(".icons");
+        IconStore {
+            dir: document.with_file_name(name),
+        }
+    }
+
     /// Stores an image, deduplicated by hash, and returns the matching
     /// [`Icon::Custom`].
     ///
