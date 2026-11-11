@@ -8,7 +8,11 @@ Aggiornato dal PM alla fine di ogni passo. Serve anche a riprendere il lavoro se
 |---|---|---|
 | Prerequisiti | fatto | Rust 1.99.1, FreeRDP 3.33.1 (`sdl-freerdp`); `samples/` con 2 documenti, ignorato da git |
 | WP0 – scheletro e contratto | **integrato** | merge `6e49dfd`; due giri di revisione indipendente; 30 test; gate verdi su `main` |
-| WP1…WP5 – ondata 1 | in corso | 5 sottoagenti in parallelo, ciascuno in un worktree sotto `.claude/worktrees/`; merge previsto in ordine WP1 → WP5 |
+| WP1 – albero, percorsi, risoluzione | **integrato** | merge `93c03c2`; due giri di revisione; 157 test nel core; gate verdi su `main` |
+| WP2 – store, migrazioni, icone, config | correzioni del 2° giro | lock per operazione con impronta (DEC-016.1), symlink, gc sicuro |
+| WP3 – vault | 2° giro di revisione | lock inter-processo (DEC-017), zeroize di Argon2 |
+| WP4 – connettori | 1° giro di revisione | 122 test con WP1; opzioni FreeRDP reali (DEC-020) |
+| WP5 – importer Royal | 1° giro di revisione | test sui campioni reali verde (DEC-019) |
 | WP6 – CLI | da fare | |
 | WP7 – README, smoke, sicurezza | da fare | |
 | Verifica finale | da fare | |
