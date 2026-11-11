@@ -13,8 +13,11 @@ use zeroize::Zeroizing;
 
 use super::{ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV, MAX_MESSAGE_BYTES, Reply, Request};
 
-/// How long the client waits for the server; askpass answers immediately.
-const REPLY_TIMEOUT: Duration = Duration::from_secs(30);
+/// How long the client waits for the server, which answers immediately
+/// while it runs; after that the client asks on the terminal. A server that
+/// stopped accepting still lets the connection in (the kernel queues it), so
+/// only this timeout ends the wait.
+const REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Prompts that need visible input: the host key confirmation of `ssh`.
 const ECHO_MARKER: &str = "(yes/no";
@@ -61,9 +64,19 @@ pub(super) fn run(prompt: &str) -> Result<(), ClientError> {
         std::env::var_os(ASKPASS_SOCK_ENV).ok_or(ClientError::MissingVariable(ASKPASS_SOCK_ENV))?;
     let token = std::env::var(ASKPASS_TOKEN_ENV)
         .map_err(|_| ClientError::MissingVariable(ASKPASS_TOKEN_ENV))?;
-    let answer = match exchange(Path::new(&socket), &token, prompt)? {
-        ServerAnswer::Answer(secret) => secret,
-        ServerAnswer::Fallback => ask_on_tty(prompt)?,
+    let answer = match exchange(Path::new(&socket), &token, prompt) {
+        Ok(ServerAnswer::Answer(secret)) => secret,
+        Ok(ServerAnswer::Fallback) => ask_on_tty(prompt)?,
+        // A server that is gone or does not answer must not block the login:
+        // the user can still type the password. A refusal (wrong token) is
+        // not a failure of the server and stays an error.
+        Err(ClientError::Io(error)) => {
+            eprintln!(
+                "portolano askpass: server non raggiungibile ({error}), chiedo sul terminale"
+            );
+            ask_on_tty(prompt)?
+        }
+        Err(error) => return Err(error),
     };
     let mut stdout = io::stdout().lock();
     stdout.write_all(answer.expose().as_bytes())?;

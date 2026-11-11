@@ -30,7 +30,8 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Consecutive `accept` failures after which the server gives up instead of
-/// spinning; the prompts then fall back to the terminal.
+/// spinning. The client then gets no answer and, after its reply timeout,
+/// asks on the terminal.
 const MAX_CONSECUTIVE_ERRORS: u32 = 16;
 
 /// A running askpass server. Dropping it stops the thread, removes the

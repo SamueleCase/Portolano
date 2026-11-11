@@ -129,6 +129,27 @@ fn two_entries_for_the_same_prompt_are_served_in_order() {
 }
 
 #[test]
+fn missing_server_is_an_io_error_so_the_client_asks_on_the_terminal() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let result = exchange(&dir.path().join("askpass.sock"), "token", "Password: ");
+
+    assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
+}
+
+#[test]
+fn silent_server_is_an_io_error_after_the_timeout() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("askpass.sock");
+    // Bound but never accepting, like a server that gave up.
+    let _listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+
+    let result = exchange(&socket, "token", "Password: ");
+
+    assert!(matches!(result, Err(ClientError::Io(_))), "{result:?}");
+}
+
+#[test]
 fn wrong_token_is_refused() {
     let server = start_default();
     let wrong = "0".repeat(64);
