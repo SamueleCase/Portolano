@@ -107,6 +107,26 @@ impl Change {
     }
 }
 
+impl Change {
+    /// Saves a change that adds and removes no secret, such as a move, so
+    /// that the vault is not needed. On success the saved document replaces
+    /// `target`.
+    ///
+    /// # Errors
+    /// Errors of the store; `target` is then as before.
+    pub(crate) fn save_without_secrets(
+        mut self,
+        store: &Store,
+        target: &mut Document,
+    ) -> Result<()> {
+        debug_assert!(self.new_secrets.is_empty());
+        debug_assert_eq!(self.previous_refs, document_secret_refs(&self.doc));
+        store.save(&mut self.doc)?;
+        *target = self.doc;
+        Ok(())
+    }
+}
+
 /// Writes every secret; on the first failure removes those already written.
 fn write_secrets(vault: &dyn Vault, secrets: &[(SecretRef, Secret)]) -> Result<()> {
     for (index, (reference, secret)) in secrets.iter().enumerate() {

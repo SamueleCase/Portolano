@@ -9,6 +9,7 @@ use portolano_connectors::ConnectError;
 use portolano_core::VaultError;
 use portolano_import::ImportError;
 
+use crate::delete::ExternalReference;
 use crate::secrets::SecretSlot;
 
 /// Errors of the operations.
@@ -147,6 +148,34 @@ pub enum OpsError {
         path: String,
         /// The secret.
         slot: SecretSlot,
+    },
+
+    /// A folder with children was to be deleted without `recursive`.
+    #[error("la cartella '{path}' contiene {children} elementi: serve l'eliminazione ricorsiva")]
+    FolderNotEmpty {
+        /// The folder.
+        path: String,
+        /// Its direct children.
+        children: usize,
+    },
+
+    /// Nodes outside the deleted subtree refer to it (DEC-018.1).
+    #[error("'{path}' è usato da {} riferimenti esterni: eliminazione rifiutata", .references.len())]
+    Referenced {
+        /// The node to delete.
+        path: String,
+        /// The references from outside the subtree.
+        references: Vec<ExternalReference>,
+    },
+
+    /// `before`/`after` of a move names a node that is not a child of the
+    /// destination.
+    #[error("'{path}' non è un elemento di '{destination}'")]
+    NotASibling {
+        /// The node given as reference.
+        path: String,
+        /// The destination folder.
+        destination: String,
     },
 
     /// A key file and a key for the vault were both given.

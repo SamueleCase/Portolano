@@ -15,10 +15,12 @@
 //! works on a copy and replaces the caller's document only on success.
 
 mod commit;
+pub mod delete;
 pub mod document;
 mod error;
 pub mod inspect;
 pub mod locations;
+pub mod moves;
 pub mod nodes;
 pub mod secrets;
 #[cfg(test)]

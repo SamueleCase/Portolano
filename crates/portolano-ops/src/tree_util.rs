@@ -5,6 +5,17 @@ use std::collections::HashSet;
 use portolano_core::{Document, Node, SecretRef};
 use uuid::Uuid;
 
+/// The ids of `node` and of its descendants.
+pub(crate) fn subtree_ids(node: &Node) -> HashSet<Uuid> {
+    let mut ids = HashSet::from([node.id]);
+    if let Some(folder) = node.as_folder() {
+        for child in &folder.children {
+            ids.extend(subtree_ids(child));
+        }
+    }
+    ids
+}
+
 /// Every secret reference in the document.
 pub(crate) fn document_secret_refs(doc: &Document) -> HashSet<SecretRef> {
     doc.nodes
