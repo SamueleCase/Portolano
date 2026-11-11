@@ -15,6 +15,8 @@ pub mod vault;
 
 mod path;
 mod resolve;
+#[cfg(test)]
+mod testutil;
 mod tree;
 mod validate;
 

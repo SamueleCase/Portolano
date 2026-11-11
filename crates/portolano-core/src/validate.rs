@@ -3,6 +3,7 @@
 // Stub (WP0): the parameters are used once WP1 implements the bodies.
 #![expect(unused_variables)]
 
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::error::Issue;
@@ -22,5 +23,25 @@ impl Document {
     /// added by the caller.
     pub fn validate(&self) -> Vec<Issue> {
         todo!()
+    }
+}
+
+/// Calls `visit` on every JSON object inside `value`, `value` included, in
+/// pre-order. Core formats embedded in protocol data (`$ref`, inline
+/// credential specs) are found this way without knowing the protocols.
+pub(crate) fn for_each_object(value: &Value, visit: &mut impl FnMut(&Value)) {
+    match value {
+        Value::Object(object) => {
+            visit(value);
+            for child in object.values() {
+                for_each_object(child, visit);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                for_each_object(item, visit);
+            }
+        }
+        _ => {}
     }
 }
