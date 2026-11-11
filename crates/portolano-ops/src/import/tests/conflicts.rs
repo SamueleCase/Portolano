@@ -258,3 +258,33 @@ fn update_leaves_a_moved_node_where_the_user_put_it() {
     assert_eq!(stored.doc.parent_of(ssh), Some(None));
     assert_eq!(result.inserted, 0);
 }
+
+fn make_unsupported(node: &mut Node) {
+    node.kind = portolano_core::NodeKind::Unsupported(portolano_core::Unsupported {
+        source_type: "RoyalSSHConnection".to_owned(),
+        raw: "<RoyalSSHConnection/>".to_owned(),
+    });
+}
+
+#[test]
+fn update_turns_an_unsupported_node_into_a_supported_one() {
+    let (mut stored, vault, _) = imported_once();
+    let ssh = first_ssh_connection(&stored.doc);
+    edit_saved(&mut stored, |doc| {
+        make_unsupported(doc.find_mut(ssh).unwrap())
+    });
+    let update = request(MINIMAL, ConflictPolicy::Update);
+    run(&mut stored, &vault, update, &mut NonInteractive).unwrap();
+    assert!(stored.doc.find(ssh).unwrap().as_connection().is_some());
+}
+
+#[test]
+fn update_refuses_to_turn_a_folder_into_an_unsupported_node() {
+    let (mut stored, vault, first) = imported_once();
+    edit_saved(&mut stored, |doc| {
+        make_unsupported(doc.find_mut(first.root).unwrap())
+    });
+    let update = request(MINIMAL, ConflictPolicy::Update);
+    let result = run(&mut stored, &vault, update, &mut NonInteractive);
+    assert!(matches!(result, Err(OpsError::ImportKindChanged { .. })));
+}

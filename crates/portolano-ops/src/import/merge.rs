@@ -21,7 +21,8 @@ use crate::{OpsError, Result};
 ///
 /// # Errors
 /// [`OpsError::ImportKindChanged`] if a node would change kind (folder,
-/// connection, credential, unsupported), insertion errors.
+/// connection, credential), except from or to an unsupported node that is
+/// not a folder; insertion errors.
 pub(super) fn merge(
     doc: &mut Document,
     into: Option<Uuid>,
@@ -53,7 +54,7 @@ fn place(
     let path = node_path(doc, id);
     match doc.find_mut(id) {
         Some(existing) => {
-            if mem::discriminant(&existing.kind) != mem::discriminant(&node.kind) {
+            if !may_replace(existing, &node) {
                 return Err(OpsError::ImportKindChanged { path });
             }
             keep_secrets(existing, &mut node);
@@ -69,6 +70,19 @@ fn place(
         place(doc, Some(id), child, counts)?;
     }
     Ok(())
+}
+
+/// Whether an update may put `new` in place of `old`: same kind, or a
+/// change from or to an unsupported node that is not a folder. The latter
+/// happens when the same file is imported again after the importer learned
+/// a new type, and loses nothing: an unsupported node holds no secrets, no
+/// children and no valid reference to itself.
+fn may_replace(old: &Node, new: &Node) -> bool {
+    if mem::discriminant(&old.kind) == mem::discriminant(&new.kind) {
+        return true;
+    }
+    let unsupported = |node: &Node| matches!(node.kind, NodeKind::Unsupported(_));
+    (unsupported(old) || unsupported(new)) && !old.is_folder() && !new.is_folder()
 }
 
 /// Copies into `new` the secret references of `old` that `new` does not
