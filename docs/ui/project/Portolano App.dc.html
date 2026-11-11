@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1B1A17;color:#EDE9E1;--bg:#1B1A17;--glass:rgba(58,54,48,.16);--bd:rgba(255,245,225,.16);--tx:#EDE9E1;--tx2:#A8A297;--tx3:#CFC9BD;--ac:#2F7D5B;--ac-h:#38916A;--ac-tx:#7FC2A0;--on-ac:#F5F1E8;--ok:#9BD06E;--warn:#E0A84B;--err:#E5695F;--info:#7FB2D9;--ssh:#7FC2A0;--rdp:#7FA6D9;--cred:#D9B45F;--folder:#A8A297;--uns:#8A8479;--active:#24382E;--hover:#2A2723;--term:#0C0B0A;--glow:none;--rc:10px;--rr:9px}
+a{color:var(--ac-tx)}a:hover{color:var(--tx)}
+input::placeholder{color:var(--tx2)}
+</style>
+</helmet>
+<div ref="{{ root }}" data-screen-label="01 Finestra principale" style="position:relative;height:100vh;min-height:760px;overflow:hidden;background:var(--bg);color:var(--tx);font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;color-scheme:dark;scrollbar-width:thin;scrollbar-color:var(--bd) transparent">
+  <canvas ref="{{ cv }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div style="position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:12px;padding:14px;box-sizing:border-box">
+
+    <div style="display:flex;align-items:center;flex-wrap:wrap;min-width:0;gap:10px;padding:10px 14px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px">
+      <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)"></span><span style="width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)"></span><span style="width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)"></span></div>
+      <svg width="24" height="24" viewBox="0 0 64 64" fill="none" style="margin-left:10px;stroke:var(--ac-tx)"><polyline points="20,54 20,12 40,12 48,22 40,32 20,32" stroke-width="4" stroke-linejoin="round"></polyline><circle cx="20" cy="54" r="5" style="fill:var(--ac-tx)"></circle><circle cx="20" cy="12" r="5" style="fill:var(--ac-tx)"></circle><circle cx="48" cy="22" r="5" style="fill:var(--ac-tx)"></circle><circle cx="20" cy="32" r="5" style="fill:var(--ac-tx)"></circle></svg>
+      <span style="font-size:16px;font-weight:600;letter-spacing:-.02em">portolano</span>
+      <span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--tx2);margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto">infrastruttura.portolano</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto;min-width:0">
+        <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 13px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.07);color:var(--tx);cursor:pointer;white-space:nowrap;transition:background 160ms" style-hover="background:var(--active)">+ Connessione</button>
+        <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 13px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.07);color:var(--tx);cursor:pointer;white-space:nowrap;transition:background 160ms" style-hover="background:var(--active)">+ Cartella</button>
+        <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 13px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.07);color:var(--tx);cursor:pointer;white-space:nowrap;transition:background 160ms" style-hover="background:var(--active)">+ Credenziale</button>
+        <span style="width:1px;background:var(--bd);margin:4px 2px"></span>
+        <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 13px;border-radius:var(--rc);border:0;background:transparent;color:var(--tx3);cursor:pointer;transition:background 160ms" style-hover="background:var(--active)">Importa</button>
+        <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 13px;border-radius:var(--rc);border:0;background:transparent;color:var(--tx3);cursor:pointer;transition:background 160ms" style-hover="background:var(--active)">Valida</button>
+        <button onClick="{{ connectSel }}" style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 18px;border-radius:var(--rc);border:0;background:var(--ac);color:var(--on-ac);cursor:pointer;opacity:{{ connOpacity }};transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:var(--ac-h);box-shadow:var(--glow)" style-active="transform:scale(.96)">Connetti</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:12px;min-height:0;min-width:0">
+
+      <div style="display:flex;flex-direction:column;min-height:0;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;overflow:hidden">
+        <div style="padding:12px 12px 8px;display:flex;flex-direction:column;gap:8px">
+          <input value="{{ q }}" onChange="{{ onQ }}" placeholder="Cerca per nome, host, tag…" style="font:400 13px 'Hanken Grotesk',sans-serif;padding:9px 14px;border-radius:var(--rc);border:1px solid transparent;background:rgba(255,255,255,.07);color:var(--tx);outline:none;transition:border-color 160ms" style-focus="border-color:var(--ac-tx)">
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5"><button onClick="{{ f.on }}" style="font:500 12px 'Hanken Grotesk',sans-serif;padding:4px 10px;border-radius:999px;border:0;cursor:pointer;background:{{ f.bg }};color:{{ f.fg }};transition:background 160ms">{{ f.label }}</button></sc-for>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow:auto;padding:4px 8px 8px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10"><div draggable="true" onClick="{{ r.onClick }}" onDoubleClick="{{ r.onDbl }}" onDragStart="{{ r.onDragStart }}" onDragOver="{{ r.onDragOver }}" onDrop="{{ r.onDrop }}" onDragEnd="{{ dragEnd }}" style="display:flex;align-items:center;gap:8px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:10px;border-radius:var(--rr);background:{{ r.bg }};box-shadow:{{ r.mark }};cursor:pointer;user-select:none;transition:background 160ms" style-hover="background:var(--hover)"><span style="width:10px;font-size:10px;color:var(--tx2);flex:none">{{ r.chev }}</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none;stroke:{{ r.c }}"><path d="{{ r.d }}"></path></svg><span style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span><span style="font-size:11px;color:var(--cred)">{{ r.star }}</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:{{ r.mc }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ r.meta }}</span><span style="width:7px;height:7px;border-radius:50%;flex:none;background:{{ r.dot }}"></span></div></sc-for>
+          <sc-if value="{{ treeEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 16px;text-align:center;color:var(--tx2);line-height:1.5">{{ treeEmptyText }}</div></sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--bd);font-size:12px;color:var(--tx2)">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ok)"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>
+          <span>Portachiavi di sistema · sbloccato</span>
+          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace">{{ nodeCount }} nodi</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;min-height:0;min-width:0;gap:10px">
+        <sc-if value="{{ hasTabs }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:6px;padding:6px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);border-radius:14px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;flex:none">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2"><div onClick="{{ t.on }}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:9px;background:{{ t.bg }};cursor:pointer;white-space:nowrap;flex:none;transition:background 160ms" style-hover="background:var(--active)"><span style="width:7px;height:7px;border-radius:50%;background:{{ t.dot }};transition:background 260ms"></span><span style="font-weight:500">{{ t.label }}</span><span style="font-size:11px;color:var(--tx2)">{{ t.kind }}</span><span onClick="{{ t.onClose }}" style="display:{{ t.closeD }};color:var(--tx2);padding:0 2px;border-radius:4px" style-hover="color:var(--tx)">×</span></div></sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <div style="max-width:440px;padding:36px;text-align:center;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;display:flex;flex-direction:column;gap:14px;align-items:center">
+              <div style="font-size:24px;font-weight:600;letter-spacing:-.02em">Il documento è vuoto</div>
+              <div style="color:var(--tx3);line-height:1.55;font-size:14.5px">Aggiungi la prima connessione oppure importa quelle che hai già in Royal TSX. Le password restano nel portachiavi di sistema.</div>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <button style="font:600 13.5px 'Hanken Grotesk',sans-serif;padding:10px 18px;border-radius:var(--rc);border:0;background:var(--ac);color:var(--on-ac);cursor:pointer" style-hover="background:var(--ac-h)">Nuova connessione</button>
+                <button style="font:500 13.5px 'Hanken Grotesk',sans-serif;padding:10px 18px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer" style-hover="background:var(--active)">Importa da Royal TSX</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ true }}">
+          <div data-screen-label="02 Dettaglio del nodo" style="flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;padding:26px 28px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+              <span style="display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.07);flex:none"><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="stroke:{{ d.c }}"><path d="{{ d.icon }}"></path></svg></span>
+              <div style="flex:1;min-width:240px">
+                <div style="font-size:12px;color:var(--tx2)">{{ d.typeLabel }}</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:600;letter-spacing:-.02em">{{ d.name }}</span><span style="color:var(--cred)">{{ d.star }}</span>
+                  <sc-for list="{{ d.tags }}" as="tg" hint-placeholder-count="2"><span style="font-size:12px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--tx3)">{{ tg }}</span></sc-for>
+                </div>
+                <div style="font:400 14px 'IBM Plex Mono',monospace;color:var(--tx3);margin-top:4px;overflow-wrap:anywhere">{{ d.summary }}</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-if value="{{ d.isConn }}" hint-placeholder-val="{{ true }}"><button onClick="{{ connectSel }}" style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 18px;border-radius:var(--rc);border:0;background:var(--ac);color:var(--on-ac);cursor:pointer;transition:all 160ms" style-hover="background:var(--ac-h);box-shadow:var(--glow)">Connetti</button></sc-if>
+                <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer" style-hover="background:var(--active)">Modifica</button>
+                <sc-if value="{{ d.isConn }}" hint-placeholder-val="{{ true }}"><button onClick="{{ toggleCmd }}" style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer" style-hover="background:var(--active)">{{ cmdLabel }}</button></sc-if>
+                <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:var(--rc);border:0;background:transparent;color:var(--err);cursor:pointer" style-hover="background:rgba(255,255,255,.08)">Elimina</button>
+              </div>
+            </div>
+
+            <sc-if value="{{ showCmd }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:14px 16px;border-radius:12px;background:var(--term);border:1px solid rgba(255,255,255,.08)">
+                <div style="font-size:12px;color:var(--tx2);margin-bottom:6px">Comando che verrà lanciato. La password non compare: viene letta dal portachiavi all'avvio.</div>
+                <div style="font:400 13px/1.6 'IBM Plex Mono',monospace;color:var(--tx);overflow-wrap:anywhere">{{ d.command }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ d.hasRoute }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-bottom:10px">Rotta</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ d.route }}" as="h" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px"><span style="display:{{ h.ld }};width:24px;height:2px;border-radius:2px;background:var(--bd);flex:none"></span><span style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--bd);background:rgba(255,255,255,.05);font:400 12.5px 'IBM Plex Mono',monospace"><span style="width:7px;height:7px;border-radius:50%;background:{{ h.c }}"></span>{{ h.label }}</span></div></sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ d.hasCred }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:18px 20px;border-radius:14px;border:1px solid var(--bd);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <span style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Credenziale effettiva</span>
+                  <span style="font-size:12.5px;padding:4px 11px;border-radius:999px;background:var(--active);color:var(--tx)">{{ d.credSrc }}</span>
+                  <span style="font-size:12.5px;color:var(--tx3)">{{ d.credVia }}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
+                  <div><div style="font-size:12px;color:var(--tx2)">Utente</div><div style="font:500 14px 'IBM Plex Mono',monospace;margin-top:3px">{{ d.credUser }}</div></div>
+                  <div><div style="font-size:12px;color:var(--tx2)">Dominio</div><div style="font:500 14px 'IBM Plex Mono',monospace;margin-top:3px">{{ d.credDom }}</div></div>
+                  <div><div style="font-size:12px;color:var(--tx2);margin-bottom:5px">Password</div>
+                    <sc-if value="{{ d.pwOk }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--ac);color:var(--on-ac)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span></sc-if>
+                    <sc-if value="{{ d.pwMissing }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px dashed var(--warn);color:var(--warn)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Assente</span></sc-if>
+                  </div>
+                  <div><div style="font-size:12px;color:var(--tx2)">Chiave privata</div><div style="font-size:13.5px;margin-top:3px;color:var(--tx3)">{{ d.keyText }}</div></div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ d.isUns }}" hint-placeholder-val="{{ false }}">
+              <div data-screen-label="08 Nodo non supportato" style="display:flex;flex-direction:column;gap:12px">
+                <div style="padding:14px 16px;border-radius:12px;border:1px solid var(--bd);background:rgba(255,255,255,.04);line-height:1.55;color:var(--tx3)">Questo elemento è stato importato da Royal TSX ma Portolano gestisce solo SSH e RDP. Il tipo originale è <b style="color:var(--tx);font-weight:600">VNC</b>. Lo conserviamo così com'è, in sola lettura, per non perdere dati: non si può aprire né modificare.</div>
+                <pre style="margin:0;padding:14px 16px;border-radius:12px;background:var(--term);border:1px solid rgba(255,255,255,.08);font:400 12.5px/1.65 'IBM Plex Mono',monospace;color:var(--tx3);overflow:auto">{{ d.raw }}</pre>
+              </div>
+            </sc-if>
+
+            <div style="display:grid;grid-template-columns:150px minmax(0,1fr);row-gap:12px;column-gap:16px">
+              <sc-for list="{{ d.info }}" as="i" hint-placeholder-count="3"><div style="display:contents"><div style="font-size:12.5px;color:var(--tx2)">{{ i.k }}</div><div style="line-height:1.5;color:var(--tx3);font-family:{{ i.ff }}">{{ i.v }}</div></div></sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showSession }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px">
+            <div style="padding:14px 18px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);border-radius:14px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="width:9px;height:9px;border-radius:50%;background:{{ s.sc }};transition:background 260ms"></span>
+                <span style="font:500 14px 'IBM Plex Mono',monospace;overflow-wrap:anywhere">{{ s.summary }}</span>
+                <span style="font-weight:600;color:{{ s.sc }};transition:color 260ms">{{ s.status }}</span>
+                <div style="flex:1"></div>
+                <sc-if value="{{ s.failed }}" hint-placeholder-val="{{ false }}"><button onClick="{{ retry }}" style="font:600 13px 'Hanken Grotesk',sans-serif;padding:7px 16px;border-radius:var(--rc);border:0;background:var(--ac);color:var(--on-ac);cursor:pointer" style-hover="background:var(--ac-h)">Riprova</button></sc-if>
+                <button onClick="{{ closeActive }}" style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 14px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer" style-hover="background:var(--active)">{{ s.closeLabel }}</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <sc-for list="{{ s.hops }}" as="h" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:8px;flex:{{ h.flex }};min-width:0"><span style="display:{{ h.ld }};flex:1;height:3px;border-radius:3px;background:{{ h.c }};transition:background 480ms cubic-bezier(.34,1.56,.64,1)"></span><span style="width:11px;height:11px;border-radius:50%;flex:none;box-sizing:border-box;border:2px solid {{ h.c }};background:{{ h.fill }};transition:all 260ms cubic-bezier(.34,1.56,.64,1)"></span><span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--tx3);white-space:nowrap">{{ h.label }}</span></div></sc-for>
+              </div>
+            </div>
+
+            <sc-if value="{{ s.connecting }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:14.5px;text-align:center;padding:20px">{{ s.authText }}</div>
+            </sc-if>
+
+            <sc-if value="{{ s.term }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ focusTerm }}" style="flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent;padding:16px 18px;border-radius:14px;background:var(--term);border:1px solid rgba(255,255,255,.08);font:400 13px/1.65 'IBM Plex Mono',monospace;color:var(--tx3);cursor:text">
+                <sc-for list="{{ s.lines }}" as="l" hint-placeholder-count="2"><div style="white-space:pre-wrap;overflow-wrap:anywhere">{{ l }}</div></sc-for>
+                <div style="display:flex;gap:8px"><span style="color:var(--ac-tx);white-space:nowrap">{{ s.prompt }}</span><input ref="{{ termIn }}" value="{{ cmd }}" onChange="{{ onCmd }}" onKeyDown="{{ onKey }}" spellcheck="false" style="flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--tx);font:inherit;padding:0;caret-color:var(--ac-tx)"></div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ s.rdp }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center">
+                <div style="width:100%;max-width:520px;padding:28px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);border-radius:18px;display:flex;flex-direction:column;gap:16px">
+                  <div style="font-size:20px;font-weight:600;letter-spacing:-.01em">Sessione RDP aperta in una finestra esterna</div>
+                  <div style="color:var(--tx3);line-height:1.5">Il desktop remoto è gestito da FreeRDP. Qui vedi solo lo stato della sessione.</div>
+                  <div style="display:grid;grid-template-columns:140px 1fr;row-gap:9px;font-size:13px">
+                    <span style="color:var(--tx2)">Client</span><span>FreeRDP (automatico)</span>
+                    <span style="color:var(--tx2)">Risoluzione</span><span>Adatta alla finestra · scala 100%</span>
+                    <span style="color:var(--tx2)">Appunti</span><span>Condivisi</span>
+                    <span style="color:var(--tx2)">Durata</span><span style="font-family:'IBM Plex Mono',monospace">00:00:12</span>
+                  </div>
+                  <button style="align-self:flex-start;font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:var(--rc);border:0;background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer" style-hover="background:var(--active)">Porta in primo piano</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ s.failed }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center">
+                <div style="width:100%;max-width:560px;padding:26px;background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--err);border-radius:18px;display:flex;flex-direction:column;gap:12px">
+                  <div style="font-size:20px;font-weight:600;color:var(--err)">Connessione non riuscita</div>
+                  <div style="color:var(--tx3);line-height:1.5">Il server ha rifiutato la connessione sulla porta indicata. Controlla che il servizio SSH sia attivo e che host e porta siano corretti.</div>
+                  <div style="padding:12px 14px;border-radius:10px;background:var(--term);font:400 12.5px/1.6 'IBM Plex Mono',monospace;color:var(--tx3);overflow-wrap:anywhere">{{ s.errText }}</div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section style="background:#0B0C0C;color:#E6E6E3;font-family:'Hanken Grotesk',sans-serif;padding:48px 32px">
+  <div style="max-width:860px;margin:0 auto">
+    <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3A6A0">Note su interazioni e animazioni · schermate 1, 2 e 8</div>
+    <ul style="font-size:15px;line-height:1.65;color:#D0D2CC;padding-left:20px;margin:16px 0 0;display:flex;flex-direction:column;gap:8px">
+      <li><b>Albero.</b> Clic seleziona e apre il dettaglio, doppio clic connette, clic su una cartella la apre o chiude. Hover: fondo tinto in 160 ms. Trascinando una riga compare una linea di inserimento sopra il bersaglio; una cartella si sposta con tutto il contenuto.</li>
+      <li><b>Connessione.</b> La rotta si accende un salto alla volta (750 ms per salto nel prototipo): linea 480 ms, punto 260 ms, curva cubic-bezier(.34,1.56,.64,1). Riuscita: tutta la rotta passa al colore di successo. Fallita: i salti percorsi si spengono, la destinazione diventa rossa e compare il messaggio con "Riprova".</li>
+      <li><b>Terminale.</b> Pannello opaco, senza blur. Mentre digiti lo sfondo scende al 25% e torna pieno dopo 10 s di pausa. Prova uptime, whoami, ls, exit.</li>
+      <li><b>RDP.</b> La tab mostra solo lo stato, perché il desktop è nella finestra del client esterno.</li>
+      <li><b>Sfondo.</b> Canvas 2D a 30 fps. Rallenta al 30% quando la finestra perde il fuoco, si ferma quando è nascosta e con "riduci movimento" (o prefers-reduced-motion).</li>
+      <li><b>Mostra comando.</b> Anteprima del comando senza password. Le proprietà segrete mostrano solo lo stato.</li>
+      <li><b>Tweaks.</b> Palette (2a predefinita, 2b, 1b), densità, intensità, riduci movimento, albero vuoto.</li>
+    </ul>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;palette&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;2a&quot;,&quot;2b&quot;,&quot;1b&quot;],&quot;default&quot;:&quot;2a&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Aspetto&quot;},&quot;densita&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comoda&quot;,&quot;compatta&quot;],&quot;default&quot;:&quot;comoda&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Aspetto&quot;},&quot;intensita&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:8,&quot;min&quot;:0,&quot;max&quot;:10,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Movimento&quot;},&quot;riduciMovimento&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Movimento&quot;},&quot;alberoVuoto&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Stati&quot;}}">
+class Component extends DCLogic {
+  state = {
+    sel: 'web01', tab: 'detail', sessions: [], q: '', filter: 'all', showCmd: false, cmd: '', dropId: null,
+    open: { prod: true, stg: false, creds: true },
+    nodes: [
+      { id: 'prod', t: 'folder', name: 'Produzione', d: 0, src: 'Predefinita della cartella', via: 'credenziale deploy', user: 'deploy', pw: true, key: 'Nel portachiavi, con passphrase', desc: 'Server di produzione. Tutto il contenuto eredita la credenziale deploy.' },
+      { id: 'web01', t: 'ssh', name: 'web01', d: 1, host: 'web01.example.com', port: 22, user: 'deploy', src: 'Ereditata dalla cartella Produzione', via: 'credenziale deploy', pw: true, key: 'Nel portachiavi, con passphrase', hops: ['bastion.example.com'], tags: ['web', 'nginx'], star: true, desc: 'Frontend web principale.', notes: 'Riavviare nginx solo fuori dall\'orario di punta.', props: [['Ambiente', 'produzione'], ['Token API', null]] },
+      { id: 'web02', t: 'ssh', name: 'web02', d: 1, host: 'web02.example.com', port: 22, user: 'deploy', src: 'Ereditata dalla cartella Produzione', via: 'credenziale deploy', pw: true, key: 'Nel portachiavi, con passphrase', hops: ['bastion.example.com'], tags: ['web'], desc: 'Secondo frontend web.' },
+      { id: 'db01', t: 'ssh', name: 'db01', d: 1, host: '192.0.2.14', port: 22, user: 'admin', src: 'Inline', via: 'definita su questa connessione', pw: true, hops: [], tags: ['postgres'], desc: 'Database primario.' },
+      { id: 'db02', t: 'ssh', name: 'db02', d: 1, host: '192.0.2.15', port: 22, user: 'admin', src: 'Inline', via: 'definita su questa connessione', pw: true, hops: [], tags: ['postgres', 'replica'], desc: 'Replica in sola lettura.', fail: true },
+      { id: 'win', t: 'rdp', name: 'win-app01', d: 1, host: '198.51.100.7', port: 3389, user: 'admin', dom: 'ACME', src: 'Inline', via: 'definita su questa connessione', pw: true, hops: [], tags: ['windows'], desc: 'Server applicativo Windows.' },
+      { id: 'bastion', t: 'ssh', name: 'bastion', d: 1, host: 'bastion.example.com', port: 2222, user: 'deploy', src: 'Ereditata dalla cartella Produzione', via: 'credenziale deploy', pw: true, key: 'Nel portachiavi, con passphrase', hops: [], star: true, desc: 'Jump host per la rete interna.' },
+      { id: 'stg', t: 'folder', name: 'Staging', d: 0, desc: 'Ambiente di prova.' },
+      { id: 'stgweb', t: 'ssh', name: 'stg-web01', d: 1, host: 'stg-web01.example.com', port: 22, user: 'deploy', src: 'Da una credenziale', via: 'credenziale deploy', pw: true, key: 'Nel portachiavi, con passphrase', hops: [], desc: 'Frontend di staging.' },
+      { id: 'stgwin', t: 'rdp', name: 'stg-win01', d: 1, host: '198.51.100.21', port: 3389, user: 'admin', dom: 'ACME', src: 'Da una credenziale', via: 'credenziale admin · ACME', pw: false, hops: [], desc: 'Windows di staging.' },
+      { id: 'creds', t: 'folder', name: 'Credenziali', d: 0, desc: 'Credenziali riutilizzabili.' },
+      { id: 'deploy', t: 'cred', name: 'deploy', d: 1, user: 'deploy', src: 'Questa credenziale', via: 'usata da 5 nodi', pw: true, key: 'Nel portachiavi, con passphrase', desc: 'Utente di deploy con chiave ed25519.' },
+      { id: 'acme', t: 'cred', name: 'admin · ACME', d: 1, user: 'admin', dom: 'ACME', src: 'Questa credenziale', via: 'usata da 1 nodo', pw: false, desc: 'Amministratore del dominio ACME.' },
+      { id: 'vnc', t: 'uns', name: 'vnc-legacy', d: 0, desc: 'Importato da Royal TSX il 10 novembre 2026.' }
+    ]
+  };
+  root = React.createRef(); cv = React.createRef(); termIn = React.createRef();
+  THEMES = {
+    '1b': { bg: '#05100E', glass: 'rgba(10,30,26,.55)', bd: 'rgba(94,234,212,.18)', tx: '#E6F2EE', tx2: '#9DB8B0', tx3: '#C4D6D0', ac: '#34E0A1', 'ac-h': '#5BEBB6', 'ac-tx': '#34E0A1', 'on-ac': '#03170F', ok: '#A3E635', warn: '#FBBF24', err: '#FB7185', info: '#7DD3FC', ssh: '#34E0A1', rdp: '#7DB7FF', cred: '#E9C46A', folder: '#9DB8B0', uns: '#7C8F88', active: 'rgba(52,224,161,.16)', hover: 'rgba(52,224,161,.09)', term: '#030A09', glow: '0 0 22px rgba(52,224,161,.45)', rc: '999px', rr: '999px', lc: '94,234,212', dc: '52,224,161', k: 1 },
+    '2a': { bg: '#1B1A17', glass: 'rgba(58,54,48,.16)', bd: 'rgba(255,245,225,.16)', tx: '#EDE9E1', tx2: '#A8A297', tx3: '#CFC9BD', ac: '#2F7D5B', 'ac-h': '#38916A', 'ac-tx': '#7FC2A0', 'on-ac': '#F5F1E8', ok: '#9BD06E', warn: '#E0A84B', err: '#E5695F', info: '#7FB2D9', ssh: '#7FC2A0', rdp: '#7FA6D9', cred: '#D9B45F', folder: '#A8A297', uns: '#8A8479', active: '#24382E', hover: '#2A2723', term: '#0C0B0A', glow: 'none', rc: '10px', rr: '9px', lc: '201,195,182', dc: '127,194,160', k: 1.25 },
+    '2b': { bg: '#0C1A16', glass: 'rgba(19,38,31,.62)', bd: 'rgba(227,211,174,.18)', tx: '#EEE9DC', tx2: '#A3B0A6', tx3: '#CBD3C8', ac: '#E3D3AE', 'ac-h': '#F0E4C6', 'ac-tx': '#E3D3AE', 'on-ac': '#14201B', ok: '#7FCF9B', warn: '#E88A4C', err: '#EC6F66', info: '#86BBDD', ssh: '#E3D3AE', rdp: '#8DB8E0', cred: '#D9B45F', folder: '#A3B0A6', uns: '#7E8F86', active: '#24392F', hover: '#1D332A', term: '#07110E', glow: 'none', rc: '10px', rr: '9px', lc: '227,211,174', dc: '227,211,174', k: .7 }
+  };
+  theme() { return this.THEMES[this.props.palette] || this.THEMES['2a']; }
+  applyTheme() { const el = this.root.current, t = this.theme(); if (!el) return; Object.keys(t).forEach(k => { if (typeof t[k] === 'string') el.style.setProperty('--' + k, t[k]); }); }
+  componentDidMount() {
+    this.applyTheme(); this.timers = []; this.lastAct = 0; this.T = 0; this.calm = 1; this.last = performance.now(); this.lastStatic = 0;
+    this.pts = Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * 26, vy: (Math.random() - .5) * 26, big: Math.random() < .12 }));
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const loop = (now) => {
+      this.raf = requestAnimationFrame(loop);
+      if (document.hidden) { this.last = now; return; }
+      if (now - this.last < 33) return;
+      const dt = Math.min(.1, (now - this.last) / 1000); this.last = now;
+      const reduce = this.props.riduciMovimento || mq.matches;
+      if (reduce) { if (now - this.lastStatic < 1000) return; this.lastStatic = now; }
+      const working = this.state.tab !== 'detail' && Date.now() - this.lastAct < 10000;
+      this.calm += ((working ? .25 : 1) - this.calm) * Math.min(1, dt * 2.5);
+      const focus = document.hasFocus() ? 1 : .3;
+      const k = reduce ? 0 : ((this.props.intensita ?? 8) / 8) * this.calm * focus;
+      this.T += dt * k;
+      this.draw((reduce ? .6 : .35 + .65 * this.calm) * this.theme().k, dt * k);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentDidUpdate() { this.applyTheme(); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); (this.timers || []).forEach(clearTimeout); }
+  draw(al, step) {
+    const cv = this.cv.current; if (!cv) return;
+    const w = cv.clientWidth, h = cv.clientHeight, th = this.theme(), P = this.pts;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, w, h); ctx.lineWidth = 1;
+    P.forEach(p => { p.x += p.vx * step / w; p.y += p.vy * step / h; if (p.x < 0) p.x += 1; if (p.x > 1) p.x -= 1; if (p.y < 0) p.y += 1; if (p.y > 1) p.y -= 1; });
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+      const dx = (P[i].x - P[j].x) * w, dy = (P[i].y - P[j].y) * h, d = dx * dx + dy * dy;
+      if (d < 28900) { ctx.strokeStyle = 'rgba(' + th.lc + ',' + ((1 - d / 28900) * .34 * al) + ')'; ctx.beginPath(); ctx.moveTo(P[i].x * w, P[i].y * h); ctx.lineTo(P[j].x * w, P[j].y * h); ctx.stroke(); }
+    }
+    P.forEach((p, i) => {
+      const x = p.x * w, y = p.y * h;
+      ctx.fillStyle = 'rgba(' + th.dc + ',' + (.75 * al) + ')'; ctx.beginPath(); ctx.arc(x, y, p.big ? 3 : 1.7, 0, 6.2832); ctx.fill();
+      if (p.big) { ctx.strokeStyle = 'rgba(' + th.dc + ',' + (.3 * al) + ')'; ctx.beginPath(); ctx.arc(x, y, 7 + 5 * (.5 + .5 * Math.sin(this.T * 1.6 + i)), 0, 6.2832); ctx.stroke(); }
+    });
+  }
+  node(id) { return this.state.nodes.find(n => n.id === id); }
+  isConn(n) { return n && (n.t === 'ssh' || n.t === 'rdp'); }
+  upd(sid, patch) { this.setState(st => ({ sessions: st.sessions.map(x => x.id === sid ? { ...x, ...patch } : x) })); }
+  run(sid, n) {
+    let hop = 0; const total = n.hops.length + 1;
+    const step = () => {
+      hop++;
+      if (hop < total) { this.upd(sid, { hop }); this.timers.push(setTimeout(step, 750)); }
+      else if (n.fail) this.upd(sid, { phase: 'failed' });
+      else { this.lastAct = Date.now(); this.upd(sid, { hop, phase: 'connected', lines: ['Last login: Tue Nov 10 09:14:02 2026 from 192.0.2.50'] }); }
+    };
+    this.timers.push(setTimeout(step, 750));
+  }
+  connect(id) {
+    const n = this.node(id); if (!this.isConn(n)) return;
+    const ex = this.state.sessions.find(s => s.nodeId === id);
+    if (ex) { this.setState({ tab: ex.id }); if (ex.phase === 'failed') { this.upd(ex.id, { phase: 'connecting', hop: 0 }); this.run(ex.id, n); } return; }
+    const sid = 's' + Date.now();
+    this.setState(st => ({ sessions: [...st.sessions, { id: sid, nodeId: id, phase: 'connecting', hop: 0, lines: [], ms: 18 + Math.floor(Math.random() * 40) }], tab: sid, cmd: '' }));
+    this.run(sid, n);
+  }
+  close(sid) { this.setState(st => ({ sessions: st.sessions.filter(s => s.id !== sid), tab: st.tab === sid ? 'detail' : st.tab })); }
+  drop(tid) {
+    const from = this.dragId; this.dragId = null;
+    this.setState(st => {
+      const ns = st.nodes.slice(), i = ns.findIndex(n => n.id === from); if (i < 0 || from === tid) return { dropId: null };
+      let e = i + 1; while (e < ns.length && ns[e].d > ns[i].d) e++;
+      const block = ns.splice(i, e - i); if (block.some(n => n.id === tid)) return { dropId: null };
+      const ti = ns.findIndex(n => n.id === tid), delta = ns[ti].d - block[0].d;
+      ns.splice(ti, 0, ...block.map(n => ({ ...n, d: n.d + delta })));
+      return { nodes: ns, dropId: null };
+    });
+  }
+  renderVals() {
+    const st = this.state, empty = !!this.props.alberoVuoto, nodes = empty ? [] : st.nodes;
+    const compact = (this.props.densita ?? 'comoda') === 'compatta';
+    const D = { folder: 'M2 4.5h4l1.5 1.5H14v6.5H2z', ssh: 'M3 5l3 3-3 3M8 11h5', rdp: 'M2 3.5h12v7H2zM6 13h4', cred: 'M7 8a2 2 0 1 0-4 0 2 2 0 0 0 4 0zM7 8h6M11 8v2', uns: 'M3.5 3.5l9 9M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z' };
+    const q = st.q.trim().toLowerCase(), filtering = q || st.filter !== 'all';
+    const match = n => n.t !== 'folder' && (st.filter === 'all' || (st.filter === 'star' ? n.star : n.t === st.filter)) && (!q || [n.name, n.host, n.t, ...(n.tags || [])].some(v => v && String(v).toLowerCase().includes(q)));
+    let vis = [];
+    if (filtering) {
+      nodes.forEach((n, i) => {
+        if (n.t !== 'folder') { if (match(n)) vis.push(n); return; }
+        for (let j = i + 1; j < nodes.length && nodes[j].d > n.d; j++) if (match(nodes[j])) { vis.push(n); break; }
+      });
+    } else { let cd = 99; nodes.forEach(n => { if (n.d > cd) return; cd = 99; vis.push(n); if (n.t === 'folder' && !st.open[n.id]) cd = n.d; }); }
+    const phaseC = { connecting: 'var(--ac-tx)', connected: 'var(--ok)', failed: 'var(--err)' };
+    const rows = vis.map(n => {
+      const ses = st.sessions.find(s => s.nodeId === n.id);
+      const meta = n.t === 'cred' ? (n.pw ? 'nel portachiavi' : 'password assente') : n.t === 'uns' ? 'non supportato' : (n.host || '');
+      return {
+        name: n.name, meta, d: D[n.t], c: 'var(--' + n.t + ')', h: compact ? '26px' : '34px', pad: (8 + n.d * 18) + 'px', star: n.star ? '★' : '',
+        chev: n.t === 'folder' ? (st.open[n.id] || filtering ? '▾' : '▸') : '',
+        bg: st.sel === n.id ? 'var(--active)' : 'transparent', mark: st.dropId === n.id ? 'inset 0 2px 0 var(--ac-tx)' : 'none',
+        mc: n.t === 'cred' ? (n.pw ? 'var(--ok)' : 'var(--warn)') : 'var(--tx2)', dot: ses ? phaseC[ses.phase] : 'transparent',
+        onClick: () => this.setState(s => ({ sel: n.id, tab: 'detail', showCmd: false, open: n.t === 'folder' ? { ...s.open, [n.id]: !s.open[n.id] } : s.open })),
+        onDbl: () => this.connect(n.id),
+        onDragStart: (e) => { this.dragId = n.id; e.dataTransfer.effectAllowed = 'move'; },
+        onDragOver: (e) => { e.preventDefault(); if (st.dropId !== n.id) this.setState({ dropId: n.id }); },
+        onDrop: (e) => { e.preventDefault(); this.drop(n.id); }
+      };
+    });
+    const sel = this.node(st.sel) || st.nodes[0], conn = this.isConn(sel);
+    const sum = n => n.user + '@' + n.host + ':' + n.port;
+    const kids = (() => { const i = st.nodes.indexOf(sel); let c = 0; for (let j = i + 1; j < st.nodes.length && st.nodes[j].d > sel.d; j++) c++; return c; })();
+    const info = [['Descrizione', sel.desc], ['Note', sel.notes]].filter(r => r[1]).map(([k, v]) => ({ k, v, ff: 'inherit' }))
+      .concat((sel.props || []).map(([k, v]) => ({ k, v: v === null ? '•••••• · segreto, nel portachiavi' : v, ff: "'IBM Plex Mono',monospace" })));
+    const d = {
+      name: sel.name, c: 'var(--' + sel.t + ')', icon: D[sel.t], star: sel.star ? '★' : '', tags: sel.tags || [],
+      typeLabel: { ssh: 'Connessione SSH', rdp: 'Connessione RDP', cred: 'Credenziale', folder: 'Cartella', uns: 'Non supportato' }[sel.t],
+      summary: conn ? sum(sel) : sel.t === 'cred' ? (sel.dom ? sel.dom + '\\' : '') + sel.user : sel.t === 'folder' ? kids + ' elementi' : 'VNC · vnc-legacy.example.com:5900',
+      isConn: conn, isUns: sel.t === 'uns', hasCred: !!sel.src, hasRoute: conn && sel.hops.length > 0,
+      route: conn ? ['tu', ...sel.hops, sel.host].map((label, i, a) => ({ label, ld: i ? 'block' : 'none', c: i === a.length - 1 ? 'var(--' + sel.t + ')' : 'var(--tx2)' })) : [],
+      credSrc: sel.src, credVia: sel.via, credUser: sel.user, credDom: sel.dom || '—', pwOk: !!sel.pw, pwMissing: !!sel.src && !sel.pw, keyText: sel.key || 'Nessuna',
+      command: !conn ? '' : sel.t === 'ssh' ? 'ssh ' + (sel.hops.length ? '-J ' + sel.hops.map(h => 'deploy@' + h + ':2222').join(',') + ' ' : '') + '-p ' + sel.port + ' ' + sel.user + '@' + sel.host : 'xfreerdp /v:' + sel.host + ':' + sel.port + ' /u:' + sel.user + ' /d:' + sel.dom + ' /dynamic-resolution +clipboard',
+      raw: '<RoyalVNCConnection>\n  <Name>vnc-legacy</Name>\n  <URI>vnc-legacy.example.com</URI>\n  <Port>5900</Port>\n  <ColorDepth>24</ColorDepth>\n</RoyalVNCConnection>',
+      info
+    };
+    const cur = st.sessions.find(x => x.id === st.tab), sn = cur && this.node(cur.nodeId);
+    let s = { hops: [], lines: [] };
+    if (cur && sn) {
+      const labels = ['tu', ...sn.hops, sn.name], last = labels.length - 1, ph = cur.phase;
+      s = {
+        summary: sum(sn), sc: phaseC[ph], closeLabel: ph === 'connected' ? 'Disconnetti' : 'Chiudi',
+        status: ph === 'connecting' ? 'Connessione in corso · salto ' + (cur.hop + 1) + ' di ' + last : ph === 'connected' ? 'Connesso · ' + cur.ms + ' ms' : 'Connessione rifiutata',
+        connecting: ph === 'connecting', failed: ph === 'failed', term: ph === 'connected' && sn.t === 'ssh', rdp: ph === 'connected' && sn.t === 'rdp',
+        authText: 'Autenticazione come ' + sn.user + '. ' + (sn.pw ? 'Password letta dal portachiavi.' : 'Password assente: verrà chiesta.'),
+        prompt: sn.user + '@' + sn.name + ':~$', lines: cur.lines,
+        errText: 'ssh: connect to host ' + sn.host + ' port ' + sn.port + ': Connection refused',
+        hops: labels.map((label, i) => {
+          const lit = i <= cur.hop, c = ph === 'failed' ? (i === last ? 'var(--err)' : 'var(--tx2)') : lit ? phaseC[ph] : 'var(--bd)';
+          return { label, c, fill: lit && ph !== 'failed' ? c : 'transparent', ld: i ? 'block' : 'none', flex: i ? '1 1 0' : '0 0 auto' };
+        })
+      };
+    }
+    const F = [['all', 'Tutti'], ['ssh', 'SSH'], ['rdp', 'RDP'], ['cred', 'Credenziali'], ['star', '★']];
+    return {
+      root: this.root, cv: this.cv, termIn: this.termIn, rows, d, s, q: st.q, cmd: st.cmd, showCmd: st.showCmd && conn,
+      cmdLabel: st.showCmd ? 'Nascondi comando' : 'Mostra comando',
+      nodeCount: nodes.length, treeEmpty: rows.length === 0, treeEmptyText: empty ? 'Nessun nodo. Le connessioni che crei o importi compaiono qui.' : 'Nessun risultato per questa ricerca.',
+      hasTabs: !empty, showEmpty: empty, showDetail: !empty && !cur, showSession: !empty && !!cur,
+      connOpacity: conn && !empty ? 1 : .45,
+      filters: F.map(([id, label]) => ({ label, bg: st.filter === id ? 'var(--ac)' : 'rgba(255,255,255,.07)', fg: st.filter === id ? 'var(--on-ac)' : 'var(--tx3)', on: () => this.setState({ filter: id }) })),
+      tabs: [{ label: sel.name, kind: 'dettaglio', dot: 'var(--tx2)', bg: !cur ? 'var(--active)' : 'transparent', closeD: 'none', on: () => this.setState({ tab: 'detail' }), onClose: () => {} }]
+        .concat(st.sessions.map(x => { const n = this.node(x.nodeId); return { label: n.name, kind: n.t.toUpperCase(), dot: phaseC[x.phase], bg: st.tab === x.id ? 'var(--active)' : 'transparent', closeD: 'inline', on: () => this.setState({ tab: x.id, cmd: '' }), onClose: (e) => { e.stopPropagation(); this.close(x.id); } }; })),
+      onQ: (e) => this.setState({ q: e.target.value }),
+      onCmd: (e) => this.setState({ cmd: e.target.value }),
+      onKey: (e) => {
+        this.lastAct = Date.now();
+        if (e.key !== 'Enter' || !cur) return;
+        const c = st.cmd.trim();
+        if (c === 'exit') { this.close(cur.id); this.setState({ cmd: '' }); return; }
+        const out = { uptime: ' 10:42:07 up 41 days,  3:12,  1 user,  load average: 0.08, 0.05, 0.01', whoami: sn.user, hostname: sn.name, ls: 'logs  releases  shared', pwd: '/home/' + sn.user }[c];
+        const add = [s.prompt + ' ' + c].concat(c ? [out ?? 'bash: ' + c.split(' ')[0] + ': command not found'] : []);
+        this.upd(cur.id, { lines: cur.lines.concat(add) }); this.setState({ cmd: '' });
+      },
+      focusTerm: () => { this.termIn.current && this.termIn.current.focus(); },
+      connectSel: () => this.connect(st.sel),
+      toggleCmd: () => this.setState(x => ({ showCmd: !x.showCmd })),
+      retry: () => cur && this.connect(cur.nodeId),
+      closeActive: () => cur && this.close(cur.id),
+      dragEnd: () => this.setState({ dropId: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

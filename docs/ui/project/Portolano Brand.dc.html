@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#050608;color:#E8EEF8}
+a{color:#56D4F5}a:hover{color:#9BE6FA}
+</style>
+</helmet>
+<section data-screen-label="Turno 2 Revisione 1b" style="width:2170px;padding:64px;box-sizing:border-box;font-family:'Hanken Grotesk',sans-serif;background:#0A0A0A;color:#EDE9E1;border-radius:36px;margin-bottom:60px">
+  <div style="max-width:1000px;margin-bottom:40px">
+    <div style="font:500 13px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Turno 2 · Revisione di <a href="#1b" style="color:#7FC2A0">1b</a></div>
+    <h1 style="font-size:44px;font-weight:600;letter-spacing:-.02em;margin:10px 0 14px">Arcipelago, senza neon</h1>
+    <p style="font-size:17px;line-height:1.55;color:#CFC9BD;margin:0;text-wrap:pretty">Restano isole, costellazione, font e forme morbide. Cambiano tre cose: il verde neon su nero lascia il posto a due palette più sobrie, i bagliori sono sostituiti da riempimenti pieni e opachi, la pillola resta solo sui badge.</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:46px;align-items:flex-start">
+
+    <div id="2a" style="position:relative;flex:none;width:1000px;box-sizing:border-box;padding:44px;border-radius:28px;overflow:hidden;background:#141311;color:#EDE9E1;font-family:'Hanken Grotesk',sans-serif">
+      <canvas ref="{{ cvD }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:relative;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:500 13px 'IBM Plex Mono',monospace;padding:5px 10px;border-radius:999px;background:#2F7D5B;color:#F5F1E8">2a</span>
+          <span style="font-size:22px;font-weight:600">Arcipelago · Grafite</span>
+          <span style="font-size:15px;color:#A8A297">Grafite caldo e verde bottiglia. Nessun bagliore: l'enfasi è un riempimento pieno.</span>
+        </div>
+        <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.35);border-radius:18px;padding:40px;display:flex;align-items:center;gap:28px">
+          <svg width="96" height="96" viewBox="0 0 64 64" fill="none"><polyline points="20,54 20,12 40,12 48,22 40,32 20,32" stroke="#7FC2A0" stroke-width="2.4" stroke-linejoin="round"></polyline><circle cx="20" cy="54" r="4.5" fill="#7FC2A0"></circle><circle cx="20" cy="12" r="4.5" fill="#141311" stroke="#C9C3B6" stroke-width="2.2"></circle><circle cx="40" cy="12" r="4.5" fill="#141311" stroke="#C9C3B6" stroke-width="2.2"></circle><circle cx="48" cy="22" r="4.5" fill="#141311" stroke="#C9C3B6" stroke-width="2.2"></circle><circle cx="40" cy="32" r="4.5" fill="#141311" stroke="#C9C3B6" stroke-width="2.2"></circle><circle cx="20" cy="32" r="4.5" fill="#141311" stroke="#C9C3B6" stroke-width="2.2"></circle></svg>
+          <div>
+            <div style="font-size:60px;font-weight:500;letter-spacing:-.03em;line-height:1">portolano</div>
+            <div style="font:400 14px 'IBM Plex Mono',monospace;color:#A8A297;margin-top:10px">tutti i tuoi porti, a un clic</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px">
+          <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Palette</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ d.base }}" as="s" hint-placeholder-count="6"><div style="width:76px"><div style="height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A8A297">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A8A297">Semantici</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ d.sem }}" as="s" hint-placeholder-count="4"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A8A297">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A8A297">Tipi di nodo</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ d.nodes }}" as="s" hint-placeholder-count="5"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A8A297">{{ s.c }}</div></div></sc-for></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Tipografia</div>
+              <div style="font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:12px">Hanken Grotesk</div>
+              <div style="font-size:14px;color:#CFC9BD;line-height:1.5">UI: 400 / 500 / 600. Forme aperte e morbide, buona resa a 12–13 px.</div>
+              <div style="font:500 20px 'IBM Plex Mono',monospace;margin-top:14px;color:#7FC2A0">IBM Plex Mono</div>
+              <div style="font:400 13px 'IBM Plex Mono',monospace;color:#CFC9BD;margin-top:4px">admin@web01.example.com:22</div>
+            </div>
+            <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Icone · tratto 2 px su pastiglia tinta</div>
+              <div style="display:flex;gap:16px;margin-top:14px"><sc-for list="{{ d.icons }}" as="ic" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:58px"><span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.07)"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="{{ ic.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ ic.d }}"></path></svg></span><span style="font-size:11px;color:#CFC9BD">{{ ic.n }}</span></div></sc-for></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Vetro e sicurezza</div>
+            <p style="font-size:14px;line-height:1.55;color:#CFC9BD;margin:10px 0 14px">Vetro grafite caldo al 64%, blur 30 px, bordo avorio a bassa opacità. Raggi 18 / 14 / 10, pillola solo sui badge. Stati attivi con riempimento pieno, senza glow. Dietro il terminale il pannello diventa opaco.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:#2F7D5B;color:#F5F1E8;font-weight:600"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:#3A2E1A;color:#E0A84B"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Password assente</span>
+            </div>
+          </div>
+          <div style="background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A8A297">Motion · "accendersi"</div>
+            <p style="font-size:14px;line-height:1.55;color:#CFC9BD;margin:10px 0 8px">Molla morbida con leggero rimbalzo. Connessione: i nodi della rotta si accendono in sequenza e il legame si tende. Successo: il nodo resta acceso. Errore: il legame si allenta e si spegne.</p>
+            <div style="font:400 12.5px 'IBM Plex Mono',monospace;color:#7FC2A0;line-height:1.7">160 / 260 / 480 ms<br>cubic-bezier(.34,1.56,.64,1)</div>
+          </div>
+        </div>
+        <div style="border-radius:18px;overflow:hidden;background:rgba(30,28,25,.64);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,245,225,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.45)">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(255,245,225,.12)">
+            <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:#3A3732"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A3732"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A3732"></span></div>
+            <div style="flex:1;margin-left:10px;padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.06);font-size:13px;color:#A8A297">Cerca per nome, host, tag…</div>
+            <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:10px;border:0;background:rgba(255,255,255,.08);color:#EDE9E1;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#2A2723">+ Connessione</button>
+            <button style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 16px;border-radius:10px;border:0;background:#2F7D5B;color:#F5F1E8;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#38916A">Connetti</button>
+          </div>
+          <div style="display:grid;grid-template-columns:330px 1fr">
+            <div style="padding:10px 8px;border-right:1px solid rgba(255,245,225,.12)">
+              <sc-for list="{{ d.rows }}" as="r" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:9px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:12px;border-radius:10px;background:{{ r.bg }};cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#2A2723"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{ r.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ r.d }}"></path></svg><span style="font-size:13.5px;font-weight:500;white-space:nowrap">{{ r.name }}</span><span style="font-size:11px;color:#E9C46A">{{ r.star }}</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:{{ r.mc }};white-space:nowrap">{{ r.meta }}</span></div></sc-for>
+            </div>
+            <div style="padding:18px 20px;height:290px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:{{ d.sc }};transition:all 260ms"></span><span style="font:500 14px 'IBM Plex Mono',monospace">admin@web01.example.com:22</span></div>
+              <div style="display:flex;align-items:center;gap:10px;font:400 11.5px 'IBM Plex Mono',monospace;color:#A8A297"><span>tu</span><div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.1);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;border-radius:4px;width:{{ progress }};transition:{{ progressTr }};background:{{ d.sc }}"></div><span style="position:absolute;left:50%;top:-4px;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:#141311;border:2px solid #C9C3B6"></span></div><span>web01</span></div>
+              <div style="font-size:11.5px;color:#A8A297;margin-top:-6px;text-align:center">via bastion.example.com</div>
+              <div style="font-size:15px;font-weight:600;color:{{ d.sc }};transition:color 260ms">{{ statusText }}</div>
+              <sc-if value="{{ isWaiting }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#CFC9BD;line-height:1.5">Credenziale <b style="font-weight:600">deploy</b>, ereditata da Produzione. Password nel portachiavi.</div></sc-if>
+              <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;flex:1;padding:12px 14px;border-radius:14px;background:#0C0B0A;border:1px solid rgba(255,255,255,.08);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#CFE3DC;overflow:hidden">admin@web01:~$ uptime
+ 10:42:07 up 41 days,  3:12,  1 user
+admin@web01:~$ <span style="background:#2F7D5B;color:#7FC2A0">_</span></pre></sc-if>
+              <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px;border-radius:14px;background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.4);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#FDB5C0">ssh: connect to host web01.example.com port 22: Connection refused</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <div id="2b" style="position:relative;flex:none;width:1000px;box-sizing:border-box;padding:44px;border-radius:28px;overflow:hidden;background:#0C1A16;color:#EEE9DC;font-family:'Hanken Grotesk',sans-serif">
+      <canvas ref="{{ cvE }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:relative;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:500 13px 'IBM Plex Mono',monospace;padding:5px 10px;border-radius:999px;background:#E3D3AE;color:#14201B">2b</span>
+          <span style="font-size:22px;font-weight:600">Arcipelago · Sabbia</span>
+          <span style="font-size:15px;color:#A3B0A6">Verde scuro e accento sabbia. Nessun bagliore: l'enfasi è un riempimento pieno.</span>
+        </div>
+        <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.35);border-radius:18px;padding:40px;display:flex;align-items:center;gap:28px">
+          <svg width="96" height="96" viewBox="0 0 64 64" fill="none"><polyline points="20,54 20,12 40,12 48,22 40,32 20,32" stroke="#E3D3AE" stroke-width="2.4" stroke-linejoin="round"></polyline><circle cx="20" cy="54" r="4.5" fill="#E3D3AE"></circle><circle cx="20" cy="12" r="4.5" fill="#0C1A16" stroke="#EEE9DC" stroke-width="2.2"></circle><circle cx="40" cy="12" r="4.5" fill="#0C1A16" stroke="#EEE9DC" stroke-width="2.2"></circle><circle cx="48" cy="22" r="4.5" fill="#0C1A16" stroke="#EEE9DC" stroke-width="2.2"></circle><circle cx="40" cy="32" r="4.5" fill="#0C1A16" stroke="#EEE9DC" stroke-width="2.2"></circle><circle cx="20" cy="32" r="4.5" fill="#0C1A16" stroke="#EEE9DC" stroke-width="2.2"></circle></svg>
+          <div>
+            <div style="font-size:60px;font-weight:500;letter-spacing:-.03em;line-height:1">portolano</div>
+            <div style="font:400 14px 'IBM Plex Mono',monospace;color:#A3B0A6;margin-top:10px">tutti i tuoi porti, a un clic</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px">
+          <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3B0A6">Palette</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ e.base }}" as="s" hint-placeholder-count="6"><div style="width:76px"><div style="height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A3B0A6">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A3B0A6">Semantici</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ e.sem }}" as="s" hint-placeholder-count="4"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A3B0A6">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A3B0A6">Tipi di nodo</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ e.nodes }}" as="s" hint-placeholder-count="5"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#A3B0A6">{{ s.c }}</div></div></sc-for></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3B0A6">Tipografia</div>
+              <div style="font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:12px">Hanken Grotesk</div>
+              <div style="font-size:14px;color:#CBD3C8;line-height:1.5">UI: 400 / 500 / 600. Forme aperte e morbide, buona resa a 12–13 px.</div>
+              <div style="font:500 20px 'IBM Plex Mono',monospace;margin-top:14px;color:#E3D3AE">IBM Plex Mono</div>
+              <div style="font:400 13px 'IBM Plex Mono',monospace;color:#CBD3C8;margin-top:4px">admin@web01.example.com:22</div>
+            </div>
+            <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3B0A6">Icone · tratto 2 px su pastiglia tinta</div>
+              <div style="display:flex;gap:16px;margin-top:14px"><sc-for list="{{ e.icons }}" as="ic" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:58px"><span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.07)"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="{{ ic.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ ic.d }}"></path></svg></span><span style="font-size:11px;color:#CBD3C8">{{ ic.n }}</span></div></sc-for></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3B0A6">Vetro e sicurezza</div>
+            <p style="font-size:14px;line-height:1.55;color:#CBD3C8;margin:10px 0 14px">Vetro verde scuro al 62%, blur 30 px, bordo sabbia a bassa opacità. Raggi 18 / 14 / 10, pillola solo sui badge. Stati attivi con riempimento pieno, senza glow. Dietro il terminale il pannello diventa opaco.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:#E3D3AE;color:#14201B;font-weight:600"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:#3B2A1A;color:#E88A4C"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Password assente</span>
+            </div>
+          </div>
+          <div style="background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:14px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#A3B0A6">Motion · "accendersi"</div>
+            <p style="font-size:14px;line-height:1.55;color:#CBD3C8;margin:10px 0 8px">Molla morbida con leggero rimbalzo. Connessione: i nodi della rotta si accendono in sequenza e il legame si tende. Successo: il nodo resta acceso. Errore: il legame si allenta e si spegne.</p>
+            <div style="font:400 12.5px 'IBM Plex Mono',monospace;color:#E3D3AE;line-height:1.7">160 / 260 / 480 ms<br>cubic-bezier(.34,1.56,.64,1)</div>
+          </div>
+        </div>
+        <div style="border-radius:18px;overflow:hidden;background:rgba(19,38,31,.62);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(227,211,174,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.45)">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(227,211,174,.12)">
+            <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:#2C4036"></span><span style="width:11px;height:11px;border-radius:50%;background:#2C4036"></span><span style="width:11px;height:11px;border-radius:50%;background:#2C4036"></span></div>
+            <div style="flex:1;margin-left:10px;padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.06);font-size:13px;color:#A3B0A6">Cerca per nome, host, tag…</div>
+            <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:10px;border:0;background:rgba(255,255,255,.08);color:#EEE9DC;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#1D332A">+ Connessione</button>
+            <button style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 16px;border-radius:10px;border:0;background:#E3D3AE;color:#14201B;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#F0E4C6">Connetti</button>
+          </div>
+          <div style="display:grid;grid-template-columns:330px 1fr">
+            <div style="padding:10px 8px;border-right:1px solid rgba(227,211,174,.12)">
+              <sc-for list="{{ e.rows }}" as="r" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:9px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:12px;border-radius:10px;background:{{ r.bg }};cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:#1D332A"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{ r.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ r.d }}"></path></svg><span style="font-size:13.5px;font-weight:500;white-space:nowrap">{{ r.name }}</span><span style="font-size:11px;color:#E9C46A">{{ r.star }}</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:{{ r.mc }};white-space:nowrap">{{ r.meta }}</span></div></sc-for>
+            </div>
+            <div style="padding:18px 20px;height:290px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:{{ e.sc }};transition:all 260ms"></span><span style="font:500 14px 'IBM Plex Mono',monospace">admin@web01.example.com:22</span></div>
+              <div style="display:flex;align-items:center;gap:10px;font:400 11.5px 'IBM Plex Mono',monospace;color:#A3B0A6"><span>tu</span><div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.1);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;border-radius:4px;width:{{ progress }};transition:{{ progressTr }};background:{{ e.sc }}"></div><span style="position:absolute;left:50%;top:-4px;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:#0C1A16;border:2px solid #EEE9DC"></span></div><span>web01</span></div>
+              <div style="font-size:11.5px;color:#A3B0A6;margin-top:-6px;text-align:center">via bastion.example.com</div>
+              <div style="font-size:15px;font-weight:600;color:{{ e.sc }};transition:color 260ms">{{ statusText }}</div>
+              <sc-if value="{{ isWaiting }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#CBD3C8;line-height:1.5">Credenziale <b style="font-weight:600">deploy</b>, ereditata da Produzione. Password nel portachiavi.</div></sc-if>
+              <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;flex:1;padding:12px 14px;border-radius:14px;background:#07110E;border:1px solid rgba(255,255,255,.08);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#CFE3DC;overflow:hidden">admin@web01:~$ uptime
+ 10:42:07 up 41 days,  3:12,  1 user
+admin@web01:~$ <span style="background:#E3D3AE;color:#E3D3AE">_</span></pre></sc-if>
+              <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px;border-radius:14px;background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.4);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#FDB5C0">ssh: connect to host web01.example.com port 22: Connection refused</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+  </div>
+</section>
+<section data-screen-label="Turno 1 Brand" style="width:3220px;padding:64px;box-sizing:border-box;font-family:'Geist',sans-serif;background:#050608;color:#E8EEF8;border-radius:36px">
+  <div style="max-width:1100px;margin-bottom:40px">
+    <div style="font:500 13px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#8B97AD">Turno 1 · Brand identity</div>
+    <h1 style="font-size:44px;font-weight:600;letter-spacing:-.02em;margin:10px 0 14px">Portolano: tre direzioni</h1>
+    <p style="font-size:17px;line-height:1.55;color:#AEB8CB;margin:0;text-wrap:pretty">Tema scuro, metafora nautica forte. In ogni board la mini finestra ripete in ciclo la sequenza di connessione: pronto, in corso, connesso, poi un tentativo fallito. Lo sfondo è pieno a riposo e scende al 25% quando la sessione è attiva; nell'app torna pieno dopo 10 s di pausa, rallenta quando la finestra perde il fuoco e si ferma quando è nascosta. Intensità, densità e "riduci movimento" si regolano dai Tweaks. I marchi sono schizzi geometrici, da rifinire dopo la scelta.</p>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:46px;align-items:flex-start">
+
+    <!-- 1a -->
+    <div id="1a" style="position:relative;flex:none;width:1000px;box-sizing:border-box;padding:44px;border-radius:28px;overflow:hidden;background:#070B14;color:#E8EEF8;font-family:'Geist',sans-serif">
+      <canvas ref="{{ cvA }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:relative;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:500 13px 'Geist Mono',monospace;padding:5px 10px;border-radius:8px;background:#56D4F5;color:#04121A">1a</span>
+          <span style="font-size:22px;font-weight:600">Lossodromia</span>
+          <span style="font-size:15px;color:#9AA7BD">Blu notte e ciano. Le rotte scorrono dalle rose dei venti verso i porti.</span>
+        </div>
+        <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 18px 48px rgba(0,0,0,.35);border-radius:16px;padding:40px;display:flex;align-items:center;gap:28px">
+          <svg width="96" height="96" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="25" stroke="#5B8CFF" stroke-opacity=".45" stroke-width="1.2"></circle><line x1="32" y1="32" x2="55" y2="9" stroke="#56D4F5" stroke-width="1.6"></line><polygon points="32,8 36.5,27.5 56,32 36.5,36.5 32,56 27.5,36.5 8,32 27.5,27.5" fill="#56D4F5"></polygon><circle cx="55" cy="9" r="4" fill="#070B14" stroke="#56D4F5" stroke-width="2"></circle></svg>
+          <div>
+            <div style="font-size:58px;font-weight:600;letter-spacing:-.035em;line-height:1">Portolano</div>
+            <div style="font:400 14px 'Geist Mono',monospace;color:#9AA7BD;margin-top:10px">ogni server, una rotta</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px">
+          <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 12px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9AA7BD">Palette</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ a.base }}" as="s" hint-placeholder-count="6"><div style="width:76px"><div style="height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'Geist Mono',monospace;color:#9AA7BD">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#9AA7BD">Semantici</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ a.sem }}" as="s" hint-placeholder-count="4"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'Geist Mono',monospace;color:#9AA7BD">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#9AA7BD">Tipi di nodo</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ a.nodes }}" as="s" hint-placeholder-count="5"><div style="width:76px"><div style="height:30px;border-radius:10px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'Geist Mono',monospace;color:#9AA7BD">{{ s.c }}</div></div></sc-for></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);border-radius:16px;padding:22px">
+              <div style="font:500 12px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9AA7BD">Tipografia</div>
+              <div style="font-size:34px;font-weight:600;letter-spacing:-.03em;margin-top:12px">Geist</div>
+              <div style="font-size:14px;color:#C5CEDD;line-height:1.5">UI: 400 / 500 / 600. Numeri tabulari per porte, latenze e conteggi.</div>
+              <div style="font:500 20px 'Geist Mono',monospace;margin-top:14px;color:#56D4F5">Geist Mono</div>
+              <div style="font:400 13px 'Geist Mono',monospace;color:#C5CEDD;margin-top:4px">admin@web01.example.com:22</div>
+            </div>
+            <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);border-radius:16px;padding:22px">
+              <div style="font:500 12px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9AA7BD">Icone · tratto 1.5 px, estremi tondi</div>
+              <div style="display:flex;gap:16px;margin-top:14px"><sc-for list="{{ a.icons }}" as="ic" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:58px"><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="{{ ic.c }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ ic.d }}"></path></svg><span style="font-size:11px;color:#C5CEDD">{{ ic.n }}</span></div></sc-for></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);border-radius:16px;padding:22px">
+            <div style="font:500 12px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9AA7BD">Vetro e sicurezza</div>
+            <p style="font-size:14px;line-height:1.55;color:#C5CEDD;margin:10px 0 14px">Vetro blu al 58%, blur 22 px, bordo ciano al 16% con filo di luce in alto. Raggi 16 / 10 / 8. Dietro il terminale il pannello diventa opaco.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:rgba(61,220,151,.12);border:1px solid rgba(61,220,151,.4);color:#3DDC97"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;border:1px dashed rgba(255,159,74,.6);color:#FF9F4A"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Password assente</span>
+            </div>
+          </div>
+          <div style="background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);border-radius:16px;padding:22px">
+            <div style="font:500 12px 'Geist Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9AA7BD">Motion · "scorrere"</div>
+            <p style="font-size:14px;line-height:1.55;color:#C5CEDD;margin:10px 0 8px">Tutto arriva lungo una linea e decelera. Connessione: un tratto percorre la rotta salto dopo salto. Successo: impulso ciano dal porto. Errore: la rotta si interrompe e rientra.</p>
+            <div style="font:400 12.5px 'Geist Mono',monospace;color:#56D4F5;line-height:1.7">120 / 220 / 420 ms<br>cubic-bezier(.2,.8,.2,1)</div>
+          </div>
+        </div>
+        <div style="border-radius:16px;overflow:hidden;background:rgba(14,22,40,.58);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(120,200,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 24px 60px rgba(0,0,0,.45)">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(120,200,255,.12)">
+            <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:#3A4560"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A4560"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A4560"></span></div>
+            <div style="flex:1;margin-left:10px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:13px;color:#9AA7BD">Cerca per nome, host, tag…</div>
+            <button style="font:500 13px 'Geist',sans-serif;padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#E8EEF8;cursor:pointer;transition:all 120ms cubic-bezier(.2,.8,.2,1)" style-hover="background:rgba(86,212,245,.14);border-color:rgba(86,212,245,.5)">+ Connessione</button>
+            <button style="font:600 13px 'Geist',sans-serif;padding:7px 14px;border-radius:10px;border:0;background:#56D4F5;color:#04121A;cursor:pointer;transition:all 120ms cubic-bezier(.2,.8,.2,1)" style-hover="background:#8DE4FA;box-shadow:0 0 22px rgba(86,212,245,.5)">Connetti</button>
+          </div>
+          <div style="display:grid;grid-template-columns:330px 1fr">
+            <div style="padding:10px 8px;border-right:1px solid rgba(120,200,255,.12)">
+              <sc-for list="{{ a.rows }}" as="r" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:9px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:10px;border-radius:9px;background:{{ r.bg }};cursor:pointer;transition:background 120ms,transform 220ms cubic-bezier(.2,.8,.2,1)" style-hover="background:rgba(86,212,245,.1);transform:translateX(3px)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{ r.c }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ r.d }}"></path></svg><span style="font-size:13.5px;font-weight:500;white-space:nowrap">{{ r.name }}</span><span style="font-size:11px;color:#F5B84A">{{ r.star }}</span><span style="margin-left:auto;font:400 11.5px 'Geist Mono',monospace;color:{{ r.mc }};white-space:nowrap">{{ r.meta }}</span></div></sc-for>
+            </div>
+            <div style="padding:18px 20px;height:290px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:{{ a.sc }};box-shadow:0 0 10px {{ a.sc }};transition:all 220ms"></span><span style="font:500 14px 'Geist Mono',monospace">admin@web01.example.com:22</span></div>
+              <div style="display:flex;align-items:center;gap:10px;font:400 11.5px 'Geist Mono',monospace;color:#9AA7BD"><span>tu</span><div style="flex:1;height:2px;border-radius:2px;background:rgba(255,255,255,.1);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;border-radius:2px;width:{{ progress }};transition:{{ progressTr }};background:{{ a.sc }};box-shadow:0 0 12px {{ a.sc }}"></div><span style="position:absolute;left:50%;top:-3px;width:8px;height:8px;border-radius:50%;background:#070B14;border:1.5px solid #5B8CFF"></span></div><span>web01</span></div>
+              <div style="font-size:11.5px;color:#9AA7BD;margin-top:-6px;text-align:center">via bastion.example.com</div>
+              <div style="font-size:15px;font-weight:600;color:{{ a.sc }};transition:color 220ms">{{ statusText }}</div>
+              <sc-if value="{{ isWaiting }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#C5CEDD;line-height:1.5">Credenziale <b style="font-weight:600">deploy</b>, ereditata da Produzione. Password nel portachiavi.</div></sc-if>
+              <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;flex:1;padding:12px 14px;border-radius:10px;background:#04070D;border:1px solid rgba(255,255,255,.08);font:400 12px/1.6 'Geist Mono',monospace;color:#C9D6EA;overflow:hidden">admin@web01:~$ uptime
+ 10:42:07 up 41 days,  3:12,  1 user
+admin@web01:~$ <span style="background:#56D4F5;color:#56D4F5">_</span></pre></sc-if>
+              <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px;border-radius:10px;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.4);font:400 12px/1.6 'Geist Mono',monospace;color:#FFB3B3">ssh: connect to host web01.example.com port 22: Connection refused</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b -->
+    <div id="1b" style="position:relative;flex:none;width:1000px;box-sizing:border-box;padding:44px;border-radius:28px;overflow:hidden;background:#05100E;color:#E6F2EE;font-family:'Hanken Grotesk',sans-serif">
+      <canvas ref="{{ cvB }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:relative;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:500 13px 'IBM Plex Mono',monospace;padding:5px 10px;border-radius:999px;background:#34E0A1;color:#03170F">1b</span>
+          <span style="font-size:22px;font-weight:600">Arcipelago</span>
+          <span style="font-size:15px;color:#9DB8B0">Verde acqua e smeraldo. I server sono isole, le connessioni li uniscono.</span>
+        </div>
+        <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.35);border-radius:26px;padding:40px;display:flex;align-items:center;gap:28px">
+          <svg width="96" height="96" viewBox="0 0 64 64" fill="none"><polyline points="20,54 20,12 40,12 48,22 40,32 20,32" stroke="#34E0A1" stroke-width="2.4" stroke-linejoin="round"></polyline><circle cx="20" cy="54" r="4.5" fill="#34E0A1"></circle><circle cx="20" cy="12" r="4.5" fill="#05100E" stroke="#5EEAD4" stroke-width="2.2"></circle><circle cx="40" cy="12" r="4.5" fill="#05100E" stroke="#5EEAD4" stroke-width="2.2"></circle><circle cx="48" cy="22" r="4.5" fill="#05100E" stroke="#5EEAD4" stroke-width="2.2"></circle><circle cx="40" cy="32" r="4.5" fill="#05100E" stroke="#5EEAD4" stroke-width="2.2"></circle><circle cx="20" cy="32" r="4.5" fill="#05100E" stroke="#5EEAD4" stroke-width="2.2"></circle></svg>
+          <div>
+            <div style="font-size:60px;font-weight:500;letter-spacing:-.03em;line-height:1">portolano</div>
+            <div style="font:400 14px 'IBM Plex Mono',monospace;color:#9DB8B0;margin-top:10px">tutti i tuoi porti, a un clic</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px">
+          <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9DB8B0">Palette</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ b.base }}" as="s" hint-placeholder-count="6"><div style="width:76px"><div style="height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#9DB8B0">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#9DB8B0">Semantici</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ b.sem }}" as="s" hint-placeholder-count="4"><div style="width:76px"><div style="height:30px;border-radius:999px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#9DB8B0">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#9DB8B0">Tipi di nodo</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ b.nodes }}" as="s" hint-placeholder-count="5"><div style="width:76px"><div style="height:30px;border-radius:999px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 10.5px 'IBM Plex Mono',monospace;color:#9DB8B0">{{ s.c }}</div></div></sc-for></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:22px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9DB8B0">Tipografia</div>
+              <div style="font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:12px">Hanken Grotesk</div>
+              <div style="font-size:14px;color:#C4D6D0;line-height:1.5">UI: 400 / 500 / 600. Forme aperte e morbide, buona resa a 12–13 px.</div>
+              <div style="font:500 20px 'IBM Plex Mono',monospace;margin-top:14px;color:#34E0A1">IBM Plex Mono</div>
+              <div style="font:400 13px 'IBM Plex Mono',monospace;color:#C4D6D0;margin-top:4px">admin@web01.example.com:22</div>
+            </div>
+            <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:22px;padding:22px">
+              <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9DB8B0">Icone · tratto 2 px su pastiglia tinta</div>
+              <div style="display:flex;gap:16px;margin-top:14px"><sc-for list="{{ b.icons }}" as="ic" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:58px"><span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.07)"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="{{ ic.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ ic.d }}"></path></svg></span><span style="font-size:11px;color:#C4D6D0">{{ ic.n }}</span></div></sc-for></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:22px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9DB8B0">Vetro e sicurezza</div>
+            <p style="font-size:14px;line-height:1.55;color:#C4D6D0;margin:10px 0 14px">Vetro verde profondo al 55%, blur 30 px, il più morbido dei tre. Raggi 26 / 22 / 12, controlli a pillola. Dietro il terminale il pannello diventa opaco.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:#34E0A1;color:#03170F;font-weight:600"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;padding:6px 11px;border-radius:999px;background:rgba(251,191,36,.12);color:#FBBF24"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Password assente</span>
+            </div>
+          </div>
+          <div style="background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:22px;padding:22px">
+            <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#9DB8B0">Motion · "accendersi"</div>
+            <p style="font-size:14px;line-height:1.55;color:#C4D6D0;margin:10px 0 8px">Molla morbida con leggero rimbalzo. Connessione: i nodi della rotta si accendono in sequenza e il legame si tende. Successo: il nodo resta acceso. Errore: il legame si allenta e si spegne.</p>
+            <div style="font:400 12.5px 'IBM Plex Mono',monospace;color:#34E0A1;line-height:1.7">160 / 260 / 480 ms<br>cubic-bezier(.34,1.56,.64,1)</div>
+          </div>
+        </div>
+        <div style="border-radius:26px;overflow:hidden;background:rgba(10,30,26,.55);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(94,234,212,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.45)">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(94,234,212,.12)">
+            <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:#2C4740"></span><span style="width:11px;height:11px;border-radius:50%;background:#2C4740"></span><span style="width:11px;height:11px;border-radius:50%;background:#2C4740"></span></div>
+            <div style="flex:1;margin-left:10px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.06);font-size:13px;color:#9DB8B0">Cerca per nome, host, tag…</div>
+            <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:999px;border:0;background:rgba(255,255,255,.08);color:#E6F2EE;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:rgba(52,224,161,.2);transform:scale(1.05)">+ Connessione</button>
+            <button style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 16px;border-radius:999px;border:0;background:#34E0A1;color:#03170F;cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="transform:scale(1.07);box-shadow:0 0 24px rgba(52,224,161,.55)">Connetti</button>
+          </div>
+          <div style="display:grid;grid-template-columns:330px 1fr">
+            <div style="padding:10px 8px;border-right:1px solid rgba(94,234,212,.12)">
+              <sc-for list="{{ b.rows }}" as="r" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:9px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:12px;border-radius:999px;background:{{ r.bg }};cursor:pointer;transition:all 160ms cubic-bezier(.34,1.56,.64,1)" style-hover="background:rgba(52,224,161,.12);transform:scale(1.02)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{ r.c }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ r.d }}"></path></svg><span style="font-size:13.5px;font-weight:500;white-space:nowrap">{{ r.name }}</span><span style="font-size:11px;color:#E9C46A">{{ r.star }}</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:{{ r.mc }};white-space:nowrap">{{ r.meta }}</span></div></sc-for>
+            </div>
+            <div style="padding:18px 20px;height:290px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:{{ b.sc }};box-shadow:0 0 10px {{ b.sc }};transition:all 260ms"></span><span style="font:500 14px 'IBM Plex Mono',monospace">admin@web01.example.com:22</span></div>
+              <div style="display:flex;align-items:center;gap:10px;font:400 11.5px 'IBM Plex Mono',monospace;color:#9DB8B0"><span>tu</span><div style="flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.1);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;border-radius:4px;width:{{ progress }};transition:{{ progressTr }};background:{{ b.sc }};box-shadow:0 0 12px {{ b.sc }}"></div><span style="position:absolute;left:50%;top:-4px;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:#05100E;border:2px solid #5EEAD4"></span></div><span>web01</span></div>
+              <div style="font-size:11.5px;color:#9DB8B0;margin-top:-6px;text-align:center">via bastion.example.com</div>
+              <div style="font-size:15px;font-weight:600;color:{{ b.sc }};transition:color 260ms">{{ statusText }}</div>
+              <sc-if value="{{ isWaiting }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#C4D6D0;line-height:1.5">Credenziale <b style="font-weight:600">deploy</b>, ereditata da Produzione. Password nel portachiavi.</div></sc-if>
+              <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;flex:1;padding:12px 14px;border-radius:14px;background:#030A09;border:1px solid rgba(255,255,255,.08);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#CFE3DC;overflow:hidden">admin@web01:~$ uptime
+ 10:42:07 up 41 days,  3:12,  1 user
+admin@web01:~$ <span style="background:#34E0A1;color:#34E0A1">_</span></pre></sc-if>
+              <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px;border-radius:14px;background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.4);font:400 12px/1.6 'IBM Plex Mono',monospace;color:#FDB5C0">ssh: connect to host web01.example.com port 22: Connection refused</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="position:relative;flex:none;width:1000px;box-sizing:border-box;padding:44px;border-radius:28px;overflow:hidden;background:#0E0F11;color:#ECE9E2;font-family:'Schibsted Grotesk',sans-serif">
+      <canvas ref="{{ cvC }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:relative;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font:500 12px 'Martian Mono',monospace;padding:5px 9px;border-radius:3px;background:#F2B24C;color:#1A1205">1c</span>
+          <span style="font-size:22px;font-weight:600">Astrolabio</span>
+          <span style="font-size:15px;color:#A9A59C">Grafite con un solo accento ambra. Uno strumento di precisione.</span>
+        </div>
+        <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(242,178,76,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 18px 48px rgba(0,0,0,.4);border-radius:6px;padding:40px;display:flex;align-items:center;gap:30px">
+          <svg width="96" height="96" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="29" stroke="#F2B24C" stroke-width="1"></circle><circle cx="32" cy="32" r="22" stroke="#ECE9E2" stroke-opacity=".3" stroke-width="1"></circle><polygon points="32,12 46,32 32,52 18,32" stroke="#ECE9E2" stroke-opacity=".5" stroke-width="1" transform="rotate(45 32 32)"></polygon><polygon points="3,32 32,27 61,32 32,37" stroke="#F2B24C" stroke-width="1"></polygon><polygon points="32,3 37,32 32,61 27,32" fill="#F2B24C"></polygon></svg>
+          <div>
+            <div style="font-size:42px;font-weight:500;letter-spacing:.26em;line-height:1">PORTOLANO</div>
+            <div style="font:400 12px 'Martian Mono',monospace;color:#A9A59C;margin-top:14px;letter-spacing:.04em">N 45°04′ · rotte per i tuoi server</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px">
+          <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);border-radius:6px;padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font:500 11px 'Martian Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#A9A59C">Palette</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ c.base }}" as="s" hint-placeholder-count="6"><div style="width:76px"><div style="height:44px;border-radius:3px;border:1px solid rgba(255,255,255,.14);background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 9.5px 'Martian Mono',monospace;color:#A9A59C">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A9A59C">Semantici</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ c.sem }}" as="s" hint-placeholder-count="4"><div style="width:76px"><div style="height:30px;border-radius:3px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 9.5px 'Martian Mono',monospace;color:#A9A59C">{{ s.c }}</div></div></sc-for></div>
+            <div style="font-size:12px;color:#A9A59C">Tipi di nodo</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px"><sc-for list="{{ c.nodes }}" as="s" hint-placeholder-count="5"><div style="width:76px"><div style="height:30px;border-radius:3px;background:{{ s.c }}"></div><div style="font-size:12px;margin-top:5px">{{ s.n }}</div><div style="font:400 9.5px 'Martian Mono',monospace;color:#A9A59C">{{ s.c }}</div></div></sc-for></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);border-radius:6px;padding:22px">
+              <div style="font:500 11px 'Martian Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#A9A59C">Tipografia</div>
+              <div style="font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:12px">Schibsted Grotesk</div>
+              <div style="font-size:14px;color:#CFCBC2;line-height:1.5">UI: 400 / 500 / 600. Etichette in mono maiuscolo spaziato, come le legende di una carta.</div>
+              <div style="font:500 17px 'Martian Mono',monospace;margin-top:14px;color:#F2B24C">Martian Mono</div>
+              <div style="font:400 12px 'Martian Mono',monospace;color:#CFCBC2;margin-top:6px">admin@web01.example.com:22</div>
+            </div>
+            <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);border-radius:6px;padding:22px">
+              <div style="font:500 11px 'Martian Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#A9A59C">Icone · tratto 1 px, angoli vivi</div>
+              <div style="display:flex;gap:16px;margin-top:14px"><sc-for list="{{ c.icons }}" as="ic" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:58px"><svg width="28" height="28" viewBox="0 0 16 16" fill="none" stroke="{{ ic.c }}" stroke-width="1" stroke-linecap="square" stroke-linejoin="miter"><path d="{{ ic.d }}"></path></svg><span style="font-size:11px;color:#CFCBC2">{{ ic.n }}</span></div></sc-for></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);border-radius:6px;padding:22px">
+            <div style="font:500 11px 'Martian Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#A9A59C">Vetro e sicurezza</div>
+            <p style="font-size:14px;line-height:1.55;color:#CFCBC2;margin:10px 0 14px">Vetro fumé neutro al 60%, blur 16 px, bordi a filo. L'ambra compare solo su ciò che è attivo. Raggi 6 / 4 / 3. Dietro il terminale il pannello diventa opaco.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font:400 11px 'Martian Mono',monospace;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:3px;border:1px solid #7FD49B;color:#7FD49B"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font:400 11px 'Martian Mono',monospace;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:3px;border:1px dashed #F08A3C;color:#F08A3C"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Assente</span>
+            </div>
+          </div>
+          <div style="background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);border-radius:6px;padding:22px">
+            <div style="font:500 11px 'Martian Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:#A9A59C">Motion · "scattare"</div>
+            <p style="font-size:14px;line-height:1.55;color:#CFCBC2;margin:10px 0 8px">Movimenti brevi e meccanici, senza rimbalzo. Connessione: una ghiera ruota e si ferma a tacche, una per salto. Successo: la tacca si allinea e diventa ambra piena. Errore: la ghiera torna a zero.</p>
+            <div style="font:400 11.5px 'Martian Mono',monospace;color:#F2B24C;line-height:1.8">90 / 180 / 320 ms<br>cubic-bezier(.4,0,.1,1)</div>
+          </div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;background:rgba(24,25,28,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 24px 60px rgba(0,0,0,.5)">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1)">
+            <div style="display:flex;gap:7px"><span style="width:11px;height:11px;border-radius:50%;background:#3A3B3F"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A3B3F"></span><span style="width:11px;height:11px;border-radius:50%;background:#3A3B3F"></span></div>
+            <div style="flex:1;margin-left:10px;padding:7px 12px;border-radius:4px;border:1px solid rgba(255,255,255,.12);font-size:13px;color:#A9A59C">Cerca per nome, host, tag…</div>
+            <button style="font:500 13px 'Schibsted Grotesk',sans-serif;padding:7px 12px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#ECE9E2;cursor:pointer;transition:all 90ms cubic-bezier(.4,0,.1,1)" style-hover="border-color:#F2B24C;color:#F2B24C">+ Connessione</button>
+            <button style="font:600 13px 'Schibsted Grotesk',sans-serif;padding:7px 14px;border-radius:4px;border:1px solid #F2B24C;background:#F2B24C;color:#1A1205;cursor:pointer;transition:all 90ms cubic-bezier(.4,0,.1,1)" style-hover="background:#FFD083;border-color:#FFD083">Connetti</button>
+          </div>
+          <div style="display:grid;grid-template-columns:330px 1fr">
+            <div style="padding:10px 8px;border-right:1px solid rgba(255,255,255,.1)">
+              <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="8"><div style="display:flex;align-items:center;gap:9px;height:{{ r.h }};padding-left:{{ r.pad }};padding-right:10px;border-radius:3px;background:{{ r.bg }};box-shadow:{{ r.mark }};cursor:pointer;transition:background 90ms cubic-bezier(.4,0,.1,1)" style-hover="background:rgba(255,255,255,.07)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{ r.c }}" stroke-width="1.1" stroke-linecap="square" style="flex:none"><path d="{{ r.d }}"></path></svg><span style="font-size:13.5px;font-weight:500;white-space:nowrap">{{ r.name }}</span><span style="font-size:11px;color:#F2B24C">{{ r.star }}</span><span style="margin-left:auto;font:400 10.5px 'Martian Mono',monospace;color:{{ r.mc }};white-space:nowrap">{{ r.meta }}</span></div></sc-for>
+            </div>
+            <div style="padding:18px 20px;height:290px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;transform:rotate(45deg);background:{{ c.sc }};transition:all 180ms"></span><span style="font:500 13px 'Martian Mono',monospace">admin@web01.example.com:22</span></div>
+              <div style="display:flex;align-items:center;gap:10px;font:400 10.5px 'Martian Mono',monospace;color:#A9A59C"><span>TU</span><div style="flex:1;height:1px;background:rgba(255,255,255,.2);position:relative"><div style="position:absolute;left:0;top:-1px;height:3px;width:{{ progress }};transition:{{ progressTr }};background:{{ c.sc }}"></div><span style="position:absolute;left:50%;top:-4px;width:8px;height:8px;transform:rotate(45deg);background:#0E0F11;border:1px solid #ECE9E2"></span></div><span>WEB01</span></div>
+              <div style="font:400 10.5px 'Martian Mono',monospace;color:#A9A59C;margin-top:-6px;text-align:center">via bastion.example.com</div>
+              <div style="font-size:15px;font-weight:600;color:{{ c.sc }};transition:color 180ms">{{ statusText }}</div>
+              <sc-if value="{{ isWaiting }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#CFCBC2;line-height:1.5">Credenziale <b style="font-weight:600">deploy</b>, ereditata da Produzione. Password nel portachiavi.</div></sc-if>
+              <sc-if value="{{ isConnected }}" hint-placeholder-val="{{ false }}"><pre style="margin:0;flex:1;padding:12px 14px;border-radius:4px;background:#08090A;border:1px solid rgba(255,255,255,.1);font:400 11px/1.7 'Martian Mono',monospace;color:#D9D5CC;overflow:hidden">admin@web01:~$ uptime
+ 10:42:07 up 41 days,  3:12,  1 user
+admin@web01:~$ <span style="background:#F2B24C;color:#F2B24C">_</span></pre></sc-if>
+              <sc-if value="{{ isFailed }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px;border-radius:4px;border:1px solid #F0625F;font:400 11px/1.7 'Martian Mono',monospace;color:#F7A9A7">ssh: connect to host web01.example.com port 22: Connection refused</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;intensita&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:8,&quot;min&quot;:0,&quot;max&quot;:10,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Movimento&quot;},&quot;riduciMovimento&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Movimento&quot;},&quot;densita&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;comoda&quot;,&quot;compatta&quot;],&quot;default&quot;:&quot;comoda&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Albero&quot;}}">
+class Component extends DCLogic {
+  state = { step: 0 };
+  cvA = React.createRef(); cvB = React.createRef(); cvD = React.createRef(); cvE = React.createRef(); cvC = React.createRef();
+  STEPS = [['idle', 2500], ['connecting', 2600], ['connected', 4500], ['idle', 2000], ['connecting', 1700], ['failed', 3800]];
+  componentDidMount() {
+    this.i = 0;
+    const next = () => { this.timer = setTimeout(() => { this.i = (this.i + 1) % this.STEPS.length; this.setState({ step: this.i }); next(); }, this.STEPS[this.i][1]); };
+    next();
+    this.T = 0; this.calm = 1; this.last = performance.now(); this.lastStatic = 0;
+    this.pts = Array.from({ length: 110 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * 26, vy: (Math.random() - .5) * 26, big: Math.random() < .12 }));
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const loop = (now) => {
+      this.raf = requestAnimationFrame(loop);
+      if (document.hidden) { this.last = now; return; }
+      if (now - this.last < 33) return;
+      const dt = Math.min(.1, (now - this.last) / 1000); this.last = now;
+      const reduce = this.props.riduciMovimento || mq.matches;
+      if (reduce) { if (now - this.lastStatic < 1000) return; this.lastStatic = now; }
+      const target = this.STEPS[this.i][0] === 'connected' ? .25 : 1;
+      this.calm += (target - this.calm) * Math.min(1, dt * 2.5);
+      const k = reduce ? 0 : ((this.props.intensita ?? 8) / 8) * this.calm;
+      const al = reduce ? .6 : .35 + .65 * this.calm;
+      this.T += dt * k;
+      this.drawA(this.cvA.current, al); this.drawB(this.cvB.current, al, dt * k, '94,234,212', '52,224,161'); this.drawB(this.cvD.current, al * .7, 0, '201,195,182', '127,194,160'); this.drawB(this.cvE.current, al * .7, 0, '227,211,174', '227,211,174'); this.drawC(this.cvC.current, al);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { clearTimeout(this.timer); cancelAnimationFrame(this.raf); }
+  fit(cv) {
+    if (!cv) return null;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, w, h); ctx.setLineDash([]);
+    return { ctx, w, h };
+  }
+  drawA(cv, al) {
+    const f = this.fit(cv); if (!f) return; const { ctx, w, h } = f, T = this.T, R = Math.hypot(w, h);
+    [[.16 * w, .1 * h], [.88 * w, .42 * h], [.28 * w, .82 * h]].forEach(([x, y], ri) => {
+      for (let i = 0; i < 16; i++) {
+        const a = i * Math.PI / 8 + ri * .21, ex = x + Math.cos(a) * R, ey = y + Math.sin(a) * R;
+        ctx.setLineDash([]); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(110,170,255,.075)';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.setLineDash([70, 430]); ctx.lineDashOffset = -(T * 110 + i * 57 + ri * 130); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(86,212,245,' + (.5 * al) + ')';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+      ctx.setLineDash([]); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(91,140,255,.2)';
+      [44, 92].forEach(r => { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); });
+    });
+  }
+  drawB(cv, al, step, lc, dc) {
+    const f = this.fit(cv); if (!f) return; const { ctx, w, h } = f, P = this.pts;
+    P.forEach(p => { p.x += p.vx * step / w; p.y += p.vy * step / h; if (p.x < 0) p.x += 1; if (p.x > 1) p.x -= 1; if (p.y < 0) p.y += 1; if (p.y > 1) p.y -= 1; });
+    ctx.lineWidth = 1;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+      const dx = (P[i].x - P[j].x) * w, dy = (P[i].y - P[j].y) * h, d = dx * dx + dy * dy;
+      if (d < 28900) { ctx.strokeStyle = 'rgba(' + lc + ',' + ((1 - d / 28900) * .34 * al) + ')'; ctx.beginPath(); ctx.moveTo(P[i].x * w, P[i].y * h); ctx.lineTo(P[j].x * w, P[j].y * h); ctx.stroke(); }
+    }
+    P.forEach((p, i) => {
+      const x = p.x * w, y = p.y * h;
+      ctx.fillStyle = 'rgba(' + dc + ',' + (.75 * al) + ')'; ctx.beginPath(); ctx.arc(x, y, p.big ? 3 : 1.7, 0, 6.2832); ctx.fill();
+      if (p.big) { const r = 7 + 5 * (.5 + .5 * Math.sin(this.T * 1.6 + i)); ctx.strokeStyle = 'rgba(' + dc + ',' + (.3 * al) + ')'; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke(); }
+    });
+  }
+  drawC(cv, al) {
+    const f = this.fit(cv); if (!f) return; const { ctx, w, h } = f, T = this.T;
+    const grid = (s, off, c) => { ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.beginPath(); for (let x = (off % s) - s; x < w; x += s) { ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); } for (let y = (off * .6 % s) - s; y < h; y += s) { ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); } ctx.stroke(); };
+    grid(40, T * 7, 'rgba(255,255,255,.035)'); grid(200, T * 18, 'rgba(255,255,255,.075)');
+    [[.82 * w, .13 * h, 1], [.14 * w, .6 * h, -1], [.8 * w, .9 * h, 1]].forEach(([x, y, dir]) => {
+      [[130, 72, .1], [190, 36, -.06], [260, 144, .035]].forEach(([r, n, sp]) => {
+        ctx.strokeStyle = 'rgba(242,178,76,' + (.3 * al) + ')'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke();
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) { const a = i / n * 6.2832 + T * sp * dir, l = i % 9 === 0 ? 14 : 6, c = Math.cos(a), s = Math.sin(a); ctx.moveTo(x + c * r, y + s * r); ctx.lineTo(x + c * (r - l), y + s * (r - l)); }
+        ctx.stroke();
+      });
+    });
+  }
+  renderVals() {
+    const phase = this.STEPS[this.state.step][0], step = this.state.step;
+    const rowH = (this.props.densita ?? 'comoda') === 'compatta' ? '25px' : '34px';
+    const D = { folder: 'M2 4.5h4l1.5 1.5H14v6.5H2z', ssh: 'M3 5l3 3-3 3M8 11h5', rdp: 'M2 3.5h12v7H2zM6 13h4', cred: 'M7 8a2 2 0 1 0-4 0 2 2 0 0 0 4 0zM7 8h6M11 8v2', uns: 'M3.5 3.5l9 9M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z' };
+    const ROWS = [['Produzione', '', 'folder', 0], ['web01', 'web01.example.com', 'ssh', 1, 1, 1], ['db01', '192.0.2.14', 'ssh', 1], ['win-app01', '198.51.100.7', 'rdp', 1], ['Credenziali', '', 'folder', 0], ['deploy', 'nel portachiavi', 'cred', 1], ['admin · ACME', 'password assente', 'cred', 1], ['vnc-legacy', 'non supportato', 'uns', 0]];
+    const mk = (p) => ({
+      sc: { idle: p.sub, connecting: p.accent, connected: p.ok, failed: p.err }[phase],
+      base: p.base.map(([n, c]) => ({ n, c })),
+      sem: [['Successo', p.ok], ['Avviso', p.warn], ['Errore', p.err], ['Info', p.info]].map(([n, c]) => ({ n, c })),
+      nodes: [['SSH', p.n.ssh], ['RDP', p.n.rdp], ['Credenziale', p.n.cred], ['Cartella', p.n.folder], ['Non supp.', p.n.uns]].map(([n, c]) => ({ n, c })),
+      icons: [['Cartella', 'folder'], ['SSH', 'ssh'], ['RDP', 'rdp'], ['Credenziale', 'cred'], ['Non supp.', 'uns']].map(([n, t]) => ({ n, d: D[t], c: p.n[t] })),
+      rows: ROWS.map(([name, meta, t, depth, star, act]) => ({ name, meta, d: D[t], c: p.n[t], h: rowH, pad: (12 + depth * 20) + 'px', star: star ? '★' : '', bg: act ? p.active : 'transparent', mark: act ? 'inset 2px 0 0 ' + p.accent : 'none', mc: meta === 'nel portachiavi' ? p.ok : meta === 'password assente' ? p.warn : p.sub }))
+    });
+    return {
+      cvA: this.cvA, cvB: this.cvB, cvD: this.cvD, cvE: this.cvE, cvC: this.cvC,
+      statusText: { idle: 'Pronto', connecting: 'Connessione in corso…', connected: 'Connesso · 38 ms', failed: 'Connessione rifiutata' }[phase],
+      progress: phase === 'idle' ? '0%' : step >= 4 ? '62%' : '100%',
+      progressTr: phase === 'idle' ? 'none' : 'width ' + (step >= 4 ? 1500 : 2400) + 'ms cubic-bezier(.3,.7,.2,1)',
+      isWaiting: phase === 'idle' || phase === 'connecting', isConnected: phase === 'connected', isFailed: phase === 'failed',
+      d: mk({ sub: '#A8A297', accent: '#7FC2A0', ok: '#9BD06E', warn: '#E0A84B', err: '#E5695F', info: '#7FB2D9', active: '#24382E', n: { ssh: '#7FC2A0', rdp: '#7FA6D9', cred: '#D9B45F', folder: '#A8A297', uns: '#6B665D' }, base: [['Fondo', '#141311'], ['Superficie', '#1E1C19'], ['Bordo', '#35322D'], ['Testo', '#EDE9E1'], ['Testo 2', '#A8A297'], ['Bottiglia', '#2F7D5B'], ['Bottiglia chiaro', '#7FC2A0']] }),
+      e: mk({ sub: '#A3B0A6', accent: '#E3D3AE', ok: '#7FCF9B', warn: '#E88A4C', err: '#EC6F66', info: '#86BBDD', active: '#24392F', n: { ssh: '#E3D3AE', rdp: '#8DB8E0', cred: '#D9B45F', folder: '#A3B0A6', uns: '#5F7067' }, base: [['Fondo', '#0C1A16'], ['Superficie', '#13261F'], ['Bordo', '#284036'], ['Testo', '#EEE9DC'], ['Testo 2', '#A3B0A6'], ['Sabbia', '#E3D3AE'], ['Avorio', '#EEE9DC']] }),
+      a: mk({ sub: '#9AA7BD', accent: '#56D4F5', ok: '#3DDC97', warn: '#FF9F4A', err: '#FF6B6B', info: '#7FB0FF', active: 'rgba(86,212,245,.14)', n: { ssh: '#56D4F5', rdp: '#A594FF', cred: '#F5C56A', folder: '#8FA3C8', uns: '#667089' }, base: [['Fondo', '#070B14'], ['Superficie', '#0E1628'], ['Bordo', '#22304D'], ['Testo', '#E8EEF8'], ['Testo 2', '#9AA7BD'], ['Ciano', '#56D4F5'], ['Blu', '#5B8CFF']] }),
+      b: mk({ sub: '#9DB8B0', accent: '#5EEAD4', ok: '#A3E635', warn: '#FBBF24', err: '#FB7185', info: '#7DD3FC', active: 'rgba(52,224,161,.16)', n: { ssh: '#34E0A1', rdp: '#7DB7FF', cred: '#E9C46A', folder: '#9DB8B0', uns: '#62736D' }, base: [['Fondo', '#05100E'], ['Superficie', '#0A1E1A'], ['Bordo', '#1C3A33'], ['Testo', '#E6F2EE'], ['Testo 2', '#9DB8B0'], ['Smeraldo', '#34E0A1'], ['Acqua', '#5EEAD4']] }),
+      c: mk({ sub: '#A9A59C', accent: '#F2B24C', ok: '#7FD49B', warn: '#F08A3C', err: '#F0625F', info: '#9CC4E4', active: 'rgba(242,178,76,.1)', n: { ssh: '#F2B24C', rdp: '#9CC4E4', cred: '#D9A0E0', folder: '#B5B1A8', uns: '#6F6D68' }, base: [['Fondo', '#0E0F11'], ['Superficie', '#18191C'], ['Bordo', '#2E2F33'], ['Testo', '#ECE9E2'], ['Testo 2', '#A9A59C'], ['Ambra', '#F2B24C'], ['Osso', '#E8E4DA']] })
+    };
+  }
+}
+</script>
+</body>
+</html>

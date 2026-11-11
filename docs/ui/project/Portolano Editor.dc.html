@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1B1A17;color:#EDE9E1;--bg:#1B1A17;--glass:rgba(58,54,48,.16);--bd:rgba(255,245,225,.16);--field:rgba(255,255,255,.07);--tx:#EDE9E1;--tx2:#A8A297;--tx3:#CFC9BD;--ac:#2F7D5B;--ac-h:#38916A;--ac-tx:#7FC2A0;--on-ac:#F5F1E8;--ok:#9BD06E;--warn:#E0A84B;--err:#E5695F;--info:#7FB2D9;--ssh:#7FC2A0;--rdp:#7FA6D9;--cred:#D9B45F;--folder:#A8A297;--active:#24382E}
+a{color:#7FC2A0}a:hover{color:#EDE9E1}
+</style>
+</helmet>
+<section data-screen-label="Editor e selettore" style="position:relative;width:2620px;padding:64px;box-sizing:border-box;background:var(--bg);color:var(--tx);font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;border-radius:36px;overflow:hidden">
+  <canvas ref="{{ cv }}" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div style="position:relative">
+    <div style="max-width:900px;margin-bottom:44px">
+      <div style="font:500 13px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2)">Schermate 3 e 4 · stile 2a Grafite</div>
+      <h1 style="font-size:40px;font-weight:600;letter-spacing:-.02em;margin:10px 0 12px">Editor e selettore di credenziale</h1>
+      <p style="font-size:16px;line-height:1.55;color:var(--tx3);margin:0;text-wrap:pretty">Ogni editor è un pannello che scorre dal bordo destro sopra il dettaglio. La parte comune è uguale per tutti i tipi e sta in cima; sotto ci sono le sezioni specifiche. Il selettore di credenziale è interattivo: prova le sei modalità.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+
+      <div id="e0" style="flex:none;width:560px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">3.0 · Parte comune a tutti gli editor</div>
+        <div style="background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:var(--field);border:1px solid var(--bd)"><svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ssh)"><path d="M3 5l3 3-3 3M8 11h5"></path></svg></span>
+            <div style="flex:1"><div style="font-size:12px;color:var(--tx2)">Modifica connessione SSH</div><div style="font-size:20px;font-weight:600;letter-spacing:-.01em">web01</div></div>
+            <button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 14px;border-radius:10px;border:0;background:var(--field);color:var(--tx);cursor:pointer">Annulla</button>
+            <button style="font:600 13px 'Hanken Grotesk',sans-serif;padding:8px 16px;border-radius:10px;border:0;background:var(--ac);color:var(--on-ac);cursor:pointer" style-hover="background:var(--ac-h)">Salva</button>
+          </div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Generale</div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Nome</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--ac-tx)">web01</div></div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Descrizione</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd)">Frontend web principale.</div></div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Note</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);min-height:52px;line-height:1.5">Riavviare nginx solo fuori dall'orario di punta.</div></div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Icona</span><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:8px 12px;border-radius:10px;border:1px solid var(--bd);background:var(--field);color:var(--tx);cursor:pointer">Scegli…</button></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Colore</span><div style="display:flex;gap:7px;padding:7px 0"><span style="width:20px;height:20px;border-radius:50%;background:#7FC2A0;box-shadow:0 0 0 2px var(--bg),0 0 0 4px #7FC2A0"></span><span style="width:20px;height:20px;border-radius:50%;background:#7FA6D9"></span><span style="width:20px;height:20px;border-radius:50%;background:#D9B45F"></span><span style="width:20px;height:20px;border-radius:50%;background:#D98F7F"></span><span style="width:20px;height:20px;border-radius:50%;background:#B79FD9"></span><span style="width:20px;height:20px;border-radius:50%;background:#A8A297"></span></div></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--active)"><span style="color:var(--cred)">★</span><span>Preferito</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Tag</span><div style="display:flex;gap:6px;flex-wrap:wrap;padding:7px 8px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.1);font-size:12.5px">web ×</span><span style="padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.1);font-size:12.5px">nginx ×</span><span style="padding:3px 6px;color:var(--tx2);font-size:12.5px">Aggiungi tag…</span></div></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--tx2)">Proprietà custom</span>
+            <div style="display:grid;grid-template-columns:150px 86px minmax(0,1fr) 20px;gap:8px;align-items:center">
+              <div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)">Ambiente</div><div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);color:var(--tx3)">Testo</div><div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">produzione</div><span style="color:var(--tx2)">×</span>
+              <div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)">Token API</div><div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);color:var(--tx3)">Segreto</div><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--ac);color:var(--on-ac)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span><a href="#d3" style="font-size:12.5px">Sostituisci</a></div><span style="color:var(--tx2)">×</span>
+            </div>
+            <button style="align-self:flex-start;font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:1px dashed var(--bd);background:transparent;color:var(--tx3);cursor:pointer">+ Proprietà</button>
+          </div>
+        </div>
+        <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Il pannello entra da destra in 260 ms, cubic-bezier(.34,1.56,.64,1). Il campo attivo ha il bordo verde chiaro (transizione 160 ms). Un segreto non si rilegge mai: si può solo sostituire o togliere. "Salva" resta spento finché non cambia qualcosa.</p>
+      </div>
+
+      <div id="e1" style="flex:none;width:560px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">3.1 · Connessione SSH</div>
+        <div style="background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Connessione</div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Host</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">web01.example.com</div></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Porta</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">22</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Credenziale</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:3px 10px;border-radius:999px;background:var(--active);font-size:12.5px">Eredita</span><span style="color:var(--tx3)">Produzione → deploy</span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ok)"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg><a href="#e5" style="margin-left:auto;font-size:12.5px">Cambia</a></div>
+          </div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-top:4px">Jump host · in ordine di attraversamento</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="color:var(--tx2);cursor:grab;letter-spacing:-2px">⋮⋮</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:var(--tx2)">1</span><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ssh)"><path d="M3 5l3 3-3 3M8 11h5"></path></svg><span style="font-weight:500">bastion</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--tx2)">Produzione / bastion</span><span style="margin-left:auto;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1);font-size:11.5px">dall'albero</span><span style="color:var(--tx2)">×</span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="color:var(--tx2);cursor:grab;letter-spacing:-2px">⋮⋮</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:var(--tx2)">2</span><span style="font:400 13px 'IBM Plex Mono',monospace">deploy@198.51.100.40:22</span><span style="margin-left:auto;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1);font-size:11.5px">indirizzo libero</span><span style="color:var(--tx2)">×</span></div>
+            <div style="display:flex;gap:8px"><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:1px dashed var(--bd);background:transparent;color:var(--tx3);cursor:pointer">+ Dall'albero…</button><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:1px dashed var(--bd);background:transparent;color:var(--tx3);cursor:pointer">+ Indirizzo libero</button></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px;border-radius:12px;border:1px solid var(--bd)">
+            <span style="padding:5px 11px;border-radius:999px;border:1px solid var(--bd);font:400 12px 'IBM Plex Mono',monospace">tu</span><span style="width:18px;height:2px;background:var(--bd)"></span>
+            <span style="padding:5px 11px;border-radius:999px;border:1px solid var(--bd);font:400 12px 'IBM Plex Mono',monospace">bastion</span><span style="width:18px;height:2px;background:var(--bd)"></span>
+            <span style="padding:5px 11px;border-radius:999px;border:1px solid var(--bd);font:400 12px 'IBM Plex Mono',monospace">198.51.100.40</span><span style="width:18px;height:2px;background:var(--bd)"></span>
+            <span style="padding:5px 11px;border-radius:999px;background:var(--ac);color:var(--on-ac);font:500 12px 'IBM Plex Mono',monospace">web01</span>
+          </div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-top:4px">Opzioni avanzate</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Agent forwarding</span><span style="width:34px;height:20px;border-radius:999px;background:var(--ac);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:16px;height:16px;border-radius:50%;background:#F5F1E8"></span></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Compressione</span><span style="width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.16);position:relative;flex:none"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#CFC9BD"></span></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>X11 forwarding</span><span style="width:34px;height:20px;border-radius:999px;background:var(--ac);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:16px;height:16px;border-radius:50%;background:#F5F1E8"></span></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>X11 trusted</span><span style="width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.16);position:relative;flex:none"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#CFC9BD"></span></span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px"><span>Keepalive ogni</span><div style="width:56px;padding:7px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">30</div><span style="color:var(--tx2)">secondi (0 = disattivato)</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--tx2)">Opzioni libere (chiave = valore)</span>
+            <div style="display:grid;grid-template-columns:1fr 1fr 20px;gap:8px;align-items:center">
+              <div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">StrictHostKeyChecking</div><div style="padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">accept-new</div><span style="color:var(--tx2)">×</span>
+            </div>
+            <button style="align-self:flex-start;font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:1px dashed var(--bd);background:transparent;color:var(--tx3);cursor:pointer">+ Opzione</button>
+          </div>
+        </div>
+        <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Trascinando un salto dalla maniglia la riga si solleva (ombra, 160 ms) e le altre scorrono per farle posto (260 ms). La catena sotto la lista si aggiorna subito: il nuovo salto compare con una linea che si allunga in 480 ms. "X11 trusted" è attivabile solo con X11 acceso.</p>
+      </div>
+
+      <div id="e2" style="flex:none;width:560px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">3.2 · Connessione RDP</div>
+        <div style="background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Connessione</div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Host</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">198.51.100.7</div></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Porta</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">3389</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Credenziale</span><div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:3px 10px;border-radius:999px;background:var(--active);font-size:12.5px">Inline</span><span style="font-family:'IBM Plex Mono',monospace">admin</span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ok)"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg><a href="#e5" style="margin-left:auto;font-size:12.5px">Cambia</a></div></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Dominio</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">ACME</div></div>
+          </div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-top:4px">Schermo</div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Risoluzione</span>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><div style="display:flex;padding:3px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:6px 12px;border-radius:7px">Adatta alla finestra</span><span style="padding:6px 12px;border-radius:7px">Schermo intero</span><span style="padding:6px 12px;border-radius:7px;background:var(--ac);color:var(--on-ac);font-weight:600">Fissa</span></div><div style="display:flex;align-items:center;gap:6px"><div style="width:52px;padding:7px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">1920</div><span style="color:var(--tx2)">×</span><div style="width:52px;padding:7px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">1080</div></div></div>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Scala</span><div style="display:flex;padding:3px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:6px 12px;border-radius:7px;background:var(--ac);color:var(--on-ac);font-weight:600">100%</span><span style="padding:6px 12px;border-radius:7px">140%</span><span style="padding:6px 12px;border-radius:7px">180%</span></div></div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px"><span style="font-size:12px;color:var(--tx2)">Profondità colore</span><div style="display:flex;justify-content:space-between;padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span>32 bit</span><span style="color:var(--tx2)">▾</span></div></div>
+          </div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-top:4px">Gateway</div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Host del gateway</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">rdgw.example.com</div></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Porta</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">443</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Credenziale del gateway</span><div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:3px 10px;border-radius:999px;background:var(--active);font-size:12.5px">Da una credenziale</span><span style="color:var(--tx3)">admin · ACME</span><span style="font-size:12px;padding:2px 9px;border-radius:999px;border:1px dashed var(--warn);color:var(--warn)">password assente</span><a href="#e5" style="margin-left:auto;font-size:12.5px">Cambia</a></div></div>
+          <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-top:4px">Sessione</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Multimonitor</span><span style="width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.16);position:relative;flex:none"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#CFC9BD"></span></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Sessione amministrativa</span><span style="width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.16);position:relative;flex:none"><span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#CFC9BD"></span></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span>Appunti condivisi</span><span style="width:34px;height:20px;border-radius:999px;background:var(--ac);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:16px;height:16px;border-radius:50%;background:#F5F1E8"></span></span></div>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:180px"><span style="font-size:12px;color:var(--tx2)">MAC per Wake-on-LAN</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">00:00:5E:00:53:2A</div></div>
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Client</span><div style="display:flex;padding:3px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:6px 12px;border-radius:7px;background:var(--ac);color:var(--on-ac);font-weight:600">Automatico</span><span style="padding:6px 12px;border-radius:7px">FreeRDP</span><span style="padding:6px 12px;border-radius:7px">Windows App</span></div></div>
+          </div>
+        </div>
+        <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Nei segmented control il riempimento verde scivola sull'opzione scelta in 260 ms. I campi L×A compaiono solo con "Fissa" (altezza e opacità, 160 ms). La sezione Gateway è chiusa finché l'host è vuoto. L'avviso "password assente" porta alla credenziale con un clic.</p>
+      </div>
+
+      <div style="flex:none;width:560px;display:flex;flex-direction:column;gap:48px">
+        <div id="e3" style="display:flex;flex-direction:column;gap:12px">
+          <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">3.3 · Credenziale</div>
+          <div style="background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Username</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">deploy</div></div>
+              <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Dominio</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);color:var(--tx2)">Nessuno</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;border:1px solid var(--bd)">
+              <span style="width:110px;color:var(--tx2);font-size:12.5px">Password</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--ac);color:var(--on-ac)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg>Nel portachiavi</span>
+              <div style="margin-left:auto;display:flex;gap:8px"><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:0;background:var(--field);color:var(--tx);cursor:pointer">Sostituisci…</button><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:0;background:transparent;color:var(--err);cursor:pointer">Cancella</button></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--bd)">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="width:110px;color:var(--tx2);font-size:12.5px">Chiave privata</span><div style="display:flex;padding:3px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:6px 12px;border-radius:7px">Nessuna</span><span style="padding:6px 12px;border-radius:7px;background:var(--ac);color:var(--on-ac);font-weight:600">File su disco</span><span style="padding:6px 12px;border-radius:7px">Nel portachiavi</span></div></div>
+              <div style="display:flex;gap:8px"><div style="flex:1;padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">~/.ssh/id_ed25519</div><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:0;background:var(--field);color:var(--tx);cursor:pointer">Sfoglia…</button></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;border:1px solid var(--bd)">
+              <span style="width:110px;color:var(--tx2);font-size:12.5px">Passphrase</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px dashed var(--warn);color:var(--warn)"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V5a3 3 0 0 1 5.8-1M4 7h8v6H4z"></path></svg>Assente</span>
+              <button style="margin-left:auto;font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:0;background:var(--field);color:var(--tx);cursor:pointer">Imposta…</button>
+            </div>
+          </div>
+          <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Due soli stati per ogni segreto: pillola piena verde con lucchetto chiuso (presente) e pillola tratteggiata ambra con lucchetto aperto (assente). Dopo "Imposta" la pillola cambia stato con un passaggio di colore di 260 ms e il lucchetto si chiude. "Cancella" chiede conferma.</p>
+        </div>
+
+        <div id="e4" style="display:flex;flex-direction:column;gap:12px">
+          <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">3.4 · Cartella</div>
+          <div style="background:var(--glass);backdrop-filter:blur(6px) saturate(140%);-webkit-backdrop-filter:blur(6px) saturate(140%);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Credenziale predefinita</span><div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><span style="padding:3px 10px;border-radius:999px;background:var(--active);font-size:12.5px">Da una credenziale</span><span style="color:var(--tx3)">Credenziali / deploy</span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ok)"><path d="M5 7V5a3 3 0 0 1 6 0v2M4 7h8v6H4z"></path></svg><a href="#e5" style="margin-left:auto;font-size:12.5px">Cambia</a></div></div>
+            <div style="line-height:1.5;color:var(--tx3)">La ereditano 4 dei 6 elementi di questa cartella. Gli altri 2 (db01, win-app01) hanno una credenziale propria.</div>
+          </div>
+          <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Cambiando la credenziale predefinita, nell'albero i nodi che la ereditano lampeggiano una volta (fondo tinto, 480 ms) per mostrare chi è coinvolto.</p>
+        </div>
+      </div>
+
+      <div id="e5" data-screen-label="04 Selettore di credenziale" style="flex:none;width:820px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">4 · Selettore di credenziale · interattivo</div>
+        <div style="background:rgba(40,37,33,.72);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.4);border-radius:18px;padding:22px;display:grid;grid-template-columns:270px minmax(0,1fr);gap:20px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <sc-for list="{{ modes }}" as="m" hint-placeholder-count="6"><div onClick="{{ m.on }}" style="display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:10px;background:{{ m.bg }};cursor:pointer;transition:background 160ms" style-hover="background:var(--active)"><span style="font-weight:600">{{ m.label }}</span><span style="font-size:12px;color:var(--tx3)">{{ m.sub }}</span></div></sc-for>
+          </div>
+          <div style="padding:18px 20px;border-radius:14px;border:1px solid var(--bd);background:rgba(255,255,255,.04);display:flex;flex-direction:column;gap:14px;min-height:300px">
+            <div style="font:500 11.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Da dove arriverà</div>
+            <sc-if value="{{ isEredita }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="padding:6px 12px;border-radius:999px;border:1px solid var(--bd)">web01</span><span style="width:20px;height:2px;background:var(--bd)"></span><span style="padding:6px 12px;border-radius:999px;border:1px solid var(--bd)">cartella Produzione</span><span style="width:20px;height:2px;background:var(--bd)"></span><span style="padding:6px 12px;border-radius:999px;background:var(--ac);color:var(--on-ac);font-weight:600">credenziale deploy</span></div>
+                <div style="line-height:1.5;color:var(--tx3)">web01 non ha una credenziale propria. Usa quella predefinita della cartella più vicina che ne ha una.</div>
+                <div style="display:grid;grid-template-columns:110px 1fr;row-gap:8px"><span style="color:var(--tx2)">Utente</span><span style="font-family:'IBM Plex Mono',monospace">deploy</span><span style="color:var(--tx2)">Password</span><span style="color:var(--ok)">Nel portachiavi</span><span style="color:var(--tx2)">Chiave</span><span>Nel portachiavi, con passphrase</span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isNessuna }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px"><div style="font-size:18px;font-weight:600">Nessuna credenziale</div><div style="line-height:1.5;color:var(--tx3)">Portolano non passa utente né password. Decide il client: per SSH valgono le impostazioni di ~/.ssh/config, per RDP il client chiede i dati nella propria finestra. L'ereditarietà dalla cartella è ignorata.</div></div>
+            </sc-if>
+            <sc-if value="{{ isChiedi }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px"><div style="font-size:18px;font-weight:600">Te la chiediamo a ogni avvio</div><div style="line-height:1.5;color:var(--tx3)">Prima di connettere si apre il dialogo con utente e password. Quello che inserisci vale per quella sessione e non viene salvato.</div><div style="display:flex;flex-direction:column;gap:5px;max-width:260px"><span style="font-size:12px;color:var(--tx2)">Utente proposto (facoltativo)</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">admin</div></div></div>
+            </sc-if>
+            <sc-if value="{{ isInline }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="line-height:1.5;color:var(--tx3)">Definita su questa connessione e non riutilizzabile altrove.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Utente</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">admin</div></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;color:var(--tx2)">Dominio</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">ACME</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="color:var(--tx2);font-size:12.5px">Password</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px dashed var(--warn);color:var(--warn)">Assente</span><button style="font:500 13px 'Hanken Grotesk',sans-serif;padding:7px 12px;border-radius:10px;border:0;background:var(--field);color:var(--tx);cursor:pointer">Imposta…</button></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isCred }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--cred)"><path d="M7 8a2 2 0 1 0-4 0 2 2 0 0 0 4 0zM7 8h6M11 8v2"></path></svg><span style="font-weight:600">deploy</span><span style="font:400 12px 'IBM Plex Mono',monospace;color:var(--tx2)">Credenziali / deploy</span><button style="margin-left:auto;font:500 13px 'Hanken Grotesk',sans-serif;padding:6px 12px;border-radius:10px;border:0;background:rgba(255,255,255,.1);color:var(--tx);cursor:pointer">Scegli…</button></div>
+                <div style="line-height:1.5;color:var(--tx3)">Collegata al nodo: se la credenziale viene rinominata o spostata, il collegamento resta valido.</div>
+                <div style="display:grid;grid-template-columns:110px 1fr;row-gap:8px"><span style="color:var(--tx2)">Utente</span><span style="font-family:'IBM Plex Mono',monospace">deploy</span><span style="color:var(--tx2)">Password</span><span style="color:var(--ok)">Nel portachiavi</span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isNome }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:5px;max-width:260px"><span style="font-size:12px;color:var(--tx2)">Nome della credenziale</span><div style="padding:9px 12px;border-radius:10px;background:var(--field);border:1px solid var(--bd);font-family:'IBM Plex Mono',monospace">deploy</div></div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:var(--tx2)">Oggi corrisponde a</span><span style="padding:5px 11px;border-radius:999px;background:var(--ac);color:var(--on-ac);font-weight:600">Credenziali / deploy</span></div>
+                <div style="line-height:1.5;color:var(--tx3)">Cercata per nome a ogni connessione, partendo dalla cartella del nodo e risalendo. Se nessuna credenziale ha questo nome, la connessione si ferma con un errore chiaro.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <p style="font-size:13px;line-height:1.5;color:var(--tx2);margin:0">Si apre come popover ancorato al campo "Credenziale" (scala da 96% a 100% e opacità, 160 ms). Il riquadro a destra risponde sempre alla stessa domanda, "da dove arriverà", e cambia contenuto con una dissolvenza di 160 ms. In modalità Eredita la catena si disegna da sinistra a destra, un anello ogni 120 ms.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { mode: 'eredita' };
+  cv = React.createRef();
+  componentDidMount() {
+    this.t = setTimeout(() => this.draw(), 300);
+    if (window.ResizeObserver && this.cv.current) { this.ro = new ResizeObserver(() => { clearTimeout(this.t); this.t = setTimeout(() => this.draw(), 120); }); this.ro.observe(this.cv.current); }
+  }
+  componentWillUnmount() { clearTimeout(this.t); this.ro && this.ro.disconnect(); }
+  draw() {
+    const cv = this.cv.current; if (!cv) return;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) { this.t = setTimeout(() => this.draw(), 200); return; }
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d'), n = Math.round(w * h / 9000), P = [];
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < n; i++) { const p = [rnd() * w, rnd() * h, rnd() < .12]; if (!(p[0] < 1040 && p[1] < 250)) P.push(p); }
+    ctx.lineWidth = 1;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
+      const dx = P[i][0] - P[j][0], dy = P[i][1] - P[j][1], d = dx * dx + dy * dy;
+      if (d < 22000) { ctx.strokeStyle = 'rgba(201,195,182,' + ((1 - d / 22000) * .4) + ')'; ctx.beginPath(); ctx.moveTo(P[i][0], P[i][1]); ctx.lineTo(P[j][0], P[j][1]); ctx.stroke(); }
+    }
+    P.forEach(p => { ctx.fillStyle = 'rgba(127,194,160,.9)'; ctx.beginPath(); ctx.arc(p[0], p[1], p[2] ? 3 : 1.7, 0, 6.2832); ctx.fill(); });
+  }
+  renderVals() {
+    const m = this.state.mode;
+    const M = [['eredita', 'Eredita', 'Dalla cartella che contiene il nodo'], ['nessuna', 'Nessuna', 'Decide il client'], ['chiedi', 'Chiedi all\'avvio', 'Ogni volta, senza salvare'], ['inline', 'Inline', 'Utente, dominio e password qui'], ['cred', 'Da una credenziale', 'Un nodo credenziale dell\'albero'], ['nome', 'Per nome', 'Cercata per nome al momento']];
+    return {
+      cv: this.cv,
+      modes: M.map(([id, label, sub]) => ({ label, sub, bg: m === id ? 'var(--active)' : 'transparent', on: () => this.setState({ mode: id }) })),
+      isEredita: m === 'eredita', isNessuna: m === 'nessuna', isChiedi: m === 'chiedi', isInline: m === 'inline', isCred: m === 'cred', isNome: m === 'nome'
+    };
+  }
+}
+</script>
+</body>
+</html>
