@@ -15,6 +15,24 @@ fn program(plan: &LaunchPlan) -> PathBuf {
 }
 
 #[test]
+fn validate_config_refuses_a_relative_freerdp_program() {
+    let section: toml::Value = toml::from_str("freerdp_program = \"bin/sdl-freerdp\"").unwrap();
+
+    let error = RdpProtocol.validate_config(&section).unwrap_err();
+
+    assert!(error.contains("percorso assoluto"), "{error}");
+}
+
+#[test]
+fn validate_config_accepts_an_absolute_or_empty_freerdp_program() {
+    for value in ["/opt/homebrew/bin/sdl-freerdp", ""] {
+        let section: toml::Value = toml::from_str(&format!("freerdp_program = {value:?}")).unwrap();
+
+        assert_eq!(RdpProtocol.validate_config(&section), Ok(()));
+    }
+}
+
+#[test]
 fn connection_client_overrides_the_configuration_and_option_overrides_both() {
     let conn = connection_node(
         "rdp",

@@ -32,6 +32,15 @@ fn config_set_refuses_a_value_rejected_by_the_protocol() {
 }
 
 #[test]
+fn config_set_refuses_a_relative_program() {
+    let workspace = Workspace::new();
+    workspace
+        .run(&["config", "set", "ssh.program", "bin/ssh"])
+        .code(4)
+        .stderr(contains("percorso assoluto"));
+}
+
+#[test]
 fn config_set_refuses_an_unknown_key() {
     let workspace = Workspace::new();
     workspace

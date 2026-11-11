@@ -47,7 +47,7 @@ impl Protocol for RdpProtocol {
     }
 
     fn validate_config(&self, section: &toml::Value) -> Result<(), String> {
-        decode_section::<RdpConfig>(section).map(drop)
+        decode_section::<RdpConfig>(section)?.validate()
     }
 
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue> {

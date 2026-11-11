@@ -40,7 +40,7 @@ impl Protocol for SshProtocol {
     }
 
     fn validate_config(&self, section: &toml::Value) -> Result<(), String> {
-        decode_section::<SshConfig>(section).map(drop)
+        decode_section::<SshConfig>(section)?.validate()
     }
 
     fn validate(&self, doc: &Document, node: &Node) -> Vec<Issue> {

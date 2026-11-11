@@ -171,6 +171,20 @@ fn missing_client_is_a_connection_error() {
 }
 
 #[test]
+fn group_writable_client_is_refused_before_launch() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let workspace = with_probes("exit 0", "exit 0");
+    with_connections(&workspace);
+    let ssh = workspace.path("probe-ssh");
+    std::fs::set_permissions(&ssh, std::fs::Permissions::from_mode(0o775)).unwrap();
+    workspace
+        .run(&["connect", "/web01"])
+        .code(6)
+        .stderr(contains("chmod go-w"));
+}
+
+#[test]
 fn connect_to_a_folder_is_a_connection_error() {
     let workspace = Workspace::new();
     workspace.ok(&["add", "folder", "/a"]);

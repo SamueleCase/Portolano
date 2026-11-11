@@ -1,6 +1,6 @@
 //! Typed RDP settings of a connection and the `[rdp]` configuration section.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use portolano_core::model::is_false;
 use portolano_core::{AppConfig, CredentialSpec};
@@ -9,6 +9,7 @@ use serde_json::{Map, Value};
 
 use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
+use crate::env::check_program_path;
 
 /// Scale factors accepted by FreeRDP (`/scale:`).
 const SCALES: [u32; 3] = [100, 140, 180];
@@ -164,8 +165,8 @@ pub enum RdpClient {
 pub struct RdpConfig {
     /// Which client to use.
     pub client: RdpClientChoice,
-    /// Path of the FreeRDP program, overriding the search; an empty path
-    /// counts as unset.
+    /// Absolute path of the FreeRDP program, overriding the search
+    /// (DEC-024.2); an empty path counts as unset.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub freerdp_program: Option<PathBuf>,
     /// Server certificate policy passed to FreeRDP as `/cert:`.
@@ -179,6 +180,23 @@ impl RdpConfig {
     /// [`ConnectError::InvalidConfig`] if the section does not match.
     pub fn from_app_config(config: &AppConfig) -> Result<RdpConfig, ConnectError> {
         decode_config_section(config, "rdp")
+    }
+
+    /// The FreeRDP program set in the configuration, if any.
+    pub(crate) fn configured_freerdp_program(&self) -> Option<&Path> {
+        self.freerdp_program
+            .as_deref()
+            .filter(|program| !program.as_os_str().is_empty())
+    }
+
+    /// Checks the section: a configured program must be an absolute path.
+    ///
+    /// # Errors
+    /// A description of the problem, in Italian.
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        self.configured_freerdp_program().map_or(Ok(()), |program| {
+            check_program_path("freerdp_program", program)
+        })
     }
 }
 

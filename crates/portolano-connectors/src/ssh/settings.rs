@@ -1,7 +1,7 @@
 //! Typed SSH settings of a connection and the `[ssh]` configuration section.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use portolano_core::AppConfig;
 use portolano_core::model::is_false;
@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
+use crate::env::{DEFAULT_SSH_PROGRAM, check_program_path};
 
 /// The `settings` of an `ssh` connection. Fields at their default are
 /// omitted when serialized.
@@ -146,14 +147,15 @@ pub enum JumpHost {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SshConfig {
-    /// The `ssh` program: a name looked up in the `PATH`, or a path.
+    /// The `ssh` program: `ssh` (the default, looked up in the `PATH`), or
+    /// an absolute path (DEC-024.2).
     pub program: PathBuf,
 }
 
 impl Default for SshConfig {
     fn default() -> Self {
         Self {
-            program: PathBuf::from("ssh"),
+            program: PathBuf::from(DEFAULT_SSH_PROGRAM),
         }
     }
 }
@@ -165,6 +167,23 @@ impl SshConfig {
     /// [`ConnectError::InvalidConfig`] if the section does not match.
     pub fn from_app_config(config: &AppConfig) -> Result<SshConfig, ConnectError> {
         decode_config_section(config, "ssh")
+    }
+
+    /// The program set in the configuration; `None` for the default (`ssh`
+    /// or an empty value), which is looked up in the `PATH`.
+    pub(crate) fn configured_program(&self) -> Option<&Path> {
+        let default =
+            self.program.as_os_str().is_empty() || self.program.as_os_str() == DEFAULT_SSH_PROGRAM;
+        (!default).then_some(self.program.as_path())
+    }
+
+    /// Checks the section: a configured program must be an absolute path.
+    ///
+    /// # Errors
+    /// A description of the problem, in Italian.
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        self.configured_program()
+            .map_or(Ok(()), |program| check_program_path("program", program))
     }
 }
 
@@ -325,6 +344,29 @@ mod tests {
         let config = SshConfig::from_app_config(&AppConfig::default()).unwrap();
 
         assert_eq!(config.program, PathBuf::from("ssh"));
+    }
+
+    #[test]
+    fn default_program_is_not_a_configured_one() {
+        for program in ["ssh", ""] {
+            let config = SshConfig {
+                program: PathBuf::from(program),
+            };
+
+            assert_eq!(config.configured_program(), None);
+            assert_eq!(config.validate(), Ok(()));
+        }
+    }
+
+    #[test]
+    fn configured_program_must_be_absolute() {
+        let config = SshConfig {
+            program: PathBuf::from("bin/ssh"),
+        };
+
+        let error = config.validate().unwrap_err();
+
+        assert!(error.contains("percorso assoluto"), "{error}");
     }
 
     #[test]
