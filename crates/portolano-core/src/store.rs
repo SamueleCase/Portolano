@@ -1,14 +1,25 @@
-//! Document persistence: exclusive lock, versioned load and atomic save
-//! (SPEC §6.2).
+//! Document persistence: versioned load, atomic save and detection of
+//! concurrent changes (SPEC §6.2, DEC-016.1).
+//!
+//! Several processes may keep the same document open (the app and the CLI).
+//! The document is locked only during each operation, shared to read and
+//! exclusive to write, and a save refuses to overwrite a file that changed
+//! since this store last read or wrote it.
+
+mod lock;
 
 use std::cmp::Ordering;
 use std::ffi::OsString;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use chrono::Utc;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+pub(crate) use lock::{Access, with_lock};
 
 use crate::error::{Error, Result};
 use crate::icons::IconStore;
@@ -18,60 +29,64 @@ use crate::model::{Document, FORMAT_ID, SCHEMA_VERSION};
 /// Code of the validation issue that makes a document unloadable (SPEC §4.4).
 const DUPLICATE_ID: &str = "duplicate_id";
 
-/// An open document file, locked exclusively (`<file>.lock`) for as long as
-/// the value lives.
+/// SHA-256 of the content of a document file.
+type Fingerprint = [u8; 32];
+
+/// An open document file. Opening it does not keep it locked: other stores,
+/// in this or other processes, may open the same file at the same time.
 ///
-/// The lock file is left on disk when the store is dropped: removing it
-/// would let another process lock a file that is about to disappear.
+/// The store remembers the fingerprint of the bytes it last read or wrote,
+/// so that [`Store::save`] can tell whether someone else changed the file in
+/// the meantime. It is `Send + Sync`: one store can serve several threads.
 #[derive(Debug)]
 pub struct Store {
     path: PathBuf,
-    /// Never read: owning the locked file is what keeps the lock, and closing
-    /// it when the store is dropped is what releases it.
-    _lock: File,
+    fingerprint: Mutex<Fingerprint>,
 }
 
 impl Store {
-    /// Opens an existing document file and acquires its lock.
+    /// Opens an existing document file and records the fingerprint of its
+    /// current content, without parsing it.
     ///
     /// # Errors
-    /// [`Error::Locked`](crate::Error::Locked) if another process holds the
-    /// lock, [`Error::Io`](crate::Error::Io) on filesystem errors, including
-    /// a missing document.
+    /// [`Error::Io`](crate::Error::Io) on filesystem errors, including a
+    /// missing document.
     pub fn open(path: impl Into<PathBuf>) -> Result<Store> {
         let path = path.into();
         // Checked before locking so that a mistyped path leaves no lock file.
         fs::metadata(&path).map_err(io_error(&path))?;
-        let lock = lock_document(&path)?;
-        Ok(Store { path, _lock: lock })
+        let bytes = with_lock(&path, Access::Shared, || read(&path))?;
+        Ok(Store::new(path, &bytes))
     }
 
     /// Creates a new document file containing an empty document named
-    /// `name`, acquires its lock and returns both. The directory of the file
-    /// is created if needed, so that the first run can use the default
+    /// `name` and returns its store and the document. The directory of the
+    /// file is created if needed, so that the first run can use the default
     /// location (SPEC §6.1).
     ///
     /// # Errors
     /// [`Error::AlreadyExists`](crate::Error::AlreadyExists) if the file
-    /// exists, plus the errors of [`Store::open`] and [`Store::save`].
+    /// exists, [`Error::Serialize`](crate::Error::Serialize),
+    /// [`Error::Io`](crate::Error::Io).
     pub fn create(path: impl Into<PathBuf>, name: &str) -> Result<(Store, Document)> {
         let path = path.into();
         let dir = parent_dir(&path);
         fs::create_dir_all(dir).map_err(io_error(dir))?;
-        let lock = lock_document(&path)?;
-        // Checked under the lock, so two concurrent creations cannot both
-        // succeed.
-        if path.try_exists().map_err(io_error(&path))? {
-            return Err(Error::AlreadyExists { path });
-        }
-        let store = Store { path, _lock: lock };
-        let mut doc = Document::new(name);
-        store.save(&mut doc)?;
-        Ok((store, doc))
+        let doc = Document::new(name);
+        let bytes = to_json(&doc)?;
+        with_lock(&path, Access::Exclusive, || {
+            // Checked under the lock, so two concurrent creations cannot both
+            // succeed.
+            if path.try_exists().map_err(io_error(&path))? {
+                return Err(Error::AlreadyExists { path: path.clone() });
+            }
+            write_atomically(&path, &bytes)
+        })?;
+        Ok((Store::new(path, &bytes), doc))
     }
 
     /// Reads the document, migrating it from an older schema version if
-    /// needed.
+    /// needed, and remembers its fingerprint for the next [`Store::save`].
     ///
     /// # Errors
     /// [`Error::NotADocument`](crate::Error::NotADocument),
@@ -80,8 +95,73 @@ impl Store {
     /// [`Error::DuplicateId`](crate::Error::DuplicateId),
     /// [`Error::Io`](crate::Error::Io).
     pub fn load(&self) -> Result<Document> {
-        let bytes = fs::read(&self.path).map_err(io_error(&self.path))?;
-        let value: Value = serde_json::from_slice(&bytes).map_err(|e| self.invalid(e))?;
+        let bytes = with_lock(&self.path, Access::Shared, || read(&self.path))?;
+        let doc = self.parse(&bytes)?;
+        // Only a successful load counts as having seen these bytes: after a
+        // failure the caller holds no document that reflects them.
+        *self.fingerprint() = fingerprint_of(&bytes);
+        Ok(doc)
+    }
+
+    /// Writes the document atomically (temporary file, `fsync`, rename) after
+    /// saving the previous content to `<file>.bak`, and updates
+    /// `doc.modified`. The output is deterministic: 2-space pretty JSON with
+    /// a final newline.
+    ///
+    /// # Errors
+    /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally) if the
+    /// file changed (or disappeared) after this store last read or wrote it;
+    /// the document must be loaded again.
+    /// [`Error::Serialize`](crate::Error::Serialize),
+    /// [`Error::Io`](crate::Error::Io).
+    pub fn save(&self, doc: &mut Document) -> Result<()> {
+        with_lock(&self.path, Access::Exclusive, || {
+            // Held for the whole save, so that saves through this store from
+            // several threads do not interleave.
+            let mut known = self.fingerprint();
+            let current = match fs::read(&self.path) {
+                Ok(current) => current,
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                    return Err(self.modified_externally());
+                }
+                Err(source) => return Err(io_error(&self.path)(source)),
+            };
+            if fingerprint_of(&current) != *known {
+                return Err(self.modified_externally());
+            }
+            doc.modified = Utc::now();
+            let bytes = to_json(doc)?;
+            write_atomically(&with_suffix(&self.path, ".bak"), &current)?;
+            write_atomically(&self.path, &bytes)?;
+            *known = fingerprint_of(&bytes);
+            Ok(())
+        })
+    }
+
+    /// The icon store next to this document (`<dir>/<stem>.icons/`).
+    pub fn icons(&self) -> IconStore {
+        IconStore::for_document(&self.path)
+    }
+
+    fn new(path: PathBuf, bytes: &[u8]) -> Store {
+        Store {
+            path,
+            fingerprint: Mutex::new(fingerprint_of(bytes)),
+        }
+    }
+
+    /// The remembered fingerprint. A panic while the mutex was held cannot
+    /// leave it half-written (it is replaced in one assignment), so a
+    /// poisoned mutex is still usable.
+    fn fingerprint(&self) -> MutexGuard<'_, Fingerprint> {
+        self.fingerprint
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Parses the bytes of a document file of any supported schema version.
+    fn parse(&self, bytes: &[u8]) -> Result<Document> {
+        let value: Value = serde_json::from_slice(bytes).map_err(|e| self.invalid(e))?;
         let found = self.schema_version_of(&value)?;
         let parsed = match found.cmp(&SCHEMA_VERSION) {
             Ordering::Greater => {
@@ -91,7 +171,7 @@ impl Store {
                 });
             }
             // Parsed again from the bytes so that errors carry line and column.
-            Ordering::Equal => serde_json::from_slice(&bytes),
+            Ordering::Equal => serde_json::from_slice(bytes),
             Ordering::Less => {
                 serde_json::from_value(migrate(value, found, SCHEMA_VERSION, MIGRATIONS)?)
             }
@@ -99,37 +179,6 @@ impl Store {
         let doc: Document = parsed.map_err(|e| self.invalid(e))?;
         reject_duplicate_ids(&doc)?;
         Ok(doc)
-    }
-
-    /// Writes the document atomically (temporary file, `fsync`, rename) after
-    /// copying the previous file to `<file>.bak`, and updates
-    /// `doc.modified`. The output is deterministic: 2-space pretty JSON with
-    /// a final newline.
-    ///
-    /// # Errors
-    /// [`Error::Serialize`](crate::Error::Serialize),
-    /// [`Error::Io`](crate::Error::Io).
-    pub fn save(&self, doc: &mut Document) -> Result<()> {
-        doc.modified = Utc::now();
-        let bytes = to_json(doc)?;
-        self.back_up()?;
-        write_atomically(&self.path, &bytes)
-    }
-
-    /// The icon store next to this document (`<dir>/<stem>.icons/`).
-    pub fn icons(&self) -> IconStore {
-        IconStore::for_document(&self.path)
-    }
-
-    /// Copies the current file to `<file>.bak`; nothing to do on the first
-    /// save.
-    fn back_up(&self) -> Result<()> {
-        if !self.path.try_exists().map_err(io_error(&self.path))? {
-            return Ok(());
-        }
-        let backup = with_suffix(&self.path, ".bak");
-        fs::copy(&self.path, &backup).map_err(io_error(&backup))?;
-        Ok(())
     }
 
     /// The `schema_version` of a Portolano document; anything else is not a
@@ -154,6 +203,20 @@ impl Store {
             source,
         }
     }
+
+    fn modified_externally(&self) -> Error {
+        Error::ModifiedExternally {
+            path: self.path.clone(),
+        }
+    }
+}
+
+fn read(path: &Path) -> Result<Vec<u8>> {
+    fs::read(path).map_err(io_error(path))
+}
+
+fn fingerprint_of(bytes: &[u8]) -> Fingerprint {
+    Sha256::digest(bytes).into()
 }
 
 /// Wraps an I/O error with the path it concerns; for `map_err`.
@@ -213,37 +276,6 @@ fn sync_dir(dir: &Path) -> Result<()> {
 #[cfg(not(unix))]
 fn sync_dir(_dir: &Path) -> Result<()> {
     Ok(())
-}
-
-/// Takes the exclusive lock of a document on `<file>.lock`, without waiting.
-fn lock_document(path: &Path) -> Result<File> {
-    let lock_path = with_suffix(path, ".lock");
-    let file = OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(&lock_path)
-        .map_err(io_error(&lock_path))?;
-    let mut lock = fd_lock::RwLock::new(file);
-    match lock.try_write() {
-        // The guard borrows `lock` and would release the lock when dropped,
-        // so it cannot live in the `Store` next to the file it borrows.
-        // Forgetting it is sound and keeps the lock: the OS lock belongs to
-        // the open file, which the `Store` owns and closes on drop.
-        Ok(guard) => std::mem::forget(guard),
-        Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-            return Err(Error::Locked {
-                path: path.to_owned(),
-            });
-        }
-        Err(source) => {
-            return Err(Error::Io {
-                path: lock_path,
-                source,
-            });
-        }
-    }
-    Ok(lock.into_inner())
 }
 
 /// Serializes a document in its on-disk form. The bytes depend only on the

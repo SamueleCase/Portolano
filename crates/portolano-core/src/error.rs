@@ -117,6 +117,14 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// The document file changed after this store last read or wrote it, so
+    /// saving would overwrite someone else's changes (DEC-016.1).
+    #[error("il documento '{path}' è stato modificato da un altro processo: ricaricalo")]
+    ModifiedExternally {
+        /// The document file.
+        path: PathBuf,
+    },
+
     /// The file to create already exists.
     #[error("il file '{path}' esiste già")]
     AlreadyExists {
