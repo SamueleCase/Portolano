@@ -50,6 +50,38 @@ fn add_ssh_with_options_jump_and_key_file() {
 }
 
 #[test]
+fn add_ssh_with_a_command_running_option_is_refused() {
+    let workspace = Workspace::new();
+    workspace
+        .run(&[
+            "add",
+            "ssh",
+            "/web01",
+            "--host",
+            "web01.example.com",
+            "-o",
+            "ProxyCommand=nc %h %p",
+        ])
+        .code(4)
+        .stderr(contains("~/.ssh/config"));
+}
+
+#[test]
+fn edit_set_of_a_command_running_option_is_refused() {
+    let workspace = Workspace::new();
+    workspace.ok(&["add", "ssh", "/web01", "--host", "web01.example.com"]);
+    workspace
+        .run(&[
+            "edit",
+            "/web01",
+            "--set",
+            "options={\"LocalCommand\":\"id\"}",
+        ])
+        .code(4)
+        .stderr(contains("'LocalCommand'"));
+}
+
+#[test]
 fn jump_to_a_node_that_is_not_ssh_is_refused() {
     let workspace = Workspace::new();
     workspace.ok(&["add", "folder", "/Rete"]);

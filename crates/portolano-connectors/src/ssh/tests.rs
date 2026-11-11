@@ -201,6 +201,53 @@ fn validate_reports_a_jump_cycle() {
     );
 }
 
+/// A connection written by hand or imported with an option that runs a
+/// command (DEC-024.1).
+fn proxy_command_connection() -> Node {
+    connection_node(
+        "ssh",
+        "web01.example.com",
+        CredentialSpec::None,
+        json!({ "options": { "proxycommand": "nc %h %p" } }),
+    )
+}
+
+#[test]
+fn validate_reports_a_dangerous_option_as_an_error() {
+    let node = proxy_command_connection();
+    let doc = document(vec![node.clone()]);
+
+    let issues = SshProtocol.validate(&doc, &node);
+
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].code, "invalid_settings");
+    assert_eq!(issues[0].severity, portolano_core::Severity::Error);
+    assert!(issues[0].message.contains("~/.ssh/config"), "{issues:?}");
+}
+
+#[test]
+fn plan_refuses_a_dangerous_option() {
+    let node = proxy_command_connection();
+    let id = node.id;
+    let doc = document(vec![node]);
+
+    let result = plan_with(&SshProtocol, &doc, id, &ConnectOptions::default());
+
+    assert!(
+        matches!(result, Err(ConnectError::InvalidSettings { id: failed, .. }) if failed == id),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn validate_settings_refuses_a_dangerous_option() {
+    let settings = json!({ "options": { "LocalCommand": "touch /tmp/x" } });
+
+    let result = SshProtocol.validate_settings(settings.as_object().unwrap());
+
+    assert!(result.is_err());
+}
+
 #[test]
 fn new_window_relaunches_portolano_on_the_node() {
     let conn = connection_node("ssh", "web01.example.com", CredentialSpec::None, json!({}));
