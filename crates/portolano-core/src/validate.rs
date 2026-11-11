@@ -20,18 +20,29 @@ impl Document {
     /// Structural problems of the document, with the codes `duplicate_id`,
     /// `dangling_ref`, `credential_ref_not_credential`, `by_name_unresolved`,
     /// `by_name_ambiguous`, `empty_host` and `duplicate_secret_ref`, all of severity
-    /// [`Severity::Error`], plus `unsupported_node` of severity
+    /// [`Severity::Error`], `control_characters` of severity
+    /// [`Severity::Warning`] (DEC-024.3), plus `unsupported_node` of severity
     /// [`Severity::Info`] (DEC-016). Protocol and vault checks are added by the
     /// caller.
     pub fn validate(&self) -> Vec<Issue> {
         let mut issues = self.duplicate_ids();
         issues.extend(self.duplicate_secret_refs());
+        if has_control_characters(&self.name) {
+            issues.push(Issue {
+                severity: Severity::Warning,
+                node: None,
+                code: CONTROL_CHARACTERS,
+                message: "il nome del documento contiene caratteri di controllo".to_owned(),
+            });
+        }
         let lookup = Lookup::new(self);
         for (_, node) in self.walk() {
             issues.extend(dangling_references(node, &lookup.nodes));
-            for spec in credential_specs_of(node) {
-                issues.extend(lookup.credential_spec_issue(node, &spec));
+            let specs = credential_specs_of(node);
+            for spec in &specs {
+                issues.extend(lookup.credential_spec_issue(node, spec));
             }
+            issues.extend(control_characters(node, &specs));
             if let Some(connection) = node.as_connection()
                 && connection.host.trim().is_empty()
             {
@@ -198,6 +209,54 @@ fn dangling_references(node: &Node, nodes: &HashMap<Uuid, &Node>) -> Vec<Issue> 
             )
         })
         .collect()
+}
+
+/// Code of the warning about control characters (DEC-024.3).
+const CONTROL_CHARACTERS: &str = "control_characters";
+
+/// One `control_characters` warning for each name, host or user of `node`
+/// (in the node and in the credential specs it holds) that contains control
+/// characters: printed as they are, they would drive the terminal. The
+/// message does not quote the value, so it is safe to print.
+fn control_characters(node: &Node, specs: &[CredentialSpec]) -> Vec<Issue> {
+    let mut fields = vec![("il nome", node.name.as_str())];
+    match &node.kind {
+        NodeKind::Connection(connection) => fields.push(("l'host", connection.host.as_str())),
+        NodeKind::Credential(credential) => {
+            fields.extend(
+                credential
+                    .username
+                    .as_deref()
+                    .map(|user| ("l'utente", user)),
+            );
+        }
+        NodeKind::Folder(_) | NodeKind::Unsupported(_) => {}
+    }
+    for spec in specs {
+        if let CredentialSpec::Inline {
+            username: Some(user),
+            ..
+        } = spec
+        {
+            fields.push(("l'utente di una credenziale inline", user.as_str()));
+        }
+    }
+    fields
+        .into_iter()
+        .filter(|(_, value)| has_control_characters(value))
+        .map(|(field, _)| {
+            issue(
+                Severity::Warning,
+                node,
+                CONTROL_CHARACTERS,
+                format!("{field} contiene caratteri di controllo"),
+            )
+        })
+        .collect()
+}
+
+fn has_control_characters(value: &str) -> bool {
+    value.chars().any(char::is_control)
 }
 
 fn error(node: &Node, code: &'static str, message: String) -> Issue {
