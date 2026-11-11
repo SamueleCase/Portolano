@@ -1,11 +1,18 @@
-//! `portolano init` (implemented in a following commit).
+//! `portolano init`: create an empty document.
 
 use anyhow::Result;
+use portolano_ops::document::init_document;
 
 use crate::args::InitArgs;
 use crate::context::Context;
 
-/// Runs `portolano init`.
-pub fn run(_ctx: &Context, _args: InitArgs) -> Result<i32> {
-    todo!("portolano init")
+/// Creates the document at the effective location.
+///
+/// # Errors
+/// An existing file without `--force`, I/O errors.
+pub fn run(ctx: &Context, args: InitArgs) -> Result<i32> {
+    let path = &ctx.locations.document;
+    let (_, doc) = init_document(path, &args.name, args.force)?;
+    println!("Documento '{}' creato in {}", doc.name, path.display());
+    Ok(0)
 }
