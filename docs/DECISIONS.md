@@ -230,6 +230,17 @@ mock in `docs/ui/NOTE.md`.
 - **Campioni reali**: con `PORTOLANO_SAMPLES_DIR=samples` dalla radice del repo il test di conteggio passa; i 7
   `Partial` del documento con password sono le 7 password cifrate attese.
 
+### DEC-020 – Opzioni reali di FreeRDP 3.33 (verificate da WP4 con `sdl-freerdp /help`)
+- Il gateway si indica con `/gateway:g:<host>[:<port>],u:<user>,d:<domain>` (l'opzione `/gw:` del §7.3 non esiste);
+  mai `p:`.
+- Password da stdin con `/from-stdin:force` (la password è letta prima della connessione).
+- Non esiste un'opzione esplicita per riusare le credenziali sul gateway: se la credenziale del gateway coincide con
+  quella della destinazione si omettono `u:`/`d:` e si conta sul comportamento predefinito di FreeRDP; altrimenti
+  si passano `u:`/`d:` con il warning "la password del gateway la chiederà FreeRDP".
+- **Da verificare dal vivo** (verifica manuale dell'utente su un host reale con gateway): riuso delle credenziali sul
+  gateway e `/from-stdin:force` insieme al gateway.
+- Prima dell'host, `ssh` riceve `--`, così un host preso dal documento non può essere interpretato come opzione.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
