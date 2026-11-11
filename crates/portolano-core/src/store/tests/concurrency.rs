@@ -69,7 +69,6 @@ fn save_after_the_file_was_moved_reports_the_missing_document() {
     assert!(matches!(error, Error::DocumentMissing { .. }));
 }
 
-// Depends on WP1: `load` calls `Document::validate`.
 #[test]
 fn save_after_reloading_an_external_change_succeeds() {
     let dir = TempDir::new().unwrap();

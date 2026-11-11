@@ -241,8 +241,6 @@ fn gc_without_an_icon_directory_removes_nothing() {
     assert_eq!(removed, 0);
 }
 
-// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
-// and visits the trees (`Document::walk`).
 #[test]
 fn gc_removes_unused_images_and_keeps_used_ones() {
     let dir = TempDir::new().unwrap();
@@ -257,8 +255,6 @@ fn gc_removes_unused_images_and_keeps_used_ones() {
     assert!(!store.path_for(&unused).unwrap().exists());
 }
 
-// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
-// and visits the trees (`Document::walk`).
 #[test]
 fn gc_leaves_files_it_did_not_store() {
     let dir = TempDir::new().unwrap();
@@ -313,8 +309,6 @@ fn adding_an_existing_image_refreshes_its_modification_time() {
     assert_eq!(fs::read(&path).unwrap(), PNG);
 }
 
-// Depends on WP1: `gc` reads the document on disk (`Document::validate`)
-// and visits the trees (`Document::walk`).
 #[test]
 fn gc_with_a_stale_document_keeps_an_image_used_by_the_file_on_disk() {
     let dir = TempDir::new().unwrap();

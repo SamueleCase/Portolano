@@ -68,7 +68,6 @@ fn load_rejects_a_document_that_does_not_match_the_model() {
     assert!(matches!(error, Error::InvalidDocument { .. }));
 }
 
-// Depends on WP1: the duplicate is found by `Document::validate`.
 #[test]
 fn load_rejects_duplicate_ids() {
     let dir = TempDir::new().unwrap();

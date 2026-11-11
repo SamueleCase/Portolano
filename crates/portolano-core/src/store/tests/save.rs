@@ -29,7 +29,6 @@ fn rdp_with_gateway() -> Node {
     node
 }
 
-// Depends on WP1: `load` calls `Document::validate`.
 #[test]
 fn save_then_load_round_trips_byte_identical() {
     let dir = TempDir::new().unwrap();
