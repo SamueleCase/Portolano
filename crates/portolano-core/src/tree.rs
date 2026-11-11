@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::error::{Error, Result};
 use crate::model::{CredentialSpec, Document, Node, NodeKind, PrivateKey, PropertyValue};
 use crate::secret::SecretRef;
-use crate::validate::credential_specs_of;
+use crate::spec_scan::credential_specs_of;
 
 impl Document {
     /// The node with the given id, at any depth.

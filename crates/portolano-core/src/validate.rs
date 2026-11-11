@@ -12,8 +12,8 @@ use crate::model::{CredentialSpec, Document, Node, NodeKind};
 use crate::secret::SecretRef;
 use crate::tree::collect_secret_refs;
 
-pub(crate) use references::credential_specs_of;
-use references::{credential_spec, reference_values, referenced_id};
+use crate::spec_scan::credential_spec;
+use references::{reference_values, referenced_id};
 
 impl Document {
     /// Structural problems of the document, with the codes `duplicate_id`,

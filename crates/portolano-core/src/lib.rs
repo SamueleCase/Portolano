@@ -15,6 +15,7 @@ pub mod vault;
 
 mod path;
 mod resolve;
+mod spec_scan;
 #[cfg(test)]
 mod testutil;
 mod tree;

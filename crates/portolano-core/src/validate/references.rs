@@ -4,23 +4,22 @@
 //! `{"$ref": "<uuid>"}` wherever it appears, protocol `settings` included, so
 //! references are found by serializing a node without its children and
 //! scanning the JSON, without knowing the protocols. Credential specs embedded
-//! in `settings` (such as an RDP gateway's) are recognized by the serialized
-//! form of [`CredentialSpec`], tagged by `"mode"`.
+//! in `settings` are found by [`crate::spec_scan`].
 
 use std::collections::HashSet;
 
-use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::model::{CredentialSpec, Document, Folder, Node, NodeKind};
+use crate::spec_scan::{
+    credential_spec_mut, credential_specs_of, embedded_spec, for_each_object, for_each_object_mut,
+    prompt_value,
+};
 use crate::tree::for_each_node_mut;
 
 /// Key of a reference object (SPEC §3).
 const REF_KEY: &str = "$ref";
-
-/// Tag key of a serialized [`CredentialSpec`].
-const MODE_KEY: &str = "mode";
 
 impl Document {
     /// The nodes that refer to `target`: those containing `{"$ref": target}`
@@ -84,67 +83,6 @@ impl Document {
     }
 }
 
-/// Calls `visit` on every JSON object inside `value`, `value` included, in
-/// pre-order. Core formats embedded in protocol data (`$ref`, inline
-/// credential specs) are found this way without knowing the protocols.
-fn for_each_object(value: &Value, visit: &mut impl FnMut(&Value)) {
-    match value {
-        Value::Object(object) => {
-            visit(value);
-            for child in object.values() {
-                for_each_object(child, visit);
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                for_each_object(item, visit);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Calls `visit` on every JSON object inside `value`, `value` included, in
-/// pre-order; `visit` may replace the object.
-fn for_each_object_mut(value: &mut Value, visit: &mut impl FnMut(&mut Value)) {
-    if value.is_object() {
-        visit(value);
-    }
-    match value {
-        Value::Object(object) => {
-            for child in object.values_mut() {
-                for_each_object_mut(child, visit);
-            }
-        }
-        Value::Array(items) => {
-            for item in items {
-                for_each_object_mut(item, visit);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// The credential specs held by `node` itself: its own `credential` and the
-/// objects in its `settings` that have the form of a [`CredentialSpec`].
-pub(crate) fn credential_specs_of(node: &Node) -> Vec<CredentialSpec> {
-    let mut specs: Vec<CredentialSpec> = credential_spec(node).into_iter().cloned().collect();
-    if let Some(connection) = node.as_connection() {
-        for value in connection.settings.values() {
-            for_each_object(value, &mut |object| specs.extend(embedded_spec(object)));
-        }
-    }
-    specs
-}
-
-/// The [`CredentialSpec`] a JSON object represents, if it has that form. An
-/// object without the tag, or with a tag that is not a credential mode (such
-/// as an RDP resolution `{"mode": "fit"}`), is protocol data.
-fn embedded_spec(object: &Value) -> Option<CredentialSpec> {
-    object.get(MODE_KEY)?;
-    CredentialSpec::deserialize(object).ok()
-}
-
 /// Replaces with [`CredentialSpec::Prompt`] the specs of `node` for which
 /// `refers` holds, own and embedded; returns whether anything changed.
 fn detach_specs(node: &mut Node, refers: &impl Fn(&CredentialSpec) -> bool) -> bool {
@@ -166,14 +104,6 @@ fn detach_specs(node: &mut Node, refers: &impl Fn(&CredentialSpec) -> bool) -> b
         }
     }
     changed
-}
-
-fn prompt_value() -> Value {
-    #[expect(
-        clippy::expect_used,
-        reason = "a unit variant tagged by a string always serializes to a JSON object"
-    )]
-    serde_json::to_value(CredentialSpec::Prompt).expect("CredentialSpec::Prompt serializes to JSON")
 }
 
 /// The values of every `$ref` key in the node, children excluded.
@@ -222,22 +152,5 @@ fn without_children(node: &Node) -> Node {
         extra: node.extra.clone(),
         source: node.source.clone(),
         kind,
-    }
-}
-
-/// The credential spec of a folder or a connection; other kinds have none.
-pub(super) fn credential_spec(node: &Node) -> Option<&CredentialSpec> {
-    match &node.kind {
-        NodeKind::Folder(folder) => Some(&folder.credential),
-        NodeKind::Connection(connection) => Some(&connection.credential),
-        NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
-    }
-}
-
-fn credential_spec_mut(node: &mut Node) -> Option<&mut CredentialSpec> {
-    match &mut node.kind {
-        NodeKind::Folder(folder) => Some(&mut folder.credential),
-        NodeKind::Connection(connection) => Some(&mut connection.credential),
-        NodeKind::Credential(_) | NodeKind::Unsupported(_) => None,
     }
 }
