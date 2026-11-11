@@ -15,6 +15,11 @@ const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 const GZIP_MAGIC: &[u8] = b"\x1F\x8B";
 const ZIP_MAGIC: &[u8] = b"PK";
 const ROOT_TAG: &[u8] = b"<RTSZDocument";
+const MIB: u64 = 1024 * 1024;
+/// Cap on the decompressed document. Royal documents are a few MiB even with
+/// thousands of objects and embedded icons; 256 MiB leaves ample room while
+/// keeping a compression bomb from exhausting the memory.
+const MAX_DECOMPRESSED_BYTES: u64 = 256 * MIB;
 
 /// The container of a Royal document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,10 +59,16 @@ pub(super) fn mentions_root_element(head: &[u8]) -> bool {
 /// fails, [`ImportError::InvalidInput`] if a zip has no XML entry or the text
 /// is not UTF-8.
 pub(super) fn decode(input: &[u8]) -> Result<String, ImportError> {
+    decode_with_limit(input, MAX_DECOMPRESSED_BYTES)
+}
+
+/// [`decode`] with the cap on the decompressed size as a parameter, so that
+/// tests can exercise it without huge streams.
+fn decode_with_limit(input: &[u8], limit: u64) -> Result<String, ImportError> {
     let bytes = match container(input).ok_or(ImportError::UnrecognizedFormat)? {
         Container::Xml => input.to_vec(),
-        Container::Gzip => gunzip(input)?,
-        Container::Zip => unzip(input)?,
+        Container::Gzip => read_capped(GzDecoder::new(input), limit)?,
+        Container::Zip => unzip(input, limit)?,
     };
     if container(&bytes) != Some(Container::Xml) {
         return Err(ImportError::UnrecognizedFormat);
@@ -68,16 +79,32 @@ pub(super) fn decode(input: &[u8]) -> Result<String, ImportError> {
     })
 }
 
-fn gunzip(input: &[u8]) -> Result<Vec<u8>, ImportError> {
+/// Reads a decompressed stream, failing beyond `limit` bytes: a tiny
+/// compression bomb must not exhaust the memory.
+fn read_capped(stream: impl Read, limit: u64) -> Result<Vec<u8>, ImportError> {
     let mut bytes = Vec::new();
-    GzDecoder::new(input)
+    stream
+        .take(limit.saturating_add(1))
         .read_to_end(&mut bytes)
         .map_err(|error| decompress_error(&error))?;
+    if u64::try_from(bytes.len()).map_or(true, |length| length > limit) {
+        return Err(ImportError::Decompress {
+            reason: format!("documento decompresso oltre {}", describe_size(limit)),
+        });
+    }
     Ok(bytes)
 }
 
+fn describe_size(bytes: u64) -> String {
+    if bytes >= MIB {
+        format!("{} MiB", bytes / MIB)
+    } else {
+        format!("{bytes} byte")
+    }
+}
+
 /// Extracts the first `.xml` or `.rtsx` entry of the archive.
-fn unzip(input: &[u8]) -> Result<Vec<u8>, ImportError> {
+fn unzip(input: &[u8], limit: u64) -> Result<Vec<u8>, ImportError> {
     let mut archive = ZipArchive::new(Cursor::new(input)).map_err(|e| decompress_error(&e))?;
     let entry_name = archive
         .file_names()
@@ -87,14 +114,10 @@ fn unzip(input: &[u8]) -> Result<Vec<u8>, ImportError> {
         .ok_or_else(|| ImportError::InvalidInput {
             reason: "l'archivio zip non contiene un file .xml o .rtsx".to_owned(),
         })?;
-    let mut entry = archive
+    let entry = archive
         .by_name(&entry_name)
         .map_err(|e| decompress_error(&e))?;
-    let mut bytes = Vec::new();
-    entry
-        .read_to_end(&mut bytes)
-        .map_err(|error| decompress_error(&error))?;
-    Ok(bytes)
+    read_capped(entry, limit)
 }
 
 fn is_xml_entry(name: &str) -> bool {
@@ -226,6 +249,51 @@ mod tests {
             decode(&bytes),
             Err(ImportError::Decompress { .. })
         ));
+    }
+
+    /// A highly compressible document: a few KiB of gzip for 1 MiB of XML.
+    fn inflated_document() -> Vec<u8> {
+        let padding = " ".repeat(1024 * 1024);
+        format!("<RTSZDocument>{padding}</RTSZDocument>").into_bytes()
+    }
+
+    #[test]
+    fn a_gzip_stream_beyond_the_limit_is_rejected() {
+        let bytes = gzip(&inflated_document());
+        assert!(bytes.len() < 64 * 1024);
+
+        let error = decode_with_limit(&bytes, 64 * 1024).unwrap_err();
+
+        assert!(matches!(error, ImportError::Decompress { .. }));
+        assert_eq!(
+            error.to_string(),
+            "decompressione del file non riuscita: documento decompresso oltre 65536 byte"
+        );
+    }
+
+    #[test]
+    fn a_zip_entry_beyond_the_limit_is_rejected() {
+        let document = inflated_document();
+        let bytes = zip_with(&[("doc.xml", document.as_slice())]);
+
+        let error = decode_with_limit(&bytes, 64 * 1024).unwrap_err();
+
+        assert!(matches!(error, ImportError::Decompress { .. }));
+    }
+
+    #[test]
+    fn a_stream_exactly_at_the_limit_is_accepted() {
+        let limit = u64::try_from(XML.len()).unwrap();
+
+        assert_eq!(
+            decode_with_limit(&gzip(XML.as_bytes()), limit).unwrap(),
+            XML
+        );
+    }
+
+    #[test]
+    fn the_default_limit_is_described_in_mib() {
+        assert_eq!(describe_size(MAX_DECOMPRESSED_BYTES), "256 MiB");
     }
 
     #[test]
