@@ -34,11 +34,44 @@ impl Drop for DerivedKey {
     }
 }
 
-/// The Argon2id instance for `params`.
+// Upper bounds for the KDF costs (DEC-017). The parameters stored in a file
+// are not authenticated, so a tampered file could otherwise make the open
+// allocate gigabytes or run for hours before failing; the same bounds apply
+// when a vault is created, so that every vault can be opened again. Each
+// bound leaves ample room above `KdfParams::RECOMMENDED` (64 MiB, 3 passes,
+// 1 lane):
+// - 1 GiB of memory is 16 times the recommendation and still fits on any
+//   machine that runs the app;
+// - 16 passes is over 5 times the recommendation;
+// - 16 lanes: lanes split the same memory, so they do not add work, but no
+//   real setup uses more and a larger value can only come from tampering.
+// Even with every cost at its bound the open stays in the order of tens of
+// seconds, never hours, and the allocation stays bounded.
+const MAX_M_COST_KIB: u32 = 1024 * 1024;
+const MAX_T_COST: u32 = 16;
+const MAX_P_COST: u32 = 16;
+
+/// Checks that `params` are within the bounds above and accepted by Argon2.
 ///
 /// # Errors
-/// The parameters are outside the ranges accepted by Argon2.
-pub(super) fn argon2(params: KdfParams) -> Result<Argon2<'static>, argon2::Error> {
+/// A description of the first invalid parameter.
+pub(super) fn check_params(params: KdfParams) -> Result<(), String> {
+    let limits = [
+        ("m_cost_kib", params.m_cost_kib, MAX_M_COST_KIB),
+        ("t_cost", params.t_cost, MAX_T_COST),
+        ("p_cost", params.p_cost, MAX_P_COST),
+    ];
+    if let Some((name, value, max)) = limits.into_iter().find(|&(_, value, max)| value > max) {
+        return Err(format!(
+            "parametro KDF '{name}' = {value} oltre il massimo ammesso ({max})"
+        ));
+    }
+    argon2(params)
+        .map(drop)
+        .map_err(|error| format!("parametri KDF non validi: {error}"))
+}
+
+fn argon2(params: KdfParams) -> Result<Argon2<'static>, argon2::Error> {
     let params = Params::new(
         params.m_cost_kib,
         params.t_cost,
@@ -58,7 +91,11 @@ pub(super) struct KdfSetup {
 
 impl KdfSetup {
     /// New settings with `params` and a random salt.
+    ///
+    /// # Errors
+    /// [`VaultError::Crypto`] if `params` fail [`check_params`].
     pub(super) fn generate(params: KdfParams) -> Result<Self, VaultError> {
+        check_params(params).map_err(|reason| VaultError::Crypto { reason })?;
         let mut salt = vec![0; SALT_LEN];
         fill_random(&mut salt)?;
         Ok(Self { params, salt })

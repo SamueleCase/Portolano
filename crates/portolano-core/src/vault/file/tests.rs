@@ -245,6 +245,20 @@ fn parallelism_above_the_limit_is_corrupt() {
 }
 
 #[test]
+fn creating_with_costs_above_the_limit_fails_before_asking_the_password() {
+    let (_dir, path) = vault_path();
+    let params = KdfParams {
+        t_cost: 17,
+        ..TEST_KDF_PARAMS
+    };
+
+    let result = FileVault::with_kdf_params(&path, &NoPassword, params);
+
+    assert!(matches!(result, Err(VaultError::Crypto { .. })));
+    assert!(!path.exists());
+}
+
+#[test]
 fn time_cost_at_the_limit_is_accepted() {
     let (_dir, path) = vault_with_kdf_cost("t_cost", 16);
 
