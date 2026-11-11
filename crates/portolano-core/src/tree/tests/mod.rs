@@ -5,6 +5,8 @@ use super::*;
 use crate::model::{CustomProperty, PropertyValue};
 use crate::testutil::{connection, credential, document, folder, ids, with_spec};
 
+mod depth;
+
 const A: Uuid = Uuid::from_u128(0xa0);
 const A1: Uuid = Uuid::from_u128(0xa1);
 const A2: Uuid = Uuid::from_u128(0xa2);

@@ -1,7 +1,9 @@
 //! Tree operations on a [`Document`] (SPEC §4.1).
 //!
-//! The code is recursive: documents are assumed to be less than 1000 levels
-//! deep (SPEC §4.1).
+//! Documents are at most [`MAX_DEPTH`] levels deep (DEC-021, replacing the
+//! "unlimited depth" of SPEC §4.1): [`Document::insert`],
+//! [`Document::move_node`] and [`Document::ensure_parent_path`] refuse to go
+//! deeper, so the recursive code here stays far from the stack limit.
 
 use std::collections::HashSet;
 use std::slice;
@@ -9,7 +11,9 @@ use std::slice;
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
-use crate::model::{CredentialSpec, Document, Node, NodeKind, PrivateKey, PropertyValue};
+use crate::model::{
+    CredentialSpec, Document, MAX_DEPTH, Node, NodeKind, PrivateKey, PropertyValue,
+};
 use crate::secret::SecretRef;
 use crate::spec_scan::credential_specs_of;
 
@@ -74,7 +78,9 @@ impl Document {
     /// [`Error::NodeNotFound`](crate::Error::NodeNotFound) or
     /// [`Error::NotAFolder`](crate::Error::NotAFolder) for a bad parent,
     /// [`Error::DuplicateId`](crate::Error::DuplicateId) if any id of the
-    /// inserted subtree already exists in the document.
+    /// inserted subtree already exists in the document,
+    /// [`Error::TooDeep`](crate::Error::TooDeep) if a node of the subtree
+    /// would end up deeper than [`MAX_DEPTH`].
     pub fn insert(
         &mut self,
         parent: Option<Uuid>,
@@ -89,6 +95,8 @@ impl Document {
         {
             return Err(Error::DuplicateId { id: duplicate.id });
         }
+        self.children(parent)?;
+        ensure_within_max_depth(self.child_level(parent) + subtree_depth(&node))?;
         self.place(parent, position, node)
     }
 
@@ -115,16 +123,19 @@ impl Document {
     /// [`Error::InvalidMove`](crate::Error::InvalidMove) when moving a node
     /// into itself or a descendant;
     /// [`Error::NodeNotFound`](crate::Error::NodeNotFound) or
-    /// [`Error::NotAFolder`](crate::Error::NotAFolder) for a bad node or parent.
+    /// [`Error::NotAFolder`](crate::Error::NotAFolder) for a bad node or parent,
+    /// [`Error::TooDeep`](crate::Error::TooDeep) if a node of the moved
+    /// subtree would end up deeper than [`MAX_DEPTH`].
     pub fn move_node(
         &mut self,
         id: Uuid,
         new_parent: Option<Uuid>,
         position: Option<usize>,
     ) -> Result<()> {
-        if self.find(id).is_none() {
-            return Err(Error::NodeNotFound { id });
-        }
+        let moved_depth = self
+            .find(id)
+            .map(subtree_depth)
+            .ok_or(Error::NodeNotFound { id })?;
         // Every check happens before the node is detached, so a rejected move
         // leaves the document untouched.
         if let Some(target) = new_parent {
@@ -136,6 +147,9 @@ impl Document {
             }
             self.children(new_parent)?;
         }
+        // `new_parent` is not inside the moved subtree, so its level is the
+        // same before and after the node is detached.
+        ensure_within_max_depth(self.child_level(new_parent) + moved_depth)?;
         // Once the node is detached, an index into the remaining siblings is
         // exactly its index in the final list.
         let mut node = self.remove(id)?;
@@ -165,6 +179,11 @@ impl Document {
         refs
     }
 
+    /// The level of the children of `parent`: 1 for the root.
+    pub(crate) fn child_level(&self, parent: Option<Uuid>) -> usize {
+        parent.map_or(1, |id| self.ancestors(id).len() + 2)
+    }
+
     /// Inserts `node` without checking its ids, for nodes already known to be
     /// unique (a moved node, or one checked by [`Document::insert`]).
     fn place(&mut self, parent: Option<Uuid>, position: Option<usize>, node: Node) -> Result<()> {
@@ -182,6 +201,22 @@ impl Document {
         let folder = node.as_folder_mut().ok_or(Error::NotAFolder { id })?;
         Ok(&mut folder.children)
     }
+}
+
+/// Fails with [`Error::TooDeep`] if `level` is past [`MAX_DEPTH`].
+pub(crate) fn ensure_within_max_depth(level: usize) -> Result<()> {
+    if level > MAX_DEPTH {
+        return Err(Error::TooDeep { max: MAX_DEPTH });
+    }
+    Ok(())
+}
+
+/// How many levels the subtree of `node` spans below it: 0 for a leaf.
+fn subtree_depth(node: &Node) -> usize {
+    walk_nodes(slice::from_ref(node))
+        .map(|(depth, _)| depth)
+        .max()
+        .unwrap_or_default()
 }
 
 /// Pre-order traversal of `nodes` and their descendants, yielding
