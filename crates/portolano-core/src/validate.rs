@@ -37,7 +37,9 @@ impl Document {
     /// Structural problems of the document, with the codes `duplicate_id`,
     /// `dangling_ref`, `credential_ref_not_credential`, `by_name_unresolved`,
     /// `by_name_ambiguous` and `empty_host`, all of severity
-    /// [`Severity::Error`]. Protocol and vault checks are added by the caller.
+    /// [`Severity::Error`], plus `unsupported_node` of severity
+    /// [`Severity::Info`] (DEC-016). Protocol and vault checks are added by the
+    /// caller.
     pub fn validate(&self) -> Vec<Issue> {
         let mut issues = self.duplicate_ids();
         let known: HashSet<Uuid> = self.walk().map(|(_, node)| node.id).collect();
@@ -51,6 +53,17 @@ impl Document {
                     node,
                     "empty_host",
                     format!("la connessione '{}' non ha un host", node.name),
+                ));
+            }
+            if let NodeKind::Unsupported(unsupported) = &node.kind {
+                issues.push(issue(
+                    Severity::Info,
+                    node,
+                    "unsupported_node",
+                    format!(
+                        "il nodo '{}' non è supportato ed è conservato così com'è (tipo di origine: {})",
+                        node.name, unsupported.source_type
+                    ),
                 ));
             }
         }
@@ -228,8 +241,12 @@ fn credential_spec(node: &Node) -> Option<&CredentialSpec> {
 }
 
 fn error(node: &Node, code: &'static str, message: String) -> Issue {
+    issue(Severity::Error, node, code, message)
+}
+
+fn issue(severity: Severity, node: &Node, code: &'static str, message: String) -> Issue {
     Issue {
-        severity: Severity::Error,
+        severity,
         node: Some(node.id),
         code,
         message,

@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 use super::*;
+use crate::model::Unsupported;
 use crate::testutil::{connection, credential, document, folder, with_spec};
 
 const ADMIN: Uuid = Uuid::from_u128(0xad);
@@ -211,4 +212,21 @@ fn validate_reports_a_blank_host() {
         .host = "  ".to_owned();
 
     assert_eq!(codes(&document.validate()), vec![("empty_host", Some(DB))]);
+}
+
+#[test]
+fn validate_reports_an_unsupported_node_as_info_with_its_source_type() {
+    let mut legacy = connection(OTHER, "vnc-legacy");
+    legacy.kind = NodeKind::Unsupported(Unsupported {
+        source_type: "RoyalVNCConnection".to_owned(),
+        raw: "<RoyalVNCConnection />".to_owned(),
+    });
+    let mut document = sample();
+    document.nodes.push(legacy);
+
+    let issues = document.validate();
+
+    assert_eq!(codes(&issues), vec![("unsupported_node", Some(OTHER))]);
+    assert_eq!(issues[0].severity, Severity::Info);
+    assert!(issues[0].message.contains("RoyalVNCConnection"));
 }
