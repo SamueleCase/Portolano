@@ -117,9 +117,21 @@ impl FileVault {
         let vault = Self { path, kdf, key };
         // Written at once, so that the next open finds the vault instead of
         // asking for a new master password again. `CreateNew` never replaces
-        // a vault that another process created in the meantime.
+        // a vault that another process created during the prompt.
+        //
+        // That case is an error rather than a silent reopen: the password was
+        // asked for (and confirmed) to create a new vault, and using it on the
+        // other vault would either succeed without the user knowing which
+        // vault they set up, or fail as a "wrong password" that they never
+        // mistyped. Retrying opens the existing vault with the right prompt.
         with_lock(&vault.path, Access::Exclusive, || {
             vault.write_secrets(&SecretMap::new(), WriteMode::CreateNew)
+        })
+        .map_err(|error| match error {
+            VaultError::Io { source, .. } if source.kind() == io::ErrorKind::AlreadyExists => {
+                vault.changed("è stato creato da un altro processo durante la creazione: riprova")
+            }
+            other => other,
         })?;
         Ok(vault)
     }
@@ -127,9 +139,11 @@ impl FileVault {
     /// The secrets in the file as it is now. The caller holds the lock.
     fn read_secrets(&self) -> Result<SecretMap, VaultError> {
         let sealed = read_sealed(&self.path)?
-            .ok_or_else(|| self.changed("è stato rimosso dopo l'apertura"))?;
+            .ok_or_else(|| self.changed("è stato rimosso dopo l'apertura: va riaperto"))?;
         if sealed.kdf != self.kdf {
-            return Err(self.changed("è stato sostituito da un altro vault dopo l'apertura"));
+            return Err(
+                self.changed("è stato sostituito da un altro vault dopo l'apertura: va riaperto")
+            );
         }
         let plaintext = crypto::open(&self.key, &sealed.nonce, sealed.ciphertext)?;
         plaintext::decode(&plaintext).map_err(|reason| VaultError::Corrupt {
@@ -170,12 +184,13 @@ impl FileVault {
         })
     }
 
-    /// The file was removed or replaced after this vault was opened: the key
-    /// in memory no longer matches it.
+    /// Another process removed, replaced or created the file behind this
+    /// vault, so the key in memory does not match it. `what` completes the
+    /// sentence "il vault '<path>' …".
     fn changed(&self, what: &str) -> VaultError {
         VaultError::Backend {
             backend: BACKEND,
-            reason: format!("il vault '{}' {what}: va riaperto", self.path.display()),
+            reason: format!("il vault '{}' {what}", self.path.display()),
         }
     }
 }

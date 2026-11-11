@@ -105,3 +105,43 @@ fn vault_replaced_after_opening_is_reported() {
         })
     ));
 }
+
+/// Plays another process that creates the vault while this one is asking
+/// for a new master password: the window between the check and the write.
+struct CreatedDuringPrompt<'a> {
+    path: &'a Path,
+    /// A secret the other process stores in its vault.
+    other_reference: &'a SecretRef,
+}
+
+impl MasterPasswordSource for CreatedDuringPrompt<'_> {
+    fn master_password(&self, creating: bool) -> Result<Secret, VaultError> {
+        if creating {
+            open_test_vault(self.path)
+                .set(self.other_reference, &sentinel())
+                .unwrap();
+        }
+        FixedPassword::test().master_password(creating)
+    }
+}
+
+#[test]
+fn vault_created_by_another_process_during_creation_is_reported_and_kept() {
+    let (_dir, path) = vault_path();
+    let other_reference = SecretRef::new();
+    let source = CreatedDuringPrompt {
+        path: &path,
+        other_reference: &other_reference,
+    };
+
+    let result = FileVault::with_kdf_params(&path, &source, TEST_KDF_PARAMS);
+
+    assert!(matches!(
+        result,
+        Err(VaultError::Backend {
+            backend: "file",
+            ..
+        })
+    ));
+    assert!(open_test_vault(&path).contains(&other_reference).unwrap());
+}
