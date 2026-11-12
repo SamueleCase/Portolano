@@ -296,3 +296,18 @@ fn undo_does_not_touch_a_node_it_leaves_as_it_is() {
 
     assert_eq!(stored.reloaded().find(web01).unwrap().modified, modified);
 }
+
+#[test]
+fn node_deleted_before_the_undo_is_not_listed_as_kept() {
+    let vault = MemoryVault::default();
+    let admin = credential("Admin", "admin", None);
+    let spec = CredentialSpec::ById { id: admin.id };
+    let mut stored = stored(vec![admin, connection_with("web01", "ssh", spec)]);
+    let undoable = delete(&mut stored, &vault, "/Admin", FORCE);
+    delete(&mut stored, &vault, "/web01", DeleteOptions::default());
+
+    let restored =
+        restore_deleted(&stored.store, &mut stored.doc, &vault, undoable.deleted).unwrap();
+
+    assert!(restored.kept.is_empty());
+}

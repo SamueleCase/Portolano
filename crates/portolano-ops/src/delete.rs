@@ -6,15 +6,14 @@
 
 use std::collections::HashSet;
 
-use portolano_core::{Document, NodeKind, Store, Vault};
+use portolano_core::{CredentialOrigin, CredentialSpec, Document, NodeKind, Store, Vault};
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::commit::{Change, CleanupFailure};
 use crate::inspect::{NodeRef, NodeType};
-use crate::nodes::collect_unused_icons;
+use crate::nodes::{collect_unused_icons, credential_spec};
 use crate::tree_util::{node_path, subtree_ids};
-use crate::usage::credential_usage;
 use crate::{OpsError, Result};
 
 mod undo;
@@ -130,7 +129,7 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let subtree = subtree_ids(node);
     let references = external_references(doc, &subtree);
-    let inherited = inheriting_from(doc, &subtree)?;
+    let inherited = inheriting_from(doc, &subtree);
     let secrets: HashSet<_> = doc.secret_refs_in(id).into_iter().collect();
     Ok(DeletePreview {
         id,
@@ -145,19 +144,23 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
 }
 
 /// The connections outside `subtree` that inherit a credential of it.
-fn inheriting_from(doc: &Document, subtree: &HashSet<Uuid>) -> Result<Vec<NodeRef>> {
-    let mut inherited: Vec<NodeRef> = Vec::new();
-    let credentials = doc
-        .walk()
-        .filter(|(_, node)| subtree.contains(&node.id) && node.as_credential().is_some());
-    for (_, credential) in credentials {
-        for user in credential_usage(doc, credential.id)?.inherited {
-            if !subtree.contains(&user.id) && !inherited.contains(&user) {
-                inherited.push(user);
-            }
-        }
-    }
-    Ok(inherited)
+///
+/// One pass over the document: each connection outside the subtree that
+/// inherits its credential is resolved once.
+fn inheriting_from(doc: &Document, subtree: &HashSet<Uuid>) -> Vec<NodeRef> {
+    doc.walk()
+        .map(|(_, node)| node)
+        .filter(|node| node.as_connection().is_some() && !subtree.contains(&node.id))
+        .filter(|node| credential_spec(node).is_some_and(CredentialSpec::is_inherit))
+        .filter(|node| {
+            doc.resolve_credential(node.id)
+                .is_ok_and(|resolved| match resolved.origin {
+                    CredentialOrigin::Credential { node } => subtree.contains(&node),
+                    _ => false,
+                })
+        })
+        .map(|node| NodeRef::of(doc, node.id))
+        .collect()
 }
 
 /// Deletes node `id` with its subtree, saves the document, then deletes the

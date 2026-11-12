@@ -85,7 +85,11 @@ impl PendingImage {
                 declared_mime,
             } => icons.add(&bytes, &declared_mime)?,
             PendingImage::Stored(icon) => {
-                if !icons.path_for(&icon).is_some_and(|path| path.is_file()) {
+                // A regular file, never a symlink, as `IconStore::list` lists.
+                let stored = icons.path_for(&icon).is_some_and(|path| {
+                    std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file())
+                });
+                if !stored {
                     return Err(OpsError::IconNotStored);
                 }
                 icon

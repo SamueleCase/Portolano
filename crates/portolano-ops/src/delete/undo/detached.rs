@@ -70,8 +70,10 @@ impl Detached {
     /// Gives back what is still as the deletion left it. The node is
     /// touched only if something went back.
     pub(super) fn restore(self, doc: &mut Document) -> Restored {
+        // A node deleted meanwhile has nothing to give back, and nothing
+        // was kept of it either.
         let Some(node) = doc.find_mut(self.node) else {
-            return Restored::Kept;
+            return Restored::All;
         };
         let mut restored = false;
         let mut kept = false;
