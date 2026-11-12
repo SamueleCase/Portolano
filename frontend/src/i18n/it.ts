@@ -1,5 +1,8 @@
+import { sessionsTexts } from "./sessions";
+
 /** The texts of the interface, in Italian (SPEC-UI: no text outside i18n/). */
 export const texts = {
+  sessions: sessionsTexts,
   status: {
     title: "Portolano",
     loading: "Caricamento…",
