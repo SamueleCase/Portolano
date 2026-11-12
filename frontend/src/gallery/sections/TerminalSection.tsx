@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { Terminal } from "../../components/terminal/Terminal";
+import { visibleText } from "../../components/visibleText";
 import { backgroundControl } from "../../design/background/backgroundControl";
 import { gallery } from "../../i18n/gallery";
 import { echoTerminal } from "../echoTerminal";
@@ -26,7 +27,7 @@ export function TerminalSection() {
             />
           </div>
           <span className={styles.value} data-testid="terminal-title">
-            {gallery.caption.terminalTitle}: {title}
+            {gallery.caption.terminalTitle}: {visibleText(title)}
           </span>
           <span className={styles.value} data-testid="opened-link">
             {opened}
