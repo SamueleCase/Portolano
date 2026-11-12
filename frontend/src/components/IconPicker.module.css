@@ -1,0 +1,23 @@
+.custom {
+  width: var(--size-icon-tile);
+  height: var(--size-icon-tile);
+  object-fit: contain;
+}
+
+.imageSource {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-fine-30) var(--space-5);
+  border: var(--border-width-strong) dashed var(--color-border);
+  border-radius: var(--radius-panel);
+  text-align: center;
+}
+
+.hint,
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-secondary);
+}
