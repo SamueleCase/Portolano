@@ -1,0 +1,35 @@
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: var(--size-spinner);
+  height: var(--size-spinner);
+  border: var(--border-width-strong) solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-round);
+  animation: spin var(--duration-spinner) linear infinite;
+}
+
+/* With reduced motion the spinner fades in and out instead of turning. */
+:global(:root[data-motion="reduced"]) .spinner {
+  border-right-color: currentColor;
+  animation-name: pulse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    border-right-color: currentColor;
+    animation-name: pulse;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: var(--opacity-disabled);
+  }
+}

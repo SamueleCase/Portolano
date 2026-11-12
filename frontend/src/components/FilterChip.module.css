@@ -1,0 +1,30 @@
+.chip {
+  padding: var(--space-1) var(--space-fine-10);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-field);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.chip:hover {
+  background: var(--color-active);
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.report {
+  padding: var(--space-fine-3) var(--space-fine-10);
+  font-weight: var(--font-weight-regular);
+}
+
+.report[aria-pressed="true"] {
+  background: var(--color-active);
+  color: var(--color-text-primary);
+}

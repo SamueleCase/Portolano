@@ -1,0 +1,41 @@
+.toggle {
+  position: relative;
+  flex: none;
+  width: var(--size-toggle-width);
+  height: var(--size-toggle-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-toggle-track-off);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.toggle[aria-checked="true"] {
+  background: var(--color-accent);
+}
+
+.toggle:disabled {
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
+.knob {
+  position: absolute;
+  top: var(--space-fine-2);
+  left: var(--space-fine-2);
+  width: var(--size-toggle-knob);
+  height: var(--size-toggle-knob);
+  border-radius: var(--radius-round);
+  background: var(--color-toggle-knob-off);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.toggle[aria-checked="true"] .knob {
+  background: var(--color-toggle-knob-on);
+  transform: translateX(
+    calc(var(--size-toggle-width) - var(--size-toggle-knob) - 2 * var(--space-fine-2))
+  );
+}
