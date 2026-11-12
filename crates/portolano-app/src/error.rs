@@ -7,6 +7,7 @@
 
 use std::error::Error;
 
+use portolano_connectors::ConnectError;
 use portolano_ops::delete::ExternalReference;
 use portolano_ops::{ErrorCategory, OpsError};
 use serde::Serialize;
@@ -46,9 +47,10 @@ pub enum ErrorCode {
     /// The document file does not exist (any more).
     DocumentMissing,
     /// The command needs an open document and there is none.
-    // Raised by the document commands of UI-WP2; already part of the
-    // bindings, so that the frontend handles every code from the start.
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "raised by the document commands of UI-WP2; already in the bindings, so that the frontend handles every code from the start"
+    )]
     NoDocument,
     /// The connection could not be planned or launched.
     Connect,
@@ -106,18 +108,18 @@ fn details_of(error: &OpsError) -> Option<IpcErrorDetails> {
             field: field.to_owned(),
         })
     };
+    if let Some(portolano_core::Error::Ambiguous { candidates, .. }) = core_error_of(error) {
+        return Some(IpcErrorDetails::Ambiguous {
+            candidates: candidates
+                .iter()
+                .map(|(id, path)| Candidate {
+                    id: *id,
+                    path: path.clone(),
+                })
+                .collect(),
+        });
+    }
     match error {
-        OpsError::Core(portolano_core::Error::Ambiguous { candidates, .. }) => {
-            Some(IpcErrorDetails::Ambiguous {
-                candidates: candidates
-                    .iter()
-                    .map(|(id, path)| Candidate {
-                        id: *id,
-                        path: path.clone(),
-                    })
-                    .collect(),
-            })
-        }
         OpsError::Referenced { references, .. } => Some(IpcErrorDetails::Referenced {
             references: references.clone(),
         }),
@@ -130,6 +132,14 @@ fn details_of(error: &OpsError) -> Option<IpcErrorDetails> {
         OpsError::UnknownConfigKey { key } | OpsError::InvalidConfigValue { key, .. } => {
             invalid(key)
         }
+        _ => None,
+    }
+}
+
+/// The error of the core inside `error`, wherever an operation wrapped it.
+fn core_error_of(error: &OpsError) -> Option<&portolano_core::Error> {
+    match error {
+        OpsError::Core(core) | OpsError::Connect(ConnectError::Core(core)) => Some(core),
         _ => None,
     }
 }

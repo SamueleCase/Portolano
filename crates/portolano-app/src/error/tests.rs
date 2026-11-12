@@ -10,8 +10,8 @@ use super::*;
 #[test]
 fn error_serializes_with_camel_case_code_and_without_empty_details() {
     let error = IpcError {
-        code: ErrorCode::NoDocument,
-        message: "nessun documento aperto".to_owned(),
+        code: ErrorCode::ModifiedExternally,
+        message: "documento modificato da un altro processo".to_owned(),
         details: None,
     };
 
@@ -19,7 +19,7 @@ fn error_serializes_with_camel_case_code_and_without_empty_details() {
 
     assert_eq!(
         json,
-        json!({ "code": "noDocument", "message": "nessun documento aperto" })
+        json!({ "code": "modifiedExternally", "message": "documento modificato da un altro processo" })
     );
 }
 
@@ -46,6 +46,28 @@ fn ambiguous_lookup_carries_its_candidates() {
     assert_eq!(
         json["details"],
         json!({ "kind": "ambiguous", "candidates": [{ "id": id, "path": "/Clienti/web01" }] })
+    );
+}
+
+#[test]
+fn ambiguous_node_to_connect_to_carries_its_candidates() {
+    let id = Uuid::from_u128(9);
+    let error = IpcError::from(OpsError::Connect(ConnectError::Core(
+        portolano_core::Error::Ambiguous {
+            query: "web".to_owned(),
+            candidates: vec![(id, "/Clienti/web01".to_owned())],
+        },
+    )));
+
+    assert_eq!(error.code, ErrorCode::Ambiguous);
+    assert_eq!(
+        error.details,
+        Some(IpcErrorDetails::Ambiguous {
+            candidates: vec![Candidate {
+                id,
+                path: "/Clienti/web01".to_owned()
+            }]
+        })
     );
 }
 
