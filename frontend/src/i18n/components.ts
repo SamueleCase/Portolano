@@ -149,6 +149,7 @@ export const components = {
     none: "Nessuno",
     custom: "Personalizzato…",
     customField: "Colore esadecimale",
+    customPlaceholder: "#RRGGBB",
     customInvalid: "Scrivi il colore come #RRGGBB.",
     swatches: ["Verde", "Azzurro", "Ocra", "Terracotta", "Lilla", "Grigio"],
   },
