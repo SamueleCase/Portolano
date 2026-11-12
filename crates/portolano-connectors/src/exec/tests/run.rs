@@ -80,7 +80,7 @@ fn command_removes_every_inherited_child_variable() {
     let prepared =
         prepare_with(&plan, &MemoryVault::default(), &AppConfig::default(), files).unwrap();
 
-    let command = prepared.command(false, None);
+    let command = prepared.command();
 
     let removed: Vec<_> = command
         .get_envs()
@@ -94,6 +94,26 @@ fn command_removes_every_inherited_child_variable() {
             .all(|name| removed.contains(&(*name).to_owned()))
     );
     assert!(CHILD_ENV_REMOVE.contains(&MASTER_PASSWORD_ENV));
+}
+
+#[test]
+fn stdin_secret_is_written_for_a_caller_that_starts_the_program() {
+    let temp = tempfile::tempdir().unwrap();
+    let reference = SecretRef::new();
+    let vault = vault_with(&[(&reference, SENTINEL)]);
+    let plan = run(
+        PathBuf::from("/usr/bin/true"),
+        vec![],
+        Some(reference),
+        None,
+    );
+    let files = TempFiles::new(temp.path().join("files"));
+    let prepared = prepare_with(&plan, &vault, &AppConfig::default(), files).unwrap();
+    let mut stdin = Vec::new();
+
+    prepared.write_stdin_secret(&mut stdin).unwrap();
+
+    assert_eq!(stdin, format!("{SENTINEL}\n").into_bytes());
 }
 
 #[test]

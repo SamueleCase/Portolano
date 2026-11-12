@@ -311,9 +311,42 @@ impl PreparedLaunch {
 
     /// The secret to write to the program's stdin, followed by a newline,
     /// before closing it (the FreeRDP password). A caller that starts the
-    /// program itself must not copy it elsewhere.
+    /// program itself writes it with [`PreparedLaunch::write_stdin_secret`].
     pub fn stdin_secret(&self) -> Option<&Secret> {
         self.stdin_secret.as_ref()
+    }
+
+    /// Writes the stdin secret, if any, to `stdin`, the pipe of the started
+    /// program, followed by a newline unless it already ends with one (as a
+    /// private key does). The caller then drops `stdin` to close it. A
+    /// program that exits without reading is not an error: its exit code
+    /// tells the story.
+    ///
+    /// # Errors
+    /// Writing fails for another reason than a closed pipe.
+    pub fn write_stdin_secret(&self, stdin: &mut impl Write) -> io::Result<()> {
+        match &self.stdin_secret {
+            Some(secret) => write_secret(stdin, secret),
+            None => Ok(()),
+        }
+    }
+
+    /// The command that starts the program, for a caller that follows it
+    /// itself: its arguments, the inherited environment without
+    /// [`CHILD_ENV_REMOVE`] plus [`PreparedLaunch::env`], and a pipe on stdin
+    /// when there is a secret to write. The other streams are left to the
+    /// caller.
+    pub fn command(&self) -> Command {
+        let mut command = Command::new(&self.program);
+        command.args(&self.args);
+        for name in CHILD_ENV_REMOVE {
+            command.env_remove(name);
+        }
+        command.envs(self.env.iter().map(|(key, value)| (key, value)));
+        if self.stdin_secret.is_some() {
+            command.stdin(Stdio::piped());
+        }
+        command
     }
 
     /// Whether the caller should wait for the program to exit.
@@ -339,16 +372,17 @@ impl PreparedLaunch {
         // program that uses it is always waited for.
         let detached = !self.wait && self.askpass.is_none();
         let log = self.log.take().map(|(file, _)| file);
-        let mut command = self.command(detached, log);
+        let mut command = self.launch_command(detached, log);
         let mut child = command.spawn().map_err(|source| ConnectError::Spawn {
             program: self.program.clone(),
             source,
         })?;
-        if let (Some(secret), Some(mut stdin)) = (&self.stdin_secret, child.stdin.take()) {
-            write_secret(&mut stdin, secret).map_err(|source| ConnectError::Io {
-                context: format!("scrittura sullo stdin di '{}'", self.program.display()),
-                source,
-            })?;
+        if let Some(mut stdin) = child.stdin.take() {
+            self.write_stdin_secret(&mut stdin)
+                .map_err(|source| ConnectError::Io {
+                    context: format!("scrittura sullo stdin di '{}'", self.program.display()),
+                    source,
+                })?;
         }
         if detached {
             // Reaped in the background, so it does not linger as a zombie
@@ -371,24 +405,17 @@ impl PreparedLaunch {
         Ok(exit_code(status))
     }
 
-    /// The command to spawn. A detached program does not use the terminal:
-    /// it would scribble over it after `connect` returns. Its stdin is empty
-    /// (unless it gets a secret), its stdout is discarded, its stderr goes to
-    /// `log` if any, and it gets its own process group, so that Ctrl-C in
-    /// the terminal does not reach it.
-    fn command(&self, detached: bool, log: Option<fs::File>) -> Command {
-        let mut command = Command::new(&self.program);
-        command.args(&self.args);
-        for name in CHILD_ENV_REMOVE {
-            command.env_remove(name);
-        }
-        command.envs(self.env.iter().map(|(key, value)| (key, value)));
-        if self.stdin_secret.is_some() {
-            command.stdin(Stdio::piped());
-        } else if detached {
-            command.stdin(Stdio::null());
-        }
+    /// The command that [`PreparedLaunch::launch`] spawns. A detached program
+    /// does not use the terminal: it would scribble over it after `connect`
+    /// returns. Its stdin is empty (unless it gets a secret), its stdout is
+    /// discarded, its stderr goes to `log` if any, and it gets its own
+    /// process group, so that Ctrl-C in the terminal does not reach it.
+    fn launch_command(&self, detached: bool, log: Option<fs::File>) -> Command {
+        let mut command = self.command();
         if detached {
+            if self.stdin_secret.is_none() {
+                command.stdin(Stdio::null());
+            }
             let stderr = log.map_or_else(Stdio::null, Stdio::from);
             command.stdout(Stdio::null()).stderr(stderr);
             #[cfg(unix)]
