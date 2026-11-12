@@ -9,8 +9,14 @@ export const OUTPUT_REPLAY_BYTES = 256 * 1024;
 
 type OutputListener = (bytes: Uint8Array) => void;
 
-/** The output of the terminals, kept out of the store: bytes are not UI state. */
+/**
+ * The output of the terminals, kept out of the store: bytes are not UI state.
+ * Only opened sessions have output: what arrives for another id (late output of
+ * a closed session) is dropped, so nothing outlives the tab.
+ */
 export interface OutputBus {
+  /** Starts keeping the output of session `id`. */
+  open: (id: SessionId) => void;
   /** New output of session `id`. */
   publish: (id: SessionId, bytes: Uint8Array) => void;
   /**
@@ -31,18 +37,18 @@ interface Stream {
 /** A bus that keeps the last {@link OUTPUT_REPLAY_BYTES} of each session. */
 export function createOutputBus(replayBytes = OUTPUT_REPLAY_BYTES): OutputBus {
   const streams = new Map<SessionId, Stream>();
-  const streamOf = (id: SessionId): Stream => {
-    let stream = streams.get(id);
-    if (stream === undefined) {
-      stream = { chunks: [], size: 0, listeners: new Set() };
-      streams.set(id, stream);
-    }
-    return stream;
-  };
 
   return {
+    open(id) {
+      if (!streams.has(id)) {
+        streams.set(id, { chunks: [], size: 0, listeners: new Set() });
+      }
+    },
     publish(id, bytes) {
-      const stream = streamOf(id);
+      const stream = streams.get(id);
+      if (stream === undefined) {
+        return;
+      }
       stream.chunks.push(bytes);
       stream.size += bytes.length;
       // Whole chunks only: a cut escape sequence would garble the replay.
@@ -52,7 +58,10 @@ export function createOutputBus(replayBytes = OUTPUT_REPLAY_BYTES): OutputBus {
       stream.listeners.forEach((listener) => listener(bytes));
     },
     subscribe(id, listener) {
-      const stream = streamOf(id);
+      const stream = streams.get(id);
+      if (stream === undefined) {
+        return () => undefined;
+      }
       stream.chunks.forEach((chunk) => listener(chunk));
       stream.listeners.add(listener);
       return () => stream.listeners.delete(listener);

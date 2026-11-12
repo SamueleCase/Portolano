@@ -1,3 +1,4 @@
+import { texts } from "../../i18n/it";
 import type {
   SessionHandlers,
   SessionId,
@@ -6,6 +7,17 @@ import type {
 } from "../../ipc/sessions";
 import type { OutputBus } from "./outputBus";
 import type { Session, SessionsState } from "./store";
+
+/** A session the interface no longer knows, such as one whose tab was closed. */
+export class SessionNotFound extends Error {
+  readonly id: SessionId;
+
+  constructor(id: SessionId) {
+    super(texts.sessions.notFound);
+    this.name = "SessionNotFound";
+    this.id = id;
+  }
+}
 
 /** Opens and drives sessions, keeping the store and the output bus current. */
 export interface SessionController {
@@ -46,6 +58,7 @@ export function createSessionController({
       startedAt: now(),
     };
     store().added(session);
+    output.open(opened.id);
     deferred.attach({
       onOutput: (bytes) => output.publish(opened.id, bytes),
       onState: (state) => store().stateChanged(opened.id, state),
@@ -71,7 +84,7 @@ export function createSessionController({
     async retry(id, size) {
       const session = store().sessions.find((candidate) => candidate.id === id);
       if (session === undefined) {
-        throw new Error(`unknown session ${id}`);
+        throw new SessionNotFound(id);
       }
       await close(id);
       return open(session.nodeId, size);

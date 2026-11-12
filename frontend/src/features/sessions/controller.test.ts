@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IpcFailure } from "../../ipc/result";
+import type { SessionHandlers } from "../../ipc/sessions";
 import { FakeSessionTransport } from "../../test/fakeSessions";
-import { createSessionController } from "./controller";
+import { createSessionController, SessionNotFound } from "./controller";
 import { createOutputBus } from "./outputBus";
 import { useSessionsStore } from "./store";
 
@@ -128,6 +129,31 @@ describe("createSessionController", () => {
 
     expect(sessions()[0]?.state).toEqual({ state: "connected" });
     expect(received).toEqual(["presto"]);
+  });
+
+  it("keeps nothing that arrives after the session was closed", async () => {
+    const { controller, output, transport } = setup();
+    let late: SessionHandlers | undefined;
+    transport.open = (_request, handlers) => {
+      late = handlers;
+      return Promise.resolve({ id: "session-late", kind: "terminal" });
+    };
+    await controller.open("node-ssh-ok", SIZE);
+    await controller.close("session-late");
+    const received: Uint8Array[] = [];
+
+    late?.onOutput(new TextEncoder().encode("tardi"));
+    late?.onState({ state: "ended", code: 0 });
+    output.subscribe("session-late", (bytes) => received.push(bytes));
+
+    expect(received).toEqual([]);
+    expect(sessions()).toEqual([]);
+  });
+
+  it("refuses to retry a session it does not know", async () => {
+    const { controller } = setup();
+
+    await expect(controller.retry("session-9", SIZE)).rejects.toBeInstanceOf(SessionNotFound);
   });
 
   it("rejects the opening of an unknown connection without adding a session", async () => {

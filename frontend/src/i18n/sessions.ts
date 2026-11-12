@@ -5,10 +5,10 @@ export const sessionsTexts = {
     connected: "Connesso",
     rdpRunning: "Sessione RDP aperta in una finestra esterna",
     externalOpen: "Aperta in Windows App",
-    ended: "Sessione terminata",
     endedWithCode: (code: number) => `Sessione terminata (codice ${code})`,
     failed: "Connessione non riuscita",
     failedWithCode: (code: number) => `Connessione non riuscita (codice ${code})`,
   },
   missingView: "Questo tipo di sessione non si può ancora mostrare.",
+  notFound: "La sessione non è più aperta.",
 } as const;

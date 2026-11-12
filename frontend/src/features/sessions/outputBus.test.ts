@@ -9,6 +9,7 @@ describe("createOutputBus", () => {
   it("replays the output kept so far to a new listener, then sends the new one", () => {
     const bus = createOutputBus();
     const received: Uint8Array[] = [];
+    bus.open("session-1");
     bus.publish("session-1", bytes("prima "));
 
     bus.subscribe("session-1", (chunk) => received.push(chunk));
@@ -19,6 +20,7 @@ describe("createOutputBus", () => {
 
   it("keeps only the latest whole chunks within the limit", () => {
     const bus = createOutputBus(8);
+    bus.open("session-1");
     bus.publish("session-1", bytes("vecchio"));
     bus.publish("session-1", bytes("nuovo"));
     const received: Uint8Array[] = [];
@@ -30,6 +32,8 @@ describe("createOutputBus", () => {
 
   it("keeps sessions apart and stops a listener on request", () => {
     const bus = createOutputBus();
+    bus.open("session-1");
+    bus.open("session-2");
     const received: Uint8Array[] = [];
     const stop = bus.subscribe("session-1", (chunk) => received.push(chunk));
 
@@ -40,13 +44,25 @@ describe("createOutputBus", () => {
     expect(received).toEqual([]);
   });
 
-  it("forgets a dropped session", () => {
+  it("drops output that arrives after the session was dropped", () => {
     const bus = createOutputBus();
-    bus.publish("session-1", bytes("vecchio"));
+    bus.open("session-1");
+    bus.drop("session-1");
     const received: Uint8Array[] = [];
 
-    bus.drop("session-1");
+    bus.publish("session-1", bytes("tardi"));
     bus.subscribe("session-1", (chunk) => received.push(chunk));
+
+    expect(received).toEqual([]);
+  });
+
+  it("keeps nothing for a session never opened", () => {
+    const bus = createOutputBus();
+    const received: Uint8Array[] = [];
+
+    bus.publish("session-9", bytes("sconosciuta"));
+    bus.open("session-9");
+    bus.subscribe("session-9", (chunk) => received.push(chunk));
 
     expect(received).toEqual([]);
   });
