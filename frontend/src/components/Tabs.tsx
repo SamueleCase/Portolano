@@ -84,7 +84,11 @@ export function Tabs({
         const selected = tab.id === selectedId;
         const title = visibleText(tab.title);
         return (
-          <div key={tab.id} className={classNames(styles.tab, selected && styles.selected)}>
+          <div
+            key={tab.id}
+            role="presentation"
+            className={classNames(styles.tab, selected && styles.selected)}
+          >
             <button
               ref={(element) => {
                 if (element) elements.current.set(tab.id, element);
@@ -95,6 +99,7 @@ export function Tabs({
               role="tab"
               aria-selected={selected}
               aria-controls={panelId}
+              aria-keyshortcuts={tab.closable ? "Delete" : undefined}
               tabIndex={selected ? 0 : -1}
               className={styles.trigger}
               onClick={() => onSelect(tab.id)}
@@ -108,12 +113,14 @@ export function Tabs({
               <span className={styles.kind}>{kindLabel(tab)}</span>
             </button>
             {tab.closable && (
+              // Only for the pointer: a `tablist` may contain only tabs, and
+              // the keyboard closes the focused tab with Delete.
               <button
                 type="button"
-                // Reached with Delete on the tab: one tab stop per tab.
                 tabIndex={-1}
+                aria-hidden="true"
                 className={styles.close}
-                aria-label={interpolate(texts.components.tabs.close, { name: title })}
+                title={interpolate(texts.components.tabs.close, { name: title })}
                 onClick={() => onClose(tab.id)}
               >
                 ×

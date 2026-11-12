@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -85,15 +85,27 @@ describe("Tabs", () => {
     await userEvent.keyboard("{Delete}");
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Chiudi web01" })).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Chiudi web01")).not.toBeInTheDocument();
   });
 
   it("closes a tab with its ×", async () => {
     const onClose = vi.fn();
     render(<WorkTabs onClose={onClose} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Chiudi db02" }));
+    await userEvent.click(screen.getByTitle("Chiudi db02"));
 
     expect(onClose).toHaveBeenCalledWith("s1");
+  });
+
+  it("keeps only tabs in the tab list and announces Delete as the way to close", () => {
+    render(<WorkTabs />);
+
+    const tablist = screen.getByRole("tablist");
+    expect(within(tablist).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByRole("tab", { name: /db02/ })).toHaveAttribute(
+      "aria-keyshortcuts",
+      "Delete",
+    );
+    expect(screen.getByTitle("Chiudi db02")).toHaveAttribute("aria-hidden", "true");
   });
 });
