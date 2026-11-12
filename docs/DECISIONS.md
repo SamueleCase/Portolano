@@ -462,6 +462,51 @@ mock in `docs/ui/NOTE.md`.
    dopo il ripristino del terminale (Ctrl-Z non sospende il processo con l'eco spento); il log di FreeRDP resta
    aperto per descrittore per tutta la sessione, perché la pulizia dei temporanei (10 minuti) non lo cancelli.
 
+### DEC-031 – Revisione di UI-WP2 (decise dal PM, 2026-11-12)
+1. **Icone oltre `MAX_ICON_BYTES` nell'import**: non fanno fallire l'import. L'importer Royal le scarta già nella
+   mappatura, come un formato non riconosciuto: valore in `extra`, nodo `Partial` con motivo nel report, visibile
+   anche nell'anteprima e in `--dry-run` (eccezione di proprietà su `portolano-import` per UI-WP2).
+2. **Annullamento di un'eliminazione**: ripristina solo ciò che è ancora nello stato lasciato dall'eliminazione (la
+   credenziale ancora `Prompt`, i percorsi dei `settings` ancora col valore dopo lo stacco); le modifiche fatte nel
+   frattempo restano e i nodi lasciati come sono si riportano nell'esito. Un annullamento fallito per un errore
+   recuperabile (`ModifiedExternally`, `NameTaken`, I/O) rimette l'eliminazione fra quelle in sospeso.
+3. **"Duplica"**: nessun riferimento esistente deve cambiare risoluzione e la copia deve usare le proprie credenziali.
+   I `ByName` interni alla copia che risolvono a una credenziale copiata diventano `ById` verso la copia; le
+   credenziali copiate il cui nome è bersaglio di un `ByName` ricevono un nome univoco con " (copia)", e l'esito
+   elenca le rinomine. La copia non eredita `source` (non è un nodo importato).
+4. **Percorso della chiave SSH (`keyFile`)**: è un dato del documento passato a `ssh`, che l'app non apre mai: è
+   ammesso come testo (eccezione a SPEC-UI §1.5, validato: assoluto o `~/`, niente caratteri di controllo); in più
+   `choose_key_file` apre il dialogo nativo e restituisce il percorso scelto, per il bottone "Sfoglia…".
+5. **QueryClient**: `ipc/` esporta `createQueryClient()` con `networkMode: "always"` e `retry: false` (backend
+   locale via IPC: niente pausa "offline", errori deterministici subito); `main.tsx` e `test/render.tsx` lo usano.
+6. **Nome vuoto**: `add_node`/`edit_node` rispondono `invalid` con il campo `name`.
+7. Il calcolo degli "ereditati" dell'anteprima d'eliminazione sta in `portolano-ops` (campo di `DeletePreview`),
+   non nell'app.
+
+### DEC-032 – Design system: contrasto, testo del documento e tastiera (UI-WP1, decise dal PM, 2026-11-12)
+1. **Correzioni di contrasto** rispetto all'inventario (SPEC-UI §5.2, inventario §7), stessa tinta, verificate dal
+   test `contrastPairs`:
+
+   | Token | Inventario | Valore | Rapporto |
+   |---|---|---|---|
+   | `--color-accent` (riempimento) | `#2F7D5B` | `#2B7454` | testo sopra 5,00:1 |
+   | `--color-accent-hover` | `#38916A` (più chiaro) | `#25664A` (più scuro) | 6,05:1 |
+   | `--color-error-text` | `#E5695F` | `#EE8279` (il rosso originale resta per riempimenti, bordi e marcatori) | ≥ 4,5:1 |
+   | `--color-text-unsupported` | `#8A8479` | `#A39D92` (l'originale resta per le icone) | ≥ 4,5:1 |
+   | `--color-border-control` | alfa .16 | `rgba(255,245,225,.42)` | ≥ 3:1 |
+   | `--color-toggle-track-off` | alfa .16 | `rgba(255,255,255,.34)` | 3,10 pannello, 3,08 dialogo |
+   | `--color-toggle-track-on` (nuovo) | accento | `#2F7D5B` (l'accento originale) | 3,32 pannello, 3,18 dialogo |
+2. **Testo del documento**: ogni componente che riceve testo che può venire dal documento lo rende visibile da sé
+   con `visibleText` (idempotente); i chiamanti non devono ricordarsene (SPEC-UI §1.3).
+3. **Riduci movimento**: lo spinner resta come pulsazione d'opacità (indicatore essenziale); il resto diventa
+   dissolvenze.
+4. **Aperto – Tab in WebKit**: come Safari, WKWebView con Tab raggiunge solo i campi di testo, a meno che l'utente non
+   abbia attivato la navigazione da tastiera di macOS; gli e2e usano Option+Tab. Per SPEC-UI §1.6 l'app deve
+   raggiungere tutti i controlli con Tab: da risolvere lato Rust (preferenza di WKWebView) o, se impossibile, da
+   documentare nel README. Assegnato all'ondata C (UI-WP4, che possiede `app/` e le scorciatoie), con verifica in
+   `tauri dev`.
+5. **Screenshot**: WebKit headless di Playwright non disegna `backdrop-filter`; il vetro si valuta in `tauri dev`.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
