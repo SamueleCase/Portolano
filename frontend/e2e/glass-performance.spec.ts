@@ -68,6 +68,9 @@ test("the glass background stays within 30 drawings per second and stops when hi
       `disegni ${sample.draws} (${drawsPerSecond.toFixed(1)}/s), finestra a fuoco: ${String(sample.focused)}`,
     ].join("\n"),
   );
+  // Without focus or drawings there would be nothing measured.
+  expect(sample.focused, "la finestra della misura deve avere il fuoco").toBe(true);
+  expect(sample.draws, "lo sfondo deve disegnare durante la misura").toBeGreaterThan(0);
   expect(drawsPerSecond).toBeLessThanOrEqual(MAX_DRAWS_PER_SECOND);
 
   // A hidden page: the visibility the WebView reports when the window is hidden.
