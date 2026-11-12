@@ -1,0 +1,64 @@
+.route {
+  --phase-color: var(--color-accent-text);
+}
+
+.connected {
+  --phase-color: var(--color-ok);
+}
+
+.failed {
+  --phase-color: var(--color-text-muted);
+}
+
+.stops {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stop + .stop {
+  flex: 1;
+}
+
+.line {
+  flex: 1;
+  height: var(--size-route-line);
+  border-radius: var(--radius-route);
+  background: var(--phase-color);
+  transition: background var(--duration-slow) var(--ease-spring);
+}
+
+.point {
+  flex: none;
+  width: var(--size-route-point);
+  height: var(--size-route-point);
+  border: var(--border-width-focus) solid var(--phase-color);
+  border-radius: var(--radius-round);
+  background: var(--phase-color);
+  transition: all var(--duration-base) var(--ease-spring);
+}
+
+.failed .point {
+  background: transparent;
+}
+
+.failed .destination .point {
+  border-color: var(--color-error);
+  background: var(--color-error);
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  white-space: nowrap;
+}
