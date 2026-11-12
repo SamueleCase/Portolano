@@ -84,7 +84,7 @@ impl OpsError {
             | OpsError::ImportConflicts { .. }
             | OpsError::ImportKindChanged { .. } => ErrorCategory::Rejected,
             OpsError::UnrecognizedImportFile { .. } => ErrorCategory::Unreadable,
-            OpsError::IconNotStored => ErrorCategory::NotFound,
+            OpsError::IconNotStored => ErrorCategory::Rejected,
             OpsError::ImportAnswersMismatch { .. } => ErrorCategory::Rejected,
         }
     }

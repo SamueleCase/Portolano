@@ -119,3 +119,16 @@ fn message_includes_the_cause_of_an_io_error() {
         "errore di I/O su '/tmp/portolano.json': permesso negato"
     );
 }
+
+#[test]
+fn image_missing_from_the_icon_store_is_refused_on_the_icon_field() {
+    let error = IpcError::from(OpsError::IconNotStored);
+
+    assert_eq!(error.code, ErrorCode::Invalid);
+    assert_eq!(
+        error.details,
+        Some(IpcErrorDetails::Invalid {
+            field: "icon".to_owned()
+        })
+    );
+}

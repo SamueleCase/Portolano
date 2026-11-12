@@ -121,12 +121,37 @@ pub fn for_royal(name: &str) -> Option<&'static str> {
     match_words(last).or_else(|| match_words(category))
 }
 
+/// The builtin icon of the first word of the table that is a whole word of
+/// `text`: `Clock` is not `lock`, `Mailbox` is not `box`.
 fn match_words(text: &str) -> Option<&'static str> {
-    let text = text.to_lowercase();
+    let words = words_of(text);
     ROYAL_WORDS
         .iter()
-        .find(|(word, _)| text.contains(word))
+        .find(|(word, _)| words.iter().any(|candidate| candidate == word))
         .map(|&(_, builtin)| builtin)
+}
+
+/// The lowercase words of `text`, split at anything that is not a letter
+/// or a digit and where a lowercase letter meets an uppercase one
+/// (`HardDrive` gives `hard` and `drive`).
+fn words_of(text: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    let mut previous_lowercase = false;
+    for c in text.chars() {
+        let boundary = !c.is_alphanumeric() || (c.is_uppercase() && previous_lowercase);
+        if boundary && !current.is_empty() {
+            words.push(std::mem::take(&mut current));
+        }
+        if c.is_alphanumeric() {
+            current.extend(c.to_lowercase());
+        }
+        previous_lowercase = c.is_lowercase();
+    }
+    if !current.is_empty() {
+        words.push(current);
+    }
+    words
 }
 
 #[cfg(test)]
@@ -164,6 +189,18 @@ mod tests {
     #[test]
     fn royal_name_falls_back_to_its_category() {
         assert_eq!(for_royal("Flat/Network/Hub 24"), Some("network"));
+    }
+
+    #[test]
+    fn only_whole_words_match() {
+        assert_eq!(for_royal("Flat/Objects/Clock"), None);
+        assert_eq!(for_royal("Flat/Objects/Keyboard"), None);
+        assert_eq!(for_royal("Flat/Objects/Mailbox"), None);
+    }
+
+    #[test]
+    fn words_joined_in_camel_case_are_split() {
+        assert_eq!(for_royal("Flat/Hardware/ExternalDrive"), Some("hard-drive"));
     }
 
     #[test]
