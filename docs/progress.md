@@ -211,3 +211,16 @@ Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
   `TypeFilter`, `CredentialInput`) con `Deserialize`;
 - richiesta del dominio in "chiedi all'avvio" decisa dal protocollo (oggi `ask_domain` è cablato su `rdp` in ops):
   futuro metodo di `Protocol`.
+
+## FASE 2 – app desktop (avviata il 2026-11-12)
+
+Specifica: `docs/SPEC-UI.md`; processo: `docs/PM-PROMPT-UI.md`; stack e mock: DEC-027.
+
+| Passo | Stato | Note |
+|---|---|---|
+| Inventario del mock | fatto | `docs/ui/inventario.md` |
+| Ricognizione tecnica | fatta | `docs/ui/ricerca-tauri.md` |
+| UI-WP0 – prototipo e scheletro | in corso | chiude i punti incerti della ricognizione |
+| UI-WP1…WP3 (ondata B) | da fare | checkpoint visivo con l'utente sulla galleria dei componenti |
+| UI-WP4…WP6 (ondata C) | da fare | checkpoint visivo con l'utente sulle schermate |
+| UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
