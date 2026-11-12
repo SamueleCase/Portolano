@@ -108,4 +108,29 @@ describe("Tabs", () => {
     );
     expect(screen.getByTitle("Chiudi db02")).toHaveAttribute("aria-hidden", "true");
   });
+
+  it("moves the focus to the tab selected after closing one with Delete", async () => {
+    function Closing() {
+      const [open, setOpen] = useState(tabs);
+      const [selected, setSelected] = useState("s1");
+      return (
+        <Tabs
+          tabs={open}
+          selectedId={selected}
+          onSelect={setSelected}
+          onClose={(id) => {
+            setOpen((current) => current.filter((tab) => tab.id !== id));
+            setSelected("validation");
+          }}
+          panelId="work"
+        />
+      );
+    }
+    render(<Closing />);
+
+    await userEvent.tab();
+    await userEvent.keyboard("{Delete}");
+
+    expect(screen.getByRole("tab", { name: "Validazione 4 problemi" })).toHaveFocus();
+  });
 });

@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useRef } from "react";
+import { type KeyboardEvent, useEffect, useRef } from "react";
 
 import { interpolate, plural } from "../i18n/format";
 import { texts } from "../i18n/it";
@@ -57,11 +57,22 @@ export function Tabs({
   panelId,
 }: TabsProps) {
   const elements = useRef(new Map<string, HTMLButtonElement>());
+  // The tab closed with Delete: once the parent has removed it, the focus
+  // goes to the tab it selected instead of being lost with the element.
+  const closed = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const id = closed.current;
+    if (id === undefined || tabs.some((tab) => tab.id === id)) return;
+    closed.current = undefined;
+    elements.current.get(selectedId)?.focus();
+  }, [tabs, selectedId]);
 
   const keyDown = (event: KeyboardEvent, index: number) => {
     const tab = tabs[index];
     if ((event.key === "Delete" || event.key === "Backspace") && tab?.closable) {
       event.preventDefault();
+      closed.current = tab.id;
       onClose(tab.id);
       return;
     }
