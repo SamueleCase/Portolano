@@ -6,6 +6,7 @@ import { classNames } from "./classNames";
 import styles from "./ColorPicker.module.css";
 import { nodeColor } from "./nodeColor";
 import { TextField } from "./TextField";
+import { useRovingRadio } from "./useRovingRadio";
 
 /** The six colors a node can take with one click (ambiguity 15). */
 const swatches = [
@@ -59,16 +60,14 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
     if (choice.kind === "none") onChange(null);
     if (choice.kind === "swatch") onChange(choice.color);
   };
-  const keyDown = (event: KeyboardEvent, index: number) => {
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
-    if (step === undefined) return;
-    const next = choices[(index + step + choices.length) % choices.length];
-    if (!next) return;
-    event.preventDefault();
-    choose(next);
-    const buttons = event.currentTarget.parentElement?.querySelectorAll("button");
-    buttons?.item((index + step + choices.length) % choices.length)?.focus();
-  };
+  const radio = useRovingRadio({
+    count: choices.length,
+    selected: choices.findIndex(checked),
+    onMove: (index) => {
+      const next = choices[index];
+      if (next) choose(next);
+    },
+  });
   const commitDraft = (text: string) => {
     setDraft(text);
     const color = nodeColor(text);
@@ -87,9 +86,10 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             type: "button" as const,
             role: "radio",
             "aria-checked": on,
-            tabIndex: on ? 0 : -1,
+            tabIndex: radio.tabIndexOf(index),
+            ref: radio.register(index),
             onClick: () => choose(choice),
-            onKeyDown: (event: KeyboardEvent) => keyDown(event, index),
+            onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => radio.keyDown(event, index),
           };
           if (choice.kind === "swatch") {
             return (

@@ -33,7 +33,9 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
 }
 
 .fullWidth .option {
@@ -50,6 +52,25 @@
 .chosen:hover {
   color: var(--color-text-on-accent);
   font-weight: var(--font-weight-strong);
+}
+
+/* Reduce motion: the fill fades on the chosen option instead of sliding. */
+:global(:root[data-motion="reduced"]) .indicator {
+  display: none;
+}
+
+:global(:root[data-motion="reduced"]) .chosen {
+  background: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    display: none;
+  }
+
+  .chosen {
+    background: var(--color-accent);
+  }
 }
 
 .unavailable,

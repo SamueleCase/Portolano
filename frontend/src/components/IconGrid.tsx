@@ -1,8 +1,9 @@
-import { type KeyboardEvent, type ReactNode, useRef } from "react";
+import type { ReactNode } from "react";
 
 import { classNames } from "./classNames";
 import styles from "./IconGrid.module.css";
 import type { NodeIconChoice } from "./icons/NodeIcon";
+import { useRovingRadio } from "./useRovingRadio";
 
 /** A tile of the icon grid. */
 export interface IconGridTile {
@@ -28,21 +29,15 @@ const COLUMNS = 7;
  * arrows move in two dimensions and choose.
  */
 export function IconGrid({ label, tiles, selectedId, onSelect }: IconGridProps) {
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const focusIndex = Math.max(
-    0,
-    tiles.findIndex((tile) => tile.id === selectedId),
-  );
-
-  const keyDown = (event: KeyboardEvent, index: number) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: COLUMNS, ArrowUp: -COLUMNS }[event.key];
-    if (step === undefined) return;
-    const next = tiles[index + step];
-    if (!next) return;
-    event.preventDefault();
-    onSelect(next);
-    buttons.current.get(next.id)?.focus();
-  };
+  const radio = useRovingRadio({
+    count: tiles.length,
+    selected: tiles.findIndex((tile) => tile.id === selectedId),
+    columns: COLUMNS,
+    onMove: (index) => {
+      const tile = tiles[index];
+      if (tile) onSelect(tile);
+    },
+  });
 
   return (
     <div role="radiogroup" aria-label={label} className={styles.grid}>
@@ -51,19 +46,16 @@ export function IconGrid({ label, tiles, selectedId, onSelect }: IconGridProps) 
         return (
           <button
             key={tile.id}
-            ref={(element) => {
-              if (element) buttons.current.set(tile.id, element);
-              else buttons.current.delete(tile.id);
-            }}
+            ref={radio.register(index)}
             type="button"
             role="radio"
             aria-checked={selected}
             aria-label={tile.label}
             title={tile.label}
-            tabIndex={index === focusIndex ? 0 : -1}
+            tabIndex={radio.tabIndexOf(index)}
             className={classNames(styles.tile, selected && styles.selected)}
             onClick={() => onSelect(tile)}
-            onKeyDown={(event) => keyDown(event, index)}
+            onKeyDown={(event) => radio.keyDown(event, index)}
           >
             {tile.icon}
           </button>

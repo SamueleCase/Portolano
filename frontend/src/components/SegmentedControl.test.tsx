@@ -51,4 +51,14 @@ describe("SegmentedControl", () => {
 
     expect(screen.getByRole("radio", { name: "Scuro" })).toBeChecked();
   });
+
+  it("keeps a tab stop on the first available option when the chosen one is not available", async () => {
+    render(
+      <SegmentedControl label="Tema" options={themes} value="light" onChange={() => undefined} />,
+    );
+
+    await userEvent.tab();
+
+    expect(screen.getByRole("radio", { name: "Scuro" })).toHaveFocus();
+  });
 });

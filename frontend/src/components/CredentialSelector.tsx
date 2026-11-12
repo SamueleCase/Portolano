@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useRef } from "react";
+import { useRef } from "react";
 
 import { texts } from "../i18n/it";
 import { Button } from "./Button";
@@ -13,6 +13,7 @@ import {
 import styles from "./CredentialSelector.module.css";
 import { Dialog } from "./Dialog";
 import type { VaultBackend } from "./SecretBadge";
+import { useRovingRadio } from "./useRovingRadio";
 
 interface CredentialSelectorProps {
   open: boolean;
@@ -45,18 +46,15 @@ export function CredentialSelector({
   modes = credentialModes,
 }: CredentialSelectorProps) {
   const t = texts.components;
-  const buttons = useRef(new Map<CredentialMode, HTMLButtonElement>());
   const chosen = useRef<HTMLButtonElement | null>(null);
-
-  const keyDown = (event: KeyboardEvent, index: number) => {
-    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
-    if (step === undefined) return;
-    const next = modes[(index + step + modes.length) % modes.length];
-    if (!next) return;
-    event.preventDefault();
-    onModeChange(next);
-    buttons.current.get(next)?.focus();
-  };
+  const radio = useRovingRadio({
+    count: modes.length,
+    selected: modes.indexOf(mode),
+    onMove: (index) => {
+      const next = modes[index];
+      if (next) onModeChange(next);
+    },
+  });
 
   return (
     <Dialog
@@ -79,17 +77,16 @@ export function CredentialSelector({
               <button
                 key={option}
                 ref={(element) => {
-                  if (element) buttons.current.set(option, element);
-                  else buttons.current.delete(option);
+                  radio.register(index)(element);
                   if (selected) chosen.current = element;
                 }}
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                tabIndex={selected ? 0 : -1}
+                tabIndex={radio.tabIndexOf(index)}
                 className={classNames(styles.mode, selected && styles.selected)}
                 onClick={() => onModeChange(option)}
-                onKeyDown={(event) => keyDown(event, index)}
+                onKeyDown={(event) => radio.keyDown(event, index)}
               >
                 <span className={styles.title}>{t.credentialModes[option].title}</span>
                 <span className={styles.subtitle}>{t.credentialModes[option].subtitle}</span>
