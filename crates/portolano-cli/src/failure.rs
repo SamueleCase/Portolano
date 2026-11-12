@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use portolano_connectors::ConnectError;
 use portolano_connectors::secret_input::SecretInputError;
 use portolano_core::{Document, VaultError};
-use portolano_ops::OpsError;
+use portolano_ops::{ErrorCategory, OpsError};
 
 use crate::output::{short_id, visible};
 
@@ -142,62 +142,37 @@ fn exit_code(error: &anyhow::Error) -> i32 {
         if let Some(error) = cause.downcast_ref::<CliError>() {
             return error.exit_code();
         }
-        if let Some(error) = cause.downcast_ref::<OpsError>() {
-            return ops_code(error);
-        }
-        if let Some(error) = cause.downcast_ref::<ConnectError>() {
-            return connect_code(error);
-        }
-        if let Some(error) = cause.downcast_ref::<portolano_core::Error>() {
-            return core_code(error);
-        }
-        if cause.downcast_ref::<VaultError>().is_some() {
-            return EXIT_VAULT;
-        }
+        let category = if let Some(error) = cause.downcast_ref::<OpsError>() {
+            error.category()
+        } else if let Some(error) = cause.downcast_ref::<ConnectError>() {
+            error.into()
+        } else if let Some(error) = cause.downcast_ref::<portolano_core::Error>() {
+            error.into()
+        } else if let Some(error) = cause.downcast_ref::<VaultError>() {
+            error.into()
+        } else {
+            continue;
+        };
+        return category_code(category);
     }
     EXIT_ERROR
 }
 
-fn ops_code(error: &OpsError) -> i32 {
-    match error {
-        OpsError::Core(error) => core_code(error),
-        OpsError::Vault(_) => EXIT_VAULT,
-        OpsError::Connect(error) => connect_code(error),
-        OpsError::VaultFileConflict { .. }
-        | OpsError::KeyFileAndVaultKey
-        | OpsError::CredentialWithLogin { .. }
-        | OpsError::UnknownImportFormat { .. } => EXIT_USAGE,
-        OpsError::NotAConnection { .. } => EXIT_CONNECT,
-        OpsError::EmptyName
-        | OpsError::NotACredential { .. }
-        | OpsError::InvalidJumpHost { .. }
-        | OpsError::ImportTooDeep { .. }
-        | OpsError::EmptyHost { .. }
-        | OpsError::InvalidPort { .. }
-        | OpsError::InvalidColor { .. }
-        | OpsError::UnknownProtocol { .. }
-        | OpsError::InvalidSettings { .. }
-        | OpsError::UnknownConfigKey { .. }
-        | OpsError::InvalidConfigValue { .. } => EXIT_VALIDATION,
-        _ => EXIT_ERROR,
-    }
-}
-
-fn connect_code(error: &ConnectError) -> i32 {
-    match error {
-        ConnectError::Core(error) if core_code(error) == EXIT_NOT_FOUND => EXIT_NOT_FOUND,
-        ConnectError::Vault(_) => EXIT_VAULT,
-        _ => EXIT_CONNECT,
-    }
-}
-
-fn core_code(error: &portolano_core::Error) -> i32 {
-    match error {
-        portolano_core::Error::NotFound { .. }
-        | portolano_core::Error::Ambiguous { .. }
-        | portolano_core::Error::NodeNotFound { .. } => EXIT_NOT_FOUND,
-        portolano_core::Error::TooDeep { .. } => EXIT_VALIDATION,
-        _ => EXIT_ERROR,
+/// The exit code of an error category (SPEC §10.3, DEC-022.7).
+fn category_code(category: ErrorCategory) -> i32 {
+    match category {
+        ErrorCategory::NotFound | ErrorCategory::Ambiguous => EXIT_NOT_FOUND,
+        ErrorCategory::Usage => EXIT_USAGE,
+        ErrorCategory::Invalid => EXIT_VALIDATION,
+        ErrorCategory::VaultLocked | ErrorCategory::Vault => EXIT_VAULT,
+        ErrorCategory::Connect => EXIT_CONNECT,
+        ErrorCategory::Referenced
+        | ErrorCategory::Rejected
+        | ErrorCategory::ModifiedExternally
+        | ErrorCategory::DocumentMissing
+        | ErrorCategory::Unreadable
+        | ErrorCategory::Io
+        | ErrorCategory::Other => EXIT_ERROR,
     }
 }
 

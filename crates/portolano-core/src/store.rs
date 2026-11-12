@@ -138,7 +138,7 @@ impl Store {
     /// file changed after this store last read or wrote it; the document must
     /// be loaded again.
     /// [`Error::DocumentMissing`](crate::Error::DocumentMissing) if the file
-    /// was moved or deleted.
+    /// or its directory was moved or deleted.
     /// [`Error::Serialize`](crate::Error::Serialize),
     /// [`Error::Io`](crate::Error::Io).
     pub fn save(&self, doc: &mut Document) -> Result<()> {
@@ -146,15 +146,7 @@ impl Store {
             // Held for the whole save, so that saves through this store from
             // several threads do not interleave.
             let mut known = self.fingerprint();
-            let current = match fs::read(&self.path) {
-                Ok(current) => current,
-                Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                    return Err(Error::DocumentMissing {
-                        path: self.path.clone(),
-                    });
-                }
-                Err(source) => return Err(io_error(&self.path)(source)),
-            };
+            let current = read(&self.path)?;
             if fingerprint_of(&current) != *known {
                 return Err(self.modified_externally());
             }
@@ -165,6 +157,23 @@ impl Store {
             *known = fingerprint_of(&bytes);
             Ok(())
         })
+        .map_err(|error| self.missing_if_not_found(error))
+    }
+
+    /// Whether the file now differs from the bytes this store last read or
+    /// wrote, that is whether [`Store::save`] would refuse with
+    /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally). A
+    /// watcher of the file uses it to tell the saves of this store from
+    /// changes made by others (DEC-016.1). The file is read under the shared
+    /// lock, so a save in progress elsewhere is never seen half-written.
+    ///
+    /// # Errors
+    /// [`Error::DocumentMissing`](crate::Error::DocumentMissing) if the file
+    /// or its directory was moved or deleted, [`Error::Io`](crate::Error::Io).
+    pub fn changed_on_disk(&self) -> Result<bool> {
+        let current = with_lock(&self.path, Access::Shared, || read(&self.path))
+            .map_err(|error| self.missing_if_not_found(error))?;
+        Ok(fingerprint_of(&current) != *self.fingerprint())
     }
 
     /// The icon store next to this document (`<dir>/<stem>.icons/`).
@@ -186,6 +195,21 @@ impl Store {
         self.fingerprint
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// An I/O error that says a file is not there, while working on an open
+    /// document, means that the document or its directory was moved or
+    /// deleted: it becomes [`Error::DocumentMissing`]. The lock file lives
+    /// next to the document, so a missing directory fails there first.
+    fn missing_if_not_found(&self, error: Error) -> Error {
+        match error {
+            Error::Io { source, .. } if source.kind() == io::ErrorKind::NotFound => {
+                Error::DocumentMissing {
+                    path: self.path.clone(),
+                }
+            }
+            other => other,
+        }
     }
 
     fn modified_externally(&self) -> Error {

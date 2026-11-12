@@ -15,6 +15,7 @@ use crate::tree_util::node_path;
 
 /// The kind of a node, with the protocol of a connection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NodeType {
     /// A folder.
@@ -90,10 +91,12 @@ impl TypeFilter {
 
 /// A node as shown by `tree` and `list`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Entry {
     /// The node id.
     pub id: Uuid,
     /// Depth below the starting point: 0 for its children.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub depth: usize,
     /// The node name.
     pub name: String,
@@ -209,6 +212,7 @@ fn login_name(username: Option<&str>, domain: Option<&str>) -> String {
 
 /// Whether a secret is set in the document and present in the vault.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum SecretState {
     /// The document holds no reference.
@@ -235,6 +239,7 @@ impl SecretState {
 
 /// Where the effective credential comes from, with paths.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum OriginView {
     /// No credential.
@@ -259,6 +264,7 @@ pub enum OriginView {
 
 /// The private key of an effective credential.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum KeyView {
     /// A key file.
@@ -275,6 +281,7 @@ pub enum KeyView {
 
 /// The effective credential of a node, without secrets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct CredentialView {
     /// Where it comes from.
     pub origin: OriginView,

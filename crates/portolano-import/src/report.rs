@@ -9,6 +9,7 @@ use serde::Serialize;
 /// Summary of an import, printed as a table and saved as JSON by
 /// `import --report`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ImportReport {
     /// Id of the importer, such as `"royal"`.
     pub importer: String,
@@ -23,6 +24,7 @@ pub struct ImportReport {
     /// Items that were not fully imported (all items with `--verbose`).
     pub items: Vec<ReportItem>,
     /// Source fields without a mapping: type → field → occurrences.
+    #[cfg_attr(feature = "specta", specta(type = BTreeMap<String, BTreeMap<String, u32>>))]
     pub unmapped_fields: BTreeMap<String, BTreeMap<String, usize>>,
     /// Document-level warnings.
     pub warnings: Vec<String>,
@@ -72,21 +74,28 @@ impl ImportReport {
 
 /// Counts of one source type.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TypeCounts {
     /// Objects of this type in the source.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub source: usize,
     /// Imported completely.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub imported: usize,
     /// Imported with missing data.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub partial: usize,
     /// Kept as unsupported nodes.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub unsupported: usize,
     /// Not imported (for example in the trash).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub skipped: usize,
 }
 
 /// Outcome of one source object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ReportItem {
     /// Type in the source, such as `"RoyalSSHConnection"`.
     pub source_type: String,
@@ -102,6 +111,7 @@ pub struct ReportItem {
 
 /// How a source object was imported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum ItemStatus {
     /// Imported completely.

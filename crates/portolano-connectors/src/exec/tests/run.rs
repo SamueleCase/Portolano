@@ -73,6 +73,30 @@ fn secrets_never_reach_argv_or_environment_of_the_child() {
 }
 
 #[test]
+fn command_removes_every_inherited_child_variable() {
+    let temp = tempfile::tempdir().unwrap();
+    let plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);
+    let files = TempFiles::new(temp.path().join("files"));
+    let prepared =
+        prepare_with(&plan, &MemoryVault::default(), &AppConfig::default(), files).unwrap();
+
+    let command = prepared.command(false, None);
+
+    let removed: Vec<_> = command
+        .get_envs()
+        .filter(|(_, value)| value.is_none())
+        .map(|(key, _)| key.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(removed.len(), CHILD_ENV_REMOVE.len());
+    assert!(
+        CHILD_ENV_REMOVE
+            .iter()
+            .all(|name| removed.contains(&(*name).to_owned()))
+    );
+    assert!(CHILD_ENV_REMOVE.contains(&MASTER_PASSWORD_ENV));
+}
+
+#[test]
 fn askpass_socket_is_removed_when_the_program_exits() {
     let temp = tempfile::tempdir().unwrap();
     let output = temp.path().join("socket.txt");

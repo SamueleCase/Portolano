@@ -54,7 +54,7 @@ impl IconStore {
         let image = ImageType::detect(bytes).ok_or_else(|| Error::UnsupportedIcon {
             mime: mime.to_owned(),
         })?;
-        let sha256 = hex::encode(Sha256::digest(bytes));
+        let sha256 = sha256_hex(bytes);
         let path = self.dir.join(image.file_name(&sha256));
         // Under the shared lock, so that `gc` cannot remove the file between
         // the check and the refresh of its modification time.
@@ -318,8 +318,22 @@ fn end_of(haystack: &[u8], marker: &[u8]) -> Option<usize> {
         .map(|start| start + marker.len())
 }
 
-fn is_sha256_hex(text: &str) -> bool {
+/// The SHA-256 of `bytes` in lowercase hex: the stem of the file name that
+/// [`IconStore::add`] gives to an image with these bytes.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Whether `text` is a SHA-256 in lowercase hex, the only stem a stored
+/// image may have.
+pub fn is_sha256_hex(text: &str) -> bool {
     text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// The MIME type of the images stored with `extension` (`png`, `jpg`, `gif`,
+/// `tiff`, `svg`, `pdf`); `None` for any other extension.
+pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
+    ImageType::from_extension(extension).map(ImageType::mime)
 }
 
 /// Whether `path` is named `<sha256>.<extension of an accepted type>`.

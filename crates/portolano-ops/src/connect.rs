@@ -20,6 +20,7 @@ const RDP: &str = "rdp";
 /// Login data to ask before connecting: the credential of the connection is
 /// "ask at launch".
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct LoginRequest {
     /// The connection.
     pub node: Uuid,

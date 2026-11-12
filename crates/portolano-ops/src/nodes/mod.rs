@@ -85,12 +85,14 @@ pub struct NewNode {
 
 /// The result of [`add_node`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AddOutcome {
     /// Id of the new node.
     pub id: Uuid,
     /// Path of the new node.
     pub path: String,
     /// Secrets written to the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_written: usize,
 }
 

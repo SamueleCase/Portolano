@@ -1,0 +1,57 @@
+[package]
+name = "portolano-app"
+description = "Portolano desktop app (Tauri): commands over portolano-ops for the React frontend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# Distinct from the binary name, as in the Tauri template: Cargo cannot build
+# a library and a binary with the same name.
+name = "portolano_app_lib"
+
+# The executable inside `Portolano.app` is `portolano-app`, never `Portolano`:
+# APFS ignores case, and `Contents/MacOS/Portolano` would collide with the
+# `portolano` sidecar (SPEC-UI §4.10).
+[[bin]]
+name = "portolano-app"
+path = "src/main.rs"
+
+[dependencies]
+portolano-core = { workspace = true, features = ["specta"] }
+portolano-ops = { workspace = true, features = ["specta"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tauri.workspace = true
+tauri-plugin-dialog.workspace = true
+tauri-plugin-opener.workspace = true
+specta.workspace = true
+tauri-specta.workspace = true
+specta-typescript.workspace = true
+# Declared here for the sessions (UI-WP3: PTY of `ssh`, CHILD_ENV_REMOVE) and
+# the watcher of the document (UI-WP2), with the versions of SPEC-UI §2.1.
+portolano-connectors.workspace = true
+portable-pty.workspace = true
+notify.workspace = true
+notify-debouncer-full.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dev-dependencies]
+portolano-import = { workspace = true, features = ["specta"] }
+tauri = { workspace = true, features = ["test"] }
+pretty_assertions.workspace = true
+tempfile.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+# Reads the echo flag of the PTY in the askpass test.
+nix.workspace = true
+
+[lints]
+workspace = true

@@ -25,6 +25,13 @@ directories.workspace = true
 tempfile.workspace = true
 fd-lock.workspace = true
 tracing.workspace = true
+# Type descriptions for the TypeScript bindings of the app (SPEC-UI §3.5).
+specta = { workspace = true, optional = true }
+
+[features]
+# Derives `specta::Type` on the result types that the app passes to its
+# frontend as they are.
+specta = ["dep:specta"]
 
 [dev-dependencies]
 pretty_assertions.workspace = true
