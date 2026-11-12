@@ -1,14 +1,18 @@
 //! The `portolano-icon://` scheme, which serves the custom icons of the open
 //! document to `<img>` elements (SPEC-UI §4.7, DEC-024).
 //!
-//! Only names of stored images are accepted, `<sha256>.<ext>`, and only from
-//! the icon directory of the open document: the frontend cannot read any
-//! other file through it.
+//! Only names of stored images are accepted, `<sha256>.<ext>`, only regular
+//! files of the icon directory of the open document are read, and only bytes
+//! whose hash is the name are served: the frontend cannot read any other
+//! file through it, even one that a symlink or a hand-edited directory puts
+//! there.
 
-use std::fs;
-use std::io;
+use std::fs::{self, File};
+use std::io::{self, Read};
+use std::path::Path;
 
 use portolano_core::IconStore;
+use portolano_core::icons::{is_sha256_hex, mime_for_extension, sha256_hex};
 use portolano_core::model::Icon;
 use tauri::http::{Response, StatusCode, header};
 
@@ -16,8 +20,12 @@ use tauri::http::{Response, StatusCode, header};
 /// `portolano-icon://localhost/<sha256>.<ext>`.
 pub const SCHEME: &str = "portolano-icon";
 
-/// Length of a SHA-256 in lowercase hex.
-const SHA256_HEX_LEN: usize = 64;
+/// The largest icon served, in bytes. The core sets no limit when it stores
+/// an icon; icons are shown at most 52 px wide, and those of Royal documents
+/// weigh a few kilobytes. The limit bounds what one request makes the app
+/// read into memory from a directory that an imported or hand-edited
+/// document may have filled.
+const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
 
 /// The response to a request for `path` (the path of the URL, with its
 /// leading `/`), read from `icons`, the icon store of the open document.
@@ -32,9 +40,11 @@ pub fn respond(icons: Option<&IconStore>, path: &str) -> Response<Vec<u8>> {
     let Some(file) = icons.and_then(|icons| icons.path_for(&icon)) else {
         return empty(StatusCode::NOT_FOUND);
     };
-    match fs::read(&file) {
-        Ok(bytes) => image(mime, bytes),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => empty(StatusCode::NOT_FOUND),
+    match read_icon(&file) {
+        Ok(Some(bytes)) if sha256_hex(&bytes) == sha256 => image(mime, bytes),
+        // Missing, not a regular file, too large, or not the image the
+        // name promises.
+        Ok(_) => empty(StatusCode::NOT_FOUND),
         Err(error) => {
             tracing::warn!(%error, file = %file.display(), "lettura dell'icona non riuscita");
             empty(StatusCode::INTERNAL_SERVER_ERROR)
@@ -46,23 +56,33 @@ pub fn respond(icons: Option<&IconStore>, path: &str) -> Response<Vec<u8>> {
 /// `^[0-9a-f]{64}\.(png|jpg|gif|tiff|svg|pdf)$`; `None` for anything else.
 fn parse_name(name: &str) -> Option<(&str, &'static str)> {
     let (sha256, extension) = name.split_once('.')?;
-    let is_hash = sha256.len() == SHA256_HEX_LEN
-        && sha256
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte));
-    if !is_hash {
+    if !is_sha256_hex(sha256) {
         return None;
     }
-    let mime = match extension {
-        "png" => "image/png",
-        "jpg" => "image/jpeg",
-        "gif" => "image/gif",
-        "tiff" => "image/tiff",
-        "svg" => "image/svg+xml",
-        "pdf" => "application/pdf",
-        _ => return None,
+    Some((sha256, mime_for_extension(extension)?))
+}
+
+/// The bytes of `file` if it is a regular file (not a symlink) of at most
+/// [`MAX_ICON_BYTES`]; `None` if it is missing or not acceptable.
+fn read_icon(file: &Path) -> io::Result<Option<Vec<u8>>> {
+    let metadata = match fs::symlink_metadata(file) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
     };
-    Some((sha256, mime))
+    if !metadata.is_file() || metadata.len() > MAX_ICON_BYTES {
+        return Ok(None);
+    }
+    // The file may change between the check and the read: the read stays
+    // bounded, and the caller serves the bytes only if their hash is the
+    // name, so a swapped file is refused all the same.
+    let mut bytes = Vec::new();
+    File::open(file)?
+        .take(MAX_ICON_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    Ok(u64::try_from(bytes.len())
+        .is_ok_and(|len| len <= MAX_ICON_BYTES)
+        .then_some(bytes))
 }
 
 fn image(mime: &str, bytes: Vec<u8>) -> Response<Vec<u8>> {

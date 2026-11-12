@@ -97,3 +97,65 @@ fn nothing_is_served_without_an_open_document() {
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+/// Where the store keeps a PNG named after `sha256`.
+fn png_file(icons: &IconStore, sha256: &str) -> std::path::PathBuf {
+    icons
+        .path_for(&Icon::Custom {
+            sha256: sha256.to_owned(),
+            mime: "image/png".to_owned(),
+        })
+        .unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn symlink_to_a_file_outside_the_store_is_not_served() {
+    let dir = TempDir::new().unwrap();
+    let (icons, _) = store_with(&dir, PNG, "image/png");
+    // Named after its own hash, so that only the symlink is wrong.
+    let outside = dir.path().join("fuori.png");
+    let bytes = b"\x89PNG\r\n\x1a\nfuori-dalla-directory";
+    fs::write(&outside, bytes).unwrap();
+    let sha256 = sha256_hex(bytes);
+    std::os::unix::fs::symlink(&outside, png_file(&icons, &sha256)).unwrap();
+
+    let response = respond(Some(&icons), &format!("/{sha256}.png"));
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert!(response.body().is_empty());
+}
+
+#[test]
+fn file_whose_bytes_do_not_match_its_name_is_not_served() {
+    let dir = TempDir::new().unwrap();
+    let (icons, path) = store_with(&dir, PNG, "image/png");
+    let sha256 = sha256_hex(PNG);
+    fs::write(
+        png_file(&icons, &sha256),
+        b"\x89PNG\r\n\x1a\naltro contenuto",
+    )
+    .unwrap();
+
+    let response = respond(Some(&icons), &path);
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        header(&response, header::X_CONTENT_TYPE_OPTIONS),
+        Some("nosniff")
+    );
+}
+
+#[test]
+fn file_larger_than_the_limit_is_not_served() {
+    let dir = TempDir::new().unwrap();
+    let (icons, _) = store_with(&dir, PNG, "image/png");
+    let mut bytes = PNG.to_vec();
+    bytes.resize(usize::try_from(MAX_ICON_BYTES).unwrap() + 1, 0);
+    let sha256 = sha256_hex(&bytes);
+    fs::write(png_file(&icons, &sha256), &bytes).unwrap();
+
+    let response = respond(Some(&icons), &format!("/{sha256}.png"));
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
