@@ -1,0 +1,41 @@
+.severity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.marker {
+  flex: none;
+  width: var(--size-marker);
+  height: var(--size-marker);
+}
+
+.label {
+  font-weight: var(--font-weight-strong);
+}
+
+.error .marker {
+  background: var(--color-error);
+  transform: rotate(45deg);
+}
+
+.error .label {
+  color: var(--color-error-text);
+}
+
+.warning .marker {
+  border-radius: var(--radius-round);
+  background: var(--color-warn);
+}
+
+.warning .label {
+  color: var(--color-warn);
+}
+
+.info .marker {
+  border: var(--border-width-strong) solid var(--color-info);
+}
+
+.info .label {
+  color: var(--color-info);
+}

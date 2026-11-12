@@ -1,0 +1,23 @@
+.mode {
+  flex: none;
+  padding: var(--space-fine-3) var(--space-fine-10);
+  border-radius: var(--radius-pill);
+  background: var(--color-active);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  white-space: nowrap;
+}
+
+.modeDetail {
+  padding: var(--space-1) var(--space-fine-11);
+}
+
+.source {
+  flex: none;
+  padding: var(--space-fine-2) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-chip);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-group);
+  white-space: nowrap;
+}

@@ -1,0 +1,63 @@
+.badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-fine-6);
+  padding: var(--space-1) var(--space-fine-10);
+  border: var(--border-width) solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-secondary);
+  white-space: nowrap;
+}
+
+.marker {
+  flex: none;
+  width: var(--size-dot);
+  height: var(--size-dot);
+}
+
+.connected {
+  color: var(--color-ok);
+}
+
+.connected .marker {
+  border-radius: var(--radius-round);
+  background: currentColor;
+}
+
+.connecting {
+  color: var(--color-accent-text);
+}
+
+.connecting .marker {
+  border: var(--border-width-strong) solid currentColor;
+  border-radius: var(--radius-round);
+}
+
+.error {
+  border-color: var(--color-error);
+  color: var(--color-error-text);
+}
+
+.error .marker {
+  background: var(--color-error);
+  transform: rotate(45deg);
+}
+
+.warning {
+  color: var(--color-warn);
+}
+
+.info {
+  color: var(--color-info);
+}
+
+.warning .marker,
+.info .marker {
+  display: none;
+}
+
+.count {
+  padding: var(--space-fine-3) var(--space-fine-10);
+  font-size: var(--font-size-label);
+}

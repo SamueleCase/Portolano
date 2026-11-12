@@ -1,0 +1,34 @@
+.dot {
+  display: inline-block;
+  flex: none;
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-round);
+  background: transparent;
+  transition: background var(--duration-base) var(--ease-out);
+}
+
+.large {
+  width: var(--size-dot-large);
+  height: var(--size-dot-large);
+}
+
+.connecting {
+  background: var(--color-accent-text);
+}
+
+.connected {
+  background: var(--color-ok);
+}
+
+.failed {
+  background: var(--color-error);
+}
+
+.detail {
+  background: var(--color-text-muted);
+}
+
+.validation {
+  background: var(--color-warn);
+}
