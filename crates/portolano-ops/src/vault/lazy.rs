@@ -1,6 +1,6 @@
 //! A vault opened on first use.
 
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use portolano_core::{
     MasterPasswordSource, Secret, SecretRef, Vault, VaultError, VaultSelection, open_vault,
@@ -44,6 +44,18 @@ impl LazyVault {
     /// Whether the vault has been opened.
     pub fn is_open(&self) -> bool {
         self.slot().is_ok_and(|slot| slot.is_some())
+    }
+
+    /// Closes the opened vault, if any, dropping it with the key derived from
+    /// the master password: the next use opens it again, asking the master
+    /// password again for the file vault.
+    ///
+    /// Dropping the vault is safe whatever state an earlier panic left it
+    /// in, so locking also recovers a vault that was no longer usable.
+    pub fn lock(&self) {
+        let mut slot = self.opened.lock().unwrap_or_else(PoisonError::into_inner);
+        slot.take();
+        self.opened.clear_poison();
     }
 
     /// Runs `operation` on the vault, opening it first if needed.
@@ -295,5 +307,53 @@ mod tests {
         assert!(vault.contains(&reference).is_err());
         assert!(!vault.contains(&reference).unwrap());
         assert!(vault.is_open());
+    }
+
+    #[test]
+    fn lock_closes_the_opened_vault() {
+        let vault = memory_vault();
+        vault.contains(&SecretRef::new()).unwrap();
+
+        vault.lock();
+
+        assert!(!vault.is_open());
+    }
+
+    #[test]
+    fn use_after_lock_asks_the_master_password_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let asked = Arc::new(AtomicUsize::new(0));
+        let vault = LazyVault::new(
+            VaultSelection::File {
+                path: crate::testutil::fast_file_vault(dir.path()),
+            },
+            Box::new(CountingSource(Arc::clone(&asked))),
+        );
+        let reference = SecretRef::new();
+        vault
+            .set(&reference, &Secret::new("sentinel-lazy".to_owned()))
+            .unwrap();
+
+        vault.lock();
+
+        assert!(vault.contains(&reference).unwrap());
+        assert_eq!(asked.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn lock_makes_a_poisoned_vault_usable_again() {
+        let vault = memory_vault();
+        std::thread::scope(|scope| {
+            let poisoner = scope.spawn(|| {
+                let _slot = vault.opened.lock().unwrap();
+                panic!("poisons the vault mutex");
+            });
+            assert!(poisoner.join().is_err());
+        });
+        assert!(vault.contains(&SecretRef::new()).is_err());
+
+        vault.lock();
+
+        assert!(!vault.contains(&SecretRef::new()).unwrap());
     }
 }
