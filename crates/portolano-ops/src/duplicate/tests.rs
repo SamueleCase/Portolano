@@ -59,7 +59,7 @@ fn references_inside_the_copy_point_to_the_copy() {
 
     duplicate(&mut stored, &MemoryVault::default(), "/Prod").unwrap();
 
-    let copy_admin = id_of(&stored.doc, "/Prod (copia)/Admin");
+    let copy_admin = id_of(&stored.doc, "/Prod (copia)/Admin (copia)");
     let copy_web01 = stored
         .doc
         .find(id_of(&stored.doc, "/Prod (copia)/web01"))
@@ -231,7 +231,7 @@ fn renamed_credentials_are_listed() {
 }
 
 #[test]
-fn copied_credential_nobody_names_keeps_its_name() {
+fn every_copied_credential_gets_a_name_no_credential_has() {
     let mut stored = stored(vec![folder(
         "Prod",
         vec![credential("Admin", "admin", None)],
@@ -239,8 +239,88 @@ fn copied_credential_nobody_names_keeps_its_name() {
 
     let outcome = duplicate(&mut stored, &MemoryVault::default(), "/Prod").unwrap();
 
-    assert!(outcome.renamed.is_empty());
-    id_of(&stored.doc, "/Prod (copia)/Admin");
+    let renamed: Vec<&str> = outcome
+        .renamed
+        .iter()
+        .map(|node| node.path.as_str())
+        .collect();
+    assert_eq!(renamed, vec!["/Prod (copia)/Admin (copia)"]);
+}
+
+#[test]
+fn copy_skips_a_name_another_credential_has_that_a_reference_looks_for() {
+    let mut stored = stored(vec![
+        credential("X", "admin", None),
+        folder("Other", vec![credential("X (copia)", "altro", None)]),
+        connection_with("web01", "ssh", by_name("X (copia)")),
+    ]);
+    let other = id_of(&stored.doc, "/Other/X (copia)");
+
+    let outcome = duplicate(&mut stored, &MemoryVault::default(), "/X").unwrap();
+
+    assert_eq!(outcome.path, "/X (copia 2)");
+    assert_eq!(credential_of(&stored.doc, "/web01"), other);
+}
+
+#[test]
+fn copy_does_not_take_a_name_a_pending_reference_looks_for() {
+    let mut stored = stored(vec![
+        credential("X", "admin", None),
+        connection_with("web01", "ssh", by_name("x (copia)")),
+    ]);
+
+    let outcome = duplicate(&mut stored, &MemoryVault::default(), "/X").unwrap();
+
+    assert_eq!(outcome.path, "/X (copia 2)");
+    assert!(
+        stored
+            .doc
+            .resolve_credential(id_of(&stored.doc, "/web01"))
+            .is_err()
+    );
+}
+
+#[test]
+fn copy_does_not_take_a_name_a_reference_in_the_settings_looks_for() {
+    let mut dc01 = connection("dc01", "rdp");
+    if let Some(connection) = dc01.as_connection_mut() {
+        connection.settings.insert(
+            "gateway_credential".to_owned(),
+            serde_json::json!({ "mode": "by_name", "name": "X (copia)" }),
+        );
+    }
+    let mut stored = stored(vec![credential("X", "admin", None), dc01]);
+
+    let outcome = duplicate(&mut stored, &MemoryVault::default(), "/X").unwrap();
+
+    assert_eq!(outcome.path, "/X (copia 2)");
+}
+
+#[test]
+fn reference_by_name_in_the_settings_of_the_copy_points_to_the_copy() {
+    let mut dc01 = connection("dc01", "rdp");
+    if let Some(connection) = dc01.as_connection_mut() {
+        connection.settings.insert(
+            "gateway_credential".to_owned(),
+            serde_json::json!({ "mode": "by_name", "name": "Gateway" }),
+        );
+    }
+    let mut stored = stored(vec![folder(
+        "Prod",
+        vec![credential("Gateway", "gw", None), dc01],
+    )]);
+
+    duplicate(&mut stored, &MemoryVault::default(), "/Prod").unwrap();
+
+    let copied_gateway = id_of(&stored.doc, "/Prod (copia)/Gateway (copia)");
+    let dc01 = stored
+        .doc
+        .find(id_of(&stored.doc, "/Prod (copia)/dc01"))
+        .unwrap();
+    assert_eq!(
+        dc01.as_connection().unwrap().settings["gateway_credential"],
+        serde_json::json!({ "mode": "by_id", "$ref": copied_gateway })
+    );
 }
 
 #[test]

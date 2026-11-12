@@ -4,8 +4,9 @@
 //!
 //! - A name inside the copy that resolves to a credential of the copied
 //!   subtree becomes a reference by id to the copy of that credential.
-//! - A copied credential whose name some reference by name looks for gets a
-//!   name no other node has, so that the name stays unambiguous.
+//! - A copied credential gets a name that no credential has and that no
+//!   reference by name looks for, so that no name becomes ambiguous and no
+//!   pending name starts resolving to the copy.
 
 use std::collections::{HashMap, HashSet};
 use std::{mem, slice};
@@ -149,10 +150,12 @@ fn collect_names(value: &Value, names: &mut HashSet<String>) {
     }
 }
 
-/// Gives every credential of `copy` whose name is in `wanted` a name that
-/// no node of `doc` or of the copy has, ignoring case: `<name> (copia)`,
-/// then `(copia 2)`, … Returns the renamed credentials.
-pub(super) fn rename_wanted(
+/// Gives every credential of `copy` a name that, ignoring case, no node of
+/// `doc` or of the copy has and that no reference by name looks for
+/// (`wanted`, resolved or not): `<name> (copia)`, then `(copia 2)`, … so
+/// that no reference by name resolves differently, now or later. Returns
+/// the renamed credentials.
+pub(super) fn rename_credentials(
     copy: &mut Node,
     doc: &Document,
     wanted: &HashSet<String>,
@@ -160,13 +163,14 @@ pub(super) fn rename_wanted(
     let mut taken: HashSet<String> = doc
         .walk()
         .map(|(_, node)| node.name.to_lowercase())
+        .chain(wanted.iter().cloned())
         .collect();
     for_each_node_mut(slice::from_mut(copy), &mut |node| {
         taken.insert(node.name.to_lowercase());
     });
     let mut renamed = Vec::new();
     for_each_node_mut(slice::from_mut(copy), &mut |node| {
-        if node.as_credential().is_none() || !wanted.contains(&node.name.to_lowercase()) {
+        if node.as_credential().is_none() {
             return;
         }
         let mut candidate = format!("{} (copia)", node.name);

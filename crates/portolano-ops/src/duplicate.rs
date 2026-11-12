@@ -14,7 +14,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use self::by_name::{ids_in_order, rename_wanted, retarget, wanted_names};
+use self::by_name::{ids_in_order, rename_credentials, retarget, wanted_names};
 use crate::Result;
 use crate::commit::Change;
 use crate::import::remap::regenerate_ids;
@@ -29,9 +29,8 @@ pub struct DuplicateOutcome {
     pub id: Uuid,
     /// Path of the copy.
     pub path: String,
-    /// Credentials of the copy renamed because a reference by name looks for
-    /// the name of their original: with the same name it would become
-    /// ambiguous (DEC-031.3).
+    /// The credentials of the copy, renamed so that their name is no other
+    /// credential's and no reference by name looks for it (DEC-031.3).
     pub renamed: Vec<NodeRef>,
     /// Secrets copied in the vault under their new references.
     #[cfg_attr(feature = "specta", specta(type = u32))]
@@ -76,7 +75,7 @@ pub fn duplicate_node(
         .zip(ids_in_order(&copy))
         .collect();
     retarget(&mut copy, doc, &copies)?;
-    let renamed = rename_wanted(&mut copy, doc, &wanted_names(doc));
+    let renamed = rename_credentials(&mut copy, doc, &wanted_names(doc));
     if !renamed.contains(&copy.id) {
         copy.name = copy_name(doc, parent, &original.name)?;
     }
