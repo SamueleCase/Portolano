@@ -79,16 +79,13 @@ pub(crate) fn preview(
     options: ImportOptionsInput,
 ) -> Result<ImportPreviewView, IpcError> {
     let (path, input) = chosen_input(state)?;
-    state.with_document(|open| {
-        let preview = import_requests(
-            open.document(),
-            state.importers(),
-            request(&path, &input, options),
-        )?;
-        Ok(ImportPreviewView {
-            result: preview.result,
-            requests: preview.requests.into_iter().map(Into::into).collect(),
-        })
+    // Parsing a large file takes time: it runs on a copy of the document,
+    // without holding its lock.
+    let doc = state.with_document(|open| Ok(open.document().clone()))?;
+    let preview = import_requests(&doc, state.importers(), request(&path, &input, options))?;
+    Ok(ImportPreviewView {
+        result: preview.result,
+        requests: preview.requests.into_iter().map(Into::into).collect(),
     })
 }
 

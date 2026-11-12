@@ -119,3 +119,23 @@ fn the_vault_file_holds_no_typed_secret_in_clear() {
 
     assert!(!app.files_text().contains(SENTINEL));
 }
+
+#[test]
+fn vault_of_another_configuration_is_opened_anew() {
+    let app = TestApp::new();
+    unlock(&app.state, secret(TEST_MASTER_PASSWORD)).unwrap();
+    let other = app.dir.path().join("altro-vault.json");
+    let old = app.dir.path().join("vault.json").display().to_string();
+    let config = fs::read_to_string(&app.state.paths().config).unwrap();
+    fs::write(
+        &app.state.paths().config,
+        config.replace(&old, &other.display().to_string()),
+    )
+    .unwrap();
+
+    let status = status(&app.state).unwrap();
+
+    assert_eq!(status.path, Some(other.display().to_string()));
+    assert!(status.locked);
+    assert!(!status.exists);
+}

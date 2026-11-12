@@ -37,12 +37,18 @@ pub async fn search<R: Runtime>(app: AppHandle<R>, query: String) -> Result<Vec<
     .await
 }
 
+// The views read the vault once per secret (the keychain may take a while
+// for each): they work on a copy of the document, so that the lock of the
+// document is not held meanwhile and other commands are not blocked.
+
 pub(crate) fn tree_of(state: &AppState) -> Result<TreeView, IpcError> {
     let vault = state.vault()?;
-    state.with_document(|open| tree_view(open.document(), state.protocols(), vault.as_ref()))
+    let doc = state.with_document(|open| Ok(open.document().clone()))?;
+    tree_view(&doc, state.protocols(), vault.as_ref())
 }
 
 pub(crate) fn details(state: &AppState, id: Uuid) -> Result<NodeDetailsView, IpcError> {
     let vault = state.vault()?;
-    state.with_document(|open| details_of(open.document(), state.protocols(), vault.as_ref(), id))
+    let doc = state.with_document(|open| Ok(open.document().clone()))?;
+    details_of(&doc, state.protocols(), vault.as_ref(), id)
 }
