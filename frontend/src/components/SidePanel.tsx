@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import styles from "./SidePanel.module.css";
 import { useModal } from "./useModal";
+import { visibleText } from "./visibleText";
 
 interface SidePanelProps {
   open: boolean;
@@ -35,7 +36,7 @@ export function SidePanel({ open, onClose, label, initialFocus, children }: Side
           ref={surface}
           role="dialog"
           aria-modal="true"
-          aria-label={label}
+          aria-label={visibleText(label)}
           tabIndex={-1}
           className={styles.panel}
           onKeyDown={keyDown}

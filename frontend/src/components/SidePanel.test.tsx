@@ -39,4 +39,14 @@ describe("SidePanel", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("shows control characters of its label", () => {
+    render(
+      <SidePanel open onClose={vi.fn()} label={"Modifica web\u001b01"}>
+        <TextField label="Nome" />
+      </SidePanel>,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Modifica web\\u{1b}01" })).toBeInTheDocument();
+  });
 });
