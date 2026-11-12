@@ -74,6 +74,18 @@ const INTERRUPTED_PROBE: &str = "#!/bin/sh\n\
     printf 'USCITA=%s\\n' \"$?\"\n\
     read line\n";
 
+/// As [`ANSWERING_PROBE`], but with job control, as in a shell of the user:
+/// the client runs as a foreground job, whose group Ctrl-Z stops. Without
+/// it the probe leads an orphaned group, for which the system discards the
+/// stop signals of the terminal.
+const SUSPENDED_PROBE: &str = "#!/bin/sh\n\
+    set -m\n\
+    \"$SSH_ASKPASS\" \"$1\" </dev/null >/dev/null 2>&1\n\
+    printf 'USCITA=%s\\n' \"$?\"\n";
+
+/// How often to read the echo flag while waiting for it to change.
+const POLL: Duration = Duration::from_millis(10);
+
 /// Writes `script` as an executable probe in `dir`.
 fn probe(dir: &TempDir, script: &str) -> PathBuf {
     let path = dir.path().join("ssh-probe.sh");
@@ -137,6 +149,19 @@ impl Terminal {
             .unwrap_or_else(|| panic!("termios della PTY non leggibili"))
             .local_flags
             .contains(LocalFlags::ECHO)
+    }
+
+    /// Waits until the PTY echoes again what is typed.
+    fn wait_for_echo_on(&self) {
+        let deadline = Instant::now() + TIMEOUT;
+        while !self.echoes() {
+            assert!(
+                Instant::now() < deadline,
+                "l'eco della PTY non è tornato entro {TIMEOUT:?}; terminale: {:?}",
+                self.seen
+            );
+            std::thread::sleep(POLL);
+        }
     }
 
     /// Reads the output until the PTY closes; returns everything shown.
@@ -297,4 +322,22 @@ fn interrupted_hidden_prompt_turns_the_echo_back_on() {
     assert!(session.terminal.echoes(), "{:?}", session.terminal.seen);
     session.terminal.type_line("");
     session.finish();
+}
+
+#[test]
+fn ctrl_z_on_a_hidden_prompt_waits_until_the_echo_is_back() {
+    let dir = TempDir::new().unwrap();
+    let mut session = run_in_pty(&dir, SUSPENDED_PROBE, UNKNOWN_PROMPT);
+    session.terminal.wait_for(UNKNOWN_PROMPT);
+
+    // Ctrl-Z, as typed in the terminal: SIGTSTP to the foreground group.
+    session.terminal.writer.write_all(b"\x1a").unwrap();
+    session.terminal.writer.flush().unwrap();
+    // A client stopped at once would keep the echo off and never read this.
+    session.terminal.type_line("424242");
+
+    session.terminal.wait_for_echo_on();
+    // The stop reached the client after the restore. Ending the probe
+    // orphans the stopped client, which the system then hangs up.
+    session.child.kill().unwrap();
 }

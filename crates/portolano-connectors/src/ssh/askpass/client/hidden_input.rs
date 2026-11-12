@@ -11,6 +11,11 @@
 //! of OpenSSH does: the signals are blocked and a thread waits for them,
 //! restores the terminal and raises the signal again, so that the process
 //! still ends as the signal demands.
+//!
+//! The signals that stop the process (Ctrl-Z, background terminal access)
+//! are blocked too but not waited for: a process stopped with the echo off
+//! would leave the terminal mute until resumed. They stay pending and arrive
+//! when the guard restores the mask, with the terminal already restored.
 
 use std::io;
 use std::os::fd::{AsFd, OwnedFd};
@@ -26,6 +31,10 @@ const ENDING_SIGNALS: [Signal; 4] = [
     Signal::SIGQUIT,
     Signal::SIGTERM,
 ];
+
+/// Signals whose default action stops the process: deferred until the
+/// terminal is restored.
+const STOPPING_SIGNALS: [Signal; 3] = [Signal::SIGTSTP, Signal::SIGTTIN, Signal::SIGTTOU];
 
 /// Echo flags turned off while the input is hidden. The line stays
 /// canonical, so the terminal still handles erasing and the line end.
@@ -70,35 +79,32 @@ impl HiddenInput {
     ///
     /// # Errors
     /// The terminal modes cannot be read or set, or the signal thread cannot
-    /// start; the terminal is then left as it was.
+    /// start; the terminal and the mask are then left as they were.
     pub(super) fn start(terminal: impl AsFd) -> io::Result<HiddenInput> {
         let original = tcgetattr(&terminal)?;
         let saved = SavedModes {
             terminal: terminal.as_fd().try_clone_to_owned()?,
             original,
         };
-        let watched = saved.try_clone()?;
-        let signals = ENDING_SIGNALS
-            .into_iter()
-            .fold(SigSet::empty(), |mut set, signal| {
-                set.add(signal);
-                set
-            });
-        // Blocked before the thread starts, which inherits the mask: blocked
-        // in every thread, the signals wait for `sigwait` instead of ending
-        // the process.
-        let previous_mask = signals.thread_swap_mask(SigmaskHow::SIG_BLOCK)?;
+        let ending = signal_set(&ENDING_SIGNALS);
+        let blocked = signal_set(&[ENDING_SIGNALS.as_slice(), &STOPPING_SIGNALS].concat());
+        // Blocked before the echo goes off and before the thread starts,
+        // which inherits the mask: a signal that arrives in between stays
+        // pending for `sigwait` instead of ending the process with the echo
+        // off. From here on, dropping the guard undoes everything.
+        let previous_mask = blocked.thread_swap_mask(SigmaskHow::SIG_BLOCK)?;
         let guard = HiddenInput {
             saved,
             previous_mask,
         };
-        std::thread::Builder::new()
-            .name("portolano-askpass-signals".to_owned())
-            .spawn(move || restore_on_signal(&signals, &watched))?;
 
         let mut hidden = guard.saved.original.clone();
         hidden.local_flags.remove(ECHO_FLAGS);
         tcsetattr(&guard.saved.terminal, SetArg::TCSANOW, &hidden)?;
+        let watched = guard.saved.try_clone()?;
+        std::thread::Builder::new()
+            .name("portolano-askpass-signals".to_owned())
+            .spawn(move || restore_on_signal(&ending, &watched))?;
         Ok(guard)
     }
 }
@@ -110,6 +116,13 @@ impl Drop for HiddenInput {
         // action, to a terminal already restored.
         let _ = self.previous_mask.thread_set_mask();
     }
+}
+
+fn signal_set(signals: &[Signal]) -> SigSet {
+    signals.iter().fold(SigSet::empty(), |mut set, signal| {
+        set.add(*signal);
+        set
+    })
 }
 
 /// Waits for one of `signals`, restores the terminal and raises the signal
@@ -174,5 +187,25 @@ mod tests {
             SigSet::thread_get_mask().unwrap().contains(Signal::SIGINT),
             before.contains(Signal::SIGINT)
         );
+    }
+
+    #[test]
+    fn stopping_signals_are_deferred_while_the_input_is_hidden() {
+        let terminal = terminal();
+        let before = SigSet::thread_get_mask().unwrap();
+
+        let hidden = HiddenInput::start(&terminal.slave).unwrap();
+        let during = SigSet::thread_get_mask().unwrap();
+        drop(hidden);
+        let after = SigSet::thread_get_mask().unwrap();
+
+        for signal in STOPPING_SIGNALS {
+            assert!(during.contains(signal), "{signal:?}");
+            assert_eq!(
+                after.contains(signal),
+                before.contains(signal),
+                "{signal:?}"
+            );
+        }
     }
 }
