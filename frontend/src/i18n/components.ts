@@ -186,7 +186,6 @@ export const components = {
     keychain: "Portachiavi di sistema",
     fileLocked: "Vault su file · bloccato",
     fileUnlocked: "Vault su file · sbloccato",
-    unlock: "Sblocca il vault",
     nodes: { one: "{n} nodo", other: "{n} nodi" },
   },
 } as const;

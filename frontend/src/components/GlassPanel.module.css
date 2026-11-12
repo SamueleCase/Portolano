@@ -1,0 +1,15 @@
+.glass {
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-glass-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  backdrop-filter: var(--blur-panel);
+}
+
+.panel {
+  border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-edge);
+}
+
+.inner {
+  border-radius: var(--radius-panel);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { interpolate, plural } from "./format";
+import { interpolate, percent, plural } from "./format";
 
 const nodes = { one: "{n} nodo", other: "{n} nodi" };
 
@@ -15,6 +15,16 @@ describe("plural", () => {
 
   it("writes large counts with the Italian grouping", () => {
     expect(plural(12000, nodes)).toBe("12.000 nodi");
+  });
+});
+
+describe("percent", () => {
+  it("writes a share with a decimal comma", () => {
+    expect(percent(118, 142)).toBe("83,1%");
+  });
+
+  it("is zero for an empty total", () => {
+    expect(percent(0, 0)).toBe("0,0%");
   });
 });
 

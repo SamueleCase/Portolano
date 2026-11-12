@@ -1,0 +1,26 @@
+.tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail {
+  width: var(--size-tile-large);
+  height: var(--size-tile-large);
+  border-radius: var(--radius-panel);
+  background: var(--color-field);
+}
+
+.editor {
+  width: var(--size-tile);
+  height: var(--size-tile);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-field);
+}
+
+/* The color of the node as a ring inside the tile. */
+.tinted {
+  box-shadow: inset 0 0 0 var(--border-width-focus) var(--node-color);
+}
