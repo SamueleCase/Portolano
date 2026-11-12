@@ -3370,6 +3370,7 @@ dependencies = [
 name = "portolano-app"
 version = "0.1.0"
 dependencies = [
+ "nix 0.28.0",
  "notify",
  "notify-debouncer-full",
  "portable-pty",

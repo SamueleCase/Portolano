@@ -49,5 +49,9 @@ tauri = { workspace = true, features = ["test"] }
 pretty_assertions.workspace = true
 tempfile.workspace = true
 
+[target.'cfg(unix)'.dev-dependencies]
+# Reads the echo flag of the PTY in the askpass test.
+nix.workspace = true
+
 [lints]
 workspace = true
