@@ -10,7 +10,7 @@ interface Jump {
   name: string;
 }
 
-function Jumps({ onRemove = vi.fn() }: { onRemove?: (index: number) => void }) {
+function Jumps({ onRemove }: { onRemove?: (index: number) => void }) {
   const [jumps, setJumps] = useState<Jump[]>([
     { id: "a", name: "bastion" },
     { id: "b", name: "deploy@198.51.100.40:22" },
@@ -31,7 +31,11 @@ function Jumps({ onRemove = vi.fn() }: { onRemove?: (index: number) => void }) {
           return next;
         })
       }
-      onRemove={onRemove}
+      onRemove={(index) => {
+        onRemove?.(index);
+        setJumps((current) => current.filter((_, at) => at !== index));
+      }}
+      footer={<button type="button">+ Indirizzo libero</button>}
     />
   );
 }
@@ -94,5 +98,31 @@ describe("SortableList", () => {
     await userEvent.click(screen.getByRole("button", { name: "Rimuovi gw" }));
 
     expect(onRemove).toHaveBeenCalledWith(2);
+  });
+
+  it("moves the focus to the next row after removing one", async () => {
+    render(<Jumps />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Rimuovi bastion" }));
+
+    expect(screen.getByRole("button", { name: "Sposta deploy@198.51.100.40:22" })).toHaveFocus();
+  });
+
+  it("moves the focus to the previous row after removing the last one", async () => {
+    render(<Jumps />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Rimuovi gw" }));
+
+    expect(screen.getByRole("button", { name: "Sposta deploy@198.51.100.40:22" })).toHaveFocus();
+  });
+
+  it("moves the focus to the add buttons when the list empties", async () => {
+    render(<Jumps />);
+
+    for (const name of ["bastion", "deploy@198.51.100.40:22", "gw"]) {
+      await userEvent.click(screen.getByRole("button", { name: `Rimuovi ${name}` }));
+    }
+
+    expect(screen.getByRole("button", { name: "+ Indirizzo libero" })).toHaveFocus();
   });
 });

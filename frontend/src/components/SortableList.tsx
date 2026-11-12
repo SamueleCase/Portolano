@@ -10,6 +10,7 @@ import {
 
 import { interpolate } from "../i18n/format";
 import { texts } from "../i18n/it";
+import { focusableIn } from "./focusable";
 import styles from "./SortableList.module.css";
 import { SortableRow } from "./SortableRow";
 import { visibleText } from "./visibleText";
@@ -24,7 +25,12 @@ interface SortableListProps<T> {
   /** Moves the item at `from` to `to`; the parent owns the order. */
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
+  /** The add buttons under the list ("+ Dall'albero…"): the focus goes there when it empties. */
+  footer?: ReactNode;
 }
+
+/** Where the focus goes once the parent has applied a change. */
+type PendingFocus = { kind: "handle"; key: string } | { kind: "footer" };
 
 interface Drag {
   index: number;
@@ -61,25 +67,37 @@ export function SortableList<T>({
   renderItem,
   onMove,
   onRemove,
+  footer,
 }: SortableListProps<T>) {
   const instructionsId = useId();
   const handles = useRef(new Map<string, HTMLButtonElement>());
   const [drag, setDrag] = useState<Drag>();
   const [announcement, setAnnouncement] = useState("");
-  // The handle to focus once the parent has applied a move.
-  const pendingFocus = useRef<string | undefined>(undefined);
+  const footerBox = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<PendingFocus | undefined>(undefined);
 
   useEffect(() => {
-    const key = pendingFocus.current;
+    const pending = pendingFocus.current;
     pendingFocus.current = undefined;
-    if (key) handles.current.get(key)?.focus();
+    if (pending?.kind === "handle") handles.current.get(pending.key)?.focus();
+    if (pending?.kind === "footer" && footerBox.current) focusableIn(footerBox.current)[0]?.focus();
   }, [items]);
+
+  // After "×" the focus stays in the list: on the next row, else the
+  // previous one, else the add buttons.
+  const remove = (index: number) => {
+    const neighbour = items[index + 1] ?? items[index - 1];
+    pendingFocus.current = neighbour
+      ? { kind: "handle", key: itemKey(neighbour) }
+      : { kind: "footer" };
+    onRemove(index);
+  };
 
   const move = (from: number, to: number) => {
     const item = items[from];
     if (!item || from === to) return;
     onMove(from, to);
-    pendingFocus.current = itemKey(item);
+    pendingFocus.current = { kind: "handle", key: itemKey(item) };
     setAnnouncement(
       interpolate(texts.components.sortable.moved, {
         name: visibleText(itemName(item)),
@@ -154,7 +172,7 @@ export function SortableList<T>({
                 if (element) handles.current.set(key, element);
                 else handles.current.delete(key);
               }}
-              onRemove={() => onRemove(index)}
+              onRemove={() => remove(index)}
               onHandleKeyDown={(event) => keyDown(event, index)}
               onHandlePointerDown={(event) => pointerDown(event, index)}
             >
@@ -163,6 +181,11 @@ export function SortableList<T>({
           );
         })}
       </ol>
+      {footer && (
+        <div ref={footerBox} className={styles.footer}>
+          {footer}
+        </div>
+      )}
       <span className={styles.instructions} aria-live="polite">
         {announcement}
       </span>
