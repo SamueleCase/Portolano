@@ -12,20 +12,13 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use portolano_core::IconStore;
-use portolano_core::icons::{is_sha256_hex, mime_for_extension, sha256_hex};
+use portolano_core::icons::{MAX_ICON_BYTES, is_sha256_hex, mime_for_extension, sha256_hex};
 use portolano_core::model::Icon;
 use tauri::http::{Response, StatusCode, header};
 
 /// The name of the scheme; on macOS the URLs are
 /// `portolano-icon://localhost/<sha256>.<ext>`.
 pub const SCHEME: &str = "portolano-icon";
-
-/// The largest icon served, in bytes. The core sets no limit when it stores
-/// an icon; icons are shown at most 52 px wide, and those of Royal documents
-/// weigh a few kilobytes. The limit bounds what one request makes the app
-/// read into memory from a directory that an imported or hand-edited
-/// document may have filled.
-const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
 
 /// The response to a request for `path` (the path of the URL, with its
 /// leading `/`), read from `icons`, the icon store of the open document.

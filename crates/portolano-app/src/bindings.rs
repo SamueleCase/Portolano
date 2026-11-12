@@ -31,12 +31,20 @@ mod tests {
 
     use portolano_core::{Issue, Severity};
     use portolano_import::{ImportReport, ItemStatus, ReportItem, TypeCounts};
+    use portolano_ops::CleanupFailure;
     use portolano_ops::connect::LoginRequest;
-    use portolano_ops::delete::{DeletePreview, ExternalReference};
-    use portolano_ops::inspect::{
-        CredentialView, Entry, KeyView, NodeType, OriginView, SecretState,
+    use portolano_ops::delete::{
+        DeleteOutcome, DeletePreview, ExternalReference, PurgeOutcome, RestoreOutcome,
     };
-    use portolano_ops::nodes::AddOutcome;
+    use portolano_ops::duplicate::DuplicateOutcome;
+    use portolano_ops::import::ImportResult;
+    use portolano_ops::inspect::{
+        CredentialView, Entry, KeyView, NodeRef, NodeType, OriginView, SecretState,
+    };
+    use portolano_ops::nodes::{AddOutcome, EditOutcome};
+    use portolano_ops::secrets::SecretSlot;
+    use portolano_ops::trace::{CredentialTrace, SpecView, TraceEnd, TraceStep};
+    use portolano_ops::usage::CredentialUsage;
 
     use super::*;
 
@@ -62,7 +70,21 @@ mod tests {
             .typ::<KeyView>()
             .typ::<CredentialView>()
             .typ::<LoginRequest>()
-            .typ::<AddOutcome>();
+            .typ::<AddOutcome>()
+            .typ::<CleanupFailure>()
+            .typ::<EditOutcome>()
+            .typ::<DeleteOutcome>()
+            .typ::<RestoreOutcome>()
+            .typ::<PurgeOutcome>()
+            .typ::<DuplicateOutcome>()
+            .typ::<ImportResult>()
+            .typ::<NodeRef>()
+            .typ::<SecretSlot>()
+            .typ::<SpecView>()
+            .typ::<TraceStep>()
+            .typ::<TraceEnd>()
+            .typ::<CredentialTrace>()
+            .typ::<CredentialUsage>();
         let dir = tempfile::tempdir().unwrap();
 
         let exported = builder.export(exporter(), dir.path().join("bindings.ts"));

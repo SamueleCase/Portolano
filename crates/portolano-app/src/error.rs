@@ -6,9 +6,12 @@
 //! do (SPEC §1.1).
 
 use std::error::Error;
+use std::io;
+use std::path::Path;
 
 use portolano_connectors::ConnectError;
 use portolano_ops::delete::ExternalReference;
+use portolano_ops::secrets::SecretSlot;
 use portolano_ops::{ErrorCategory, OpsError};
 use serde::Serialize;
 use uuid::Uuid;
@@ -47,10 +50,6 @@ pub enum ErrorCode {
     /// The document file does not exist (any more).
     DocumentMissing,
     /// The command needs an open document and there is none.
-    #[expect(
-        dead_code,
-        reason = "raised by the document commands of UI-WP2; already in the bindings, so that the frontend handles every code from the start"
-    )]
     NoDocument,
     /// The connection could not be planned or launched.
     Connect,
@@ -92,6 +91,59 @@ pub struct Candidate {
     pub path: String,
 }
 
+impl IpcError {
+    /// No document is open.
+    pub fn no_document() -> Self {
+        Self::plain(ErrorCode::NoDocument, "nessun documento aperto".to_owned())
+    }
+
+    /// A value refused by the app itself, shown under `field`.
+    pub fn invalid(field: &str, message: String) -> Self {
+        Self {
+            code: ErrorCode::Invalid,
+            message,
+            details: Some(IpcErrorDetails::Invalid {
+                field: field.to_owned(),
+            }),
+        }
+    }
+
+    /// A file of the app that cannot be read as what it should be.
+    pub fn invalid_file(path: &Path, reason: &str) -> Self {
+        Self::plain(
+            ErrorCode::Invalid,
+            format!("file '{}' non valido: {reason}", path.display()),
+        )
+    }
+
+    /// A filesystem error on `path`.
+    pub fn io(path: &Path, error: &io::Error) -> Self {
+        Self::plain(
+            ErrorCode::Io,
+            format!("errore di I/O su '{}': {error}", path.display()),
+        )
+    }
+
+    /// A failure of the app that is not the user's to fix.
+    pub fn internal(message: &str) -> Self {
+        Self::plain(ErrorCode::Internal, message.to_owned())
+    }
+
+    /// Something the command refers to that no longer exists, such as a
+    /// deletion that can no longer be undone.
+    pub fn not_found(message: String) -> Self {
+        Self::plain(ErrorCode::NotFound, message)
+    }
+
+    fn plain(code: ErrorCode, message: String) -> Self {
+        Self {
+            code,
+            message,
+            details: None,
+        }
+    }
+}
+
 impl From<OpsError> for IpcError {
     fn from(error: OpsError) -> Self {
         Self {
@@ -127,12 +179,31 @@ fn details_of(error: &OpsError) -> Option<IpcErrorDetails> {
         OpsError::EmptyHost { .. } => invalid("host"),
         OpsError::InvalidPort { .. } => invalid("port"),
         OpsError::InvalidColor { .. } => invalid("color"),
-        OpsError::InvalidSettings { .. } => invalid("settings"),
+        OpsError::InvalidSettings { .. } | OpsError::InvalidJumpHost { .. } => invalid("settings"),
+        OpsError::UnknownProtocol { .. } => invalid("protocol"),
+        OpsError::NotACredential { .. } | OpsError::CredentialWithLogin { .. } => {
+            invalid("credential")
+        }
+        OpsError::KeyFileAndVaultKey => invalid("private_key"),
+        OpsError::IconNotStored => invalid("icon"),
+        OpsError::SecretNotApplicable { slot, .. } | OpsError::SecretNotSet { slot, .. } => {
+            invalid(&slot_field(slot))
+        }
         OpsError::NotEditable { field, .. } => invalid(field),
         OpsError::UnknownConfigKey { key } | OpsError::InvalidConfigValue { key, .. } => {
             invalid(key)
         }
         _ => None,
+    }
+}
+
+/// The field of the editor that holds `slot`.
+fn slot_field(slot: &SecretSlot) -> String {
+    match slot {
+        SecretSlot::Password => "password".to_owned(),
+        SecretSlot::Passphrase => "passphrase".to_owned(),
+        SecretSlot::PrivateKey => "private_key".to_owned(),
+        SecretSlot::Property(name) => format!("property:{name}"),
     }
 }
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-node-details"
+description = "Enables the node_details command without any pre-configured scope."
+commands.allow = ["node_details"]
+
+[[permission]]
+identifier = "deny-node-details"
+description = "Denies the node_details command without any pre-configured scope."
+commands.deny = ["node_details"]

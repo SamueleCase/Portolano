@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-move-node"
+description = "Enables the move_node command without any pre-configured scope."
+commands.allow = ["move_node"]
+
+[[permission]]
+identifier = "deny-move-node"
+description = "Denies the move_node command without any pre-configured scope."
+commands.deny = ["move_node"]

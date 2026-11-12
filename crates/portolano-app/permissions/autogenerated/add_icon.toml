@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-add-icon"
+description = "Enables the add_icon command without any pre-configured scope."
+commands.allow = ["add_icon"]
+
+[[permission]]
+identifier = "deny-add-icon"
+description = "Denies the add_icon command without any pre-configured scope."
+commands.deny = ["add_icon"]

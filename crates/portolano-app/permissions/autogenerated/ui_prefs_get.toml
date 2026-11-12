@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ui-prefs-get"
+description = "Enables the ui_prefs_get command without any pre-configured scope."
+commands.allow = ["ui_prefs_get"]
+
+[[permission]]
+identifier = "deny-ui-prefs-get"
+description = "Denies the ui_prefs_get command without any pre-configured scope."
+commands.deny = ["ui_prefs_get"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-duplicate-node"
+description = "Enables the duplicate_node command without any pre-configured scope."
+commands.allow = ["duplicate_node"]
+
+[[permission]]
+identifier = "deny-duplicate-node"
+description = "Denies the duplicate_node command without any pre-configured scope."
+commands.deny = ["duplicate_node"]
