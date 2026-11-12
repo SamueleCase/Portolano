@@ -5,17 +5,21 @@
 
 use std::collections::HashSet;
 
-use portolano_core::{CredentialSpec, Document, Node, SecretRef, Store, Vault};
+mod detached;
+
+use portolano_core::{Document, Node, SecretRef, Store, Vault};
 use serde::Serialize;
 use uuid::Uuid;
 
+use self::detached::{Detached, Restored};
 use super::{
     DeleteOptions, DeleteOutcome, detach_credentials, external_references, preview_delete,
     subtree_of,
 };
 use crate::Result;
 use crate::commit::{Change, CleanupFailure, delete_secrets};
-use crate::nodes::{check_name, collect_unused_icons, credential_spec_mut};
+use crate::inspect::NodeRef;
+use crate::nodes::{check_name, collect_unused_icons};
 use crate::tree_util::{document_secret_refs, node_path};
 
 /// What [`delete_undoable`] removed, to put it back with
@@ -25,7 +29,7 @@ pub struct DeletedSubtree {
     node: Node,
     parent: Option<Uuid>,
     position: usize,
-    detached: Vec<DetachedSpecs>,
+    detached: Vec<Detached>,
     secrets: Vec<SecretRef>,
 }
 
@@ -40,15 +44,6 @@ impl DeletedSubtree {
     pub fn secrets(&self) -> &[SecretRef] {
         &self.secrets
     }
-}
-
-/// The credential of a node outside the subtree before it became "ask at
-/// launch".
-#[derive(Debug, Clone)]
-struct DetachedSpecs {
-    node: Uuid,
-    credential: Option<CredentialSpec>,
-    settings: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// The result of [`delete_undoable`].
@@ -68,6 +63,10 @@ pub struct RestoreOutcome {
     pub id: Uuid,
     /// Its path.
     pub path: String,
+    /// Nodes that the deletion made "ask at launch" and that changed again
+    /// before the undo: what changed since stays, so their credential may
+    /// not be the one they had before the deletion.
+    pub kept: Vec<NodeRef>,
 }
 
 /// The result of [`purge_secrets`].
@@ -114,7 +113,10 @@ pub fn delete_undoable(
     } else {
         Vec::new()
     };
-    let previous_specs = detached.iter().map(|&node| specs_of(doc, node)).collect();
+    let previous = detached
+        .iter()
+        .map(|&node| Detached::record(doc, &change.doc, node))
+        .collect();
     let remaining_references = external_references(&change.doc, &subtree_of(&change.doc, id));
     let node = change.doc.remove(id)?;
     let secrets = change.commit_keeping_obsolete(store, vault, doc)?;
@@ -130,28 +132,17 @@ pub fn delete_undoable(
             node,
             parent,
             position,
-            detached: previous_specs,
+            detached: previous,
             secrets,
         },
     })
 }
 
-/// The credential spec and settings of node `id` in `doc`.
-fn specs_of(doc: &Document, id: Uuid) -> DetachedSpecs {
-    let node = doc.find(id);
-    DetachedSpecs {
-        node: id,
-        credential: node.and_then(crate::nodes::credential_spec).cloned(),
-        settings: node
-            .and_then(Node::as_connection)
-            .map(|connection| connection.settings.clone()),
-    }
-}
-
 /// Puts a deleted subtree back where it was (same parent, same position)
 /// and saves the document; the nodes that the deletion made "ask at launch"
-/// get their credential back. The vault is not touched: the secrets of the
-/// subtree are still in it.
+/// get their credential back where nobody changed it since (DEC-031.2), the
+/// others are listed in [`RestoreOutcome::kept`]. The vault is not touched:
+/// the secrets of the subtree are still in it.
 ///
 /// # Errors
 /// [`portolano_core::Error::NodeNotFound`] or
@@ -176,29 +167,22 @@ pub fn restore_deleted(
     check_name(doc, parent, &node.name, None)?;
     let mut change = Change::from(doc);
     change.doc.insert(parent, Some(position), node)?;
-    for specs in detached {
-        restore_specs(&mut change.doc, specs);
+    let mut kept = Vec::new();
+    for changes in detached {
+        let node = changes.node();
+        if changes.restore(&mut change.doc) == Restored::Kept {
+            kept.push(node);
+        }
     }
     change.commit(store, vault, doc, |_| Ok(()))?;
     Ok(RestoreOutcome {
         id,
         path: node_path(doc, id),
+        kept: kept
+            .into_iter()
+            .map(|node| NodeRef::of(doc, node))
+            .collect(),
     })
-}
-
-/// Gives a node its previous credential and settings back, if it still
-/// exists.
-fn restore_specs(doc: &mut Document, specs: DetachedSpecs) {
-    let Some(node) = doc.find_mut(specs.node) else {
-        return;
-    };
-    if let (Some(slot), Some(credential)) = (credential_spec_mut(node), specs.credential) {
-        *slot = credential;
-    }
-    if let (Some(connection), Some(settings)) = (node.as_connection_mut(), specs.settings) {
-        connection.settings = settings;
-    }
-    node.touch();
 }
 
 /// Finishes undoable deletions: deletes `secrets` from the vault, except

@@ -1,8 +1,12 @@
+use portolano_connectors::Registry;
+use portolano_core::CredentialSpec;
 use portolano_core::vault::MemoryVault;
 use pretty_assertions::assert_eq;
+use serde_json::json;
 
 use super::*;
 use crate::OpsError;
+use crate::nodes::{CredentialInput, EditorChanges, NodeEdit, SecretChange, edit_node_staged};
 use crate::testutil::*;
 
 fn names(doc: &Document) -> Vec<String> {
@@ -172,4 +176,123 @@ impl portolano_core::MasterPasswordSource for NoMasterPassword {
             reason: "vault bloccato".to_owned(),
         })
     }
+}
+
+#[test]
+fn undo_keeps_a_credential_changed_after_the_deletion() {
+    let vault = MemoryVault::default();
+    let admin = credential("Admin", "admin", None);
+    let spec = CredentialSpec::ById { id: admin.id };
+    let mut stored = stored(vec![admin, connection_with("web01", "ssh", spec)]);
+    let undoable = delete(&mut stored, &vault, "/Admin", FORCE);
+    let web01 = id_of(&stored.doc, "/web01");
+    edit_node_staged(
+        &stored.store,
+        &mut stored.doc,
+        &vault,
+        &Registry::with_defaults(),
+        web01,
+        NodeEdit {
+            credential: Some(CredentialInput::Inline {
+                username: Some("ops".to_owned()),
+                domain: None,
+            }),
+            ..NodeEdit::default()
+        },
+        EditorChanges {
+            password: Some(SecretChange::Set(secret(SENTINEL))),
+            ..EditorChanges::default()
+        },
+    )
+    .unwrap();
+
+    let restored =
+        restore_deleted(&stored.store, &mut stored.doc, &vault, undoable.deleted).unwrap();
+
+    let CredentialSpec::Inline {
+        password: Some(password),
+        ..
+    } = stored
+        .reloaded()
+        .find(web01)
+        .unwrap()
+        .as_connection()
+        .unwrap()
+        .credential
+        .clone()
+    else {
+        panic!("the inline credential set after the deletion should stay");
+    };
+    assert_eq!(vault.get(&password).unwrap().unwrap().expose(), SENTINEL);
+    assert_eq!(
+        restored.kept.iter().map(|node| node.id).collect::<Vec<_>>(),
+        vec![web01]
+    );
+}
+
+#[test]
+fn undo_restores_only_the_settings_the_deletion_changed() {
+    let vault = MemoryVault::default();
+    let admin = credential("Admin", "admin", None);
+    let mut dc01 = connection("dc01", "rdp");
+    if let Some(connection) = dc01.as_connection_mut() {
+        connection.settings.insert(
+            "gateway_credential".to_owned(),
+            json!({ "mode": "by_id", "$ref": admin.id }),
+        );
+        connection.settings.insert("scale".to_owned(), json!(100));
+    }
+    let mut stored = stored(vec![admin, dc01]);
+    let undoable = delete(&mut stored, &vault, "/Admin", FORCE);
+    let dc01 = id_of(&stored.doc, "/dc01");
+    if let Some(connection) = stored
+        .doc
+        .find_mut(dc01)
+        .and_then(|node| node.as_connection_mut())
+    {
+        connection.settings.insert("scale".to_owned(), json!(140));
+    }
+    stored.store.save(&mut stored.doc).unwrap();
+    let admin = undoable.deleted.id();
+
+    let restored =
+        restore_deleted(&stored.store, &mut stored.doc, &vault, undoable.deleted).unwrap();
+
+    let settings = stored
+        .reloaded()
+        .find(dc01)
+        .unwrap()
+        .as_connection()
+        .unwrap()
+        .settings
+        .clone();
+    assert_eq!(
+        settings["gateway_credential"],
+        json!({ "mode": "by_id", "$ref": admin })
+    );
+    assert_eq!(settings["scale"], json!(140));
+    assert!(restored.kept.is_empty());
+}
+
+#[test]
+fn undo_does_not_touch_a_node_it_leaves_as_it_is() {
+    let vault = MemoryVault::default();
+    let admin = credential("Admin", "admin", None);
+    let spec = CredentialSpec::ById { id: admin.id };
+    let mut stored = stored(vec![admin, connection_with("web01", "ssh", spec)]);
+    let undoable = delete(&mut stored, &vault, "/Admin", FORCE);
+    let web01 = id_of(&stored.doc, "/web01");
+    if let Some(connection) = stored
+        .doc
+        .find_mut(web01)
+        .and_then(|node| node.as_connection_mut())
+    {
+        connection.credential = CredentialSpec::None;
+    }
+    stored.store.save(&mut stored.doc).unwrap();
+    let modified = stored.doc.find(web01).unwrap().modified;
+
+    restore_deleted(&stored.store, &mut stored.doc, &vault, undoable.deleted).unwrap();
+
+    assert_eq!(stored.reloaded().find(web01).unwrap().modified, modified);
 }
