@@ -471,9 +471,11 @@ mock in `docs/ui/NOTE.md`.
    frattempo restano e i nodi lasciati come sono si riportano nell'esito. Un annullamento fallito per un errore
    recuperabile (`ModifiedExternally`, `NameTaken`, I/O) rimette l'eliminazione fra quelle in sospeso.
 3. **"Duplica"**: nessun riferimento esistente deve cambiare risoluzione e la copia deve usare le proprie credenziali.
-   I `ByName` interni alla copia che risolvono a una credenziale copiata diventano `ById` verso la copia; le
-   credenziali copiate il cui nome è bersaglio di un `ByName` ricevono un nome univoco con " (copia)", e l'esito
-   elenca le rinomine. La copia non eredita `source` (non è un nodo importato).
+   I `ByName` interni alla copia (anche nei `settings`) che risolvono a una credenziale copiata diventano `ById` verso
+   la copia; **ogni** credenziale copiata, radice compresa, riceve un nome " (copia)", " (copia 2)"… che, senza
+   distinzione di maiuscole, non è il nome di alcun nodo né un nome cercato da un `ByName` (anche pendente), e l'esito
+   elenca le rinomine (regola estesa nel secondo giro di revisione: rinominare solo i bersagli lasciava casi ambigui).
+   La copia non eredita `source` (non è un nodo importato).
 4. **Percorso della chiave SSH (`keyFile`)**: è un dato del documento passato a `ssh`, che l'app non apre mai: è
    ammesso come testo (eccezione a SPEC-UI §1.5, validato: assoluto o `~/`, niente caratteri di controllo); in più
    `choose_key_file` apre il dialogo nativo e restituisce il percorso scelto, per il bottone "Sfoglia…".
