@@ -2,25 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { commands } from "../bindings";
 import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "./fakeBackend";
+import { idOf, ok, unlocked } from "./fakeBackendFixtures";
 
 /** The fake backend answers with the semantics of the Rust commands, errors included. */
-
-async function idOf(name: string): Promise<string> {
-  const tree = await commands.tree();
-  if (tree.status === "error") throw new Error(tree.error.message);
-  const queue = [...tree.data.nodes];
-  for (let node = queue.shift(); node; node = queue.shift()) {
-    if (node.name === name) return node.id;
-    queue.push(...node.children);
-  }
-  throw new Error(`nodo ${name} assente`);
-}
-
-function unlocked() {
-  const state = initialFakeState();
-  state.vault.locked = false;
-  return installFakeBackend(state);
-}
 
 describe("fake backend", () => {
   it("refuses a name a sibling already has, on the name field", async () => {
@@ -64,7 +48,7 @@ describe("fake backend", () => {
   });
 
   it("gives the users of a deleted credential their credential back with undo", async () => {
-    installFakeBackend();
+    unlocked();
     const acme = await idOf("ACME");
 
     const deleted = await commands.deleteNode(await idOf("Admin ACME"), {
@@ -152,17 +136,29 @@ describe("fake backend", () => {
     const state = unlocked();
     state.chosen.importFile = "/Users/utente-di-prova/infra.rtsz";
     const options = { into: null, onConflict: "fail" as const, includeTrash: false };
-    const preview = await commands.importPreview(options);
-    if (preview.status === "error") throw new Error(preview.error.message);
+    const preview = ok(await commands.importPreview(options));
 
-    const answers = preview.data.requests.map((request) => ({
-      nodePath: request.nodePath,
-      field: request.field,
-      value: "sentinel-import",
-    }));
-    const result = await commands.importApply(options, answers);
+    const result = ok(
+      await commands.importApply(
+        options,
+        preview.requests.map((request) => ({ ...request, value: "sentinel-import" })),
+      ),
+    );
 
-    expect(result.status === "ok" && result.data.secrets_written).toBe(1);
+    expect(result.secrets_written).toBe(1);
+  });
+
+  it("keeps no typed import password", async () => {
+    const state = unlocked();
+    state.chosen.importFile = "/Users/utente-di-prova/infra.rtsz";
+    const options = { into: null, onConflict: "fail" as const, includeTrash: false };
+    const preview = ok(await commands.importPreview(options));
+
+    await commands.importApply(
+      options,
+      preview.requests.map((request) => ({ ...request, value: "sentinel-import" })),
+    );
+
     expect(JSON.stringify(state)).not.toContain("sentinel-import");
   });
 });

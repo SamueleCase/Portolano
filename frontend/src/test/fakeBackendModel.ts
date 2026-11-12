@@ -1,9 +1,9 @@
 import type {
-  ConfigEntry,
   ErrorCode,
   IconView,
   InterfacePreferences_Serialize,
   IpcErrorDetails,
+  JsonValue,
   VaultKind,
 } from "../bindings";
 import type { IpcError } from "../ipc/result";
@@ -18,6 +18,9 @@ import type { IpcError } from "../ipc/result";
 
 /** The only master password the fake vault accepts (SPEC §1.3). */
 export const TEST_MASTER_PASSWORD = "test-only-master-password";
+
+/** Settings of a protocol, or unmapped fields of an import, as the bindings type them. */
+export type JsonObject = { [key: string]: JsonValue };
 
 /** A credential spec of a folder or a connection. */
 export type FakeSpec =
@@ -57,7 +60,7 @@ export interface FakeNode {
   protocol: string | null;
   host: string | null;
   port: number | null;
-  settings: Record<string, unknown>;
+  settings: JsonObject;
   /** Folders and connections. */
   credential: FakeSpec;
   /** Credentials. */
@@ -72,7 +75,7 @@ export interface FakeNode {
     sourceId: string | null;
     file: string | null;
   } | null;
-  extra: Record<string, unknown>;
+  extra: JsonObject;
   unsupported: { sourceType: string; raw: string } | null;
   children: FakeNode[];
 }
@@ -88,6 +91,8 @@ export interface FakePendingDelete {
   node: FakeNode;
   parent: string | null;
   index: number;
+  /** When it can no longer be undone, by the clock of the state. */
+  expiresAt: number;
   /** The credentials that the deletion turned into "ask at launch". */
   detached: { id: string; credential: FakeSpec }[];
 }
@@ -101,7 +106,8 @@ export interface FakeBackendState {
   files: Record<string, FakeDocument>;
   recent: string[];
   preferences: InterfacePreferences_Serialize;
-  config: ConfigEntry[];
+  /** The keys set in `config.toml`, with their values. */
+  config: Record<string, string>;
   customIcons: IconView[];
   pendingDeletes: Record<string, FakePendingDelete>;
   /** What the native dialogs answer: a path, or null for "Annulla". */
@@ -111,13 +117,24 @@ export interface FakeBackendState {
     importFile: string | null;
     icon: string | null;
     report: string | null;
+    keyFile: string | null;
+    /** The file chosen for each key of the configuration (`choose_config_file`). */
+    configFiles: Record<string, string | null>;
   };
   /** Paths chosen in the dialogs, as the backend keeps them. */
-  chosen: { document?: string; newDocument?: string; importFile?: string; icon?: string };
+  chosen: Partial<Record<ChosenKind, string>>;
+  /** The time in milliseconds: deletions expire by it; tests replace it. */
+  clock: () => number;
   /** Whether an import ran, for "Esporta JSON". */
   lastImport: boolean;
   nextId: number;
 }
+
+/** The dialogs whose file the backend remembers for a later command. */
+export type ChosenKind = "document" | "newDocument" | "importFile" | "icon";
+
+/** How long a deletion can be undone, as `UNDO_WINDOW` of the app. */
+export const UNDO_WINDOW_MS = 10_000;
 
 /** A failed command of the fake backend, thrown inside it and returned as the `IpcError`. */
 export class FakeFailure extends Error {
@@ -247,9 +264,41 @@ export function checkName(siblings: FakeNode[], name: string, exclude?: string):
   }
 }
 
-/** Refuses the commands that touch secrets while the file vault is locked. */
-export function requireUnlockedVault(state: FakeBackendState): void {
-  if (state.vault.locked) {
+/** The children list that holds a node whose parent is `parent` (`null` is the root). */
+export function siblingsOf(doc: FakeDocument, parent: FakeNode | null): FakeNode[] {
+  return parent ? parent.children : doc.nodes;
+}
+
+/** The file name of `path`, for display. */
+export function fileName(path: string): string {
+  return path.split("/").pop() ?? path;
+}
+
+/** The field of the editor that holds a secret slot (as `slot_field` of the app). */
+export function slotField(key: SlotKey): string {
+  return key === "privateKey" ? "private_key" : key;
+}
+
+/** Whether the vault is locked: only the file vault can be (ambiguity 20). */
+export function isLocked(state: FakeBackendState): boolean {
+  return state.vault.kind === "file" && state.vault.locked;
+}
+
+/**
+ * Refuses a change that writes or removes secrets while the vault is locked,
+ * as the save of `portolano-ops` does: new secrets go to the vault, and the
+ * vault is checked before the document changes when secrets would go.
+ */
+export function requireVaultFor(state: FakeBackendState, touchesSecrets: boolean): void {
+  if (touchesSecrets && isLocked(state)) {
     fail("vaultLocked", "il vault è bloccato: sbloccalo con la master password");
   }
+}
+
+/** The secret slots of the nodes of `node`'s subtree. */
+export function secretsIn(node: FakeNode): number {
+  return [...walk([node])].reduce(
+    (count, { node: inner }) => count + Object.keys(inner.secrets).length,
+    0,
+  );
 }

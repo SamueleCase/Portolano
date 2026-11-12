@@ -1,15 +1,25 @@
-import { mockIPC } from "@tauri-apps/api/mocks";
 import type { InvokeArgs } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
+import { mockIPC } from "@tauri-apps/api/mocks";
 
 import type { IpcError } from "../ipc/result";
 import * as deletes from "./fakeBackendDelete";
 import * as documents from "./fakeBackendDocument";
+import { duplicateNode } from "./fakeBackendDuplicate";
+import { editNode } from "./fakeBackendEdit";
 import * as misc from "./fakeBackendMisc";
-import { type FakeBackendState, FakeFailure, openDocument } from "./fakeBackendModel";
+import {
+  type FakeBackendState,
+  FakeFailure,
+  fileName,
+  openDocument,
+  walk,
+} from "./fakeBackendModel";
 import * as nodes from "./fakeBackendNodes";
 import { sampleDocument } from "./fakeBackendSample";
 import * as vault from "./fakeBackendVault";
-import { detailsView, treeView } from "./fakeBackendViews";
+import { detailsView } from "./fakeBackendDetails";
+import { treeView } from "./fakeBackendViews";
 
 export type { FakeBackendState } from "./fakeBackendModel";
 export { TEST_MASTER_PASSWORD } from "./fakeBackendModel";
@@ -29,14 +39,20 @@ export function initialFakeState(): FakeBackendState {
     files: {},
     recent: [],
     preferences: { density: "normal", background: "on", reduceMotion: false },
-    config: [
-      { key: "terminal.app", value: "terminal" },
-      { key: "vault.backend", value: "file" },
-    ],
+    config: { "vault.backend": "file" },
     customIcons: [],
     pendingDeletes: {},
-    dialogs: { document: null, newDocument: null, importFile: null, icon: null, report: null },
+    dialogs: {
+      document: null,
+      newDocument: null,
+      importFile: null,
+      icon: null,
+      report: null,
+      keyFile: null,
+      configFiles: {},
+    },
     chosen: {},
+    clock: () => Date.now(),
     lastImport: false,
     nextId: 0x100,
   };
@@ -47,14 +63,25 @@ export function initialFakeState(): FakeBackendState {
   return state;
 }
 
-/** A string argument of a command. */
-function text(args: InvokeArgs | undefined, name: string): string {
-  return (args as Record<string, unknown> | undefined)?.[name] as string;
+/**
+ * An argument of a command. The generated bindings send each command its
+ * arguments with the types of `bindings.ts`, which the dispatcher names
+ * through `T`: this cast is that contract, the only one of the fake.
+ */
+function arg<T>(args: InvokeArgs | undefined, name: string): T {
+  const named =
+    args !== undefined &&
+    !Array.isArray(args) &&
+    !ArrayBuffer.isView(args) &&
+    !(args instanceof ArrayBuffer)
+      ? args
+      : {};
+  return named[name] as T;
 }
 
-/** Any argument of a command, as the generated bindings send it. */
-function arg<T>(args: InvokeArgs | undefined, name: string): T {
-  return (args as Record<string, unknown> | undefined)?.[name] as T;
+/** A string argument of a command. */
+function text(args: InvokeArgs | undefined, name: string): string {
+  return arg<string>(args, name);
 }
 
 /** The answer of every command of the bindings except the sessions, by name. */
@@ -63,9 +90,9 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "app_status":
       return documents.appStatus(state);
     case "choose_document":
-      return documents.choose(state, "document", "document");
+      return documents.choose(state, "document");
     case "choose_new_document":
-      return documents.choose(state, "newDocument", "newDocument");
+      return documents.choose(state, "newDocument");
     case "open_document":
       return documents.openDocumentAt(state, arg(args, "source"));
     case "create_document":
@@ -85,7 +112,7 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "add_node":
       return nodes.addNode(state, arg(args, "node"));
     case "edit_node":
-      return nodes.editNode(state, text(args, "id"), arg(args, "edit"));
+      return editNode(state, text(args, "id"), arg(args, "edit"));
     case "move_node":
       return nodes.moveNode(
         state,
@@ -93,8 +120,10 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
         arg(args, "destination"),
         arg(args, "placement"),
       );
+    case "choose_key_file":
+      return state.dialogs.keyFile;
     case "duplicate_node":
-      return nodes.duplicateNode(state, text(args, "id"));
+      return duplicateNode(state, text(args, "id"));
     case "preview_delete":
       return deletes.previewDelete(state, text(args, "id"));
     case "delete_node":
@@ -118,7 +147,7 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "validate":
       return misc.validate(state);
     case "choose_import_file":
-      return documents.choose(state, "importFile", "importFile");
+      return documents.choose(state, "importFile");
     case "import_preview":
       return misc.importPreview(state, arg(args, "options"));
     case "import_apply":
@@ -130,7 +159,7 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "login_request":
       return misc.loginRequest(state, text(args, "id"));
     case "config_get":
-      return [...state.config];
+      return documents.configEntries(state);
     case "config_set":
       return documents.configSet(state, text(args, "key"), text(args, "value"));
     case "config_reset":
@@ -146,7 +175,7 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "custom_icons":
       return documents.customIcons(state);
     case "choose_icon_file":
-      return documents.choose(state, "icon", "icon");
+      return documents.choose(state, "icon");
     case "add_icon":
       return documents.addIcon(state);
     default:
@@ -158,29 +187,58 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
 function search(state: FakeBackendState, query: string): string[] {
   const wanted = query.trim().toLowerCase();
   if (wanted === "") return [];
-  const found: string[] = [];
-  const visit = (list: FakeBackendState["files"][string]["nodes"]) => {
-    for (const node of list) {
-      const texts = [node.name, node.host ?? "", ...node.tags];
-      if (texts.some((value) => value.toLowerCase().includes(wanted))) found.push(node.id);
-      visit(node.children);
-    }
-  };
-  visit(openDocument(state).nodes);
-  return found;
+  return [...walk(openDocument(state).nodes)]
+    .filter(({ node }) =>
+      [node.name, node.host ?? "", ...node.tags].some((value) =>
+        value.toLowerCase().includes(wanted),
+      ),
+    )
+    .map(({ node }) => node.id);
+}
+
+/** The commands after which the app saved the document and sends `document-changed`. */
+const SAVING = new Set([
+  "add_node",
+  "edit_node",
+  "move_node",
+  "duplicate_node",
+  "delete_node",
+  "undo_delete",
+  "set_secret",
+  "clear_secret",
+  "import_apply",
+  "reload_document",
+]);
+
+/** The events the backend sends after `command` succeeded. */
+function eventsAfter(state: FakeBackendState, command: string): void {
+  if (SAVING.has(command) && state.document) {
+    void emit("document-changed", { fileName: fileName(state.document.path) });
+  }
+  if (command === "lock_vault") {
+    void emit("vault-locked", { kind: state.vault.kind });
+  }
 }
 
 /**
  * Answers the commands of the generated bindings from `state`, in memory, in
  * place of the IPC of Tauri, with the semantics of the Rust commands (errors
- * included): for the component tests and the end-to-end tests. Events
- * (`emit` of `@tauri-apps/api/event`) reach the listeners of the page.
+ * included): for the component tests and the end-to-end tests.
+ *
+ * Events reach the listeners of the page (`emit` of `@tauri-apps/api/event`):
+ * `document-changed` after every save and reload, `vault-locked` after
+ * `lock_vault`. Deletions expire by `state.clock`. Not simulated: the
+ * watcher of the file (`document-modified-externally`, `document-missing`:
+ * a test emits them itself) and the menu (`menu-action`, likewise).
  */
 export function installFakeBackend(state: FakeBackendState = initialFakeState()): FakeBackendState {
   mockIPC(
     (command, args) => {
       try {
-        return answer(state, command, args);
+        deletes.expireDeletions(state);
+        const result = answer(state, command, args);
+        eventsAfter(state, command);
+        return result;
       } catch (failure) {
         if (failure instanceof FakeFailure) {
           return rejectWith(failure.error);

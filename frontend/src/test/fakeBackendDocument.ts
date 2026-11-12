@@ -11,18 +11,16 @@ import {
   type InterfacePreferences_Serialize,
 } from "../bindings";
 import {
+  type ChosenKind,
   type FakeBackendState,
   type FakeDocument,
   fail,
   failField,
+  fileName,
   openDocument,
 } from "./fakeBackendModel";
 
 /** The document file, the configuration, the preferences and the icons. */
-
-function fileName(path: string): string {
-  return path.split("/").pop() ?? path;
-}
 
 function info(doc: FakeDocument): DocumentInfo {
   return { name: doc.name, fileName: fileName(doc.path), path: doc.path };
@@ -44,14 +42,10 @@ export function appStatus(state: FakeBackendState): AppStatus_Serialize {
 }
 
 /** A native dialog: its answer (set by the test) becomes the chosen file. */
-export function choose(
-  state: FakeBackendState,
-  dialog: keyof FakeBackendState["dialogs"],
-  chosen: keyof FakeBackendState["chosen"],
-): ChosenFile | null {
-  const path = state.dialogs[dialog];
+export function choose(state: FakeBackendState, kind: ChosenKind): ChosenFile | null {
+  const path = state.dialogs[kind];
   if (path === null) return null;
-  state.chosen[chosen] = path;
+  state.chosen[kind] = path;
   return { fileName: fileName(path) };
 }
 
@@ -124,6 +118,24 @@ const CONFIG_VALUES: Record<string, string[]> = {
 
 const CONFIG_KEYS = [...Object.keys(CONFIG_VALUES), "terminal.command", ...FILE_KEYS];
 
+/**
+ * The values the core always writes, as `config_get` lists them even when
+ * `config.toml` does not set them; the optional keys are listed only when
+ * set.
+ */
+const CONFIG_DEFAULTS: Record<string, string> = {
+  "vault.backend": "keychain",
+  "terminal.app": "terminal",
+};
+
+/** The configuration as `config_get` returns it: the defaults and the keys set, by key. */
+export function configEntries(state: FakeBackendState): ConfigEntry[] {
+  const values = { ...CONFIG_DEFAULTS, ...state.config };
+  return Object.entries(values)
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
 function setEntry(state: FakeBackendState, key: string, value: string | null): ConfigEntry[] {
   if (!CONFIG_KEYS.includes(key)) {
     failField(key, `chiave di configurazione sconosciuta '${key}'`);
@@ -132,13 +144,15 @@ function setEntry(state: FakeBackendState, key: string, value: string | null): C
   if (value !== null && allowed && !allowed.includes(value)) {
     failField(key, `valore non valido per '${key}': ${value}`);
   }
-  state.config = state.config.filter((entry) => entry.key !== key);
-  if (value !== null) state.config.push({ key, value });
-  state.config.sort((a, b) => a.key.localeCompare(b.key));
-  if (key === "vault.backend" && value !== null) {
-    state.vault.kind = value === "file" ? "file" : "keychain";
+  if (value === null) {
+    delete state.config[key];
+  } else {
+    state.config[key] = value;
   }
-  return [...state.config];
+  if (key === "vault.backend") {
+    state.vault.kind = (value ?? CONFIG_DEFAULTS[key]) === "file" ? "file" : "keychain";
+  }
+  return configEntries(state);
 }
 
 export function configSet(state: FakeBackendState, key: string, value: string): ConfigEntry[] {
@@ -150,9 +164,10 @@ export function configReset(state: FakeBackendState, key: string): ConfigEntry[]
   return setEntry(state, key, null);
 }
 
+/** Sets `key` to the answer of its dialog (`dialogs.configFiles[key]`, null for "Annulla"). */
 export function chooseConfigFile(state: FakeBackendState, key: string): ConfigEntry[] | null {
   if (!FILE_KEYS.includes(key)) failField(key, `'${key}' non è un percorso di file`);
-  const path = state.dialogs.document;
+  const path = state.dialogs.configFiles[key] ?? null;
   return path === null ? null : setEntry(state, key, path);
 }
 

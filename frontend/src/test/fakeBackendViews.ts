@@ -1,17 +1,15 @@
-import type {
-  CredentialTrace_Serialize,
-  CredentialUsage,
-  IconView,
-  NodeDetailsView_Serialize,
-  NodeKindView,
-  NodeRef,
-  SecretSlot,
-  SecretView,
-  SecretsBadge,
-  SpecView_Serialize,
-  TraceEnd,
-  TreeNode_Serialize,
-  TreeView_Serialize,
+import {
+  BUILTIN_ICONS,
+  type CredentialTrace_Serialize,
+  type CredentialUsage,
+  type IconView,
+  type NodeKindView,
+  type NodeRef,
+  type SecretsBadge,
+  type SpecView_Serialize,
+  type TraceEnd,
+  type TreeNode_Serialize,
+  type TreeView_Serialize,
 } from "../bindings";
 import {
   type FakeBackendState,
@@ -19,15 +17,15 @@ import {
   type FakeIcon,
   type FakeNode,
   type FakeSpec,
-  type SlotKey,
   findNode,
+  isLocked,
   pathOf,
   walk,
 } from "./fakeBackendModel";
 
 /** The read-only views of the fake document: what `tree` and `node_details` return. */
 
-const DEFAULT_PORTS: Record<string, number> = { ssh: 22, rdp: 3389 };
+export const DEFAULT_PORTS: Partial<Record<string, number>> = { ssh: 22, rdp: 3389 };
 
 /** The one-line summary, as `inspect::summary` of the backend. */
 export function summaryOf(node: FakeNode, doc: FakeDocument): string {
@@ -66,16 +64,33 @@ function effectiveLogin(doc: FakeDocument, node: FakeNode): string {
   return "";
 }
 
+/** The extension of the stored images of each type, as the icon store names them. */
+const EXTENSIONS: Partial<Record<string, string>> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/tiff": "tiff",
+  "image/svg+xml": "svg",
+  "application/pdf": "pdf",
+};
+
 /** The icon to show, as `IconView::of`: Royal names through the words of the backend. */
 export function iconView(icon: FakeIcon | null): IconView | null {
   if (icon === null) return null;
   switch (icon.kind) {
     case "builtin":
-      return { kind: "builtin", name: icon.name };
+      // A name this version does not know shows the icon of the kind.
+      return BUILTIN_ICONS.some((name) => name === icon.name)
+        ? { kind: "builtin", name: icon.name }
+        : null;
     case "royal":
-      return /server/i.test(icon.name) ? { kind: "builtin", name: "server" } : null;
+      // Only the word `server` of the table of the backend is simulated.
+      return icon.name.split(/[^A-Za-z0-9]+/).some((word) => word.toLowerCase() === "server")
+        ? { kind: "builtin", name: "server" }
+        : null;
     case "custom": {
-      const extension = icon.mime === "image/svg+xml" ? "svg" : (icon.mime.split("/")[1] ?? "png");
+      const extension = EXTENSIONS[icon.mime];
+      if (extension === undefined) return null;
       return {
         kind: "custom",
         sha256: icon.sha256,
@@ -90,7 +105,7 @@ export function iconView(icon: FakeIcon | null): IconView | null {
 export function badgeOf(state: FakeBackendState, node: FakeNode): SecretsBadge {
   const present = Object.values(node.secrets);
   if (present.length === 0) return "none";
-  if (state.vault.locked) return "vaultLocked";
+  if (isLocked(state)) return "vaultLocked";
   return present.every(Boolean) ? "present" : "absent";
 }
 
@@ -115,7 +130,7 @@ export function treeView(state: FakeBackendState, doc: FakeDocument): TreeView_S
   return { name: doc.name, nodes: doc.nodes.map(toTree) };
 }
 
-function specView(spec: FakeSpec): SpecView_Serialize {
+export function specView(spec: FakeSpec): SpecView_Serialize {
   switch (spec.mode) {
     case "inherit":
     case "none":
@@ -183,7 +198,10 @@ function endOf(doc: FakeDocument, holder: FakeNode): TraceEnd {
           candidates: matches.map((node) => nodeRef(doc, node.id)),
         };
       }
-      return { kind: "credential", node: nodeRef(doc, (matches[0] as FakeNode).id) };
+      const [only] = matches;
+      return only
+        ? { kind: "credential", node: nodeRef(doc, only.id) }
+        : { kind: "name_not_found", name: spec.name };
     }
   }
 }
@@ -199,20 +217,26 @@ export function credentialsNamed(doc: FakeDocument, name: string): FakeNode[] {
     : credentials.filter((node) => node.name.toLowerCase() === name.toLowerCase());
 }
 
-/** The nodes whose spec names `target`, by id or by a name that resolves to it. */
+/** The credential a spec points to: by id, or by a name that resolves to one credential only. */
+export function specTarget(doc: FakeDocument, spec: FakeSpec): string | null {
+  if (spec.mode === "byId") return spec.id;
+  if (spec.mode === "byName") {
+    const matches = credentialsNamed(doc, spec.name);
+    return matches.length === 1 ? (matches[0]?.id ?? null) : null;
+  }
+  return null;
+}
+
+/** The nodes that refer to `target`: by their credential or as a jump host (`references_to`). */
 export function referencesTo(doc: FakeDocument, target: string): FakeNode[] {
   return [...walk(doc.nodes)]
     .map(({ node }) => node)
-    .filter((node) => {
-      const spec = node.credential;
-      if (node.kind !== "folder" && node.kind !== "connection") return false;
-      if (spec.mode === "byId") return spec.id === target;
-      if (spec.mode === "byName") {
-        const matches = credentialsNamed(doc, spec.name);
-        return matches.length === 1 && matches[0]?.id === target;
-      }
-      return jumpHostsOf(node).includes(target);
-    });
+    .filter(
+      (node) =>
+        ((node.kind === "folder" || node.kind === "connection") &&
+          specTarget(doc, node.credential) === target) ||
+        jumpHostsOf(node).includes(target),
+    );
 }
 
 function jumpHostsOf(node: FakeNode): string[] {
@@ -245,147 +269,5 @@ export function usageOf(doc: FakeDocument, node: FakeNode): CredentialUsage {
   return {
     direct: direct.map((user) => nodeRef(doc, user.id)),
     inherited: inherited.map((user) => nodeRef(doc, user.id)),
-  };
-}
-
-export function slotOf(key: SlotKey): SecretSlot {
-  if (key.startsWith("property:")) return { property: key.slice("property:".length) };
-  return key === "privateKey" ? "private_key" : (key as "password" | "passphrase");
-}
-
-function secretViews(state: FakeBackendState, node: FakeNode): SecretView[] {
-  return Object.entries(node.secrets).map(([key, present]) => ({
-    slot: slotOf(key),
-    state: state.vault.locked ? "vaultLocked" : present ? "present" : "absent",
-  }));
-}
-
-export function detailsView(
-  state: FakeBackendState,
-  doc: FakeDocument,
-  id: string,
-): NodeDetailsView_Serialize {
-  const { node, parent } = findNode(doc, id);
-  const trace = node.kind === "unsupported" ? null : traceOf(doc, node);
-  return {
-    id,
-    name: node.name,
-    path: pathOf(doc, id),
-    parent: parent?.id ?? null,
-    kind: node.kind,
-    summary: summaryOf(node, doc),
-    description: node.description,
-    notes: node.notes,
-    color: node.color,
-    icon: iconView(node.icon),
-    favorite: node.favorite,
-    tags: [...node.tags],
-    properties: node.properties.map((property) => ({
-      name: property.name,
-      text: property.text,
-      secret: property.text === null,
-    })),
-    created: node.created,
-    modified: node.modified,
-    connection:
-      node.kind === "connection"
-        ? {
-            protocol: node.protocol ?? "",
-            host: node.host ?? "",
-            port: node.port,
-            defaultPort: DEFAULT_PORTS[node.protocol ?? ""] ?? null,
-            settings: structuredClone(node.settings) as NonNullable<
-              NodeDetailsView_Serialize["connection"]
-            >["settings"],
-          }
-        : null,
-    credentialSpec:
-      node.kind === "folder" || node.kind === "connection" ? specView(node.credential) : null,
-    credential:
-      node.kind === "credential"
-        ? { username: node.username, domain: node.domain, keyFile: node.keyFile }
-        : null,
-    effective: trace === null ? null : effectiveOf(state, doc, trace.end),
-    trace,
-    secrets: secretViews(state, node),
-    vaultLocked: state.vault.locked,
-    usage: usageOf(doc, node),
-    source: node.source ? { ...node.source, importedAt: node.created } : null,
-    extra: structuredClone(node.extra) as NodeDetailsView_Serialize["extra"],
-    unsupported: node.unsupported ? { ...node.unsupported } : null,
-  };
-}
-
-function effectiveOf(
-  state: FakeBackendState,
-  doc: FakeDocument,
-  end: TraceEnd,
-): NodeDetailsView_Serialize["effective"] {
-  const secretState = (present: boolean | undefined) =>
-    present === undefined ? "not_set" : present || state.vault.locked ? "present" : "absent";
-  switch (end.kind) {
-    case "root":
-    case "none":
-      return { kind: "resolved", credential: emptyCredential({ kind: "none" }) };
-    case "prompt":
-      return { kind: "resolved", credential: emptyCredential({ kind: "prompt" }) };
-    case "inline": {
-      const holder = findNode(doc, end.node.id).node;
-      const spec = holder.credential;
-      return {
-        kind: "resolved",
-        credential: {
-          ...emptyCredential({ kind: "inline", node: end.node.id, path: end.node.path }),
-          username: spec.mode === "inline" ? spec.username : null,
-          domain: spec.mode === "inline" ? spec.domain : null,
-          password: secretState(holder.secrets["password"]),
-        },
-      };
-    }
-    case "credential": {
-      const credential = findNode(doc, end.node.id).node;
-      return {
-        kind: "resolved",
-        credential: {
-          origin: { kind: "credential", node: end.node.id, path: end.node.path },
-          username: credential.username,
-          domain: credential.domain,
-          password: secretState(credential.secrets["password"]),
-          private_key: credential.keyFile
-            ? { kind: "file", path: credential.keyFile }
-            : credential.secrets["privateKey"] === undefined
-              ? null
-              : { kind: "vault", state: secretState(credential.secrets["privateKey"]) },
-          passphrase: secretState(credential.secrets["passphrase"]),
-        },
-      };
-    }
-    case "name_not_found":
-      return { kind: "unresolved", reason: `nessun nodo corrisponde a '${end.name}'` };
-    case "name_ambiguous":
-      return {
-        kind: "unresolved",
-        reason: `'${end.name}' è ambiguo: corrisponde a ${end.candidates.length} nodi`,
-      };
-    case "dangling":
-      return { kind: "unresolved", reason: `il nodo ${end.target} non esiste` };
-    case "not_a_credential":
-      return { kind: "unresolved", reason: `il nodo ${end.node.path} non è una credenziale` };
-  }
-}
-
-function emptyCredential(
-  origin: Extract<
-    NodeDetailsView_Serialize["effective"],
-    { kind: "resolved" }
-  >["credential"]["origin"],
-) {
-  return {
-    origin,
-    username: null,
-    domain: null,
-    password: "not_set" as const,
-    private_key: null,
-    passphrase: "not_set" as const,
   };
 }

@@ -2,27 +2,32 @@ import type { EditOutcome, SecretSlotInput, SecretView, VaultStatus_Serialize } 
 import {
   type FakeBackendState,
   type FakeNode,
+  type SlotKey,
   TEST_MASTER_PASSWORD,
   fail,
   failField,
   findNode,
   openDocument,
+  isLocked,
   pathOf,
-  requireUnlockedVault,
+  requireVaultFor,
+  slotField,
 } from "./fakeBackendModel";
-import { slotOf } from "./fakeBackendViews";
+import { slotOf } from "./fakeBackendDetails";
 
 /** The vault and the secrets of one node. Typed secrets are checked and then dropped: only "present" stays. */
 
 export function vaultStatus(state: FakeBackendState): VaultStatus_Serialize {
-  return { ...state.vault, locked: state.vault.kind === "file" && state.vault.locked };
+  return { ...state.vault, locked: isLocked(state) };
 }
 
 export function unlockVault(
   state: FakeBackendState,
   masterPassword: string,
 ): VaultStatus_Serialize {
-  if (state.vault.kind !== "file") return vaultStatus(state);
+  if (state.vault.kind !== "file") {
+    failField("vault.backend", "il vault configurato non è un file cifrato");
+  }
   if (!state.vault.exists) {
     fail("notFound", `il vault su file '${state.vault.path ?? ""}' non esiste ancora: crealo`);
   }
@@ -54,7 +59,7 @@ export function createFileVault(
   return vaultStatus(state);
 }
 
-function keyOf(slot: SecretSlotInput): string {
+function keyOf(slot: SecretSlotInput): SlotKey {
   switch (slot.kind) {
     case "password":
     case "passphrase":
@@ -67,7 +72,7 @@ function keyOf(slot: SecretSlotInput): string {
 }
 
 /** Refuses a slot the node cannot hold, as `check_secret_slot`. */
-function checkSlot(node: FakeNode, key: string): void {
+function checkSlot(node: FakeNode, key: SlotKey): void {
   if (key.startsWith("property:")) {
     const name = key.slice("property:".length);
     if (node.properties.some((property) => property.name === name && property.text !== null)) {
@@ -81,16 +86,14 @@ function checkSlot(node: FakeNode, key: string): void {
       (node.kind === "folder" || node.kind === "connection") &&
       node.credential.mode === "inline");
   if (!applicable) {
-    failField(
-      key === "privateKey" ? "private_key" : key,
-      `il segreto non è applicabile a '${node.name}'`,
-    );
+    failField(slotField(key), `il segreto non è applicabile a '${node.name}'`);
   }
 }
 
 export function secretStatus(state: FakeBackendState, id: string): SecretView[] {
   const { node } = findNode(openDocument(state), id);
-  requireUnlockedVault(state);
+  // As `secret_status`: the vault is asked only for the secrets the node has.
+  requireVaultFor(state, Object.keys(node.secrets).length > 0);
   return Object.entries(node.secrets).map(([key, present]) => ({
     slot: slotOf(key),
     state: present ? "present" : "absent",
@@ -105,7 +108,7 @@ export function setSecret(
   const { node } = findNode(openDocument(state), id);
   const key = keyOf(slot);
   checkSlot(node, key);
-  requireUnlockedVault(state);
+  requireVaultFor(state, true);
   if (
     key.startsWith("property:") &&
     !node.properties.some((property) => `property:${property.name}` === key)
@@ -126,9 +129,9 @@ export function clearSecret(
   const key = keyOf(slot);
   checkSlot(node, key);
   if (node.secrets[key] === undefined) {
-    fail("invalid", `il segreto di '${pathOf(doc, id)}' non è impostato`);
+    failField(slotField(key), `il segreto di '${pathOf(doc, id)}' non è impostato`);
   }
-  requireUnlockedVault(state);
+  requireVaultFor(state, true);
   delete node.secrets[key];
   if (key.startsWith("property:")) {
     node.properties = node.properties.filter((property) => `property:${property.name}` !== key);

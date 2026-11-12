@@ -16,7 +16,9 @@ import {
   findNode,
   openDocument,
   pathOf,
-  requireUnlockedVault,
+  fileName,
+  isLocked,
+  requireVaultFor,
   walk,
 } from "./fakeBackendModel";
 import { traceOf } from "./fakeBackendViews";
@@ -54,7 +56,7 @@ export function validate(state: FakeBackendState): Issue_Serialize[] {
         });
       }
     }
-    if (!state.vault.locked) {
+    if (!isLocked(state)) {
       for (const [, present] of Object.entries(node.secrets)) {
         if (!present) {
           issues.push({
@@ -67,7 +69,7 @@ export function validate(state: FakeBackendState): Issue_Serialize[] {
       }
     }
   }
-  if (state.vault.locked) {
+  if (isLocked(state)) {
     issues.push({
       severity: "info",
       node: null,
@@ -102,7 +104,7 @@ function result(
   return {
     report: {
       importer: "royal",
-      source_file: file.split("/").pop() ?? file,
+      source_file: fileName(file),
       document_name: "Importati",
       imported_at: "2026-11-10T10:00:00Z",
       counts: {
@@ -176,7 +178,7 @@ export function importApply(
     );
   }
   const written = answers.filter((answer) => answer.value != null).length;
-  if (written > 0) requireUnlockedVault(state);
+  requireVaultFor(state, written > 0);
   const target = childrenOf(doc, options.into ?? null);
   const root = blankNode(state, "folder", "Importati");
   for (const item of IMPORTED) {
@@ -205,7 +207,7 @@ export function importApply(
 export function saveImportReport(state: FakeBackendState) {
   if (!state.lastImport) fail("notFound", "nessun import da esportare");
   const path = state.dialogs.report;
-  return path === null ? null : { fileName: path.split("/").pop() ?? path };
+  return path === null ? null : { fileName: fileName(path) };
 }
 
 export function loginRequest(state: FakeBackendState, id: string): LoginRequest | null {
