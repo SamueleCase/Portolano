@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { commands } from "../bindings";
 import { initialFakeState, installFakeBackend } from "./fakeBackend";
-import { idOf, ok, refused, unlocked } from "./fakeBackendFixtures";
+import { idAt, idOf, ok, refused, unlocked } from "./fakeBackendFixtures";
 
 /** The rules the fake shares with the Rust commands (DEC-031 F3–F7 and the field of each error). */
 
@@ -171,14 +171,142 @@ describe("fake nodes", () => {
     expect(error.details).toEqual({ kind: "invalid", field: "icon" });
   });
 
-  it("copies with the references by name kept unambiguous", async () => {
+  it("renames a copied credential and points the copy to it", async () => {
     unlocked();
 
-    const copy = ok(await commands.duplicateNode(await idOf("ACME")));
+    const copy = ok(await commands.duplicateNode(await idOf("Clienti")));
 
-    expect(copy.renamed).toEqual([]);
-    const tree = ok(await commands.validate());
-    expect(tree.map((issue) => issue.code)).not.toContain("by_name_ambiguous");
+    expect(copy.renamed.map((node) => node.path)).toEqual(["/Clienti (copia)/Admin ACME (copia)"]);
+    const copiedAdmin = copy.renamed[0]?.id;
+    const db01 = ok(await commands.nodeDetails(await idAt(`${copy.path}/ACME/db01`)));
+    expect(db01.credentialSpec).toEqual({ mode: "by_id", target: copiedAdmin });
+    const ts01 = ok(await commands.nodeDetails(await idAt(`${copy.path}/ts01`)));
+    expect(ts01.connection?.settings["gateway"]).toEqual({
+      host: "gw.example.com",
+      credential: { mode: "by_id", $ref: copiedAdmin },
+    });
+  });
+
+  it("leaves the original as it was when copying", async () => {
+    unlocked();
+    const admin = await idOf("Admin ACME");
+
+    ok(await commands.duplicateNode(await idOf("Clienti")));
+
+    const db01 = ok(await commands.nodeDetails(await idOf("db01")));
+    expect(db01.effective).toMatchObject({
+      kind: "resolved",
+      credential: { origin: { node: admin } },
+    });
+    expect(ok(await commands.validate()).map((issue) => issue.code)).not.toContain(
+      "by_name_ambiguous",
+    );
+  });
+
+  it("counts a credential of the gateway in the settings as a reference", async () => {
+    unlocked();
+
+    const preview = ok(await commands.previewDelete(await idOf("Admin ACME")));
+
+    expect(preview.references.map((reference) => reference.from_path).sort()).toEqual([
+      "/Clienti/ACME",
+      "/Clienti/ACME/db01",
+      "/Clienti/ts01",
+    ]);
+  });
+
+  it("lists the connections that inherit a credential to delete", async () => {
+    unlocked();
+
+    const preview = ok(await commands.previewDelete(await idOf("Admin ACME")));
+
+    expect(preview.inherited.map((node) => node.path)).toEqual([
+      "/Clienti/ACME/web01",
+      "/Clienti/ACME/dc01",
+    ]);
+  });
+
+  it("gives the gateway its credential back with undo", async () => {
+    unlocked();
+    const deleted = ok(
+      await commands.deleteNode(await idOf("Admin ACME"), { recursive: false, force: true }),
+    );
+    const ts01 = await idOf("ts01");
+    const detached = ok(await commands.nodeDetails(ts01)).connection?.settings["gateway"];
+    expect(detached).toMatchObject({ credential: { mode: "prompt" } });
+
+    const restored = ok(await commands.undoDelete(deleted.undoId));
+
+    expect(restored.kept).toEqual([]);
+    expect(ok(await commands.nodeDetails(ts01)).connection?.settings["gateway"]).toMatchObject({
+      credential: { mode: "by_id" },
+    });
+  });
+
+  it("lists as kept a node changed between deletion and undo", async () => {
+    unlocked();
+    const deleted = ok(
+      await commands.deleteNode(await idOf("Admin ACME"), { recursive: false, force: true }),
+    );
+    const acme = await idOf("ACME");
+    ok(await commands.editNode(acme, { credential: { mode: "none" } }));
+
+    const restored = ok(await commands.undoDelete(deleted.undoId));
+
+    expect(restored.kept.map((node) => node.id)).toEqual([acme]);
+  });
+
+  it("does not list as kept a node deleted between deletion and undo", async () => {
+    unlocked();
+    const deleted = ok(
+      await commands.deleteNode(await idOf("Admin ACME"), { recursive: false, force: true }),
+    );
+    ok(await commands.deleteNode(await idOf("db01"), { recursive: false, force: false }));
+
+    const restored = ok(await commands.undoDelete(deleted.undoId));
+
+    expect(restored.kept).toEqual([]);
+  });
+
+  it("refuses an empty name when adding, on the name field", async () => {
+    installFakeBackend();
+
+    const error = refused(
+      await commands.addNode({
+        parent: null,
+        name: " ",
+        kind: { type: "folder", credential: { mode: "inherit" } },
+      }),
+    );
+
+    expect(error.details).toEqual({ kind: "invalid", field: "name" });
+  });
+
+  it("refuses an empty name when editing, on the name field", async () => {
+    installFakeBackend();
+
+    const error = refused(await commands.editNode(await idOf("web01"), { name: "" }));
+
+    expect(error.details).toEqual({ kind: "invalid", field: "name" });
+  });
+
+  it("refuses a password on an unsupported node, on the password field", async () => {
+    unlocked();
+
+    const error = refused(
+      await commands.editNode(await idOf("vnc-legacy"), {
+        secrets: { password: { action: "set", value: "x" } },
+      }),
+    );
+
+    expect(error.details).toEqual({ kind: "invalid", field: "password" });
+  });
+
+  it("answers the key file chosen in the dialog", async () => {
+    const state = installFakeBackend();
+    state.dialogs.keyFile = "/Users/utente-di-prova/.ssh/id_ed25519";
+
+    expect(ok(await commands.chooseKeyFile())).toBe("/Users/utente-di-prova/.ssh/id_ed25519");
   });
 });
 

@@ -50,6 +50,9 @@ export function editNode(
     editKeyFile(node, edit);
   } else {
     refuseOnLogin(node, edit);
+    if (node.kind === "unsupported" && edit.secrets?.password != null) {
+      failField("password", `la password non è applicabile a '${node.name}'`);
+    }
     if (edit.secrets?.password?.action === "set") setInlinePassword(node);
     written += stage(node, "password", edit.secrets?.password);
   }

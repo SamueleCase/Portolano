@@ -26,6 +26,20 @@ export async function idOf(name: string): Promise<string> {
   throw new Error(`nodo ${name} assente`);
 }
 
+/** The id of the node at `path` (`/Clienti/ACME/web01`), by names. */
+export async function idAt(path: string): Promise<string> {
+  let nodes = ok(await commands.tree()).nodes;
+  let id: string | null = null;
+  for (const name of path.split("/").filter((segment) => segment !== "")) {
+    const node = nodes.find((candidate) => candidate.name === name);
+    if (!node) throw new Error(`nodo ${path} assente`);
+    id = node.id;
+    nodes = node.children;
+  }
+  if (id === null) throw new Error("la radice non è un nodo");
+  return id;
+}
+
 /** The fake backend with the sample document and the vault unlocked. */
 export function unlocked(): FakeBackendState {
   const state = initialFakeState();

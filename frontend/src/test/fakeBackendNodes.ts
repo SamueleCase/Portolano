@@ -1,3 +1,4 @@
+import { isControl } from "../components/visibleText";
 import type {
   AddOutcome,
   CredentialChoice_Deserialize,
@@ -110,12 +111,9 @@ export function setInlinePassword(node: FakeNode): void {
   node.secrets["password"] = true;
 }
 
-/** Whether `text` holds a control character: C0, DEL or C1. */
+/** Whether `text` holds a control character, as `char::is_control` of the backend. */
 function hasControlCharacter(text: string): boolean {
-  return [...text].some((char) => {
-    const code = char.charCodeAt(0);
-    return code < 0x20 || (code >= 0x7f && code <= 0x9f);
-  });
+  return [...text].some((char) => isControl(char.codePointAt(0) ?? 0));
 }
 
 /** A key file, as `check_key_file` of the app (DEC-031.4). */
