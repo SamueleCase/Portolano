@@ -5,6 +5,9 @@ import { fitViewport, openGallery, SHOTS } from "./galleryPage";
 
 const sections = Object.keys(gallery.section);
 
+/** Room around a section in its screenshot: the 14 px padding of the page, above and below. */
+const SECTION_MARGIN = 2 * 14;
+
 test.describe("the component gallery", () => {
   test("has a screenshot for each section and one of the whole page", async ({ page }) => {
     // Fifteen screenshots of a long page.
@@ -16,7 +19,7 @@ test.describe("the component gallery", () => {
       await expect(section).toBeVisible();
       // The whole section inside the viewport, over the background.
       const box = await section.boundingBox();
-      await fitViewport(page, (box?.height ?? 0) + 28);
+      await fitViewport(page, (box?.height ?? 0) + SECTION_MARGIN);
       await section.scrollIntoViewIfNeeded();
       await section.screenshot({
         path: `${SHOTS}/${String(index + 1).padStart(2, "0")}-${id}.png`,

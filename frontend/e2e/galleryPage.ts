@@ -27,14 +27,14 @@ export async function openGallery(page: Page, query = ""): Promise<void> {
  */
 export async function fitViewport(page: Page, height: number): Promise<void> {
   await page.setViewportSize({ width: 1280, height: Math.max(800, Math.ceil(height)) });
-  await page.evaluate(
-    () =>
-      new Promise<void>((done) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            done();
-          });
-        });
-      }),
-  );
+  // Painted again at the new size: the canvas fills the viewport and its
+  // bitmap has the same scale on both axes (before the repaint the height
+  // of the bitmap is still the old one).
+  await page.waitForFunction(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas || canvas.clientHeight !== window.innerHeight) return false;
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
+    return Math.abs(scaleX - scaleY) < 0.01;
+  });
 }
