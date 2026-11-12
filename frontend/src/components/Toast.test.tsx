@@ -16,11 +16,14 @@ describe("ToastViewport", () => {
     vi.useRealTimers();
   });
 
-  it("is a polite live region named Notifiche", () => {
+  it("announces a confirmation politely, in the region named Notifiche", () => {
     render(<ToastViewport toasts={[saved]} onDismiss={vi.fn()} />);
 
     const region = screen.getByRole("region", { name: "Notifiche" });
-    expect(within(region).getByRole("list")).toHaveAttribute("aria-live", "polite");
+    expect(within(region).getByText(saved.text).closest("[aria-live]")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
   });
 
   it("dismisses a confirmation after 5 seconds", () => {
@@ -72,10 +75,14 @@ describe("ToastViewport", () => {
     expect(onDismiss).toHaveBeenCalledWith("2");
   });
 
-  it("announces an error as an alert", () => {
+  it("announces an error assertively, and only once", () => {
     render(<ToastViewport toasts={[refused]} onDismiss={vi.fn()} />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("db02: connessione rifiutata");
+    expect(screen.getByText(refused.text).closest("[aria-live]")).toHaveAttribute(
+      "aria-live",
+      "assertive",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("waits while the pointer is on the toast", () => {

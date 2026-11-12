@@ -39,7 +39,6 @@ export function Toast({ toast, onDismiss }: ToastProps) {
   return (
     <li
       className={classNames(styles.toast, styles[toast.kind])}
-      role={toast.kind === "error" ? "alert" : undefined}
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
       onFocus={() => setHeld(true)}

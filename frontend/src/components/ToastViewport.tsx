@@ -12,16 +12,24 @@ interface ToastViewportProps {
 
 /**
  * The toasts at the bottom right, 360 px wide, the newest three
- * (ambiguity 17), in a polite live region; errors are alerts.
+ * (ambiguity 17). Each toast is announced once: confirmations from a polite
+ * live region, errors from an assertive one.
  */
 export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
-  return createPortal(
-    <section className={styles.viewport} aria-label={texts.components.toast.region}>
-      <ol className={styles.list} aria-live="polite">
-        {toasts.slice(-MAX_VISIBLE_TOASTS).map((toast) => (
+  const shown = toasts.slice(-MAX_VISIBLE_TOASTS);
+  const list = (kind: "polite" | "assertive") => (
+    <ol className={styles.list} aria-live={kind}>
+      {shown
+        .filter((toast) => (toast.kind === "error") === (kind === "assertive"))
+        .map((toast) => (
           <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
         ))}
-      </ol>
+    </ol>
+  );
+  return createPortal(
+    <section className={styles.viewport} aria-label={texts.components.toast.region}>
+      {list("polite")}
+      {list("assertive")}
     </section>,
     document.body,
   );

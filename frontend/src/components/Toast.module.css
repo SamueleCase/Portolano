@@ -1,5 +1,8 @@
 .viewport {
   position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   right: var(--space-fine-14);
   bottom: var(--space-fine-14);
   z-index: var(--z-toast);
