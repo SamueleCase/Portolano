@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { classNames } from "./classNames";
 import styles from "./KeyValueGrid.module.css";
+import { visibleText } from "./visibleText";
 
 /** A row of the grid: the label and its value. */
 export interface KeyValueRow {
@@ -24,8 +25,10 @@ export function KeyValueGrid({ rows, width = "detail" }: KeyValueGridProps) {
     <dl className={classNames(styles.grid, styles[width])}>
       {rows.map((row) => (
         <div key={row.key} className={styles.row}>
-          <dt className={styles.label}>{row.label}</dt>
-          <dd className={classNames(styles.value, row.mono && styles.mono)}>{row.value}</dd>
+          <dt className={styles.label}>{visibleText(row.label)}</dt>
+          <dd className={classNames(styles.value, row.mono && styles.mono)}>
+            {typeof row.value === "string" ? visibleText(row.value) : row.value}
+          </dd>
         </div>
       ))}
     </dl>

@@ -69,4 +69,16 @@ describe("Tooltip", () => {
 
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
+
+  it("shows control characters of its text", () => {
+    render(
+      <Tooltip content={"vault\u0007.vault"}>
+        <Button>Vault</Button>
+      </Tooltip>,
+    );
+
+    expect(screen.getByRole("button", { name: "Vault" })).toHaveAccessibleDescription(
+      "vault\\u{7}.vault",
+    );
+  });
 });

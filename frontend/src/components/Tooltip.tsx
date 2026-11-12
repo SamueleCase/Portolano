@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 
 import { classNames } from "./classNames";
 import styles from "./Tooltip.module.css";
+import { visibleText } from "./visibleText";
 
 /** The tooltip appears after 500 ms (inventario §4.14). */
 const TOOLTIP_DELAY_MS = 500;
@@ -24,7 +25,7 @@ interface TriggerProps {
 }
 
 interface TooltipProps {
-  /** The text; untrusted strings must already be made visible by the caller. */
+  /** The text, possibly from the document: it is made visible here. */
   content: string;
   /** A keyboard shortcut in mono, such as "⌘↩". */
   shortcut?: string | undefined;
@@ -102,7 +103,7 @@ export function Tooltip({ content, shortcut, multiline = false, children }: Tool
           className={classNames(styles.tooltip, multiline && styles.multiline)}
           style={position ? { top: position.top, left: position.left } : undefined}
         >
-          {content}
+          {visibleText(content)}
           {shortcut && <span className={styles.shortcut}>{shortcut}</span>}
         </span>,
         document.body,

@@ -1,9 +1,13 @@
 /**
  * Strings of the document come from untrusted sources (DEC-024): a name, a
  * host or a note could carry control characters, or bidi controls that show
- * the text in another order than it has. Every component that shows them
- * passes them through here, so they read exactly as the CLI prints them
- * (`portolano-cli` `output::escape::visible`, DEC-026.4).
+ * the text in another order than it has. They read here exactly as the CLI
+ * prints them (`portolano-cli` `output::escape::visible`, DEC-026.4).
+ *
+ * The rule: every component that receives a text which may come from the
+ * document (a name, a path, a host, a label of a property, a title, a
+ * tooltip) makes it visible itself, so the screens never have to remember.
+ * The function is idempotent, so a text already made visible is unchanged.
  */
 
 /** C0 controls, DEL and C1 controls: Rust's `char::is_control` (category Cc). */

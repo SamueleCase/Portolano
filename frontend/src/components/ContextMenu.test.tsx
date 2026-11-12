@@ -67,4 +67,18 @@ describe("ContextMenu", () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("names the menu with the control characters of the node visible", () => {
+    render(
+      <ContextMenu
+        label={"web\u001b01"}
+        entries={entries}
+        position={{ x: 0, y: 0 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("menu", { name: "web\\u{1b}01" })).toBeInTheDocument();
+  });
 });

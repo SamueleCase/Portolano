@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 
 import { classNames } from "./classNames";
 import styles from "./ContextMenu.module.css";
+import { visibleText } from "./visibleText";
 
 /** An entry of a context menu. */
 export interface MenuItem {
@@ -106,7 +107,7 @@ export function ContextMenu({ label, entries, position, onSelect, onClose }: Con
     <div
       ref={menu}
       role="menu"
-      aria-label={label}
+      aria-label={visibleText(label)}
       className={styles.menu}
       style={{ left: place.left, top: place.top }}
       onKeyDown={keyDown}
@@ -129,7 +130,7 @@ export function ContextMenu({ label, entries, position, onSelect, onClose }: Con
               onClose();
             }}
           >
-            <span>{entry.label}</span>
+            <span>{visibleText(entry.label)}</span>
             {/* The symbols of the shortcut read poorly: the name is the label. */}
             {entry.shortcut && (
               <span className={styles.shortcut} aria-hidden="true">

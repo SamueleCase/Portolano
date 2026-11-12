@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { classNames } from "./classNames";
 import styles from "./Dialog.module.css";
 import { useModal } from "./useModal";
+import { visibleText } from "./visibleText";
 
 /** The widths of the dialogs (inventario §4.16). */
 export type DialogWidth = "small" | "medium" | "wizard" | "preferences" | "selector" | "report";
@@ -60,7 +61,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
-        aria-label={title ? undefined : label}
+        aria-label={title || !label ? undefined : visibleText(label)}
         tabIndex={-1}
         className={classNames(styles.dialog, styles[width], centered && styles.centered)}
         onKeyDown={keyDown}
@@ -68,9 +69,9 @@ export function Dialog({
         {title && (
           <header className={styles.header}>
             <h2 id={titleId} className={styles.title}>
-              {title}
+              {visibleText(title)}
             </h2>
-            {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+            {subtitle && <p className={styles.subtitle}>{visibleText(subtitle)}</p>}
           </header>
         )}
         {children}

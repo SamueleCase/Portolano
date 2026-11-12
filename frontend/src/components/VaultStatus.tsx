@@ -3,7 +3,6 @@ import { texts } from "../i18n/it";
 import { LockIcon } from "./icons/LockIcon";
 import styles from "./VaultStatus.module.css";
 import { Tooltip } from "./Tooltip";
-import { visibleText } from "./visibleText";
 
 /** The vault as the sidebar footer shows it (ambiguity 20). */
 export type VaultFooterState =
@@ -38,7 +37,7 @@ export function VaultStatus({ vault, nodeCount, onUnlock }: VaultStatusProps) {
   const label = vault.locked ? t.fileLocked : t.fileUnlocked;
   return (
     <footer className={styles.footer}>
-      <Tooltip content={visibleText(vault.fileName)}>
+      <Tooltip content={vault.fileName}>
         {vault.locked ? (
           <button type="button" className={styles.unlock} onClick={onUnlock}>
             <LockIcon size="vault" />

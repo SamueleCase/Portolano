@@ -88,3 +88,12 @@ describe("Logo", () => {
     expect(screen.getByText("portolano")).toBeInTheDocument();
   });
 });
+
+describe("KeyValueGrid with text of the document", () => {
+  it("shows control characters of labels and values", () => {
+    render(<KeyValueGrid rows={[{ key: "p", label: "Ambiente\u0007", value: "prod\u001b" }]} />);
+
+    expect(screen.getByRole("term")).toHaveTextContent("Ambiente\\u{7}");
+    expect(screen.getByRole("definition")).toHaveTextContent("prod\\u{1b}");
+  });
+});

@@ -81,3 +81,11 @@ describe("SecretRow", () => {
     expect(onSet).not.toHaveBeenCalled();
   });
 });
+
+describe("SecretRow with a property of the document", () => {
+  it("shows control characters of the name of the property", () => {
+    render(<SecretRow label={"Token\u001b API"} state="absent" backend="file" onSet={vi.fn()} />);
+
+    expect(screen.getByRole("group", { name: "Token\\u{1b} API" })).toBeInTheDocument();
+  });
+});

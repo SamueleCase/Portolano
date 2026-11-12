@@ -125,4 +125,18 @@ describe("Dialog", () => {
 
     expect(screen.getByRole("dialog", { name: "Credenziale" })).toBeInTheDocument();
   });
+
+  it("shows control characters of a title and a subtitle from the document", () => {
+    render(
+      <Dialog
+        open
+        onClose={vi.fn()}
+        title={"Elimina web\u001b01"}
+        subtitle={"Prod\u0007 / web01"}
+      />,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Elimina web\\u{1b}01" })).toBeInTheDocument();
+    expect(screen.getByText("Prod\\u{7} / web01")).toBeInTheDocument();
+  });
 });

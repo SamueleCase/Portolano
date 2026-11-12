@@ -4,6 +4,7 @@ import { texts } from "../i18n/it";
 import { Button } from "./Button";
 import { SecretBadge, type SecretState, type VaultBackend } from "./SecretBadge";
 import styles from "./SecretRow.module.css";
+import { visibleText } from "./visibleText";
 
 interface SecretRowProps {
   /** "Password", "Passphrase", or the name of a secret property. */
@@ -27,7 +28,7 @@ export function SecretRow({ label, state, backend, onSet, onClear }: SecretRowPr
   return (
     <div className={styles.row} role="group" aria-labelledby={labelId}>
       <span id={labelId} className={styles.label}>
-        {label}
+        {visibleText(label)}
       </span>
       <SecretBadge state={state} backend={backend} />
       <span className={styles.actions}>
