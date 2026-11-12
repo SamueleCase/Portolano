@@ -153,3 +153,27 @@ fn deleted_file_is_reported_as_missing_by_the_change_check() {
 
     assert!(matches!(error, Error::DocumentMissing { .. }));
 }
+
+#[test]
+fn deleted_directory_is_reported_as_missing_by_the_change_check() {
+    let dir = TempDir::new().unwrap();
+    let folder = dir.path().join("documenti");
+    let (store, _) = Store::create(folder.join("portolano.json"), "Portolano").unwrap();
+    fs::remove_dir_all(&folder).unwrap();
+
+    let error = store.changed_on_disk().unwrap_err();
+
+    assert!(matches!(error, Error::DocumentMissing { .. }), "{error:?}");
+}
+
+#[test]
+fn save_after_the_directory_was_deleted_reports_the_missing_document() {
+    let dir = TempDir::new().unwrap();
+    let folder = dir.path().join("documenti");
+    let (store, mut doc) = Store::create(folder.join("portolano.json"), "Portolano").unwrap();
+    fs::remove_dir_all(&folder).unwrap();
+
+    let error = store.save(&mut doc).unwrap_err();
+
+    assert!(matches!(error, Error::DocumentMissing { .. }), "{error:?}");
+}
