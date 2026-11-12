@@ -20,10 +20,11 @@ describe("ToastViewport", () => {
     render(<ToastViewport toasts={[saved]} onDismiss={vi.fn()} />);
 
     const region = screen.getByRole("region", { name: "Notifiche" });
-    expect(within(region).getByText(saved.text).closest("[aria-live]")).toHaveAttribute(
-      "aria-live",
-      "polite",
-    );
+    const announced = within(region)
+      .getAllByText(saved.text)
+      .filter((element) => element.closest("[aria-live]"));
+    expect(announced).toHaveLength(1);
+    expect(announced[0]?.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
   });
 
   it("dismisses a confirmation after 5 seconds", () => {
@@ -78,10 +79,11 @@ describe("ToastViewport", () => {
   it("announces an error assertively, and only once", () => {
     render(<ToastViewport toasts={[refused]} onDismiss={vi.fn()} />);
 
-    expect(screen.getByText(refused.text).closest("[aria-live]")).toHaveAttribute(
-      "aria-live",
-      "assertive",
-    );
+    const announced = screen
+      .getAllByText(refused.text)
+      .filter((element) => element.closest("[aria-live]"));
+    expect(announced).toHaveLength(1);
+    expect(announced[0]?.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -122,6 +124,17 @@ describe("ToastViewport", () => {
       "Toast b",
       "Toast c",
       "Toast d",
+    ]);
+  });
+
+  it("keeps the order in which the toasts came, errors included", () => {
+    const info: ToastMessage = { id: "5", kind: "info", text: "Documento ricaricato" };
+    render(<ToastViewport toasts={[saved, refused, info]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      saved.text,
+      `${refused.text}×`,
+      info.text,
     ]);
   });
 });
