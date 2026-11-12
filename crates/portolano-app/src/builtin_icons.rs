@@ -127,26 +127,55 @@ fn match_words(text: &str) -> Option<&'static str> {
     let words = words_of(text);
     ROYAL_WORDS
         .iter()
-        .find(|(word, _)| words.iter().any(|candidate| candidate == word))
+        .find(|(word, _)| {
+            words
+                .iter()
+                .any(|candidate| candidate == word || candidate.strip_suffix('s') == Some(word))
+        })
         .map(|&(_, builtin)| builtin)
 }
 
+/// What a character is, for the boundaries between words.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Class {
+    Lowercase,
+    Uppercase,
+    Digit,
+    Other,
+}
+
+fn class_of(c: char) -> Class {
+    if c.is_lowercase() {
+        Class::Lowercase
+    } else if c.is_uppercase() {
+        Class::Uppercase
+    } else if c.is_numeric() {
+        Class::Digit
+    } else {
+        Class::Other
+    }
+}
+
 /// The lowercase words of `text`, split at anything that is not a letter
-/// or a digit and where a lowercase letter meets an uppercase one
-/// (`HardDrive` gives `hard` and `drive`).
+/// or a digit, where a lowercase letter meets an uppercase one (`HardDrive`
+/// gives `hard` and `drive`) and between letters and digits (`Server2`
+/// gives `server` and `2`).
 fn words_of(text: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut current = String::new();
-    let mut previous_lowercase = false;
+    let mut previous = Class::Other;
     for c in text.chars() {
-        let boundary = !c.is_alphanumeric() || (c.is_uppercase() && previous_lowercase);
+        let class = class_of(c);
+        let boundary = class == Class::Other
+            || (class == Class::Uppercase && previous == Class::Lowercase)
+            || ((class == Class::Digit) != (previous == Class::Digit) && previous != Class::Other);
         if boundary && !current.is_empty() {
             words.push(std::mem::take(&mut current));
         }
-        if c.is_alphanumeric() {
+        if class != Class::Other {
             current.extend(c.to_lowercase());
         }
-        previous_lowercase = c.is_lowercase();
+        previous = class;
     }
     if !current.is_empty() {
         words.push(current);
@@ -189,6 +218,13 @@ mod tests {
     #[test]
     fn royal_name_falls_back_to_its_category() {
         assert_eq!(for_royal("Flat/Network/Hub 24"), Some("network"));
+    }
+
+    #[test]
+    fn plural_words_and_numbered_words_match() {
+        assert_eq!(for_royal("Flat/Hardware/Servers"), Some("server"));
+        assert_eq!(for_royal("Flat/Software/Databases"), Some("database"));
+        assert_eq!(for_royal("Flat/Hardware/Server2"), Some("server"));
     }
 
     #[test]

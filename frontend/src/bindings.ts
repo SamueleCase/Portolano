@@ -641,9 +641,8 @@ export type DuplicateOutcome = {
 	/**  Path of the copy. */
 	path: string,
 	/**
-	 *  Credentials of the copy renamed because a reference by name looks for
-	 *  the name of their original: with the same name it would become
-	 *  ambiguous (DEC-031.3).
+	 *  The credentials of the copy, renamed so that their name is no other
+	 *  credential's and no reference by name looks for it (DEC-031.3).
 	 */
 	renamed: NodeRef[],
 	/**  Secrets copied in the vault under their new references. */

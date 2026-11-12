@@ -1,6 +1,7 @@
 //! A node to create (`add_node`).
 
 use portolano_core::Document;
+use portolano_ops::OpsError;
 use portolano_ops::nodes::{NewNode, NewNodeKind, NodeSecrets};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -9,7 +10,6 @@ use super::{CredentialChoice, DetailsInput, SecretProperty, check_key_file};
 use crate::dto::json::JsonObject;
 use crate::dto::secret::SecretText;
 use crate::error::IpcError;
-use portolano_ops::OpsError;
 
 /// The secrets typed for a new node.
 #[derive(Debug, Default, Deserialize, specta::Type)]
