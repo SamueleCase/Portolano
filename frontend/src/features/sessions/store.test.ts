@@ -39,6 +39,19 @@ describe("useSessionsStore", () => {
     });
   });
 
+  it("keeps the last state of a session that is over", () => {
+    const { added, stateChanged } = useSessionsStore.getState();
+    added(session);
+    stateChanged("session-1", { state: "failed", code: 255, reason: "rifiutata" });
+
+    stateChanged("session-1", { state: "ended", code: 0 });
+
+    expect(useSessionsStore.getState().sessions[0]).toMatchObject({
+      state: { state: "failed", code: 255 },
+      exitCode: 255,
+    });
+  });
+
   it("ignores states of sessions it does not know", () => {
     const { added, stateChanged } = useSessionsStore.getState();
     added(session);
