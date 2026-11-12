@@ -273,3 +273,53 @@ fn undo_refused_by_a_change_on_disk_stays_undoable_after_a_reload() {
     assert_eq!(error.code, ErrorCode::ModifiedExternally);
     assert_eq!(restored.path, "/web01");
 }
+
+#[test]
+fn undo_for_a_document_no_longer_open_is_finished_and_changes_nothing() {
+    let app = TestApp::with_document();
+    let web01 = app.add(ssh("web01", None));
+    let deleted = remove(&app.state, web01, DeleteOptionsInput::default()).unwrap();
+    let pending = app.state.pending_deletes().take(deleted.undo_id).unwrap();
+    crate::commands::document::create(&app.state, &app.dir.path().join("altro.json"), "Altro")
+        .unwrap();
+    app.state.put_back(deleted.undo_id, pending);
+
+    let error = undo(&app.state, deleted.undo_id).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::NoDocument);
+    assert!(names(&app).is_empty());
+    assert!(app.state.pending_deletes().take(deleted.undo_id).is_none());
+}
+
+#[test]
+fn expired_deletion_given_back_is_finished_at_once() {
+    let app = TestApp::with_document();
+    let admin = app.add(admin_with_sentinel());
+    let reference = app
+        .state
+        .with_document(|open| Ok(open.document().secret_refs_in(admin)))
+        .unwrap();
+    let deleted = remove(&app.state, admin, DeleteOptionsInput::default()).unwrap();
+    let mut pending = app.state.pending_deletes().take(deleted.undo_id).unwrap();
+    pending.expires_at = std::time::Instant::now();
+
+    app.state.put_back(deleted.undo_id, pending);
+
+    assert!(app.state.pending_deletes().take(deleted.undo_id).is_none());
+    assert!(!app.state.vault().unwrap().contains(&reference[0]).unwrap());
+}
+
+#[test]
+fn empty_name_in_an_edit_is_refused_on_the_name_field() {
+    let app = TestApp::with_document();
+    let web01 = app.add(ssh("web01", None));
+
+    let error = change(&app.state, web01, edit_of(json!({ "name": " " }))).unwrap_err();
+
+    assert_eq!(
+        error.details,
+        Some(crate::error::IpcErrorDetails::Invalid {
+            field: "name".to_owned()
+        })
+    );
+}

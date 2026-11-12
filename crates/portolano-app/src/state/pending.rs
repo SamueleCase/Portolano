@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use portolano_ops::delete::DeletedSubtree;
 use uuid::Uuid;
@@ -23,6 +23,15 @@ pub struct PendingDelete {
     pub document: PathBuf,
     /// What [`portolano_ops::delete::restore_deleted`] needs.
     pub deleted: DeletedSubtree,
+    /// When it can no longer be undone.
+    pub expires_at: Instant,
+}
+
+impl PendingDelete {
+    /// Whether it can no longer be undone.
+    pub fn expired(&self) -> bool {
+        self.expires_at <= Instant::now()
+    }
 }
 
 /// The deletions that can still be undone, by id.
@@ -40,6 +49,7 @@ impl PendingDeletes {
             PendingDelete {
                 document: document.to_owned(),
                 deleted,
+                expires_at: Instant::now() + UNDO_WINDOW,
             },
         );
         id
@@ -51,9 +61,10 @@ impl PendingDeletes {
         recover(self.entries.lock()).remove(&id)
     }
 
-    /// Puts back deletion `id` taken by an undo that failed: it stays
-    /// undoable, and expires when it would have.
-    pub fn put_back(&self, id: UndoId, pending: PendingDelete) {
+    /// Puts back deletion `id`, taken by an undo that failed and not
+    /// expired yet: it stays undoable until it expires (see
+    /// [`super::AppState::put_back`], which finishes an expired one).
+    pub(super) fn put_back(&self, id: UndoId, pending: PendingDelete) {
         recover(self.entries.lock()).insert(id, pending);
     }
 

@@ -242,6 +242,17 @@ impl AppState {
         }
     }
 
+    /// Gives back deletion `id`, taken by an undo that failed for a reason
+    /// that can be fixed: it stays undoable until it expires; if it already
+    /// expired meanwhile, it is finished now.
+    pub fn put_back(&self, id: UndoId, pending: PendingDelete) {
+        if pending.expired() {
+            self.purge(pending);
+        } else {
+            self.pending_deletes.put_back(id, pending);
+        }
+    }
+
     /// Finishes a deletion that can no longer be undone: its secrets leave
     /// the vault. A secret that cannot be deleted is logged and stays in the
     /// vault, unused; so does every secret of a deletion whose document is

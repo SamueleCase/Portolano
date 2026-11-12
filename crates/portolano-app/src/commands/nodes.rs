@@ -16,7 +16,7 @@ use uuid::Uuid;
 use super::{blocking, changed};
 use crate::dialogs;
 use crate::dto::{DeleteOptionsInput, NewNodeInput, NodeEditInput, PlacementInput};
-use crate::error::IpcError;
+use crate::error::{ErrorCode, IpcError};
 use crate::state::{AppState, PendingDelete, UNDO_WINDOW, UndoId};
 
 /// Creates a node with its secrets.
@@ -214,35 +214,41 @@ pub(crate) fn remove(
 }
 
 pub(crate) fn undo(state: &AppState, undo_id: UndoId) -> Result<RestoreOutcome, IpcError> {
-    let pending = state
+    let PendingDelete {
+        document,
+        deleted,
+        expires_at,
+    } = state
         .pending_deletes()
         .take(undo_id)
         .ok_or_else(|| IpcError::not_found("l'eliminazione non si può più annullare".to_owned()))?;
-    if state.document_path().as_deref() != Some(pending.document.as_path()) {
-        // Definitive: the document of the deletion is no longer open.
-        state.purge(pending);
-        return Err(IpcError::no_document());
-    }
-    // Any other failure (the file changed on disk, a sibling took the name,
-    // a disk error) can be fixed: the deletion stays undoable until it
-    // expires, as if the undo had not been asked.
     let fallback = PendingDelete {
-        document: pending.document.clone(),
-        deleted: pending.deleted.clone(),
+        document: document.clone(),
+        deleted: deleted.clone(),
+        expires_at,
     };
+    // The document is compared under its lock: another document opened in
+    // the meantime must not receive the subtree.
+    let mut other_document = false;
     let restored = state.vault().and_then(|vault| {
         state.with_document(|open| {
+            if open.path() != document {
+                other_document = true;
+                return Err(IpcError::no_document());
+            }
             let (store, doc) = open.parts();
-            Ok(restore_deleted(
-                store,
-                doc,
-                vault.as_ref(),
-                pending.deleted,
-            )?)
+            Ok(restore_deleted(store, doc, vault.as_ref(), deleted)?)
         })
     });
-    if restored.is_err() {
-        state.pending_deletes().put_back(undo_id, fallback);
+    match &restored {
+        Ok(_) => {}
+        // Definitive: the document of the deletion is no longer open.
+        Err(error) if other_document || error.code == ErrorCode::NoDocument => {
+            state.purge(fallback);
+        }
+        // The file changed on disk, a sibling took the name, a disk error:
+        // it can be fixed, and the deletion stays undoable until it expires.
+        Err(_) => state.put_back(undo_id, fallback),
     }
     restored
 }
