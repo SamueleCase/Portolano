@@ -33,14 +33,18 @@ tauri-plugin-opener.workspace = true
 specta.workspace = true
 tauri-specta.workspace = true
 specta-typescript.workspace = true
+# Declared here for the sessions (UI-WP3: PTY of `ssh`, CHILD_ENV_REMOVE) and
+# the watcher of the document (UI-WP2), with the versions of SPEC-UI §2.1.
+portolano-connectors.workspace = true
+portable-pty.workspace = true
+notify.workspace = true
+notify-debouncer-full.workspace = true
 
 [build-dependencies]
 tauri-build.workspace = true
 
 [dev-dependencies]
-portolano-connectors.workspace = true
 tauri = { workspace = true, features = ["test"] }
-portable-pty.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 
