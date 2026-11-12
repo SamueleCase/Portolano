@@ -25,8 +25,9 @@ interface DialogProps {
   footer?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
   /**
-   * The default action, run by Enter (SPEC-UI §5.5): the content becomes a
-   * form and the footer button of the default action is `type="submit"`.
+   * The default action, run by Enter in a field or on an option of a radio
+   * group (SPEC-UI §5.5): the content becomes a form and the footer button of
+   * the default action is `type="submit"`.
    * In the delete confirmation the default action is "Annulla".
    */
   onSubmit?: (() => void) | undefined;
@@ -94,6 +95,22 @@ export function Dialog({
               // The form is only the keyboard of the default action: nothing is sent.
               event.preventDefault();
               onSubmit();
+            }}
+            onKeyDown={(event) => {
+              // Fields submit on Enter by themselves; the options of a radio
+              // group do not use Enter, so there it is the default action too.
+              // The click goes through the button, which ignores it while disabled.
+              if (event.key !== "Enter" || event.defaultPrevented) return;
+              if (
+                !(event.target instanceof HTMLElement) ||
+                !event.target.matches("[role='radio']")
+              ) {
+                return;
+              }
+              event.preventDefault();
+              event.currentTarget
+                .querySelector<HTMLButtonElement>("button[type='submit']")
+                ?.click();
             }}
           >
             {body}

@@ -63,8 +63,9 @@ export function CredentialSelector({
       label={t.credentialSelector.label}
       width="selector"
       initialFocus={chosen}
+      onSubmit={onDone}
       footer={
-        <Button variant="primary" onClick={onDone}>
+        <Button variant="primary" type="submit">
           {t.credentialSelector.done}
         </Button>
       }

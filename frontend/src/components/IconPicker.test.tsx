@@ -110,4 +110,21 @@ describe("IconPicker", () => {
     expect(screen.getByRole("radio", { name: "Portolano" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "Stampante" })).not.toBeChecked();
   });
+
+  it("uses the chosen icon with Enter, its default action", async () => {
+    const { onUse } = renderPicker();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Database" }));
+    await userEvent.keyboard("{Enter}");
+
+    expect(onUse).toHaveBeenCalledWith({ source: "builtin", name: "database" });
+  });
+
+  it("does not use an icon with Enter before one is chosen", async () => {
+    const { onUse } = renderPicker();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(onUse).not.toHaveBeenCalled();
+  });
 });

@@ -89,16 +89,13 @@ function OpenIconPicker({ onClose, value, onUse, customIcons, onChooseImage }: I
       onClose={onClose}
       title={t.title}
       width="small"
+      onSubmit={() => {
+        if (selected) onUse(selected);
+      }}
       footer={
         <>
           <Button onClick={onClose}>{t.cancel}</Button>
-          <Button
-            variant="primary"
-            disabled={!selected}
-            onClick={() => {
-              if (selected) onUse(selected);
-            }}
-          >
+          <Button variant="primary" type="submit" disabled={!selected}>
             {t.use}
           </Button>
         </>

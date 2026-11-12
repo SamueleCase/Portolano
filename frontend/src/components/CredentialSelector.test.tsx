@@ -46,6 +46,14 @@ describe("CredentialSelector", () => {
     expect(onModeChange).toHaveBeenCalledWith("ask");
   });
 
+  it("confirms with Enter, its default action", async () => {
+    const { onDone } = renderSelector();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
   it("confirms with Fatto", async () => {
     const { onDone } = renderSelector();
 
