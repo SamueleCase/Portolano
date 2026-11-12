@@ -24,6 +24,18 @@ use crate::ssh::askpass::{
 };
 use crate::terminal::launcher;
 
+/// Variables removed from the inherited environment of every child process:
+/// a child must never inherit the askpass variables of another session, nor
+/// the master password of the vault (DEC-023.1). A caller that starts the
+/// program of a [`PreparedLaunch`] itself, such as the terminal of the app,
+/// removes them too before adding [`PreparedLaunch::env`].
+pub const CHILD_ENV_REMOVE: [&str; 4] = [
+    ASKPASS_ENV,
+    ASKPASS_SOCK_ENV,
+    ASKPASS_TOKEN_ENV,
+    MASTER_PASSWORD_ENV,
+];
+
 /// Exit code of `ssh-add` when it cannot reach the agent.
 const SSH_ADD_NO_AGENT: i32 = 2;
 
@@ -291,7 +303,7 @@ impl PreparedLaunch {
 
     /// Variables to add to the inherited environment, including those of
     /// askpass; they never contain secrets. A caller that starts the program
-    /// itself must also remove [`MASTER_PASSWORD_ENV`] from the inherited
+    /// itself must first remove [`CHILD_ENV_REMOVE`] from the inherited
     /// environment (DEC-023.1).
     pub fn env(&self) -> &[(String, String)] {
         &self.env
@@ -367,14 +379,7 @@ impl PreparedLaunch {
     fn command(&self, detached: bool, log: Option<fs::File>) -> Command {
         let mut command = Command::new(&self.program);
         command.args(&self.args);
-        // A child must never inherit askpass variables of another session,
-        // nor the master password of the vault (DEC-023.1).
-        for name in [
-            ASKPASS_ENV,
-            ASKPASS_SOCK_ENV,
-            ASKPASS_TOKEN_ENV,
-            MASTER_PASSWORD_ENV,
-        ] {
+        for name in CHILD_ENV_REMOVE {
             command.env_remove(name);
         }
         command.envs(self.env.iter().map(|(key, value)| (key, value)));
