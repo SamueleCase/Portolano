@@ -1,3 +1,6 @@
+/** A tooltip appears after this long (inventario §4.14). */
+export const TOOLTIP_DELAY_MS = 500;
+
 /**
  * Design tokens as CSS custom properties (SPEC-UI §5.2), with the values of
  * `docs/ui/inventario.md` §2 (palette 2a) under semantic names (ambiguity 1).
@@ -7,9 +10,6 @@
  * This is the only place with literal colors and measures: stylesheets use
  * the custom properties.
  */
-/** A tooltip appears after this long (inventario §4.14). */
-export const TOOLTIP_DELAY_MS = 500;
-
 export const tokens = {
   // Surfaces (inventario §2.1, §2.11).
   "--color-bg": "#1B1A17",
