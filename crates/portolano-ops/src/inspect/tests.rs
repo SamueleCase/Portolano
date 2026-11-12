@@ -166,3 +166,57 @@ fn entry_paths_are_those_of_the_document_with_escapes() {
         }
     }
 }
+
+#[test]
+fn node_without_secrets_has_none_set() {
+    let doc = document(vec![folder(
+        "Clienti",
+        vec![credential("Admin", "admin", None)],
+    )]);
+    let node = doc.find(id_of(&doc, "/Clienti")).unwrap();
+
+    let state = own_secrets_state(&doc, node, &MemoryVault::default()).unwrap();
+
+    assert_eq!(state, SecretState::NotSet);
+}
+
+#[test]
+fn folder_state_ignores_the_secrets_of_its_children() {
+    let doc = document(vec![folder(
+        "Clienti",
+        vec![credential("Admin", "admin", Some(SecretRef::new()))],
+    )]);
+    let node = doc.find(id_of(&doc, "/Clienti")).unwrap();
+
+    let state = own_secrets_state(&doc, node, &MemoryVault::default()).unwrap();
+
+    assert_eq!(state, SecretState::NotSet);
+}
+
+#[test]
+fn one_secret_missing_makes_the_node_absent() {
+    let (vault, present) = vault_with(SENTINEL);
+    let mut node = credential("Admin", "admin", Some(present));
+    if let Some(credential) = node.as_credential_mut() {
+        credential.passphrase = Some(SecretRef::new());
+    }
+    let doc = document(vec![node]);
+    let node = doc.find(id_of(&doc, "/Admin")).unwrap();
+
+    assert_eq!(
+        own_secrets_state(&doc, node, &vault).unwrap(),
+        SecretState::Absent
+    );
+}
+
+#[test]
+fn all_secrets_in_the_vault_make_the_node_present() {
+    let (vault, present) = vault_with(SENTINEL);
+    let doc = document(vec![credential("Admin", "admin", Some(present))]);
+    let node = doc.find(id_of(&doc, "/Admin")).unwrap();
+
+    assert_eq!(
+        own_secrets_state(&doc, node, &vault).unwrap(),
+        SecretState::Present
+    );
+}

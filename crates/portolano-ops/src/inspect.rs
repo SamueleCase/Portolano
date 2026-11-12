@@ -11,7 +11,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::Result;
-use crate::tree_util::node_path;
+use crate::tree_util::{node_path, own_secret_refs};
 
 /// The kind of a node, with the protocol of a connection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -255,6 +255,30 @@ impl SecretState {
             Some(_) => SecretState::Absent,
         })
     }
+}
+
+/// The secrets of `node` itself (not of its descendants) taken together:
+/// [`SecretState::NotSet`] if it holds none, [`SecretState::Present`] if
+/// the vault has all of them, [`SecretState::Absent`] if it lacks any. The
+/// tree of the app shows it next to each node.
+///
+/// # Errors
+/// Errors of the vault, such as a locked vault.
+pub fn own_secrets_state(
+    doc: &Document,
+    node: &Node,
+    vault: &dyn Vault,
+) -> Result<SecretState, VaultError> {
+    let references = own_secret_refs(doc, node);
+    if references.is_empty() {
+        return Ok(SecretState::NotSet);
+    }
+    for reference in &references {
+        if !vault.contains(reference)? {
+            return Ok(SecretState::Absent);
+        }
+    }
+    Ok(SecretState::Present)
 }
 
 /// Where the effective credential comes from, with paths.

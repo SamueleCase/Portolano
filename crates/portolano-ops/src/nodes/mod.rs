@@ -46,6 +46,13 @@ pub struct NodeSecrets {
 pub enum NewNodeKind {
     /// A folder; its descendants inherit no credential from it.
     Folder,
+    /// A folder whose descendants inherit `credential` (the editor of the
+    /// app sets it when it creates the folder); a password for it goes into
+    /// its inline credential, as for a connection.
+    FolderWithCredential {
+        /// The credential of the folder.
+        credential: CredentialInput,
+    },
     /// A connection.
     Connection {
         /// Protocol id, such as `"ssh"`; it must be registered.
