@@ -9,6 +9,8 @@ import { tauriSessionTransport } from "./sessionsTauri";
 
 /** The channel passed to a command as `name`. */
 function channel(args: InvokeArgs | undefined, name: string): Channel<unknown> {
+  // `InvokeArgs` also admits byte arrays, but the session commands always
+  // pass an object; the `instanceof` below checks what is read from it.
   const value = (args as Record<string, unknown> | undefined)?.[name];
   if (!(value instanceof Channel)) {
     throw new Error(`no channel "${name}"`);

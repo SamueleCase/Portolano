@@ -97,10 +97,11 @@ export class FakeSessionTransport implements SessionTransport {
     if (session === undefined) {
       return;
     }
+    // As the backend: "connected" comes with the first output, before it.
+    session.handlers.onState({ state: "connected" });
     if (scenario.banner !== undefined) {
       session.handlers.onOutput(new TextEncoder().encode(scenario.banner));
     }
-    session.handlers.onState({ state: "connected" });
     if (scenario.end !== undefined) {
       this.finish(session, scenario.end);
     }
