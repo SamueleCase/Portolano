@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { IconPicker } from "./IconPicker";
@@ -77,5 +78,36 @@ describe("IconPicker", () => {
     await userEvent.click(screen.getByRole("button", { name: "Scegli un'immagine…" }));
 
     expect(onChooseImage).toHaveBeenCalledOnce();
+  });
+
+  it("starts again from the node's icon, the builtin source and an empty search", async () => {
+    function Reopen() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            riapri
+          </button>
+          <IconPicker
+            open={open}
+            onClose={() => setOpen(false)}
+            value={undefined}
+            onUse={vi.fn()}
+            customIcons={[]}
+            onChooseImage={vi.fn()}
+          />
+        </>
+      );
+    }
+    render(<Reopen />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Cerca icona…" }), "stamp");
+    await userEvent.click(screen.getByRole("radio", { name: "Stampante" }));
+    await userEvent.click(screen.getByRole("button", { name: "Annulla" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "riapri" }));
+
+    expect(screen.getByRole("textbox", { name: "Cerca icona…" })).toHaveValue("");
+    expect(screen.getByRole("radio", { name: "Portolano" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Stampante" })).not.toBeChecked();
   });
 });

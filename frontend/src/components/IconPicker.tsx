@@ -42,14 +42,13 @@ function matches(text: string, search: string): boolean {
  * The icon picker (inventario §5.7): the builtin Lucide set, the icons
  * imported with the document (only as `<img>`), or a new image from disk.
  */
-export function IconPicker({
-  open,
-  onClose,
-  value,
-  onUse,
-  customIcons,
-  onChooseImage,
-}: IconPickerProps) {
+export function IconPicker(props: IconPickerProps) {
+  // Mounted only while open: every opening starts from the node's icon, the
+  // builtin source and an empty search.
+  return props.open ? <OpenIconPicker {...props} /> : null;
+}
+
+function OpenIconPicker({ onClose, value, onUse, customIcons, onChooseImage }: IconPickerProps) {
   const t = texts.components.iconPicker;
   const [source, setSource] = useState<Source>(value?.source === "custom" ? "custom" : "builtin");
   const [search, setSearch] = useState("");
@@ -86,7 +85,7 @@ export function IconPicker({
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
       title={t.title}
       width="small"
