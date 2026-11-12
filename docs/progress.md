@@ -214,13 +214,15 @@ Dall'analisi del mock in `docs/ui/` (vedi DEC-016 per quelle già decise):
 
 ## FASE 2 – app desktop (avviata il 2026-11-12)
 
-Specifica: `docs/SPEC-UI.md`; processo: `docs/PM-PROMPT-UI.md`; stack e mock: DEC-027.
+Specifica: `docs/SPEC-UI.md`; processo: `docs/PM-PROMPT-UI.md`; stack e mock: DEC-027. Materiale del PM per i
+sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brief) e `docs/pm/review-template.md`
+(modello del revisore).
 
 | Passo | Stato | Note |
 |---|---|---|
 | Inventario del mock | fatto | `docs/ui/inventario.md` |
 | Ricognizione tecnica | fatta | `docs/ui/ricerca-tauri.md` |
-| UI-WP0 – prototipo e scheletro | in corso | chiude i punti incerti della ricognizione |
+| UI-WP0 – prototipo e scheletro | correzioni della revisione in corso | punti incerti chiusi (DEC-028); branch `worktree-agent-ab96bd840230a5f0d`; correzioni in `docs/pm/ui-wp0-correzioni.md`; poi gate del PM con e2e e merge |
 | UI-WP1…WP3 (ondata B) | da fare | checkpoint visivo con l'utente sulla galleria dei componenti |
 | UI-WP4…WP6 (ondata C) | da fare | checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |

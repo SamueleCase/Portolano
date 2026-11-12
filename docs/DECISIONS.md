@@ -375,6 +375,43 @@ mock in `docs/ui/NOTE.md`.
 - **Metodo**: come per la FASE 1/2a: specifica (`docs/SPEC-UI.md`) + prompt PM, implementazione con sottoagenti in
   worktree, revisione indipendente prima di ogni merge, quality gate estesi al frontend.
 
+### DEC-028 – Esito dei punti incerti della ricognizione (prove di UI-WP0, decise dal PM)
+1. **Sidecar e `--config`**: confermato SPEC-UI §4.10. `externalBin` solo in `tauri.bundle.json`; nel bundle
+   `Contents/MacOS/portolano` sta accanto all'app, entrambi firmati ad hoc con hardened runtime, e
+   `codesign --verify --deep --strict` passa. I gate Rust passano senza la cartella `binaries/`.
+2. **Askpass su `/dev/tty` nella PTY**: funziona (conferma della host key e prompt sconosciuto senza eco, test
+   `crates/portolano-app/tests/askpass_tty.rs`). Il client askpass però stampa il prompt nascosto **prima** di
+   spegnere l'eco (comportamento di `rpassword`), quindi un input incollato subito dopo il prompt può comparire in
+   chiaro. **Decisione**: in UI-WP3 il client askpass spegne l'eco prima di scrivere il prompt e la riaccende anche in
+   caso di errore, con un test; il comportamento resta identico per la CLI.
+3. **`'unsafe-inline'` negli stili**: resta necessario solo in `style-src` (xterm 6 con renderer DOM produce 14
+   violazioni senza; i colori del tema si perdono). `script-src` resta `'self'`. Si aggiunge
+   `"dangerousDisableAssetCspModification": ["style-src"]`, perché il nonce che Tauri aggiungerebbe a `style-src`
+   farebbe ignorare `'unsafe-inline'` a WebKit. Da verificare nel bundle reale nella verifica finale.
+4. **TIFF e PDF in `<img>`** da `portolano-icon://`: WKWebView li mostra (provato in `tauri dev`). Il segnaposto serve
+   solo per formati non riconosciuti o file illeggibili.
+5. **Permessi**: `core:event:default`, `core:window:default`, `core:window:allow-start-dragging`,
+   `opener:allow-open-url` limitato a `http(s)://*` e i permessi dei comandi dell'app. **Nessun permesso del plugin
+   dialog**: tutti i dialoghi dell'interfaccia sono componenti React e i percorsi li sceglie Rust (§4.6), quindi
+   `dialog:allow-message` si toglie. Modalità d'errore di tauri-specta: `ErrorHandlingMode::Result`.
+6. **Prestazioni del vetro**: misura preliminare, non affidabile (la webview ha smesso di produrre frame dopo 51
+   frame): canvas animato e 3 pannelli `blur(18px)` a 1280×800, DPR 2, p50 33 ms, p95 41 ms. **Decisione**: UI-WP1
+   ferma l'animazione dello sfondo quando la finestra non è visibile o non ha il focus, rispetta
+   `prefers-reduced-motion` e l'interruttore di §6, e limita l'animazione a 30 fps; il PM rimisura con Web Inspector
+   al primo checkpoint visivo prima di confermare i valori di blur.
+7. **Bundle**: `Portolano.app` 18,5 MiB, `.dmg` 6,0 MiB. La prova del Keychain con l'app firmata ad hoc resta un test
+   manuale dell'utente (SPEC-UI §9).
+- **Contatori `usize`** nei tipi di ops e import: specta-typescript li rifiuta. Si annotano con
+  `#[cfg_attr(feature = "specta", specta(type = u32))]` (nessun DTO duplicato; i conteggi reali sono molto sotto il
+  limite) e un test dell'app esporta tutti i tipi di §3.5, così un tipo non esportabile emerge subito. Non si usa
+  `dangerously_cast_bigints_to_number()`.
+- **Icone personalizzate**: lo schema `portolano-icon://` serve solo file regolari (niente symlink), entro un limite
+  di dimensione, e solo se lo SHA-256 dei byte coincide con il nome; controllo dell'hash e tipi MIME sono quelli del
+  core, non duplicati nell'app (revisione di UI-WP0).
+- **CSP in sviluppo**: in `tauri dev` non è stato possibile verificare che `devCsp` venga applicata; la CSP valida è
+  quella del bundle, verificata nella verifica finale. Gli e2e servono già le pagine con la CSP di `tauri.conf.json` e
+  falliscono a ogni violazione.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
