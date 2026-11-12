@@ -174,5 +174,8 @@ export const useUiPrefsSet = () =>
 
 export const useChooseIconFile = () => useCommandMutation(() => commands.chooseIconFile(), []);
 
+/** Asks for a private key file; the path goes into the editor (DEC-031.4). */
+export const useChooseKeyFile = () => useCommandMutation(() => commands.chooseKeyFile(), []);
+
 export const useAddIcon = () =>
   useCommandMutation(() => commands.addIcon(), [queryKeys.customIcons]);

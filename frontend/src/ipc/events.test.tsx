@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { emit } from "@tauri-apps/api/event";
+import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { installFakeBackend } from "../test/fakeBackend";
+import { installFakeBackend, rejectWith } from "../test/fakeBackend";
 import { useBackendEvents } from "./events";
 import { queryKeys } from "./keys";
 
@@ -74,6 +75,20 @@ describe("useBackendEvents", () => {
 
     await waitFor(() => expect(onMissing).toHaveBeenCalledWith("portolano.json"));
     expect(client.getQueryState(queryKeys.recentDocuments)?.isInvalidated).toBe(true);
+  });
+
+  it("keeps working when the backend refuses a listener", async () => {
+    mockIPC(() => rejectWith({ code: "internal", message: "nessun backend" }));
+    const client = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    const { unmount: stop } = renderHook(() => useBackendEvents(), { wrapper });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(() => stop()).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("stops listening when unmounted", async () => {

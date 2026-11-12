@@ -3,7 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
-import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "../test/fakeBackend";
+import { TEST_MASTER_PASSWORD, installFakeBackend } from "../test/fakeBackend";
+import { unlocked } from "../test/fakeBackendFixtures";
 import { useAddNode, useReloadDocument, useUnlockVault } from "./mutations";
 import { createQueryClient } from "./queryClient";
 import { treeQuery, vaultStatusQuery } from "./queries";
@@ -46,12 +47,6 @@ function credentialWithSentinel(name: string) {
   };
 }
 
-function unlockedBackend() {
-  const state = initialFakeState();
-  state.vault.locked = false;
-  return installFakeBackend(state);
-}
-
 describe("secret mutations", () => {
   it("keep the master password out of the cache of Query", async () => {
     installFakeBackend();
@@ -65,7 +60,7 @@ describe("secret mutations", () => {
   });
 
   it("keep a typed password out of the cache of Query", async () => {
-    unlockedBackend();
+    unlocked();
     const client = newClient();
     const { result } = renderHook(() => useAddNode(), { wrapper: wrapperWith(client) });
 
@@ -91,7 +86,7 @@ describe("secret mutations", () => {
   });
 
   it("give each of two calls in a row its own arguments", async () => {
-    const state = unlockedBackend();
+    const state = unlocked();
     const client = newClient();
     const { result } = renderHook(() => useAddNode(), { wrapper: wrapperWith(client) });
 
