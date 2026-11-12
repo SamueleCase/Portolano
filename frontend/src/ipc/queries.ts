@@ -1,3 +1,10 @@
+/**
+ * The queries of the backend data. Their types come from `bindings.ts`: the
+ * DTOs of the app are camelCase, while the result types of `portolano-ops`
+ * that the app passes as they are (SPEC-UI §3.5: `DeletePreview`,
+ * `EditOutcome`, `Issue`, `ImportResult`, …) keep their snake_case fields,
+ * also when they sit inside a camelCase DTO.
+ */
 import { queryOptions } from "@tanstack/react-query";
 
 import { commands } from "../bindings";

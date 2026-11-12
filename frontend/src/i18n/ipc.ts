@@ -1,3 +1,5 @@
+import type { ErrorCode } from "../bindings";
+
 /** Texts of the backend errors, by code (SPEC-UI §4.2): the title of a toast or dialog; the message comes from the backend. */
 export const ipc = {
   errorTitles: {
@@ -13,6 +15,6 @@ export const ipc = {
     connect: "Connessione non riuscita",
     io: "Errore di lettura o scrittura",
     internal: "Errore imprevisto",
-  },
+  } satisfies Record<ErrorCode, string>,
   unexpected: "Il comando non ha risposto come previsto",
 } as const;

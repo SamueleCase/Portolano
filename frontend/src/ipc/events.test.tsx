@@ -64,4 +64,29 @@ describe("useBackendEvents", () => {
 
     await waitFor(() => expect(onMenu).toHaveBeenCalledWith({ kind: "duplicate" }));
   });
+
+  it("tells the interface that the document is gone and refreshes the documents", async () => {
+    const onMissing = vi.fn();
+    const client = setup({ onMissing });
+    client.setQueryData(queryKeys.recentDocuments, []);
+
+    await act(() => emit("document-missing", { fileName: "portolano.json" }));
+
+    await waitFor(() => expect(onMissing).toHaveBeenCalledWith("portolano.json"));
+    expect(client.getQueryState(queryKeys.recentDocuments)?.isInvalidated).toBe(true);
+  });
+
+  it("stops listening when unmounted", async () => {
+    const onMenu = vi.fn();
+    setup({ onMenu });
+    await act(() => emit("menu-action", { command: { kind: "search" } }));
+    await waitFor(() => expect(onMenu).toHaveBeenCalledTimes(1));
+
+    unmount();
+    unmount = () => undefined;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => emit("menu-action", { command: { kind: "search" } }));
+
+    expect(onMenu).toHaveBeenCalledTimes(1);
+  });
 });

@@ -17,6 +17,7 @@ describe("presentError", () => {
       title: texts.ipc.errorTitles.invalid,
       message: "esiste già un nodo chiamato 'web01'",
       field: "name",
+      details: { kind: "invalid", field: "name" },
     });
   });
 
@@ -40,6 +41,19 @@ describe("presentError", () => {
     });
 
     expect(presented.presentation).toBe("confirmDelete");
+    expect(presented.details).toEqual({ kind: "referenced", references: [] });
+  });
+
+  it("keeps the candidates of an ambiguous name", () => {
+    const candidates = [{ id: "00000000-0000-4000-8000-000000000001", path: "/A/Admin" }];
+
+    const presented = presentError({
+      code: "ambiguous",
+      message: "'Admin' è ambiguo",
+      details: { kind: "ambiguous", candidates },
+    });
+
+    expect(presented.details).toEqual({ kind: "ambiguous", candidates });
   });
 });
 

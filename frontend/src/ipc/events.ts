@@ -39,12 +39,21 @@ export function useBackendEvents(handlers: BackendEventHandlers = {}): void {
       events.documentModifiedExternally.listen((event) =>
         current.current.onModifiedExternally?.(event.payload.fileName),
       ),
-      events.documentMissing.listen((event) => current.current.onMissing?.(event.payload.fileName)),
+      events.documentMissing.listen((event) => {
+        // The first-run screen and the list of recent documents show it.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.appStatus });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.recentDocuments });
+        current.current.onMissing?.(event.payload.fileName);
+      }),
       events.menuAction.listen((event) => current.current.onMenu?.(event.payload.command)),
-    ];
+    ].map((subscription) =>
+      // A listener that could not be registered (no backend, as in a test
+      // without IPC) leaves the interface without that event, not broken.
+      subscription.catch(() => null),
+    );
     return () => {
       for (const subscription of subscriptions) {
-        void subscription.then((unlisten) => unlisten());
+        void subscription.then((unlisten) => unlisten?.());
       }
     };
   }, [queryClient]);

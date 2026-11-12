@@ -1,4 +1,4 @@
-import type { ErrorCode } from "../bindings";
+import type { ErrorCode, IpcErrorDetails } from "../bindings";
 import { texts } from "../i18n/it";
 import { IpcFailure, type IpcError } from "./result";
 
@@ -29,6 +29,11 @@ export interface PresentedError {
   message: string;
   /** The field of the editor, for `field`. */
   field?: string;
+  /**
+   * The data of the error as the backend sent it: the candidates of an
+   * ambiguous name, the references that prevent a deletion.
+   */
+  details?: IpcErrorDetails;
 }
 
 const presentationByCode: Record<ErrorCode, ErrorPresentation> = {
@@ -49,10 +54,16 @@ const presentationByCode: Record<ErrorCode, ErrorPresentation> = {
 /** How to show `error`; an invalid value with a field goes under the field. */
 export function presentError(error: IpcError): PresentedError {
   const title = texts.ipc.errorTitles[error.code];
-  if (error.details?.kind === "invalid") {
-    return { presentation: "field", title, message: error.message, field: error.details.field };
+  const { details } = error;
+  if (details?.kind === "invalid") {
+    return { presentation: "field", title, message: error.message, field: details.field, details };
   }
-  return { presentation: presentationByCode[error.code], title, message: error.message };
+  const presented: PresentedError = {
+    presentation: presentationByCode[error.code],
+    title,
+    message: error.message,
+  };
+  return details ? { ...presented, details } : presented;
 }
 
 /** How to show any failure of a query or a mutation. */

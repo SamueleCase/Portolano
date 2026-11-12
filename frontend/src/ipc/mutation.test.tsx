@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { type QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
 import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "../test/fakeBackend";
-import { useAddNode, useUnlockVault } from "./mutations";
+import { useAddNode, useReloadDocument, useUnlockVault } from "./mutations";
+import { createQueryClient } from "./queryClient";
 import { treeQuery, vaultStatusQuery } from "./queries";
 
 /** A sentinel secret: it must never be found in the cache of Query. */
@@ -17,7 +18,7 @@ function wrapperWith(client: QueryClient) {
 }
 
 function newClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return createQueryClient();
 }
 
 /** Everything the cache of Query holds, as text. */
@@ -34,6 +35,23 @@ function cacheText(client: QueryClient): string {
   ]);
 }
 
+/** A credential at the root named `name`, with the sentinel as password. */
+function credentialWithSentinel(name: string) {
+  return {
+    parent: null,
+    name,
+    kind: { type: "credential" as const, username: "operatore", domain: null, keyFile: null },
+    details: {},
+    secrets: { password: SENTINEL },
+  };
+}
+
+function unlockedBackend() {
+  const state = initialFakeState();
+  state.vault.locked = false;
+  return installFakeBackend(state);
+}
+
 describe("secret mutations", () => {
   it("keep the master password out of the cache of Query", async () => {
     installFakeBackend();
@@ -43,28 +61,52 @@ describe("secret mutations", () => {
     await act(() => result.current.mutateAsync(TEST_MASTER_PASSWORD));
 
     expect(cacheText(client)).not.toContain(TEST_MASTER_PASSWORD);
-    expect(client.getMutationCache().getAll()[0]?.state.variables).toBeUndefined();
+    expect(typeof client.getMutationCache().getAll()[0]?.state.variables).toBe("number");
   });
 
   it("keep a typed password out of the cache of Query", async () => {
-    const state = initialFakeState();
-    state.vault.locked = false;
-    installFakeBackend(state);
+    unlockedBackend();
     const client = newClient();
     const { result } = renderHook(() => useAddNode(), { wrapper: wrapperWith(client) });
 
-    await act(() =>
-      result.current.mutateAsync({
-        parent: null,
-        name: "Nuova",
-        kind: { type: "credential", username: "operatore", domain: null, keyFile: null },
-        details: {},
-        secrets: { password: SENTINEL },
-      }),
+    await act(() => result.current.mutateAsync(credentialWithSentinel("Nuova")));
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(cacheText(client)).not.toContain(SENTINEL);
+    expect(result.current.holdsArguments()).toBe(false);
+  });
+
+  it("keep a refused password out of the cache and let it go", async () => {
+    installFakeBackend();
+    const client = newClient();
+    const { result } = renderHook(() => useUnlockVault(), { wrapper: wrapperWith(client) });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync(SENTINEL)).rejects.toThrow();
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(cacheText(client)).not.toContain(SENTINEL);
+    expect(result.current.holdsArguments()).toBe(false);
+  });
+
+  it("give each of two calls in a row its own arguments", async () => {
+    const state = unlockedBackend();
+    const client = newClient();
+    const { result } = renderHook(() => useAddNode(), { wrapper: wrapperWith(client) });
+
+    const [first, second] = await act(() =>
+      Promise.all([
+        result.current.mutateAsync(credentialWithSentinel("Prima")),
+        result.current.mutateAsync(credentialWithSentinel("Seconda")),
+      ]),
     );
 
-    expect(result.current.isSuccess).toBe(true);
-    expect(cacheText(client)).not.toContain(SENTINEL);
+    expect([first.path, second.path]).toEqual(["/Prima", "/Seconda"]);
+    expect(state.document?.nodes.map((node) => node.name)).toEqual(
+      expect.arrayContaining(["Prima", "Seconda"]),
+    );
+    expect(result.current.holdsArguments()).toBe(false);
   });
 });
 
@@ -104,5 +146,16 @@ describe("mutations", () => {
     await waitFor(() =>
       expect(result.current.tree.data?.nodes.map((node) => node.name)).toContain("Nuova cartella"),
     );
+  });
+
+  it("run a command without arguments with a bare call", async () => {
+    installFakeBackend();
+    const { result } = renderHook(() => useReloadDocument(), {
+      wrapper: wrapperWith(newClient()),
+    });
+
+    const info = await act(() => result.current.mutateAsync());
+
+    expect(info.fileName).toBe("portolano.json");
   });
 });
