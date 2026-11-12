@@ -2,16 +2,12 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
 import { clearMocks } from "@tauri-apps/api/mocks";
-import { afterEach, vi } from "vitest";
+import { afterEach } from "vitest";
 
 afterEach(() => {
   cleanup();
   clearMocks();
 });
-
-// The first test of a file also pays for jsdom and for loading the
-// components: on a busy machine that alone passes the 5 s default.
-vi.setConfig({ testTimeout: 30_000 });
 
 // jsdom has no layout: what the components observe never changes size.
 class StillResizeObserver implements ResizeObserver {
