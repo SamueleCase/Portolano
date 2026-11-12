@@ -31,6 +31,37 @@ pub fn set_config_value(
     value: &str,
     protocols: &Registry,
 ) -> Result<AppConfig> {
+    let value = parse_value(value);
+    update(config, key, protocols, |table, field| {
+        table.insert(field.to_owned(), value);
+    })
+}
+
+/// `config` without `key`, which takes its default again (SPEC-UI §5.4,
+/// the preferences of the app); the keys are those of
+/// [`set_config_value`].
+///
+/// # Errors
+/// As [`set_config_value`].
+pub fn unset_config_value(
+    config: &AppConfig,
+    key: &str,
+    protocols: &Registry,
+) -> Result<AppConfig> {
+    update(config, key, protocols, |table, field| {
+        table.remove(field);
+    })
+}
+
+/// `config` with `change` applied to the table that holds `key` and the
+/// field name, then checked by the core and, for a protocol section, by the
+/// protocol.
+fn update(
+    config: &AppConfig,
+    key: &str,
+    protocols: &Registry,
+    change: impl FnOnce(&mut toml::Table, &str),
+) -> Result<AppConfig> {
     let unknown = || OpsError::UnknownConfigKey {
         key: key.to_owned(),
     };
@@ -43,11 +74,8 @@ pub fn set_config_value(
         .as_table()
         .cloned()
         .ok_or_else(unknown)?;
-    let value = parse_value(value);
     match key.split_once('.') {
-        None if key == DEFAULT_DOCUMENT => {
-            table.insert(key.to_owned(), value);
-        }
+        None if key == DEFAULT_DOCUMENT => change(&mut table, key),
         Some((section, field))
             if !field.is_empty()
                 && !field.contains('.')
@@ -56,10 +84,7 @@ pub fn set_config_value(
             let entry = table
                 .entry(section.to_owned())
                 .or_insert_with(|| Value::Table(toml::Table::new()));
-            entry
-                .as_table_mut()
-                .ok_or_else(unknown)?
-                .insert(field.to_owned(), value);
+            change(entry.as_table_mut().ok_or_else(unknown)?, field);
             if let Some(protocol) = protocols.get(section) {
                 protocol.validate_config(entry).map_err(invalid)?;
             }
@@ -145,6 +170,36 @@ mod tests {
                 "{key}"
             );
         }
+    }
+
+    #[test]
+    fn unset_key_takes_its_default_again() {
+        let config = set(&AppConfig::default(), "terminal.app", "iterm").unwrap();
+
+        let config =
+            unset_config_value(&config, "terminal.app", &Registry::with_defaults()).unwrap();
+
+        assert_eq!(config.terminal.app, TerminalApp::default());
+    }
+
+    #[test]
+    fn unset_protocol_field_leaves_the_rest_of_the_section() {
+        let config = set(&AppConfig::default(), "rdp.client", "freerdp").unwrap();
+        let config = set(&config, "rdp.cert", "deny").unwrap();
+
+        let config = unset_config_value(&config, "rdp.client", &Registry::with_defaults()).unwrap();
+
+        let rdp = config.protocols.get("rdp").unwrap();
+        assert_eq!(rdp.get("client"), None);
+        assert_eq!(rdp.get("cert"), Some(&Value::String("deny".to_owned())));
+    }
+
+    #[test]
+    fn unset_of_an_unknown_key_is_refused() {
+        let result =
+            unset_config_value(&AppConfig::default(), "colore", &Registry::with_defaults());
+
+        assert!(matches!(result, Err(OpsError::UnknownConfigKey { .. })));
     }
 
     #[test]

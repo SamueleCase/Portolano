@@ -223,6 +223,16 @@ sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brie
 | Inventario del mock | fatto | `docs/ui/inventario.md` |
 | Ricognizione tecnica | fatta | `docs/ui/ricerca-tauri.md` |
 | UI-WP0 – prototipo e scheletro | **integrato** | merge `3c710d1`; due giri di revisione indipendente; punti incerti chiusi (DEC-028); gate su `main`: Rust 1035 test superati e 2 ignorati, frontend (typecheck, lint, format, Vitest, build, bindings) verdi, smoke `SMOKE OK`, e2e verdi (1 timeout di `page.screenshot` su 5 esecuzioni, affidato a UI-WP1) |
-| UI-WP1…WP3 (ondata B) | in corso | brief in `docs/pm/ui-wp{1,2,3}-brief.md`; proprietà dei file e UI-WP3 in due fasi (DEC-029); checkpoint visivo con l'utente sulla galleria dei componenti |
+| UI-WP1…WP3 (ondata B) | in corso | brief in `docs/pm/ui-wp{1,2,3}-brief.md`; proprietà dei file e UI-WP3 in due fasi (DEC-029, DEC-030); checkpoint visivo con l'utente sulla galleria dei componenti |
+| ↳ UI-WP1 design system | **integrato** | merge `53166dc`; due giri di revisione più i minori; gate su `main`: Rust 1035 + 2 ignorati, Vitest 336, e2e 10/10, smoke OK; vetro 29 disegni/s, p95 18 ms, fermo a pagina nascosta (DEC-032) |
+| ↳ UI-WP2 comandi | correzioni fatte, merge di `main` in corso | branch `worktree-agent-a890726d4e55c4c46`; due revisioni indipendenti (Rust e frontend, DEC-031); poi secondo giro di revisione e merge |
+| ↳ UI-WP3 sessioni | fase 1 fatta e revisionata, correzioni fatte | branch `worktree-agent-aefbdbbf96d392569` (ultimo `427d3bc`); fase 2 dopo il merge di WP1 e WP2, poi revisione completa |
+
+Ripresa dell'ondata B: per ogni branch `git -C .claude/worktrees/<agent> log --oneline d49eb52..HEAD` e `status`; un
+sottoagente interrotto si riprende con SendMessage se la sessione è la stessa, altrimenti con un nuovo sottoagente nel
+worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: codice d'uscita di FreeRDP 3 quando
+l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
+chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
+esterno".
 | UI-WP4…WP6 (ondata C) | da fare | checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |

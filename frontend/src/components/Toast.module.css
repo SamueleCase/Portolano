@@ -1,0 +1,108 @@
+.viewport {
+  position: fixed;
+  right: var(--space-fine-14);
+  bottom: var(--space-fine-14);
+  z-index: var(--z-toast);
+  width: min(var(--width-toast), calc(100vw - 2 * var(--space-fine-14)));
+  pointer-events: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.announcement {
+  position: absolute;
+  width: var(--space-fine-1);
+  height: var(--space-fine-1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-fine-10);
+  padding: var(--space-fine-11) var(--space-fine-14);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-popover);
+  box-shadow: var(--shadow-drag);
+  pointer-events: auto;
+  animation: enter var(--duration-base) var(--ease-spring);
+}
+
+.marker {
+  flex: none;
+  width: var(--size-marker);
+  height: var(--size-marker);
+  border-radius: var(--radius-round);
+  background: var(--color-text-muted);
+}
+
+.success .marker {
+  background: var(--color-ok);
+}
+
+.undo .marker,
+.info .marker {
+  background: var(--color-accent-text);
+}
+
+.error {
+  border-color: var(--color-error);
+}
+
+.error .marker {
+  border-radius: 0;
+  background: var(--color-error);
+  transform: rotate(45deg);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.action {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-text);
+  cursor: pointer;
+}
+
+.action:hover {
+  color: var(--color-text-primary);
+}
+
+.close {
+  flex: none;
+  padding: 0 var(--space-fine-2);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-mono-large);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--color-text-primary);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-enter-offset));
+  }
+}

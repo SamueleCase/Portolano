@@ -21,8 +21,11 @@ path = "src/main.rs"
 [dependencies]
 portolano-core = { workspace = true, features = ["specta"] }
 portolano-ops = { workspace = true, features = ["specta"] }
+portolano-import = { workspace = true, features = ["specta"] }
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
+chrono.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 tracing.workspace = true
@@ -30,7 +33,8 @@ tracing-subscriber.workspace = true
 tauri.workspace = true
 tauri-plugin-dialog.workspace = true
 tauri-plugin-opener.workspace = true
-specta.workspace = true
+# `serde_json`: the settings of the protocols reach the editor as JSON.
+specta = { workspace = true, features = ["serde_json"] }
 tauri-specta.workspace = true
 specta-typescript.workspace = true
 # Declared here for the sessions (UI-WP3: PTY of `ssh`, CHILD_ENV_REMOVE) and
@@ -44,7 +48,6 @@ notify-debouncer-full.workspace = true
 tauri-build.workspace = true
 
 [dev-dependencies]
-portolano-import = { workspace = true, features = ["specta"] }
 tauri = { workspace = true, features = ["test"] }
 pretty_assertions.workspace = true
 tempfile.workspace = true

@@ -204,6 +204,16 @@ pub enum Error {
         mime: String,
     },
 
+    /// An icon image larger than
+    /// [`MAX_ICON_BYTES`](crate::icons::MAX_ICON_BYTES).
+    #[error("l'immagine dell'icona pesa {size} byte: il massimo è {max} byte")]
+    IconTooLarge {
+        /// The size of the image, in bytes.
+        size: u64,
+        /// The largest size accepted, in bytes.
+        max: u64,
+    },
+
     /// The configuration file is not valid TOML or does not match the schema.
     #[error("configurazione '{path}' non valida")]
     InvalidConfig {

@@ -3,14 +3,22 @@ import { initialFakeState } from "../src/test/fakeBackend";
 import { expect, test } from "./fixtures";
 
 test("the status screen shows what the backend knows at startup", async ({ page }) => {
-  const { appStatus } = initialFakeState();
+  const { defaultDocumentPath, vault } = initialFakeState();
 
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: texts.status.title })).toBeVisible();
-  await expect(page.getByText(appStatus.defaultDocument.path)).toBeVisible();
-  await expect(page.getByText(texts.status.vaultKinds.keychain)).toBeVisible();
-  await page.screenshot({ path: "e2e-screenshots/status-screen.png", fullPage: true });
+  await expect(page.getByText(defaultDocumentPath)).toBeVisible();
+  await expect(page.getByText(texts.status.vaultKinds[vault.kind])).toBeVisible();
+  // The screenshot waits for the fonts itself, but only after its timeout has started.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  await page.screenshot({
+    path: "e2e-screenshots/status-screen.png",
+    fullPage: true,
+    animations: "disabled",
+  });
 });
 
 test("the status screen uses the fonts shipped with the app", async ({ page }) => {

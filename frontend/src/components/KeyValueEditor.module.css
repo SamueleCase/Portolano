@@ -1,0 +1,94 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.properties .row {
+  grid-template-columns: var(--size-label-column) var(--size-key-type-column) minmax(0, 1fr) var(
+      --size-remove-column
+    );
+}
+
+.options .row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--size-remove-column);
+}
+
+.cell {
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-fine-10);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input:focus {
+  border-color: var(--color-accent-text);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
+.input[aria-invalid="true"]:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-accent-text);
+  outline-offset: var(--space-fine-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.type {
+  padding: var(--space-2) var(--space-fine-10);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  color: var(--color-text-secondary);
+}
+
+.secret {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.remove {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--color-text-primary);
+}
+
+.error {
+  grid-column: 1 / -1;
+  color: var(--color-error-text);
+  font-size: var(--font-size-label);
+}
+
+.add {
+  align-self: flex-start;
+}

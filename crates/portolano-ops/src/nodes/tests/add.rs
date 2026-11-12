@@ -252,3 +252,60 @@ fn custom_image_icon_is_stored_next_to_the_document() {
     assert!(matches!(icon, Icon::Custom { .. }));
     assert!(stored.store.icons().path_for(&icon).unwrap().exists());
 }
+
+fn folder_with(credential: CredentialInput) -> NewNode {
+    NewNode {
+        path: "/Prod".to_owned(),
+        create_parents: false,
+        kind: NewNodeKind::FolderWithCredential { credential },
+        details: NodeDetails::default(),
+        secrets: NodeSecrets::default(),
+    }
+}
+
+#[test]
+fn folder_is_created_with_the_credential_its_children_inherit() {
+    let mut stored = stored(vec![credential("Admin", "admin", None)]);
+    let admin = id_of(&stored.doc, "/Admin");
+
+    add(
+        &mut stored,
+        &MemoryVault::default(),
+        folder_with(CredentialInput::ByPath("/Admin".to_owned())),
+    )
+    .unwrap();
+
+    let prod = node(&stored, "/Prod")
+        .as_folder()
+        .unwrap()
+        .credential
+        .clone();
+    assert_eq!(prod, CredentialSpec::ById { id: admin });
+}
+
+#[test]
+fn folder_password_goes_into_its_inline_credential() {
+    let mut stored = stored(vec![]);
+    let vault = MemoryVault::default();
+    let mut new = folder_with(CredentialInput::Inline {
+        username: Some("ops".to_owned()),
+        domain: None,
+    });
+    new.secrets.password = Some(secret(SENTINEL));
+
+    add(&mut stored, &vault, new).unwrap();
+
+    let spec = node(&stored, "/Prod")
+        .as_folder()
+        .unwrap()
+        .credential
+        .clone();
+    let CredentialSpec::Inline {
+        password: Some(reference),
+        ..
+    } = spec
+    else {
+        panic!("inline credential with a password expected, got {spec:?}");
+    };
+    assert_eq!(vault.get(&reference).unwrap().unwrap().expose(), SENTINEL);
+}

@@ -1,0 +1,29 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-5);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.hidden {
+  position: absolute;
+  width: var(--space-fine-1);
+  height: var(--space-fine-1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.message {
+  color: var(--color-error-text);
+  font-size: var(--font-size-label);
+}
+
+.ok {
+  color: var(--color-ok);
+}

@@ -1,0 +1,5 @@
+.match {
+  background: transparent;
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-strong);
+}

@@ -1,0 +1,18 @@
+.password {
+  letter-spacing: var(--tracking-password);
+}
+
+.search {
+  padding: var(--space-fine-9) var(--space-fine-14);
+  border-color: transparent;
+}
+
+.numericField {
+  flex: none;
+}
+
+.numeric {
+  width: var(--size-numeric-field);
+  min-height: 0;
+  padding: var(--space-fine-7) var(--space-fine-10);
+}

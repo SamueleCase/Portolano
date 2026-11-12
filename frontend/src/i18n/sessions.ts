@@ -1,5 +1,5 @@
 /** The texts of the session tabs (inventario §5.4, §6; ambiguities 11 and 12). */
-export const sessionsTexts = {
+export const sessions = {
   status: {
     connecting: "Connessione in corso",
     connected: "Connesso",

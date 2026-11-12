@@ -86,6 +86,16 @@ fn build_node(
             login.refuse_all(path)?;
             Node::folder(name)
         }
+        NewNodeKind::FolderWithCredential { credential } => {
+            let password = login.password_only(path)?;
+            let spec = credential.resolve(&change.doc)?;
+            let password = password.map(|secret| change.add_secret(secret));
+            let mut node = Node::folder(name);
+            if let Some(folder) = node.as_folder_mut() {
+                folder.credential = with_password(spec, password, path)?;
+            }
+            node
+        }
         NewNodeKind::Connection {
             protocol,
             host,

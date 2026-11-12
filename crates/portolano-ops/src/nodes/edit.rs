@@ -7,6 +7,7 @@ use uuid::Uuid;
 use super::add::{check_host, check_port, unknown_protocol};
 use super::credential::credential_spec_mut;
 use super::details::{NodeDetails, PendingImage, apply_details, set_secret_properties};
+use super::staged::{EditorChanges, StagedChanges};
 use super::{EditOutcome, NodeEdit, check_name, collect_unused_icons, non_empty};
 use crate::commit::Change;
 use crate::tree_util::node_path;
@@ -37,18 +38,49 @@ pub fn edit_node(
     id: Uuid,
     edit: NodeEdit,
 ) -> Result<EditOutcome> {
+    edit_node_staged(
+        store,
+        doc,
+        vault,
+        protocols,
+        id,
+        edit,
+        EditorChanges::default(),
+    )
+}
+
+/// [`edit_node`] with the changes of the editor of the app (SPEC-UI §3.6):
+/// the secrets staged in the editor are written to the vault with new
+/// references in the same save as the other changes, and the secrets they
+/// replace or clear are deleted from the vault after the save.
+///
+/// # Errors
+/// As [`edit_node`], plus [`OpsError::SecretNotApplicable`],
+/// [`OpsError::SecretNotSet`] and [`OpsError::KeyFileAndVaultKey`] for the
+/// staged changes. On error the document and the vault are unchanged.
+pub fn edit_node_staged(
+    store: &Store,
+    doc: &mut Document,
+    vault: &dyn Vault,
+    protocols: &Registry,
+    id: Uuid,
+    edit: NodeEdit,
+    changes: EditorChanges,
+) -> Result<EditOutcome> {
     doc.find(id)
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let path = node_path(doc, id);
     check_edit(doc, id, &path, &edit)?;
     let mut change = Change::from(doc);
     let edit = ResolvedEdit::new(edit, &mut change)?;
+    let staged = StagedChanges::new(changes, &mut change);
     let icon_changed = edit.details.icon.is_some();
     let node = change
         .doc
         .find_mut(id)
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let image = edit.apply(node, protocols, &path)?;
+    staged.apply(node, &path)?;
     let committed = change.commit(store, vault, doc, |doc| match image {
         Some(image) => image.store(store, doc, id),
         None => Ok(()),

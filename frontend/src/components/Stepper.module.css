@@ -1,0 +1,63 @@
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  font-size: var(--font-size-secondary);
+  list-style: none;
+}
+
+.step {
+  display: inline-block;
+  padding: var(--space-1) var(--space-fine-11);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: inherit;
+  white-space: nowrap;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+button.step {
+  cursor: pointer;
+}
+
+button.step:hover {
+  background: var(--color-active);
+}
+
+.current,
+button.current:hover {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-strong);
+}
+
+.done {
+  background: var(--color-active);
+  color: var(--color-text-secondary);
+}
+
+.editor .done {
+  color: var(--color-text-primary);
+}
+
+.skipped {
+  text-decoration: line-through;
+}
+
+.line {
+  flex: 1;
+  height: var(--size-line);
+  border-radius: var(--radius-line);
+  background: var(--color-border);
+  transition: background var(--duration-base) var(--ease-out);
+}
+
+.passed {
+  background: var(--color-accent-text);
+}
