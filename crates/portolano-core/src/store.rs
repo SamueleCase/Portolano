@@ -167,6 +167,28 @@ impl Store {
         })
     }
 
+    /// Whether the file now differs from the bytes this store last read or
+    /// wrote, that is whether [`Store::save`] would refuse with
+    /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally). A
+    /// watcher of the file uses it to tell the saves of this store from
+    /// changes made by others (DEC-016.1). The file is read under the shared
+    /// lock, so a save in progress elsewhere is never seen half-written.
+    ///
+    /// # Errors
+    /// [`Error::DocumentMissing`](crate::Error::DocumentMissing) if the file
+    /// was moved or deleted, [`Error::Io`](crate::Error::Io).
+    pub fn changed_on_disk(&self) -> Result<bool> {
+        let current = with_lock(&self.path, Access::Shared, || {
+            fs::read(&self.path).map_err(|source| match source.kind() {
+                io::ErrorKind::NotFound => Error::DocumentMissing {
+                    path: self.path.clone(),
+                },
+                _ => io_error(&self.path)(source),
+            })
+        })?;
+        Ok(fingerprint_of(&current) != *self.fingerprint())
+    }
+
     /// The icon store next to this document (`<dir>/<stem>.icons/`).
     pub fn icons(&self) -> IconStore {
         IconStore::for_document(&self.path)
