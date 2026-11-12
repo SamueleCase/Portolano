@@ -126,15 +126,43 @@
   align-items: stretch;
   gap: var(--space-fine-6);
   width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The captions are the gallery's own: what the components show is never
+   inside them, so that the data keeps its own style. */
+.value {
+  color: var(--color-text-secondary);
+}
+
+/* The path of a jump host from the tree (inventario §4.20). */
+.jumpPath {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-label-column), 1fr));
+  gap: var(--space-3);
+  width: 100%;
 }
 
 .swatch {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  width: var(--size-tile-large);
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.innerSample {
+  padding: var(--space-3) var(--space-4);
 }
 
 .chip {

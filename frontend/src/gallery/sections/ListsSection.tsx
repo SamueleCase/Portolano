@@ -20,7 +20,7 @@ function JumpContent({ jump }: { jump: JumpHost }) {
     <>
       {jump.source === "tree" && <NodeTypeIcon kind="ssh" size="list" />}
       <span>{jump.name}</span>
-      {jump.detail && <span className={styles.caption}>{jump.detail}</span>}
+      {jump.detail && <span className={styles.jumpPath}>{jump.detail}</span>}
       <SourceChip source={jump.source} />
     </>
   );

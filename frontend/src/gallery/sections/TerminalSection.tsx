@@ -15,7 +15,7 @@ export function TerminalSection() {
   const [opened, setOpened] = useState("");
   return (
     <GallerySection id="terminal" title={gallery.section.terminal}>
-      <Specimen label={`${gallery.caption.terminalTitle}: ${title}`}>
+      <Specimen label={gallery.section.terminal}>
         <div className={styles.column}>
           <div className={styles.terminalBox}>
             <Terminal
@@ -25,7 +25,10 @@ export function TerminalSection() {
               onActivity={() => backgroundControl.noteSessionActivity()}
             />
           </div>
-          <span className={styles.caption} data-testid="opened-link">
+          <span className={styles.value} data-testid="terminal-title">
+            {gallery.caption.terminalTitle}: {title}
+          </span>
+          <span className={styles.value} data-testid="opened-link">
             {opened}
           </span>
         </div>

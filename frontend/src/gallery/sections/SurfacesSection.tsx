@@ -27,7 +27,7 @@ export function SurfacesSection() {
     <GallerySection id="surfaces" title={gallery.section.surfaces}>
       <div className={styles.grid}>
         <Specimen label={caption.glassInner}>
-          <GlassPanel variant="inner" className={styles.column}>
+          <GlassPanel variant="inner" className={styles.innerSample}>
             <GroupHeader>{caption.groupHeader}</GroupHeader>
           </GlassPanel>
         </Specimen>

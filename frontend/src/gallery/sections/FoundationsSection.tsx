@@ -64,12 +64,14 @@ export function FoundationsSection() {
         </Specimen>
       </div>
       <Specimen label={caption.colors}>
-        {colors.map((name) => (
-          <span key={name} className={styles.swatch} style={swatch(name)}>
-            <span className={styles.chip} />
-            {name.replace("--color-", "")}
-          </span>
-        ))}
+        <div className={styles.swatches}>
+          {colors.map((name) => (
+            <span key={name} className={styles.swatch} style={swatch(name)}>
+              <span className={styles.chip} />
+              {name.replace("--color-", "")}
+            </span>
+          ))}
+        </div>
       </Specimen>
       <Specimen label={caption.typeScale}>
         <div className={styles.column}>

@@ -1,7 +1,7 @@
 import { gallery } from "../src/i18n/gallery";
 import { texts } from "../src/i18n/it";
 import { expect, test } from "./fixtures";
-import { openGallery, SHOTS } from "./galleryPage";
+import { fitViewport, openGallery, SHOTS } from "./galleryPage";
 
 const sections = Object.keys(gallery.section);
 
@@ -14,11 +14,16 @@ test.describe("the component gallery", () => {
     for (const [index, id] of sections.entries()) {
       const section = page.locator(`section#${id}`);
       await expect(section).toBeVisible();
+      // The whole section inside the viewport, over the background.
+      const box = await section.boundingBox();
+      await fitViewport(page, (box?.height ?? 0) + 28);
+      await section.scrollIntoViewIfNeeded();
       await section.screenshot({
         path: `${SHOTS}/${String(index + 1).padStart(2, "0")}-${id}.png`,
         animations: "disabled",
       });
     }
+    await fitViewport(page, await page.evaluate(() => document.documentElement.scrollHeight));
     await page.screenshot({
       path: `${SHOTS}/00-gallery.png`,
       fullPage: true,
@@ -30,6 +35,7 @@ test.describe("the component gallery", () => {
     await openGallery(page, "&density=compact");
 
     await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
+    await fitViewport(page, await page.evaluate(() => document.documentElement.scrollHeight));
     await page.screenshot({
       path: `${SHOTS}/00-gallery-compact.png`,
       fullPage: true,
@@ -66,8 +72,7 @@ test.describe("the component gallery", () => {
 
     await page.getByRole("button", { name: gallery.open.toasts }).click();
     const notifications = page.getByRole("region", { name: texts.components.toast.region });
-    // The error toast is an alert, the others list items: count the elements.
-    await expect(notifications.locator("li")).toHaveCount(3);
+    await expect(notifications.getByRole("listitem")).toHaveCount(3);
     await page.screenshot({ path: `${SHOTS}/overlay-toasts.png`, animations: "disabled" });
 
     await page.locator("#overlays").getByRole("button").first().hover();
@@ -110,7 +115,7 @@ test.describe("the component gallery", () => {
     const terminal = page.getByRole("group", { name: "Terminale" });
 
     await expect(terminal).toContainText("load average");
-    await expect(page.locator("#terminal figcaption")).toContainText("deploy@web01: ~");
+    await expect(page.getByTestId("terminal-title")).toContainText("deploy@web01: ~");
     await terminal.click();
     await page.keyboard.type("whoami");
     await expect(terminal).toContainText("whoami");
