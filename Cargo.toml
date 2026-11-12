@@ -72,12 +72,15 @@ portable-pty = "0.9.0"
 notify = "8.2.2"
 notify-debouncer-full = "0.7.0"
 
+# Terminal modes and signals (askpass fallback, DEC-030) and the termios of
+# the PTY in tests: the version of portable-pty, whose
+# `MasterPty::get_termios` returns its type.
+nix = { version = "0.28.0", default-features = false, features = ["term"] }
+
 # Test-only
 assert_cmd = "2.2.2"
 predicates = "3.1.4"
 pretty_assertions = "1.4.1"
-# The version of portable-pty, whose `MasterPty::get_termios` returns its type.
-nix = { version = "0.28.0", default-features = false, features = ["term"] }
 
 [workspace.lints.rust]
 missing_docs = "warn"

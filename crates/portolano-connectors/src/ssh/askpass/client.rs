@@ -1,6 +1,8 @@
 //! Askpass client: asks the server of the session, or the user on the
 //! terminal as a fallback (SPEC §7.2 points 3 and 5).
 
+mod hidden_input;
+
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
@@ -11,6 +13,7 @@ use std::time::Duration;
 
 use portolano_core::Secret;
 
+use self::hidden_input::HiddenInput;
 use super::{ASKPASS_SOCK_ENV, ASKPASS_TOKEN_ENV, MAX_MESSAGE_BYTES, Reply, Request};
 use crate::secret_input::{MAX_SECRET_INPUT_BYTES, SecretEnd, SecretInputError, read_secret};
 
@@ -132,12 +135,27 @@ fn io_error(error: SecretInputError) -> io::Error {
 /// Asks the user on `/dev/tty`: with echo for a host key confirmation,
 /// hidden otherwise. Fails when there is no terminal.
 fn ask_on_tty(prompt: &str) -> Result<Secret, ClientError> {
-    if !prompt.contains(ECHO_MARKER) {
-        return Ok(Secret::new(rpassword::prompt_password(prompt)?));
-    }
     let mut tty = OpenOptions::new().read(true).write(true).open("/dev/tty")?;
+    if prompt.contains(ECHO_MARKER) {
+        write_prompt(&mut tty, prompt)?;
+        return read_line(&mut tty);
+    }
+    // The echo goes off before the prompt shows (DEC-028.2).
+    let hidden = HiddenInput::start(&tty)?;
+    write_prompt(&mut tty, prompt)?;
+    let answer = read_line(&mut tty);
+    drop(hidden);
+    // The line end typed by the user was not echoed either.
+    tty.write_all(b"\n")?;
+    answer
+}
+
+fn write_prompt(tty: &mut File, prompt: &str) -> io::Result<()> {
     tty.write_all(prompt.as_bytes())?;
-    tty.flush()?;
-    read_secret(&mut tty, SecretEnd::Line, MAX_SECRET_INPUT_BYTES)
+    tty.flush()
+}
+
+fn read_line(tty: &mut File) -> Result<Secret, ClientError> {
+    read_secret(tty, SecretEnd::Line, MAX_SECRET_INPUT_BYTES)
         .map_err(|error| ClientError::Io(io_error(error)))
 }

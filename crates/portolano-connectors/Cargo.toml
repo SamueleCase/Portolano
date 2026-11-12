@@ -16,12 +16,16 @@ hex.workspace = true
 thiserror.workspace = true
 getrandom.workspace = true
 zeroize.workspace = true
-rpassword.workspace = true
 tempfile.workspace = true
 directories.workspace = true
 shell-words.workspace = true
 regex.workspace = true
 tracing.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# Terminal modes and signal mask of the askpass fallback on `/dev/tty`
+# (DEC-028.2, DEC-030): safe wrappers, since `unsafe_code` is denied.
+nix = { workspace = true, features = ["term", "signal"] }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
