@@ -1,0 +1,40 @@
+.screen {
+  padding: var(--space-7);
+}
+
+.title {
+  margin: 0 0 var(--space-4);
+  color: var(--color-accent-text);
+  font-size: var(--font-size-panel-title);
+  font-weight: var(--font-weight-strong);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.path {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-mono-large);
+  color: var(--color-text-primary);
+}
+
+.note {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-error-text);
+}
