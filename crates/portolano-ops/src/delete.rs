@@ -1,7 +1,8 @@
 //! Deletion of a node and its subtree (SPEC §10.2 `delete`, DEC-018.1).
 //!
 //! Two phases: [`preview_delete`] tells what would go and who refers to it,
-//! so that the caller can ask for confirmation; [`delete`] does it.
+//! so that the caller can ask for confirmation; [`delete`] does it, or
+//! [`delete_undoable`] does it keeping what an undo needs.
 
 use std::collections::HashSet;
 
@@ -14,6 +15,13 @@ use crate::inspect::NodeType;
 use crate::nodes::collect_unused_icons;
 use crate::tree_util::{node_path, subtree_ids};
 use crate::{OpsError, Result};
+
+mod undo;
+
+pub use undo::{
+    DeletedSubtree, PurgeOutcome, RestoreOutcome, UndoableDelete, delete_undoable, purge_secrets,
+    restore_deleted,
+};
 
 /// A reference from a node outside the deleted subtree to a node inside it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -88,8 +96,10 @@ pub struct DeleteOptions {
 
 /// The result of [`delete`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DeleteOutcome {
     /// Nodes removed, the deleted node included.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub removed_nodes: usize,
     /// Nodes outside the subtree whose credential became "ask at launch"
     /// because it referred to a deleted credential.
@@ -99,6 +109,7 @@ pub struct DeleteOutcome {
     /// reports them.
     pub remaining_references: Vec<ExternalReference>,
     /// Secrets deleted from the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_deleted: usize,
     /// Secrets that could not be deleted from the vault.
     pub cleanup_failures: Vec<CleanupFailure>,

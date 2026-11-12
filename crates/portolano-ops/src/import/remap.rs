@@ -22,7 +22,7 @@ const REF_KEY: &str = "$ref";
 /// # Errors
 /// [`portolano_core::Error::Serialize`] if a node cannot be converted to
 /// JSON and back.
-pub(super) fn regenerate_ids(root: &mut Node) -> Result<()> {
+pub(crate) fn regenerate_ids(root: &mut Node) -> Result<()> {
     let mut new_ids = HashMap::new();
     for_each_node_mut(slice::from_mut(root), &mut |node| {
         let new_id = Uuid::new_v4();

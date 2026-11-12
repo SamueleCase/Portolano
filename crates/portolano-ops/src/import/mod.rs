@@ -5,13 +5,14 @@
 //! then writes secrets, icons and document in this order, removing the
 //! secrets again if the document cannot be saved.
 
+mod answers;
 mod merge;
-mod remap;
+pub(crate) mod remap;
 
 use std::fmt;
 use std::path::Path;
 
-use portolano_core::{Document, Icon, Node, Store, Vault};
+use portolano_core::{Document, Icon, Node, Secret, SecretRef, Store, Vault};
 use portolano_import::{
     ImportOptions, ImportOutcome, ImportReport, Importer, PendingIcon, Registry, SecretPrompter,
 };
@@ -22,6 +23,8 @@ use crate::commit::{Change, CleanupFailure};
 use crate::nodes::collect_unused_icons;
 use crate::tree_util::{for_each_node_mut, location_path, node_path, subtree_ids};
 use crate::{OpsError, Result};
+
+pub use answers::{ImportPreview, SecretAnswer, import_requests, import_with_answers};
 
 /// Bytes of the input given to [`Importer::detect`].
 const DETECT_HEAD_BYTES: usize = 4096;
@@ -77,18 +80,23 @@ impl fmt::Debug for ImportRequest<'_> {
 
 /// The result of [`import`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ImportResult {
     /// The report of the importer.
     pub report: ImportReport,
     /// The imported folder.
     pub root: Uuid,
     /// Nodes added to the document.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub inserted: usize,
     /// Existing nodes replaced (`ConflictPolicy::Update`).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub updated: usize,
     /// Secrets written to the vault (to be written, with `dry_run`).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_written: usize,
     /// Custom icons stored (to be stored, with `dry_run`).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub icons_stored: usize,
     /// Notes about the insertion, in Italian.
     pub warnings: Vec<String>,
@@ -116,7 +124,19 @@ pub fn import(
     request: ImportRequest<'_>,
     prompter: &mut dyn SecretPrompter,
 ) -> Result<ImportResult> {
-    let importer = select_importer(importers, &request)?;
+    let (change, finish) = prepare(doc, importers, &request, prompter)?;
+    commit(store, vault, doc, change, finish)
+}
+
+/// Runs the importer and places its tree in a copy of `doc`, writing
+/// nothing.
+fn prepare(
+    doc: &Document,
+    importers: &Registry,
+    request: &ImportRequest<'_>,
+    prompter: &mut dyn SecretPrompter,
+) -> Result<(Change, Finish)> {
+    let importer = select_importer(importers, request)?;
     if let Some(into) = request.into {
         doc.children(Some(into))?;
     }
@@ -139,22 +159,17 @@ pub fn import(
         root,
         &mut warnings,
     )?;
-    finish(
-        store,
-        vault,
-        doc,
-        change,
-        Finish {
-            report,
-            root: placed.root,
-            inserted: placed.inserted,
-            updated: placed.updated,
-            secrets,
-            icons,
-            warnings,
-            dry_run: request.dry_run,
-        },
-    )
+    let finish = Finish {
+        report,
+        root: placed.root,
+        inserted: placed.inserted,
+        updated: placed.updated,
+        secrets,
+        icons,
+        warnings,
+        dry_run: request.dry_run,
+    };
+    Ok((change, finish))
 }
 
 /// Where the imported tree went.
@@ -258,36 +273,44 @@ struct Finish {
     root: Uuid,
     inserted: usize,
     updated: usize,
-    secrets: Vec<(portolano_core::SecretRef, portolano_core::Secret)>,
+    secrets: Vec<(SecretRef, Secret)>,
     icons: Vec<PendingIcon>,
     warnings: Vec<String>,
     dry_run: bool,
 }
 
+impl Finish {
+    /// The result of the import before anything is written, with the
+    /// secrets and the icons still to store.
+    fn into_parts(self) -> (ImportResult, Vec<(SecretRef, Secret)>, Vec<PendingIcon>) {
+        let result = ImportResult {
+            report: self.report,
+            root: self.root,
+            inserted: self.inserted,
+            updated: self.updated,
+            secrets_written: self.secrets.len(),
+            icons_stored: self.icons.len(),
+            warnings: self.warnings,
+            cleanup_failures: Vec::new(),
+            dry_run: self.dry_run,
+        };
+        (result, self.secrets, self.icons)
+    }
+}
+
 /// Writes secrets, icons and document, unless it is a dry run.
-fn finish(
+fn commit(
     store: &Store,
     vault: &dyn Vault,
     doc: &mut Document,
     mut change: Change,
     finish: Finish,
 ) -> Result<ImportResult> {
-    let mut result = ImportResult {
-        report: finish.report,
-        root: finish.root,
-        inserted: finish.inserted,
-        updated: finish.updated,
-        secrets_written: finish.secrets.len(),
-        icons_stored: finish.icons.len(),
-        warnings: finish.warnings,
-        cleanup_failures: Vec::new(),
-        dry_run: finish.dry_run,
-    };
-    if finish.dry_run {
+    let (mut result, secrets, icons) = finish.into_parts();
+    if result.dry_run {
         return Ok(result);
     }
-    change.new_secrets = finish.secrets;
-    let icons = finish.icons;
+    change.new_secrets = secrets;
     let committed = change.commit(store, vault, doc, |doc| store_icons(store, doc, icons))?;
     // An update may have replaced custom icons of existing nodes.
     collect_unused_icons(store, doc);

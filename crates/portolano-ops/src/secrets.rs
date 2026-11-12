@@ -17,6 +17,7 @@ use crate::{OpsError, Result};
 
 /// A place of a node that holds a secret.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum SecretSlot {
     /// The password of a credential, or of the inline credential of a folder

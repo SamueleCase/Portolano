@@ -61,6 +61,26 @@ impl NodeType {
     }
 }
 
+/// A node named by its id and its path, as the views list them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct NodeRef {
+    /// The node.
+    pub id: Uuid,
+    /// Its path.
+    pub path: String,
+}
+
+impl NodeRef {
+    /// Node `id` of `doc`, with its path.
+    pub fn of(doc: &Document, id: Uuid) -> NodeRef {
+        NodeRef {
+            id,
+            path: node_path(doc, id),
+        }
+    }
+}
+
 /// Which nodes `list --type` keeps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeFilter {

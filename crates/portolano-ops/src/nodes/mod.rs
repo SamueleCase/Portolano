@@ -6,6 +6,7 @@ mod credential;
 mod details;
 mod edit;
 mod jump;
+mod staged;
 
 use portolano_core::{Document, Secret, Store};
 use serde::Serialize;
@@ -14,8 +15,9 @@ use uuid::Uuid;
 pub use add::add_node;
 pub use credential::CredentialInput;
 pub use details::{IconInput, NodeDetails};
-pub use edit::edit_node;
+pub use edit::{edit_node, edit_node_staged};
 pub use jump::JumpInput;
+pub use staged::{EditorChanges, SecretChange};
 
 pub(crate) use credential::{credential_spec, credential_spec_mut};
 pub(crate) use details::set_secret_properties;
@@ -126,12 +128,15 @@ pub struct NodeEdit {
 
 /// The result of an operation that edits a node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EditOutcome {
     /// Path of the node after the change.
     pub path: String,
     /// Secrets written to the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_written: usize,
     /// Secrets no longer used, deleted from the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_deleted: usize,
     /// Secrets no longer used that could not be deleted.
     pub cleanup_failures: Vec<CleanupFailure>,

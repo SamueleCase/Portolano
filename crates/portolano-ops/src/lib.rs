@@ -20,6 +20,7 @@ pub mod config;
 pub mod connect;
 pub mod delete;
 pub mod document;
+pub mod duplicate;
 mod error;
 pub mod import;
 pub mod inspect;
@@ -29,7 +30,9 @@ pub mod nodes;
 pub mod secrets;
 #[cfg(test)]
 mod testutil;
+pub mod trace;
 mod tree_util;
+pub mod usage;
 pub mod validate;
 pub mod vault;
 

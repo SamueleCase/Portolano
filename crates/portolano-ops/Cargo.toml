@@ -14,6 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 uuid.workspace = true
+chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 # Type descriptions for the TypeScript bindings of the app (SPEC-UI §3.5).

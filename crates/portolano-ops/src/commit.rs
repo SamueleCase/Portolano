@@ -16,8 +16,10 @@ use crate::tree_util::document_secret_refs;
 /// A secret that could not be deleted from the vault after the document was
 /// saved; the document no longer references it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct CleanupFailure {
-    /// The secret left in the vault.
+    /// The secret left in the vault: its reference, never its value.
+    #[cfg_attr(feature = "specta", specta(type = String))]
     pub reference: SecretRef,
     /// Why it could not be deleted.
     pub reason: String,
@@ -68,12 +70,45 @@ impl Change {
     /// Errors of the vault, of `store_icons` and of the store; the vault and
     /// `target` are then as before.
     pub(crate) fn commit(
-        mut self,
+        self,
         store: &Store,
         vault: &dyn Vault,
         target: &mut Document,
         store_icons: impl FnOnce(&mut Document) -> Result<()>,
     ) -> Result<Committed> {
+        let written = self.new_secrets.len();
+        let obsolete = self.save(store, vault, target, store_icons)?;
+        let purged = delete_secrets(vault, obsolete);
+        Ok(Committed {
+            secrets_written: written,
+            secrets_deleted: purged.secrets_deleted,
+            cleanup_failures: purged.cleanup_failures,
+        })
+    }
+
+    /// Saves the change like [`Change::commit`], but leaves the secrets that
+    /// the document no longer references in the vault and returns them: an
+    /// undoable deletion deletes them only when it can no longer be undone.
+    ///
+    /// # Errors
+    /// As [`Change::commit`].
+    pub(crate) fn commit_keeping_obsolete(
+        self,
+        store: &Store,
+        vault: &dyn Vault,
+        target: &mut Document,
+    ) -> Result<Vec<SecretRef>> {
+        self.save(store, vault, target, |_| Ok(()))
+    }
+
+    /// Secrets, icons, document; returns the secrets no longer referenced.
+    fn save(
+        mut self,
+        store: &Store,
+        vault: &dyn Vault,
+        target: &mut Document,
+        store_icons: impl FnOnce(&mut Document) -> Result<()>,
+    ) -> Result<Vec<SecretRef>> {
         let current = document_secret_refs(&self.doc);
         let obsolete: Vec<SecretRef> = self.previous_refs.difference(&current).cloned().collect();
         // A wrong master password must stop the operation before the
@@ -90,20 +125,7 @@ impl Change {
             return Err(error);
         }
         *target = self.doc;
-        let mut committed = Committed {
-            secrets_written: self.new_secrets.len(),
-            ..Committed::default()
-        };
-        for reference in obsolete {
-            match vault.delete(&reference) {
-                Ok(()) => committed.secrets_deleted += 1,
-                Err(error) => committed.cleanup_failures.push(CleanupFailure {
-                    reference,
-                    reason: error.to_string(),
-                }),
-            }
-        }
-        Ok(committed)
+        Ok(obsolete)
     }
 
     /// Saves a change that adds and removes no secret, such as a move, so
@@ -127,6 +149,31 @@ impl Change {
         *target = self.doc;
         Ok(())
     }
+}
+
+/// What deleting obsolete secrets from the vault did.
+#[derive(Debug, Default)]
+pub(crate) struct Purged {
+    /// Secrets deleted.
+    pub(crate) secrets_deleted: usize,
+    /// Secrets that could not be deleted.
+    pub(crate) cleanup_failures: Vec<CleanupFailure>,
+}
+
+/// Deletes `obsolete` from the vault, recording the failures instead of
+/// stopping: the document is already saved without them.
+pub(crate) fn delete_secrets(vault: &dyn Vault, obsolete: Vec<SecretRef>) -> Purged {
+    let mut purged = Purged::default();
+    for reference in obsolete {
+        match vault.delete(&reference) {
+            Ok(()) => purged.secrets_deleted += 1,
+            Err(error) => purged.cleanup_failures.push(CleanupFailure {
+                reference,
+                reason: error.to_string(),
+            }),
+        }
+    }
+    purged
 }
 
 /// Writes every secret; on the first failure removes those already written.
