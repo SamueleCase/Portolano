@@ -213,10 +213,10 @@ fn preview_counts_the_connections_that_inherit_a_deleted_credential() {
 
     let view = app
         .state
-        .with_document(|open| preview_of(open.document(), admin))
+        .with_document(|open| Ok(preview(open.document(), admin)?))
         .unwrap();
 
-    assert_eq!(view.preview.references.len(), 1);
+    assert_eq!(view.references.len(), 1);
     assert_eq!(
         view.inherited
             .iter()

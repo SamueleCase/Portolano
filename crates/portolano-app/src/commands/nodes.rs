@@ -2,22 +2,19 @@
 //! document through `portolano-ops` and then sends `document-changed`, the
 //! invalidation the frontend reacts to.
 
-use std::collections::HashSet;
-
 use portolano_ops::delete::{
     DeleteOutcome, DeletePreview, RestoreOutcome, delete_undoable, preview_delete as preview,
     restore_deleted,
 };
 use portolano_ops::duplicate::{DuplicateOutcome, duplicate_node as duplicate};
-use portolano_ops::inspect::NodeRef;
 use portolano_ops::moves::move_node as move_to;
 use portolano_ops::nodes::{AddOutcome, EditOutcome, add_node as add, edit_node_staged};
-use portolano_ops::usage::credential_usage;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
 use super::{blocking, changed};
+use crate::dialogs;
 use crate::dto::{DeleteOptionsInput, NewNodeInput, NodeEditInput, PlacementInput};
 use crate::error::IpcError;
 use crate::state::{AppState, PendingDelete, UNDO_WINDOW, UndoId};
@@ -75,6 +72,19 @@ pub async fn move_node<R: Runtime>(
     .await
 }
 
+/// Asks for a private key file with the native dialog and returns its
+/// path, for the editor: the key file is a datum of the document that `ssh`
+/// reads and the app never opens (DEC-031.4). `None` if the user cancels.
+#[tauri::command]
+#[specta::specta]
+pub async fn choose_key_file<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, IpcError> {
+    blocking(app, |app, _| {
+        let chosen = dialogs::local_path(dialogs::key_file(app).blocking_pick_file());
+        Ok(chosen.map(|path| path.display().to_string()))
+    })
+    .await
+}
+
 /// Copies node `id` with new ids and new secrets right after it.
 #[tauri::command]
 #[specta::specta]
@@ -93,26 +103,15 @@ pub async fn duplicate_node<R: Runtime>(
     .await
 }
 
-/// What deleting a node would remove and who uses it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct DeletePreviewView {
-    /// What would go, and the nodes that refer to it.
-    pub preview: DeletePreview,
-    /// Connections outside the subtree that receive one of its credentials
-    /// by inheritance (ambiguity 13).
-    pub inherited: Vec<NodeRef>,
-}
-
 /// What deleting node `id` would remove, for the confirmation dialog.
 #[tauri::command]
 #[specta::specta]
 pub async fn preview_delete<R: Runtime>(
     app: AppHandle<R>,
     id: Uuid,
-) -> Result<DeletePreviewView, IpcError> {
+) -> Result<DeletePreview, IpcError> {
     blocking(app, move |_, state| {
-        state.with_document(|open| preview_of(open.document(), id))
+        state.with_document(|open| Ok(preview(open.document(), id)?))
     })
     .await
 }
@@ -182,7 +181,7 @@ pub(crate) fn change(
             .ok_or(portolano_ops::OpsError::Core(
                 portolano_core::Error::NodeNotFound { id },
             ))?;
-        let (edit, changes) = edit.into_edit(current);
+        let (edit, changes) = edit.into_edit(current)?;
         let (store, doc) = open.parts();
         Ok(edit_node_staged(
             store,
@@ -194,40 +193,6 @@ pub(crate) fn change(
             changes,
         )?)
     })
-}
-
-pub(crate) fn preview_of(
-    doc: &portolano_core::Document,
-    id: Uuid,
-) -> Result<DeletePreviewView, IpcError> {
-    let preview = preview(doc, id)?;
-    let subtree: HashSet<Uuid> = subtree_ids(doc, id);
-    let mut inherited: Vec<NodeRef> = Vec::new();
-    for (_, node) in doc
-        .walk()
-        .filter(|(_, n)| subtree.contains(&n.id) && n.as_credential().is_some())
-    {
-        for user in credential_usage(doc, node.id)?.inherited {
-            if !subtree.contains(&user.id) && !inherited.contains(&user) {
-                inherited.push(user);
-            }
-        }
-    }
-    Ok(DeletePreviewView { preview, inherited })
-}
-
-fn subtree_ids(doc: &portolano_core::Document, id: Uuid) -> HashSet<Uuid> {
-    let mut ids = HashSet::new();
-    if let Some(node) = doc.find(id) {
-        let mut stack = vec![node];
-        while let Some(current) = stack.pop() {
-            ids.insert(current.id);
-            if let Some(folder) = current.as_folder() {
-                stack.extend(&folder.children);
-            }
-        }
-    }
-    ids
 }
 
 pub(crate) fn remove(

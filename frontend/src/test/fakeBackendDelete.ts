@@ -1,6 +1,6 @@
 import type {
   DeleteOptionsInput_Deserialize,
-  DeletePreviewView,
+  DeletePreview,
   DeleteResult,
   RestoreOutcome,
 } from "../bindings";
@@ -37,7 +37,7 @@ function externalReferences(state: FakeBackendState, node: FakeNode) {
   );
 }
 
-export function previewDelete(state: FakeBackendState, id: string): DeletePreviewView {
+export function previewDelete(state: FakeBackendState, id: string): DeletePreview {
   const doc = openDocument(state);
   const { node } = findNode(doc, id);
   const subtree = subtreeIds(node);
@@ -46,23 +46,21 @@ export function previewDelete(state: FakeBackendState, id: string): DeletePrevie
     .flatMap(({ node: credential }) => usageOf(doc, credential).inherited)
     .filter((user) => !subtree.has(user.id));
   return {
-    preview: {
-      id,
-      path: pathOf(doc, id),
-      node_type:
-        node.kind === "connection"
-          ? { type: "connection", protocol: node.protocol ?? "" }
-          : node.kind === "unsupported"
-            ? { type: "unsupported", source_type: node.unsupported?.sourceType ?? "" }
-            : { type: node.kind },
-      children: node.children.length,
-      descendants: subtree.size - 1,
-      secrets: [...walk([node])].reduce(
-        (count, { node: inner }) => count + Object.keys(inner.secrets).length,
-        0,
-      ),
-      references: externalReferences(state, node),
-    },
+    id,
+    path: pathOf(doc, id),
+    node_type:
+      node.kind === "connection"
+        ? { type: "connection", protocol: node.protocol ?? "" }
+        : node.kind === "unsupported"
+          ? { type: "unsupported", source_type: node.unsupported?.sourceType ?? "" }
+          : { type: node.kind },
+    children: node.children.length,
+    descendants: subtree.size - 1,
+    secrets: [...walk([node])].reduce(
+      (count, { node: inner }) => count + Object.keys(inner.secrets).length,
+      0,
+    ),
+    references: externalReferences(state, node),
     inherited,
   };
 }

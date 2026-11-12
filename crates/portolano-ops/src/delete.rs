@@ -11,9 +11,10 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::commit::{Change, CleanupFailure};
-use crate::inspect::NodeType;
+use crate::inspect::{NodeRef, NodeType};
 use crate::nodes::collect_unused_icons;
 use crate::tree_util::{node_path, subtree_ids};
+use crate::usage::credential_usage;
 use crate::{OpsError, Result};
 
 mod undo;
@@ -58,6 +59,9 @@ pub struct DeletePreview {
     pub secrets: usize,
     /// References from outside the subtree to nodes in it.
     pub references: Vec<ExternalReference>,
+    /// Connections outside the subtree that receive one of its credentials
+    /// by inheritance (ambiguity 13 of the mock): they lose it too.
+    pub inherited: Vec<NodeRef>,
 }
 
 impl DeletePreview {
@@ -126,6 +130,7 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let subtree = subtree_ids(node);
     let references = external_references(doc, &subtree);
+    let inherited = inheriting_from(doc, &subtree)?;
     let secrets: HashSet<_> = doc.secret_refs_in(id).into_iter().collect();
     Ok(DeletePreview {
         id,
@@ -135,7 +140,24 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         descendants: subtree.len() - 1,
         secrets: secrets.len(),
         references,
+        inherited,
     })
+}
+
+/// The connections outside `subtree` that inherit a credential of it.
+fn inheriting_from(doc: &Document, subtree: &HashSet<Uuid>) -> Result<Vec<NodeRef>> {
+    let mut inherited: Vec<NodeRef> = Vec::new();
+    let credentials = doc
+        .walk()
+        .filter(|(_, node)| subtree.contains(&node.id) && node.as_credential().is_some());
+    for (_, credential) in credentials {
+        for user in credential_usage(doc, credential.id)?.inherited {
+            if !subtree.contains(&user.id) && !inherited.contains(&user) {
+                inherited.push(user);
+            }
+        }
+    }
+    Ok(inherited)
 }
 
 /// Deletes node `id` with its subtree, saves the document, then deletes the
