@@ -125,4 +125,35 @@ describe("SortableList", () => {
 
     expect(screen.getByRole("button", { name: "+ Indirizzo libero" })).toHaveFocus();
   });
+
+  it("leaves the focus alone when the parent postpones a removal", async () => {
+    function Postponed() {
+      const [jumps, setJumps] = useState([
+        { id: "a", name: "bastion" },
+        { id: "b", name: "gw" },
+      ]);
+      return (
+        <>
+          <SortableList
+            label="Jump host"
+            items={jumps}
+            itemKey={(jump) => jump.id}
+            itemName={(jump) => jump.name}
+            renderItem={(jump) => jump.name}
+            onMove={() => undefined}
+            onRemove={() => undefined}
+          />
+          <button type="button" onClick={() => setJumps((current) => [...current].reverse())}>
+            inverti
+          </button>
+        </>
+      );
+    }
+    render(<Postponed />);
+    await userEvent.click(screen.getByRole("button", { name: "Rimuovi bastion" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "inverti" }));
+
+    expect(screen.getByRole("button", { name: "inverti" })).toHaveFocus();
+  });
 });

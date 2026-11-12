@@ -22,15 +22,23 @@ interface SortableListProps<T> {
   /** The name of an item, untrusted: for the handle, "×" and the announcements. */
   itemName: (item: T) => string;
   renderItem: (item: T) => ReactNode;
-  /** Moves the item at `from` to `to`; the parent owns the order. */
+  /** Moves the item at `from` to `to`; the parent owns the order and updates `items`. */
   onMove: (from: number, to: number) => void;
+  /**
+   * Removes the item at `index`: the parent updates `items`, and the focus
+   * moves once the list is one item shorter.
+   */
   onRemove: (index: number) => void;
   /** The add buttons under the list ("+ Dall'albero…"): the focus goes there when it empties. */
   footer?: ReactNode;
 }
 
-/** Where the focus goes once the parent has applied a change. */
-type PendingFocus = { kind: "handle"; key: string } | { kind: "footer" };
+/**
+ * Where the focus goes once the parent has applied a change, and how many
+ * items the list has then: if the parent did not apply it (a removal it
+ * postponed, for instance), the focus stays where it is.
+ */
+type PendingFocus = ({ kind: "handle"; key: string } | { kind: "footer" }) & { length: number };
 
 interface Drag {
   index: number;
@@ -79,17 +87,19 @@ export function SortableList<T>({
   useEffect(() => {
     const pending = pendingFocus.current;
     pendingFocus.current = undefined;
-    if (pending?.kind === "handle") handles.current.get(pending.key)?.focus();
-    if (pending?.kind === "footer" && footerBox.current) focusableIn(footerBox.current)[0]?.focus();
+    if (!pending || pending.length !== items.length) return;
+    if (pending.kind === "handle") handles.current.get(pending.key)?.focus();
+    if (pending.kind === "footer" && footerBox.current) focusableIn(footerBox.current)[0]?.focus();
   }, [items]);
 
   // After "×" the focus stays in the list: on the next row, else the
   // previous one, else the add buttons.
   const remove = (index: number) => {
     const neighbour = items[index + 1] ?? items[index - 1];
+    const length = items.length - 1;
     pendingFocus.current = neighbour
-      ? { kind: "handle", key: itemKey(neighbour) }
-      : { kind: "footer" };
+      ? { kind: "handle", key: itemKey(neighbour), length }
+      : { kind: "footer", length };
     onRemove(index);
   };
 
@@ -97,7 +107,7 @@ export function SortableList<T>({
     const item = items[from];
     if (!item || from === to) return;
     onMove(from, to);
-    pendingFocus.current = { kind: "handle", key: itemKey(item) };
+    pendingFocus.current = { kind: "handle", key: itemKey(item), length: items.length };
     setAnnouncement(
       interpolate(texts.components.sortable.moved, {
         name: visibleText(itemName(item)),
