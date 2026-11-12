@@ -14,6 +14,14 @@ pub enum IconInput {
     Builtin(String),
     /// An icon of the Royal library, such as `Flat/Hardware/Server`.
     Royal(String),
+    /// An image already in the icon store of the document, as listed by
+    /// [`IconStore::list`](portolano_core::IconStore::list).
+    Stored {
+        /// Its hash.
+        sha256: String,
+        /// Its type.
+        mime: String,
+    },
     /// A custom image, stored in the icon store of the document.
     Image {
         /// The image bytes.
@@ -50,19 +58,43 @@ pub struct NodeDetails {
     pub remove_properties: Vec<String>,
 }
 
-/// A custom image to store before the document is saved.
-pub(crate) struct PendingImage {
-    bytes: Vec<u8>,
-    declared_mime: String,
+/// A custom image to store, or to find in the store, before the document is
+/// saved.
+pub(crate) enum PendingImage {
+    /// New bytes.
+    New {
+        bytes: Vec<u8>,
+        declared_mime: String,
+    },
+    /// An image the store should already have.
+    Stored(Icon),
 }
 
 impl PendingImage {
-    /// Stores the image and sets it as the icon of node `id`.
+    /// Stores the image, or checks that the store has it, and sets it as the
+    /// icon of node `id`.
     ///
     /// # Errors
-    /// Errors of the icon store, such as an image type that is not accepted.
+    /// Errors of the icon store, such as an image type that is not accepted;
+    /// [`OpsError::IconNotStored`] for an image the store does not have.
     pub(crate) fn store(self, store: &Store, doc: &mut Document, id: Uuid) -> Result<()> {
-        let icon = store.icons().add(&self.bytes, &self.declared_mime)?;
+        let icons = store.icons();
+        let icon = match self {
+            PendingImage::New {
+                bytes,
+                declared_mime,
+            } => icons.add(&bytes, &declared_mime)?,
+            PendingImage::Stored(icon) => {
+                // A regular file, never a symlink, as `IconStore::list` lists.
+                let stored = icons.path_for(&icon).is_some_and(|path| {
+                    std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file())
+                });
+                if !stored {
+                    return Err(OpsError::IconNotStored);
+                }
+                icon
+            }
+        };
         if let Some(node) = doc.find_mut(id) {
             node.icon = Some(icon);
         }
@@ -104,10 +136,13 @@ pub(crate) fn apply_details(node: &mut Node, details: NodeDetails) -> Result<Opt
         Some(IconInput::Builtin(name)) => replace_icon(node, Some(Icon::Builtin { name })),
         Some(IconInput::Royal(name)) => replace_icon(node, Some(Icon::Royal { name })),
         Some(IconInput::Remove) => replace_icon(node, None),
+        Some(IconInput::Stored { sha256, mime }) => {
+            Some(PendingImage::Stored(Icon::Custom { sha256, mime }))
+        }
         Some(IconInput::Image {
             bytes,
             declared_mime,
-        }) => Some(PendingImage {
+        }) => Some(PendingImage::New {
             bytes,
             declared_mime,
         }),

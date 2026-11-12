@@ -10,15 +10,15 @@ import { StatusScreen } from "./StatusScreen";
 describe("StatusScreen", () => {
   it("shows the default document and the vault from the backend", async () => {
     const state = initialFakeState();
-    state.appStatus = {
-      defaultDocument: { path: "/Users/utente-di-prova/portolano.json", exists: true },
-      vault: "file",
-    };
+    state.defaultDocumentPath = "/Users/utente-di-prova/infra/portolano.json";
+    state.vault.kind = "file";
     installFakeBackend(state);
 
     renderWithQueries(<StatusScreen />);
 
-    expect(await screen.findByText("/Users/utente-di-prova/portolano.json")).toBeInTheDocument();
+    expect(
+      await screen.findByText("/Users/utente-di-prova/infra/portolano.json"),
+    ).toBeInTheDocument();
     expect(screen.getByText(texts.status.documentPresent)).toBeInTheDocument();
     expect(screen.getByText(texts.status.vaultKinds.file)).toBeInTheDocument();
   });

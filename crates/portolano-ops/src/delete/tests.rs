@@ -278,3 +278,22 @@ fn deletion_without_secrets_does_not_open_the_vault() {
     remove(&mut stored, &vault, "/Vuota", DeleteOptions::default()).unwrap();
     assert!(!vault.is_open());
 }
+
+#[test]
+fn preview_lists_the_connections_that_inherit_a_credential_of_the_subtree() {
+    let admin = credential("Admin", "admin", None);
+    let mut prod = folder("Prod", vec![connection("web01", "ssh")]);
+    if let Some(folder) = prod.as_folder_mut() {
+        folder.credential = by_id(admin.id);
+    }
+    let doc = document(vec![admin, prod]);
+
+    let preview = preview_delete(&doc, id_of(&doc, "/Admin")).unwrap();
+
+    let inherited: Vec<&str> = preview
+        .inherited
+        .iter()
+        .map(|node| node.path.as_str())
+        .collect();
+    assert_eq!(inherited, vec!["/Prod/web01"]);
+}

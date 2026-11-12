@@ -1,19 +1,27 @@
 //! Deletion of a node and its subtree (SPEC §10.2 `delete`, DEC-018.1).
 //!
 //! Two phases: [`preview_delete`] tells what would go and who refers to it,
-//! so that the caller can ask for confirmation; [`delete`] does it.
+//! so that the caller can ask for confirmation; [`delete`] does it, or
+//! [`delete_undoable`] does it keeping what an undo needs.
 
 use std::collections::HashSet;
 
-use portolano_core::{Document, NodeKind, Store, Vault};
+use portolano_core::{CredentialOrigin, CredentialSpec, Document, NodeKind, Store, Vault};
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::commit::{Change, CleanupFailure};
-use crate::inspect::NodeType;
-use crate::nodes::collect_unused_icons;
+use crate::inspect::{NodeRef, NodeType};
+use crate::nodes::{collect_unused_icons, credential_spec};
 use crate::tree_util::{node_path, subtree_ids};
 use crate::{OpsError, Result};
+
+mod undo;
+
+pub use undo::{
+    DeletedSubtree, PurgeOutcome, RestoreOutcome, UndoableDelete, delete_undoable, purge_secrets,
+    restore_deleted,
+};
 
 /// A reference from a node outside the deleted subtree to a node inside it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -50,6 +58,9 @@ pub struct DeletePreview {
     pub secrets: usize,
     /// References from outside the subtree to nodes in it.
     pub references: Vec<ExternalReference>,
+    /// Connections outside the subtree that receive one of its credentials
+    /// by inheritance (ambiguity 13 of the mock): they lose it too.
+    pub inherited: Vec<NodeRef>,
 }
 
 impl DeletePreview {
@@ -88,8 +99,10 @@ pub struct DeleteOptions {
 
 /// The result of [`delete`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DeleteOutcome {
     /// Nodes removed, the deleted node included.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub removed_nodes: usize,
     /// Nodes outside the subtree whose credential became "ask at launch"
     /// because it referred to a deleted credential.
@@ -99,6 +112,7 @@ pub struct DeleteOutcome {
     /// reports them.
     pub remaining_references: Vec<ExternalReference>,
     /// Secrets deleted from the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_deleted: usize,
     /// Secrets that could not be deleted from the vault.
     pub cleanup_failures: Vec<CleanupFailure>,
@@ -115,6 +129,7 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let subtree = subtree_ids(node);
     let references = external_references(doc, &subtree);
+    let inherited = inheriting_from(doc, &subtree);
     let secrets: HashSet<_> = doc.secret_refs_in(id).into_iter().collect();
     Ok(DeletePreview {
         id,
@@ -124,7 +139,28 @@ pub fn preview_delete(doc: &Document, id: Uuid) -> Result<DeletePreview> {
         descendants: subtree.len() - 1,
         secrets: secrets.len(),
         references,
+        inherited,
     })
+}
+
+/// The connections outside `subtree` that inherit a credential of it.
+///
+/// One pass over the document: each connection outside the subtree that
+/// inherits its credential is resolved once.
+fn inheriting_from(doc: &Document, subtree: &HashSet<Uuid>) -> Vec<NodeRef> {
+    doc.walk()
+        .map(|(_, node)| node)
+        .filter(|node| node.as_connection().is_some() && !subtree.contains(&node.id))
+        .filter(|node| credential_spec(node).is_some_and(CredentialSpec::is_inherit))
+        .filter(|node| {
+            doc.resolve_credential(node.id)
+                .is_ok_and(|resolved| match resolved.origin {
+                    CredentialOrigin::Credential { node } => subtree.contains(&node),
+                    _ => false,
+                })
+        })
+        .map(|node| NodeRef::of(doc, node.id))
+        .collect()
 }
 
 /// Deletes node `id` with its subtree, saves the document, then deletes the

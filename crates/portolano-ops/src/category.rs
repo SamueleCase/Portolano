@@ -84,6 +84,8 @@ impl OpsError {
             | OpsError::ImportConflicts { .. }
             | OpsError::ImportKindChanged { .. } => ErrorCategory::Rejected,
             OpsError::UnrecognizedImportFile { .. } => ErrorCategory::Unreadable,
+            OpsError::IconNotStored => ErrorCategory::Rejected,
+            OpsError::ImportAnswersMismatch { .. } => ErrorCategory::Rejected,
         }
     }
 }
@@ -111,6 +113,7 @@ impl From<&portolano_core::Error> for ErrorCategory {
             | Error::MissingMigration { .. }
             | Error::Migration { .. }
             | Error::UnsupportedIcon { .. }
+            | Error::IconTooLarge { .. }
             | Error::InvalidConfig { .. } => ErrorCategory::Unreadable,
             Error::Io { .. } => ErrorCategory::Io,
             Error::Serialize { .. } | Error::SerializeConfig { .. } | Error::NoDataDir => {

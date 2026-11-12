@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-builtin-icons"
+description = "Enables the builtin_icons command without any pre-configured scope."
+commands.allow = ["builtin_icons"]
+
+[[permission]]
+identifier = "deny-builtin-icons"
+description = "Denies the builtin_icons command without any pre-configured scope."
+commands.deny = ["builtin_icons"]

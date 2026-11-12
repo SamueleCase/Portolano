@@ -16,8 +16,10 @@ use crate::tree_util::document_secret_refs;
 /// A secret that could not be deleted from the vault after the document was
 /// saved; the document no longer references it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct CleanupFailure {
-    /// The secret left in the vault.
+    /// The secret left in the vault: its reference, never its value.
+    #[cfg_attr(feature = "specta", specta(type = String))]
     pub reference: SecretRef,
     /// Why it could not be deleted.
     pub reason: String,
@@ -68,12 +70,45 @@ impl Change {
     /// Errors of the vault, of `store_icons` and of the store; the vault and
     /// `target` are then as before.
     pub(crate) fn commit(
-        mut self,
+        self,
         store: &Store,
         vault: &dyn Vault,
         target: &mut Document,
         store_icons: impl FnOnce(&mut Document) -> Result<()>,
     ) -> Result<Committed> {
+        let written = self.new_secrets.len();
+        let obsolete = self.save(store, vault, target, store_icons)?;
+        let purged = delete_secrets(vault, obsolete);
+        Ok(Committed {
+            secrets_written: written,
+            secrets_deleted: purged.secrets_deleted,
+            cleanup_failures: purged.cleanup_failures,
+        })
+    }
+
+    /// Saves the change like [`Change::commit`], but leaves the secrets that
+    /// the document no longer references in the vault and returns them: an
+    /// undoable deletion deletes them only when it can no longer be undone.
+    ///
+    /// # Errors
+    /// As [`Change::commit`].
+    pub(crate) fn commit_keeping_obsolete(
+        self,
+        store: &Store,
+        vault: &dyn Vault,
+        target: &mut Document,
+    ) -> Result<Vec<SecretRef>> {
+        self.save(store, vault, target, |_| Ok(()))
+    }
+
+    /// Secrets, icons, document; returns the secrets no longer referenced.
+    fn save(
+        mut self,
+        store: &Store,
+        vault: &dyn Vault,
+        target: &mut Document,
+        store_icons: impl FnOnce(&mut Document) -> Result<()>,
+    ) -> Result<Vec<SecretRef>> {
         let current = document_secret_refs(&self.doc);
         let obsolete: Vec<SecretRef> = self.previous_refs.difference(&current).cloned().collect();
         // A wrong master password must stop the operation before the
@@ -90,20 +125,7 @@ impl Change {
             return Err(error);
         }
         *target = self.doc;
-        let mut committed = Committed {
-            secrets_written: self.new_secrets.len(),
-            ..Committed::default()
-        };
-        for reference in obsolete {
-            match vault.delete(&reference) {
-                Ok(()) => committed.secrets_deleted += 1,
-                Err(error) => committed.cleanup_failures.push(CleanupFailure {
-                    reference,
-                    reason: error.to_string(),
-                }),
-            }
-        }
-        Ok(committed)
+        Ok(obsolete)
     }
 
     /// Saves a change that adds and removes no secret, such as a move, so
@@ -129,6 +151,31 @@ impl Change {
     }
 }
 
+/// What deleting obsolete secrets from the vault did.
+#[derive(Debug, Default)]
+pub(crate) struct Purged {
+    /// Secrets deleted.
+    pub(crate) secrets_deleted: usize,
+    /// Secrets that could not be deleted.
+    pub(crate) cleanup_failures: Vec<CleanupFailure>,
+}
+
+/// Deletes `obsolete` from the vault, recording the failures instead of
+/// stopping: the document is already saved without them.
+pub(crate) fn delete_secrets(vault: &dyn Vault, obsolete: Vec<SecretRef>) -> Purged {
+    let mut purged = Purged::default();
+    for reference in obsolete {
+        match vault.delete(&reference) {
+            Ok(()) => purged.secrets_deleted += 1,
+            Err(error) => purged.cleanup_failures.push(CleanupFailure {
+                reference,
+                reason: error.to_string(),
+            }),
+        }
+    }
+    purged
+}
+
 /// Writes every secret; on the first failure removes those already written.
 fn write_secrets(vault: &dyn Vault, secrets: &[(SecretRef, Secret)]) -> Result<()> {
     for (index, (reference, secret)) in secrets.iter().enumerate() {
@@ -152,6 +199,9 @@ fn remove_written(vault: &dyn Vault, secrets: &[(SecretRef, Secret)]) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use portolano_core::VaultError;
     use portolano_core::vault::MemoryVault;
     use pretty_assertions::assert_eq;
 
@@ -211,6 +261,61 @@ mod tests {
         });
         assert!(result.is_err());
         assert!(!vault.contains(&reference).unwrap());
+    }
+
+    /// A memory vault that refuses the second secret it is asked to write.
+    #[derive(Default)]
+    struct FailsOnSecondWrite {
+        inner: MemoryVault,
+        writes: AtomicUsize,
+    }
+
+    impl Vault for FailsOnSecondWrite {
+        fn backend(&self) -> &'static str {
+            "memory"
+        }
+
+        fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
+            self.inner.get(reference)
+        }
+
+        fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
+            if self.writes.fetch_add(1, Ordering::SeqCst) == 1 {
+                return Err(VaultError::Backend {
+                    backend: "memory",
+                    reason: "scrittura rifiutata dal test".to_owned(),
+                });
+            }
+            self.inner.set(reference, secret)
+        }
+
+        fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
+            self.inner.delete(reference)
+        }
+    }
+
+    #[test]
+    fn failed_second_secret_removes_the_first_and_keeps_the_document() {
+        let mut stored = stored(vec![]);
+        let vault = FailsOnSecondWrite::default();
+        let mut change = Change::from(&stored.doc);
+        let first = change.add_secret(secret(SENTINEL));
+        let second = change.add_secret(secret(SENTINEL));
+        change
+            .doc
+            .nodes
+            .push(credential("Admin", "admin", Some(first.clone())));
+        change
+            .doc
+            .nodes
+            .push(credential("Root", "root", Some(second)));
+
+        let result = change.commit(&stored.store, &vault, &mut stored.doc, |_| Ok(()));
+
+        assert!(result.is_err());
+        assert!(!vault.contains(&first).unwrap());
+        assert!(stored.reloaded().nodes.is_empty());
+        assert!(stored.doc.nodes.is_empty());
     }
 
     #[test]

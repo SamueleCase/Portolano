@@ -1,12 +1,12 @@
 import "./design/fonts";
 import "./design/global.css";
 
-import { QueryClient } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./app/App";
 import { applyTokens } from "./design/tokens";
+import { createQueryClient } from "./ipc/queryClient";
 
 // The end-to-end tests run the frontend alone: the fake backend answers the
 // commands in place of Rust. Vite drops this branch from the other builds.
@@ -34,7 +34,7 @@ if (root && gallery) {
 } else if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App queryClient={new QueryClient()} />
+      <App queryClient={createQueryClient()} />
     </StrictMode>,
   );
 }

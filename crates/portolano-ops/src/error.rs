@@ -252,6 +252,21 @@ pub enum OpsError {
         reason: String,
     },
 
+    /// An icon chosen among the stored images that the icon store of the
+    /// document does not have.
+    #[error("l'immagine scelta come icona non è fra quelle del documento")]
+    IconNotStored,
+
+    /// The answers to the secret requests of an import do not match the
+    /// requests: the file changed between the preview and the import.
+    #[error(
+        "le password inserite non corrispondono più alle richieste dell'import ('{path}'): ripeti l'anteprima"
+    )]
+    ImportAnswersMismatch {
+        /// The node of the first request without a matching answer.
+        path: String,
+    },
+
     /// A key file and a key for the vault were both given.
     #[error("indica la chiave privata come file oppure nel vault, non entrambe")]
     KeyFileAndVaultKey,

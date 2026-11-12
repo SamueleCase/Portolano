@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-edit-node"
+description = "Enables the edit_node command without any pre-configured scope."
+commands.allow = ["edit_node"]
+
+[[permission]]
+identifier = "deny-edit-node"
+description = "Denies the edit_node command without any pre-configured scope."
+commands.deny = ["edit_node"]

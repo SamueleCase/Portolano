@@ -10,8 +10,11 @@
  * The function is idempotent, so a text already made visible is unchanged.
  */
 
-/** C0 controls, DEL and C1 controls: Rust's `char::is_control` (category Cc). */
-function isControl(codePoint: number): boolean {
+/**
+ * C0 controls, DEL and C1 controls: Rust's `char::is_control` (category
+ * Cc). Exported for the checks that must refuse what the backend refuses.
+ */
+export function isControl(codePoint: number): boolean {
   return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
 }
 

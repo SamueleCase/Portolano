@@ -13,9 +13,18 @@ use std::time::{Duration, SystemTime};
 
 use sha2::{Digest, Sha256};
 
+mod image_type;
+
+use self::image_type::ImageType;
 use crate::error::{Error, Result};
 use crate::model::{Document, Icon};
 use crate::store::{Access, io_error, read_document, with_lock, write_atomically};
+
+/// The largest icon image accepted, in bytes. Icons are shown at most 52 px
+/// wide and those of Royal documents weigh a few kilobytes; the limit bounds
+/// what showing one makes the app read into memory, and an image refused
+/// here is never stored only to be refused when shown.
+pub const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
 
 /// The icon directory of one document. Obtained from
 /// [`Store::icons`](crate::store::Store::icons).
@@ -48,9 +57,18 @@ impl IconStore {
     /// only reported when the bytes are not of an accepted type.
     ///
     /// # Errors
+    /// [`Error::IconTooLarge`](crate::Error::IconTooLarge) for an image
+    /// larger than [`MAX_ICON_BYTES`],
     /// [`Error::UnsupportedIcon`](crate::Error::UnsupportedIcon) for a type
     /// that is not accepted, [`Error::Io`](crate::Error::Io).
     pub fn add(&self, bytes: &[u8], mime: &str) -> Result<Icon> {
+        let size = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+        if size > MAX_ICON_BYTES {
+            return Err(Error::IconTooLarge {
+                size,
+                max: MAX_ICON_BYTES,
+            });
+        }
         let image = ImageType::detect(bytes).ok_or_else(|| Error::UnsupportedIcon {
             mime: mime.to_owned(),
         })?;
@@ -90,6 +108,37 @@ impl IconStore {
         }
         let image = ImageType::from_mime(mime)?;
         Some(self.dir.join(image.file_name(sha256)))
+    }
+
+    /// The stored images, as [`Icon::Custom`], ordered by hash: the choices
+    /// of the icon picker of the app. Files whose name is not that of a
+    /// stored image are left out, as by [`IconStore::gc`], and so is anything
+    /// that is not a regular file.
+    ///
+    /// # Errors
+    /// [`Error::Io`](crate::Error::Io) if the directory cannot be read; a
+    /// missing directory is an empty store.
+    pub fn list(&self) -> Result<Vec<Icon>> {
+        let entries = match fs::read_dir(&self.dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(source) => return Err(io_error(&self.dir)(source)),
+        };
+        let mut icons = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(io_error(&self.dir))?;
+            // Only regular files: never a symlink, which the icon scheme
+            // of the app would refuse to serve anyway.
+            let is_file = entry
+                .file_type()
+                .map_err(io_error(&entry.path()))?
+                .is_file();
+            if let Some(icon) = stored_icon(&entry.path()).filter(|_| is_file) {
+                icons.push(icon);
+            }
+        }
+        icons.sort_by(|a, b| sha256_of(a).cmp(sha256_of(b)));
+        Ok(icons)
     }
 
     /// Removes the images no longer used by `doc` and returns how many were
@@ -188,136 +237,6 @@ fn touch(path: &Path) -> io::Result<()> {
         .set_modified(SystemTime::now())
 }
 
-/// The accepted image types (SPEC §6.4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ImageType {
-    Png,
-    Jpeg,
-    Gif,
-    Tiff,
-    Svg,
-    Pdf,
-}
-
-/// Leading bytes of the binary types. SVG is text and has none.
-const SIGNATURES: &[(&[u8], ImageType)] = &[
-    (b"\x89PNG\r\n\x1a\n", ImageType::Png),
-    (b"\xff\xd8\xff", ImageType::Jpeg),
-    (b"GIF87a", ImageType::Gif),
-    (b"GIF89a", ImageType::Gif),
-    (b"II*\0", ImageType::Tiff),
-    (b"MM\0*", ImageType::Tiff),
-    (b"%PDF-", ImageType::Pdf),
-];
-
-/// How far into an SVG file the `<svg` element is looked for: enough for an
-/// XML declaration, a DOCTYPE and the comments that editors put first.
-const SVG_HEAD_LEN: usize = 4096;
-
-impl ImageType {
-    const ALL: [ImageType; 6] = [
-        ImageType::Png,
-        ImageType::Jpeg,
-        ImageType::Gif,
-        ImageType::Tiff,
-        ImageType::Svg,
-        ImageType::Pdf,
-    ];
-
-    /// The type of `bytes`, from their magic bytes.
-    fn detect(bytes: &[u8]) -> Option<ImageType> {
-        SIGNATURES
-            .iter()
-            .find(|(magic, _)| bytes.starts_with(magic))
-            .map(|&(_, image)| image)
-            .or_else(|| looks_like_svg(bytes).then_some(ImageType::Svg))
-    }
-
-    fn from_mime(mime: &str) -> Option<ImageType> {
-        Self::ALL.into_iter().find(|image| image.mime() == mime)
-    }
-
-    fn from_extension(extension: &str) -> Option<ImageType> {
-        Self::ALL
-            .into_iter()
-            .find(|image| image.extension() == extension)
-    }
-
-    fn mime(self) -> &'static str {
-        match self {
-            ImageType::Png => "image/png",
-            ImageType::Jpeg => "image/jpeg",
-            ImageType::Gif => "image/gif",
-            ImageType::Tiff => "image/tiff",
-            ImageType::Svg => "image/svg+xml",
-            ImageType::Pdf => "application/pdf",
-        }
-    }
-
-    fn extension(self) -> &'static str {
-        match self {
-            ImageType::Png => "png",
-            ImageType::Jpeg => "jpg",
-            ImageType::Gif => "gif",
-            ImageType::Tiff => "tiff",
-            ImageType::Svg => "svg",
-            ImageType::Pdf => "pdf",
-        }
-    }
-
-    fn file_name(self, sha256: &str) -> String {
-        format!("{sha256}.{}", self.extension())
-    }
-}
-
-/// SVG has no binary signature: it is XML whose root element is `<svg`.
-/// The byte order mark, the XML declaration (and other processing
-/// instructions), comments and the DOCTYPE may come before the root.
-fn looks_like_svg(bytes: &[u8]) -> bool {
-    let head = &bytes[..bytes.len().min(SVG_HEAD_LEN)];
-    let mut rest = head
-        .strip_prefix(b"\xef\xbb\xbf")
-        .unwrap_or(head)
-        .trim_ascii_start();
-    while let Some(len) = prolog_item_len(rest) {
-        rest = rest[len..].trim_ascii_start();
-    }
-    rest.strip_prefix(b"<svg").is_some_and(|after| {
-        matches!(
-            after.first(),
-            Some(b'>' | b'/' | b' ' | b'\t' | b'\r' | b'\n')
-        )
-    })
-}
-
-/// The length of the XML prolog item that `rest` starts with, or `None` if
-/// it starts with something else or the item is not terminated in the head.
-fn prolog_item_len(rest: &[u8]) -> Option<usize> {
-    if rest.starts_with(b"<?") {
-        end_of(rest, b"?>")
-    } else if rest.starts_with(b"<!--") {
-        end_of(rest, b"-->")
-    } else if rest.starts_with(b"<!DOCTYPE") {
-        // An internal subset, `[ ... ]`, may contain `>` itself.
-        let first = rest.iter().position(|&b| b == b'[' || b == b'>')?;
-        if rest[first] == b'>' {
-            return Some(first + 1);
-        }
-        let subset_end = first + end_of(&rest[first..], b"]")?;
-        Some(subset_end + end_of(&rest[subset_end..], b">")?)
-    } else {
-        None
-    }
-}
-
-/// The index just past the first `marker` in `haystack`.
-fn end_of(haystack: &[u8], marker: &[u8]) -> Option<usize> {
-    haystack
-        .windows(marker.len())
-        .position(|window| window == marker)
-        .map(|start| start + marker.len())
-}
-
 /// The SHA-256 of `bytes` in lowercase hex: the stem of the file name that
 /// [`IconStore::add`] gives to an image with these bytes.
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -330,6 +249,13 @@ pub fn is_sha256_hex(text: &str) -> bool {
     text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+/// The MIME type of `bytes` if they are an image the store accepts,
+/// recognized as [`IconStore::add`] recognizes it: an importer that asks
+/// here before handing over an image never sees the store refuse it.
+pub fn detect_mime(bytes: &[u8]) -> Option<&'static str> {
+    ImageType::detect(bytes).map(ImageType::mime)
+}
+
 /// The MIME type of the images stored with `extension` (`png`, `jpg`, `gif`,
 /// `tiff`, `svg`, `pdf`); `None` for any other extension.
 pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
@@ -338,9 +264,29 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
 
 /// Whether `path` is named `<sha256>.<extension of an accepted type>`.
 fn is_stored_image(path: &Path) -> bool {
-    let stem = path.file_stem().and_then(OsStr::to_str);
-    let extension = path.extension().and_then(OsStr::to_str);
-    stem.is_some_and(is_sha256_hex) && extension.and_then(ImageType::from_extension).is_some()
+    stored_icon(path).is_some()
+}
+
+/// The icon stored at `path`, if it is named
+/// `<sha256>.<extension of an accepted type>`.
+fn stored_icon(path: &Path) -> Option<Icon> {
+    let stem = path.file_stem().and_then(OsStr::to_str)?;
+    let image = path
+        .extension()
+        .and_then(OsStr::to_str)
+        .and_then(ImageType::from_extension)?;
+    is_sha256_hex(stem).then(|| Icon::Custom {
+        sha256: stem.to_owned(),
+        mime: image.mime().to_owned(),
+    })
+}
+
+/// The hash of a custom icon; empty for the other kinds.
+fn sha256_of(icon: &Icon) -> &str {
+    match icon {
+        Icon::Custom { sha256, .. } => sha256,
+        Icon::Builtin { .. } | Icon::Royal { .. } => "",
+    }
 }
 
 #[cfg(test)]

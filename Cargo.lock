@@ -3370,6 +3370,7 @@ dependencies = [
 name = "portolano-app"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "nix 0.28.0",
  "notify",
  "notify-debouncer-full",
@@ -3390,6 +3391,7 @@ dependencies = [
  "tauri-specta",
  "tempfile",
  "thiserror 2.0.21",
+ "toml 1.2.1+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -3492,6 +3494,7 @@ dependencies = [
 name = "portolano-ops"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "portolano-connectors",
  "portolano-core",
  "portolano-import",
@@ -4341,6 +4344,7 @@ dependencies = [
  "chrono",
  "paste",
  "rustc_version",
+ "serde_json",
  "specta-macros",
  "uuid",
 ]
