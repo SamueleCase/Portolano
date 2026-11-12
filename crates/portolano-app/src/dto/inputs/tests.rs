@@ -1,4 +1,5 @@
-use portolano_core::{CustomProperty, Node};
+use portolano_core::{CustomProperty, Document, Node};
+use portolano_ops::nodes::SecretChange;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
