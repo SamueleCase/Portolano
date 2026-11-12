@@ -81,7 +81,6 @@ export const components = {
   credentialField: {
     change: "Cambia",
     passwordPresent: "Password presente",
-    passwordAbsent: "password assente",
   },
   credentialModes: {
     inherit: { title: "Eredita", subtitle: "Dalla cartella che contiene il nodo" },
@@ -130,7 +129,7 @@ export const components = {
   },
   stepper: {
     label: "Passi",
-    states: { done: "completato", current: "passo corrente", upcoming: "", skipped: "saltato" },
+    states: { done: "completato", skipped: "saltato" },
   },
   iconPicker: {
     title: "Scegli un'icona",
@@ -161,7 +160,7 @@ export const components = {
     choose: "Scegli",
     chooseNamed: "Scegli {name}",
   },
-  terminal: { label: "Terminale" },
+  terminal: { label: "Terminale", leave: "Ctrl+Tab o Ctrl+Maiusc+Tab per uscire dal terminale." },
   tagInput: {
     placeholder: "Aggiungi tag…",
     remove: "Rimuovi il tag {tag}",

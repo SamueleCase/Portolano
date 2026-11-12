@@ -3,10 +3,11 @@ import "@xterm/xterm/css/xterm.css";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal as XTerm } from "@xterm/xterm";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useId, useRef } from "react";
 
 import { terminalOptions } from "../../design/terminalTheme";
 import { texts } from "../../i18n/it";
+import { leaveTerminal } from "./leaveTerminal";
 import styles from "./Terminal.module.css";
 import type { TerminalIo } from "./terminalIo";
 import { CLIPBOARD_OSC, openableLink, terminalTitle } from "./terminalSafety";
@@ -35,6 +36,7 @@ export function Terminal({
   label = texts.components.terminal.label,
 }: TerminalProps) {
   const host = useRef<HTMLDivElement>(null);
+  const hintId = useId();
   const title = useEffectEvent((text: string) => onTitle?.(terminalTitle(text)));
   const link = useEffectEvent((uri: string) => {
     const url = openableLink(uri);
@@ -61,7 +63,14 @@ export function Terminal({
       }),
       terminal.onResize(({ cols, rows }) => io.resize(cols, rows)),
     ];
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type !== "keydown" || event.key !== "Tab" || !event.ctrlKey) return true;
+      event.preventDefault();
+      leaveTerminal(element, event.shiftKey ? -1 : 1);
+      return false;
+    });
     terminal.open(element);
+    terminal.textarea?.setAttribute("aria-describedby", hintId);
     const unsubscribe = io.subscribe((data) => terminal.write(data));
     const resize = new ResizeObserver(() => fit.fit());
     resize.observe(element);
@@ -73,7 +82,14 @@ export function Terminal({
       subscriptions.forEach((subscription) => subscription.dispose());
       terminal.dispose();
     };
-  }, [io]);
+  }, [io, hintId]);
 
-  return <div ref={host} role="group" aria-label={label} className={styles.terminal} />;
+  return (
+    <div role="group" aria-label={label} className={styles.frame}>
+      <div ref={host} className={styles.terminal} />
+      <span id={hintId} className={styles.hint}>
+        {texts.components.terminal.leave}
+      </span>
+    </div>
+  );
 }

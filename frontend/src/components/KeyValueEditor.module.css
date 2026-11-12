@@ -48,6 +48,11 @@
   border-color: var(--color-error);
 }
 
+.input[aria-invalid="true"]:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-accent-text);
+  outline-offset: var(--space-fine-2);
+}
+
 .mono {
   font-family: var(--font-mono);
 }
