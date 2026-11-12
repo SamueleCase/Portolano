@@ -249,6 +249,13 @@ pub fn is_sha256_hex(text: &str) -> bool {
     text.len() == 64 && text.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
+/// The MIME type of `bytes` if they are an image the store accepts,
+/// recognized as [`IconStore::add`] recognizes it: an importer that asks
+/// here before handing over an image never sees the store refuse it.
+pub fn detect_mime(bytes: &[u8]) -> Option<&'static str> {
+    ImageType::detect(bytes).map(ImageType::mime)
+}
+
 /// The MIME type of the images stored with `extension` (`png`, `jpg`, `gif`,
 /// `tiff`, `svg`, `pdf`); `None` for any other extension.
 pub fn mime_for_extension(extension: &str) -> Option<&'static str> {

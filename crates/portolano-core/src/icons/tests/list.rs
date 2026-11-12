@@ -85,3 +85,24 @@ fn list_leaves_out_symlinks_named_as_stored_images() {
 
     assert_eq!(store.list().unwrap(), vec![png]);
 }
+
+#[test]
+fn detect_mime_recognizes_what_add_accepts() {
+    assert_eq!(detect_mime(PNG), Some("image/png"));
+    assert_eq!(detect_mime(b"%PDF-1.7"), Some("application/pdf"));
+}
+
+#[test]
+fn detect_mime_refuses_what_add_refuses() {
+    let mut late_svg = b"<?xml version=\"1.0\"?>".to_vec();
+    late_svg.extend(vec![b' '; 5000]);
+    late_svg.extend(b"<svg/>");
+    for bytes in [&b"%PDF1.7"[..], b"<svgx/>", &late_svg] {
+        assert_eq!(detect_mime(bytes), None, "{bytes:?}");
+        assert!(
+            icon_store(&TempDir::new().unwrap())
+                .add(bytes, "image/svg+xml")
+                .is_err()
+        );
+    }
+}
