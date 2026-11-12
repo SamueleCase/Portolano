@@ -1,0 +1,47 @@
+.row {
+  display: grid;
+  grid-template-columns: var(--size-severity-column) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "severity path go"
+    ". message go";
+  gap: var(--space-fine-3) var(--space-fine-14);
+  padding: var(--space-3) var(--space-2);
+  border-top: var(--border-width) solid var(--color-border);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.row:hover {
+  background: var(--color-surface-subtle);
+}
+
+.severity {
+  grid-area: severity;
+}
+
+.path {
+  grid-area: path;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-secondary);
+  overflow-wrap: anywhere;
+}
+
+.message {
+  grid-area: message;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-message);
+}
+
+.go {
+  grid-area: go;
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.go:hover {
+  color: var(--color-text-primary);
+}

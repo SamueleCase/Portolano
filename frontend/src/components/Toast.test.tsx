@@ -1,0 +1,140 @@
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { ToastMessage } from "./Toast";
+import { ToastViewport } from "./ToastViewport";
+
+const saved: ToastMessage = { id: "1", kind: "success", text: "Password salvata nel portachiavi" };
+const refused: ToastMessage = { id: "2", kind: "error", text: "db02: connessione rifiutata" };
+
+describe("ToastViewport", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("announces a confirmation politely, in the region named Notifiche", () => {
+    render(<ToastViewport toasts={[saved]} onDismiss={vi.fn()} />);
+
+    const region = screen.getByRole("region", { name: "Notifiche" });
+    const announced = within(region)
+      .getAllByText(saved.text)
+      .filter((element) => element.closest("[aria-live]"));
+    expect(announced).toHaveLength(1);
+    expect(announced[0]?.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("dismisses a confirmation after 5 seconds", () => {
+    const onDismiss = vi.fn();
+    render(<ToastViewport toasts={[saved]} onDismiss={onDismiss} />);
+
+    act(() => {
+      vi.advanceTimersByTime(4999);
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(onDismiss).toHaveBeenCalledWith("1");
+  });
+
+  it("keeps an undo toast for 10 seconds", () => {
+    const onDismiss = vi.fn();
+    const undo: ToastMessage = {
+      id: "3",
+      kind: "undo",
+      text: "web02 eliminato",
+      action: { label: "Annulla", onAction: vi.fn() },
+    };
+    render(<ToastViewport toasts={[undo]} onDismiss={onDismiss} />);
+
+    act(() => {
+      vi.advanceTimersByTime(9999);
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(onDismiss).toHaveBeenCalledWith("3");
+  });
+
+  it("keeps an error until it is closed with ×", () => {
+    const onDismiss = vi.fn();
+    render(<ToastViewport toasts={[refused]} onDismiss={onDismiss} />);
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Chiudi la notifica" }));
+
+    expect(onDismiss).toHaveBeenCalledWith("2");
+  });
+
+  it("announces an error assertively, and only once", () => {
+    render(<ToastViewport toasts={[refused]} onDismiss={vi.fn()} />);
+
+    const announced = screen
+      .getAllByText(refused.text)
+      .filter((element) => element.closest("[aria-live]"));
+    expect(announced).toHaveLength(1);
+    expect(announced[0]?.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("waits while the pointer is on the toast", () => {
+    const onDismiss = vi.fn();
+    render(<ToastViewport toasts={[saved]} onDismiss={onDismiss} />);
+
+    fireEvent.pointerEnter(screen.getByRole("listitem"));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("runs the action and dismisses the toast", () => {
+    const onAction = vi.fn();
+    const onDismiss = vi.fn();
+    const undo: ToastMessage = {
+      id: "4",
+      kind: "undo",
+      text: "web02 eliminato",
+      action: { label: "Annulla", onAction },
+    };
+    render(<ToastViewport toasts={[undo]} onDismiss={onDismiss} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
+
+    expect(onAction).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledWith("4");
+  });
+
+  it("shows only the newest three", () => {
+    const many = ["a", "b", "c", "d"].map((id) => ({ ...saved, id, text: `Toast ${id}` }));
+    render(<ToastViewport toasts={many} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Toast b",
+      "Toast c",
+      "Toast d",
+    ]);
+  });
+
+  it("keeps the order in which the toasts came, errors included", () => {
+    const info: ToastMessage = { id: "5", kind: "info", text: "Documento ricaricato" };
+    render(<ToastViewport toasts={[saved, refused, info]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      saved.text,
+      `${refused.text}×`,
+      info.text,
+    ]);
+  });
+});

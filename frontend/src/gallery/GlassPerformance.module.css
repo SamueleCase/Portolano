@@ -1,0 +1,25 @@
+.window {
+  position: relative;
+  z-index: var(--z-app);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(var(--size-picker-column), var(--size-sidebar-max)) minmax(0, 1fr);
+  gap: var(--space-3);
+  height: 100vh;
+  padding: var(--space-fine-14);
+}
+
+.toolbar {
+  grid-column: 1 / -1;
+  padding: var(--space-fine-10) var(--space-fine-14);
+}
+
+.panel {
+  padding: var(--space-fine-26) var(--space-fine-28);
+}
+
+.title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-panel-title);
+  font-weight: var(--font-weight-strong);
+}

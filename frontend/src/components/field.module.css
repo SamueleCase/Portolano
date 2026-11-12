@@ -1,0 +1,66 @@
+/* The look shared by text fields, text areas and the closed select
+   (inventario §4.2). */
+.control {
+  width: 100%;
+  min-height: var(--size-control);
+  padding: var(--space-fine-9) var(--space-3);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-base);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.control:focus,
+.control:focus-visible {
+  border-color: var(--color-accent-text);
+}
+
+.control:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.invalid,
+.invalid:focus {
+  border-color: var(--color-error);
+}
+
+.confirmed,
+.confirmed:focus {
+  border-color: var(--color-ok);
+}
+
+/* The border keeps telling the error or the match: the focus gets the ring. */
+.invalid:focus-visible,
+.confirmed:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-accent-text);
+  outline-offset: var(--space-fine-2);
+}
+
+.shake {
+  animation: shake var(--duration-base) var(--ease-out);
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(calc(-1 * var(--motion-shake-offset)));
+  }
+  40%,
+  80% {
+    transform: translateX(var(--motion-shake-offset));
+  }
+}

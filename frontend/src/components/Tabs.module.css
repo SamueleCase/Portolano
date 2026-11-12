@@ -1,0 +1,62 @@
+.bar {
+  display: flex;
+  flex: none;
+  gap: var(--space-fine-6);
+  padding: var(--space-fine-6);
+  overflow-x: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-glass-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  backdrop-filter: var(--blur-panel);
+  scrollbar-width: none;
+}
+
+.tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  border-radius: var(--radius-row);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.tab:hover,
+.selected {
+  background: var(--color-active);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-fine-7) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-row);
+  background: transparent;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.title {
+  font-weight: var(--font-weight-medium);
+}
+
+.kind {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.close {
+  margin-right: var(--space-2);
+  padding: 0 var(--space-fine-2);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--color-text-primary);
+}

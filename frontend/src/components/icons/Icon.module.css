@@ -1,0 +1,79 @@
+.icon {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.badge {
+  width: var(--size-icon-badge);
+  height: var(--size-icon-badge);
+  stroke-width: var(--stroke-icon-badge);
+}
+
+.vault {
+  width: var(--size-icon-vault);
+  height: var(--size-icon-vault);
+  stroke-width: var(--stroke-icon);
+}
+
+.list {
+  width: var(--size-icon-list);
+  height: var(--size-icon-list);
+  stroke-width: var(--stroke-icon);
+}
+
+.tree {
+  width: var(--size-icon);
+  height: var(--size-icon);
+  stroke-width: var(--stroke-icon);
+}
+
+.tile {
+  width: var(--size-icon-tile);
+  height: var(--size-icon-tile);
+  stroke-width: var(--stroke-icon-tile);
+}
+
+.editor {
+  width: var(--size-icon-editor);
+  height: var(--size-icon-editor);
+  stroke-width: var(--stroke-icon-tile);
+}
+
+.detail {
+  width: var(--size-icon-detail);
+  height: var(--size-icon-detail);
+  stroke-width: var(--stroke-icon-tile);
+}
+
+.folder {
+  color: var(--color-node-folder);
+}
+
+.ssh {
+  color: var(--color-node-ssh);
+}
+
+.rdp {
+  color: var(--color-node-rdp);
+}
+
+.credential {
+  color: var(--color-node-credential);
+}
+
+.unsupported {
+  color: var(--color-node-unsupported);
+}
+
+.holder {
+  display: inline-flex;
+  flex: none;
+}
+
+.image {
+  flex: none;
+  object-fit: contain;
+}

@@ -1,0 +1,26 @@
+.favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-fine-6);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.favorite:hover {
+  background: var(--color-field);
+}
+
+.favorite[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--color-active);
+  color: var(--color-text-primary);
+}
+
+.star {
+  color: var(--color-node-credential);
+}

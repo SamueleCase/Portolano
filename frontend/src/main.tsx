@@ -17,7 +17,21 @@ if (import.meta.env.MODE === "e2e") {
 
 applyTokens(document.documentElement);
 const root = document.getElementById("root");
-if (root) {
+
+// The component gallery (`?gallery`) exists only in development and e2e
+// builds: Vite drops this branch, and the gallery with it, from the others.
+const gallery =
+  (import.meta.env.DEV || import.meta.env.MODE === "e2e") &&
+  new URLSearchParams(window.location.search).has("gallery");
+
+if (root && gallery) {
+  const { GalleryRoot } = await import("./gallery/GalleryRoot");
+  createRoot(root).render(
+    <StrictMode>
+      <GalleryRoot />
+    </StrictMode>,
+  );
+} else if (root) {
   createRoot(root).render(
     <StrictMode>
       <App queryClient={new QueryClient()} />

@@ -1,0 +1,5 @@
+.area {
+  min-height: var(--size-text-area);
+  line-height: var(--line-height-body);
+  resize: vertical;
+}

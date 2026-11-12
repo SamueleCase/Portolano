@@ -1,0 +1,39 @@
+.tooltip {
+  position: fixed;
+  z-index: var(--z-popover);
+  margin-top: var(--space-fine-6);
+  padding: var(--space-fine-6) var(--space-fine-10);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-terminal);
+  box-shadow: var(--shadow-drag);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: fade var(--duration-fast) var(--ease-out);
+}
+
+.tooltip[hidden] {
+  display: none;
+}
+
+.multiline {
+  max-width: var(--width-tooltip);
+  padding: var(--space-2) var(--space-fine-11);
+  line-height: var(--line-height-message);
+  white-space: normal;
+}
+
+.shortcut {
+  margin-left: var(--space-fine-6);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}

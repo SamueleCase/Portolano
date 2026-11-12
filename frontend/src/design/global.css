@@ -2,6 +2,12 @@
   color-scheme: dark;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
@@ -10,4 +16,30 @@ body {
   font-family: var(--font-ui);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-default);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* The mock draws focus only on fields: every other interactive element gets
+   this ring (inventario §4, SPEC-UI §1.6). */
+:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-accent-text);
+  outline-offset: var(--space-fine-2);
+}
+
+a {
+  color: var(--color-accent-text);
+}
+
+a:hover {
+  color: var(--color-text-primary);
 }

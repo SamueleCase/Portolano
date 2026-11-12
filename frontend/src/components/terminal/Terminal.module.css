@@ -1,0 +1,42 @@
+/* Always opaque, never blurred: the background is never drawn under the
+   terminal (inventario §1.1, SPEC-UI §5.2). */
+/* The terminal fills the frame, and the frame its container: its size never
+   follows its content, so fitting the rows cannot grow it in a loop. */
+.terminal {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-4) var(--space-fine-18);
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-terminal-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-terminal);
+  cursor: text;
+}
+
+.terminal:focus-within {
+  outline: var(--border-width-focus) solid var(--color-accent-text);
+  outline-offset: var(--space-fine-2);
+}
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: var(--size-terminal-min-height);
+}
+
+/* Read by assistive technologies with the terminal input. */
+.hint {
+  position: absolute;
+  width: var(--space-fine-1);
+  height: var(--space-fine-1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.terminal :global(.xterm-viewport) {
+  background: var(--color-terminal);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
