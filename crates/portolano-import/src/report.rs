@@ -9,6 +9,7 @@ use serde::Serialize;
 /// Summary of an import, printed as a table and saved as JSON by
 /// `import --report`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ImportReport {
     /// Id of the importer, such as `"royal"`.
     pub importer: String,
@@ -72,6 +73,7 @@ impl ImportReport {
 
 /// Counts of one source type.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TypeCounts {
     /// Objects of this type in the source.
     pub source: usize,
@@ -87,6 +89,7 @@ pub struct TypeCounts {
 
 /// Outcome of one source object.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ReportItem {
     /// Type in the source, such as `"RoyalSSHConnection"`.
     pub source_type: String,
@@ -102,6 +105,7 @@ pub struct ReportItem {
 
 /// How a source object was imported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum ItemStatus {
     /// Imported completely.

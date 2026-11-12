@@ -306,6 +306,7 @@ pub enum VaultError {
 
 /// Severity of a validation [`Issue`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum Severity {
     /// The document is inconsistent; `validate` exits with code 4.
@@ -319,6 +320,7 @@ pub enum Severity {
 
 /// A problem found by validation (SPEC §4.4), by a protocol or by the CLI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Issue {
     /// How serious the problem is.
     pub severity: Severity,

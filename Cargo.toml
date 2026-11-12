@@ -58,6 +58,10 @@ clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 
+# Desktop app (SPEC-UI §2.1). Specta is a release candidate whose API changes
+# between candidates: pinned exactly, updated on purpose.
+specta = { version = "=2.0.0-rc.28", features = ["derive", "uuid", "chrono"] }
+
 # Test-only
 assert_cmd = "2.2.2"
 predicates = "3.1.4"

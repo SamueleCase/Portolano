@@ -17,6 +17,7 @@ use crate::{OpsError, Result};
 
 /// A reference from a node outside the deleted subtree to a node inside it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ExternalReference {
     /// The node that holds the reference.
     pub from: Uuid,
@@ -30,6 +31,7 @@ pub struct ExternalReference {
 
 /// What a deletion would remove.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DeletePreview {
     /// The node to delete.
     pub id: Uuid,

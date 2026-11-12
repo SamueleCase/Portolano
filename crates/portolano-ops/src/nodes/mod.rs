@@ -85,6 +85,7 @@ pub struct NewNode {
 
 /// The result of [`add_node`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AddOutcome {
     /// Id of the new node.
     pub id: Uuid,
