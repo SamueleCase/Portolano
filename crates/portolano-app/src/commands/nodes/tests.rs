@@ -240,3 +240,36 @@ fn referenced_credential_is_not_deleted_without_force() {
 
     assert_eq!(error.code, ErrorCode::Referenced);
 }
+
+#[test]
+fn undo_refused_by_a_taken_name_stays_undoable() {
+    let app = TestApp::with_document();
+    let web01 = app.add(ssh("web01", None));
+    let deleted = remove(&app.state, web01, DeleteOptionsInput::default()).unwrap();
+    let other = app.add(ssh("web01", None));
+
+    let error = undo(&app.state, deleted.undo_id).unwrap_err();
+    change(&app.state, other, edit_of(json!({ "name": "web02" }))).unwrap();
+    let restored = undo(&app.state, deleted.undo_id).unwrap();
+
+    assert_eq!(error.code, ErrorCode::Invalid);
+    assert_eq!(restored.path, "/web01");
+}
+
+#[test]
+fn undo_refused_by_a_change_on_disk_stays_undoable_after_a_reload() {
+    let app = TestApp::with_document();
+    let web01 = app.add(ssh("web01", None));
+    let deleted = remove(&app.state, web01, DeleteOptionsInput::default()).unwrap();
+    let store = portolano_core::Store::open(app.document_path()).unwrap();
+    let mut doc = store.load().unwrap();
+    doc.name = "Cambiato dalla CLI".to_owned();
+    store.save(&mut doc).unwrap();
+
+    let error = undo(&app.state, deleted.undo_id).unwrap_err();
+    crate::commands::document::reload(&app.state).unwrap();
+    let restored = undo(&app.state, deleted.undo_id).unwrap();
+
+    assert_eq!(error.code, ErrorCode::ModifiedExternally);
+    assert_eq!(restored.path, "/web01");
+}

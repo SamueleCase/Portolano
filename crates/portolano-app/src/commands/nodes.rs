@@ -5,7 +5,8 @@
 use std::collections::HashSet;
 
 use portolano_ops::delete::{
-    DeleteOutcome, DeletePreview, delete_undoable, preview_delete as preview, restore_deleted,
+    DeleteOutcome, DeletePreview, RestoreOutcome, delete_undoable, preview_delete as preview,
+    restore_deleted,
 };
 use portolano_ops::duplicate::{DuplicateOutcome, duplicate_node as duplicate};
 use portolano_ops::inspect::NodeRef;
@@ -146,22 +147,13 @@ pub async fn delete_node<R: Runtime>(
     .await
 }
 
-/// The node put back by `undo_delete`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
-pub struct UndoOutcome {
-    /// The node.
-    pub id: Uuid,
-    /// Its path.
-    pub path: String,
-}
-
 /// Undoes deletion `undo_id`, if it is still undoable.
 #[tauri::command]
 #[specta::specta]
 pub async fn undo_delete<R: Runtime>(
     app: AppHandle<R>,
     undo_id: UndoId,
-) -> Result<UndoOutcome, IpcError> {
+) -> Result<RestoreOutcome, IpcError> {
     blocking(app, move |app, state| {
         changed(app, state, undo(state, undo_id))
     })
@@ -256,34 +248,36 @@ pub(crate) fn remove(
     })
 }
 
-pub(crate) fn undo(state: &AppState, undo_id: UndoId) -> Result<UndoOutcome, IpcError> {
+pub(crate) fn undo(state: &AppState, undo_id: UndoId) -> Result<RestoreOutcome, IpcError> {
     let pending = state
         .pending_deletes()
         .take(undo_id)
         .ok_or_else(|| IpcError::not_found("l'eliminazione non si può più annullare".to_owned()))?;
-    // If the subtree cannot go back, the deletion stands and is finished
-    // now, so that its secrets do not stay in the vault.
+    if state.document_path().as_deref() != Some(pending.document.as_path()) {
+        // Definitive: the document of the deletion is no longer open.
+        state.purge(pending);
+        return Err(IpcError::no_document());
+    }
+    // Any other failure (the file changed on disk, a sibling took the name,
+    // a disk error) can be fixed: the deletion stays undoable until it
+    // expires, as if the undo had not been asked.
     let fallback = PendingDelete {
         document: pending.document.clone(),
         deleted: pending.deleted.clone(),
     };
     let restored = state.vault().and_then(|vault| {
         state.with_document(|open| {
-            if open.path() != pending.document {
-                return Err(IpcError::not_found(
-                    "l'eliminazione riguarda un documento non più aperto".to_owned(),
-                ));
-            }
             let (store, doc) = open.parts();
-            let restored = restore_deleted(store, doc, vault.as_ref(), pending.deleted)?;
-            Ok(UndoOutcome {
-                id: restored.id,
-                path: restored.path,
-            })
+            Ok(restore_deleted(
+                store,
+                doc,
+                vault.as_ref(),
+                pending.deleted,
+            )?)
         })
     });
     if restored.is_err() {
-        state.purge(fallback);
+        state.pending_deletes().put_back(undo_id, fallback);
     }
     restored
 }

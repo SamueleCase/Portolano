@@ -299,6 +299,7 @@ export function duplicateNode(state: FakeBackendState, id: string): DuplicateOut
   return {
     id: copy.id,
     path: pathOf(doc, copy.id),
+    renamed: [],
     secrets_copied: copied,
     secrets_missing: missing,
   };

@@ -56,7 +56,7 @@ export const commands = {
 	 */
 	deleteNode: (id: string, options: DeleteOptionsInput_Deserialize) => typedError<DeleteResult, IpcError_Serialize>(__TAURI_INVOKE("delete_node", { id, options })),
 	/**  Undoes deletion `undo_id`, if it is still undoable. */
-	undoDelete: (undoId: string) => typedError<UndoOutcome, IpcError_Serialize>(__TAURI_INVOKE("undo_delete", { undoId })),
+	undoDelete: (undoId: string) => typedError<RestoreOutcome, IpcError_Serialize>(__TAURI_INVOKE("undo_delete", { undoId })),
 	/**  The secrets of node `id` itself and whether the vault has them. */
 	secretStatus: (id: string) => typedError<SecretView[], IpcError_Serialize>(__TAURI_INVOKE("secret_status", { id })),
 	/**
@@ -640,6 +640,12 @@ export type DuplicateOutcome = {
 	id: string,
 	/**  Path of the copy. */
 	path: string,
+	/**
+	 *  Credentials of the copy renamed because a reference by name looks for
+	 *  the name of their original: with the same name it would become
+	 *  ambiguous (DEC-031.3).
+	 */
+	renamed: NodeRef[],
 	/**  Secrets copied in the vault under their new references. */
 	secrets_copied: number,
 	/**
@@ -1487,6 +1493,20 @@ export type ReportItem = {
 	reasons: string[],
 };
 
+/**  The result of [`restore_deleted`]. */
+export type RestoreOutcome = {
+	/**  The node put back. */
+	id: string,
+	/**  Its path. */
+	path: string,
+	/**
+	 *  Nodes that the deletion made "ask at launch" and that changed again
+	 *  before the undo: what changed since stays, so their credential may
+	 *  not be the one they had before the deletion.
+	 */
+	kept: NodeRef[],
+};
+
 /**  The secret a request is for. */
 export type SecretFieldView = 
 /**  A password. */
@@ -1889,14 +1909,6 @@ export type TypeCounts = {
 	unsupported: number,
 	/**  Not imported (for example in the trash). */
 	skipped: number,
-};
-
-/**  The node put back by `undo_delete`. */
-export type UndoOutcome = {
-	/**  The node. */
-	id: string,
-	/**  Its path. */
-	path: string,
 };
 
 /**  A node Portolano does not support. */

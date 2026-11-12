@@ -2,7 +2,7 @@ import type {
   DeleteOptionsInput_Deserialize,
   DeletePreviewView,
   DeleteResult,
-  UndoOutcome,
+  RestoreOutcome,
 } from "../bindings";
 import {
   type FakeBackendState,
@@ -118,7 +118,7 @@ export function deleteNode(
   };
 }
 
-export function undoDelete(state: FakeBackendState, undoId: string): UndoOutcome {
+export function undoDelete(state: FakeBackendState, undoId: string): RestoreOutcome {
   const pending =
     state.pendingDeletes[undoId] ?? fail("notFound", "l'eliminazione non si può più annullare");
   delete state.pendingDeletes[undoId];
@@ -129,5 +129,5 @@ export function undoDelete(state: FakeBackendState, undoId: string): UndoOutcome
   for (const { id, credential } of pending.detached) {
     findNode(doc, id).node.credential = credential;
   }
-  return { id: pending.node.id, path: pathOf(doc, pending.node.id) };
+  return { id: pending.node.id, path: pathOf(doc, pending.node.id), kept: [] };
 }

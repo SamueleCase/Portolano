@@ -51,6 +51,12 @@ impl PendingDeletes {
         recover(self.entries.lock()).remove(&id)
     }
 
+    /// Puts back deletion `id` taken by an undo that failed: it stays
+    /// undoable, and expires when it would have.
+    pub fn put_back(&self, id: UndoId, pending: PendingDelete) {
+        recover(self.entries.lock()).insert(id, pending);
+    }
+
     /// Removes every deletion.
     pub fn take_all(&self) -> Vec<PendingDelete> {
         recover(self.entries.lock())
