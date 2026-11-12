@@ -1,7 +1,10 @@
 //! "Duplica" (SPEC-UI §3.6, DEC-016.4): a copy of a node and its subtree
 //! next to the original, with new ids and new secret references, so that no
 //! secret is shared between the two (deleting one must never delete the
-//! secret of the other).
+//! secret of the other), and without changing what any reference by name
+//! resolves to (DEC-031.3).
+
+mod by_name;
 
 use std::collections::HashMap;
 
@@ -11,9 +14,11 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
+use self::by_name::{ids_in_order, rename_wanted, retarget, wanted_names};
 use crate::Result;
 use crate::commit::Change;
 use crate::import::remap::regenerate_ids;
+use crate::inspect::NodeRef;
 use crate::tree_util::{for_each_node_mut, node_path};
 
 /// The result of [`duplicate_node`].
@@ -24,6 +29,10 @@ pub struct DuplicateOutcome {
     pub id: Uuid,
     /// Path of the copy.
     pub path: String,
+    /// Credentials of the copy renamed because a reference by name looks for
+    /// the name of their original: with the same name it would become
+    /// ambiguous (DEC-031.3).
+    pub renamed: Vec<NodeRef>,
     /// Secrets copied in the vault under their new references.
     #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_copied: usize,
@@ -37,7 +46,8 @@ pub struct DuplicateOutcome {
 /// `<name> (copia)` (or `(copia 2)`, … if taken), and saves the document.
 ///
 /// Every node of the copy gets a new id and the references inside the copy
-/// point to the copy; references to other nodes stay. Every secret
+/// point to the copy, those by name included; references to other nodes
+/// stay. The copy keeps no import origin. Every secret
 /// reference gets a new one, and the vault receives a copy of each value
 /// before the document is saved.
 ///
@@ -60,17 +70,28 @@ pub fn duplicate_node(
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let position = doc.children(parent)?.iter().position(|n| n.id == id);
     let mut copy = original.clone();
-    copy.name = copy_name(doc, parent, &original.name)?;
     regenerate_ids(&mut copy)?;
+    let copies: HashMap<Uuid, Uuid> = ids_in_order(original)
+        .into_iter()
+        .zip(ids_in_order(&copy))
+        .collect();
+    retarget(&mut copy, doc, &copies)?;
+    let renamed = rename_wanted(&mut copy, doc, &wanted_names(doc));
+    if !renamed.contains(&copy.id) {
+        copy.name = copy_name(doc, parent, &original.name)?;
+    }
     let now = Utc::now();
     for_each_node_mut(std::slice::from_mut(&mut copy), &mut |node| {
         node.created = now;
         node.modified = now;
+        // A copy made here was not imported.
+        node.source = None;
     });
     let mut change = Change::from(doc);
     let mut outcome = DuplicateOutcome {
         id: copy.id,
         path: String::new(),
+        renamed: Vec::new(),
         secrets_copied: 0,
         secrets_missing: 0,
     };
@@ -88,6 +109,10 @@ pub fn duplicate_node(
     change.doc.insert(parent, position.map(|p| p + 1), copy)?;
     change.commit(store, vault, doc, |_| Ok(()))?;
     outcome.path = node_path(doc, outcome.id);
+    outcome.renamed = renamed
+        .into_iter()
+        .map(|node| NodeRef::of(doc, node))
+        .collect();
     Ok(outcome)
 }
 
