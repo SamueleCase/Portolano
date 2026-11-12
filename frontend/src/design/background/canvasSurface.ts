@@ -7,10 +7,13 @@ import {
 } from "./constellation";
 
 /**
- * The largest bitmap the canvas allocates, 4096 × 4096 pixels: a window of
- * 1280 × 800 at DPR 2 is a quarter of it, but a very tall viewport (the
- * screenshot of the whole gallery) would need hundreds of megabytes, so the
- * resolution goes down instead.
+ * The largest bitmap the canvas allocates, 4096 × 4096 pixels. It bounds the
+ * memory and the cost of painting up to 30 times per second (DEC-028.6): a
+ * window of 1280 × 800 at DPR 2 is a quarter of it, but beyond the limit the
+ * scale goes below the DPR. That happens with the screenshot of the whole
+ * gallery, and also with a full-screen window on a large HiDPI display (a
+ * window of 3008 × 1692 points draws at about 1.82 instead of 2): the lines
+ * are then a little softer, never blurred by a CSS upscale of a tiny bitmap.
  */
 const MAX_BITMAP_PIXELS = 4096 * 4096;
 
