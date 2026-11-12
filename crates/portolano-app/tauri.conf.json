@@ -55,6 +55,7 @@
         "form-action": "'none'",
         "frame-src": "'none'"
       },
+      "dangerousDisableAssetCspModification": ["style-src"],
       "freezePrototype": true,
       "assetProtocol": { "enable": false }
     }
