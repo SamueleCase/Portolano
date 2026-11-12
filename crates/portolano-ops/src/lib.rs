@@ -14,6 +14,7 @@
 //! An operation that fails leaves the document it was given unchanged: it
 //! works on a copy and replaces the caller's document only on success.
 
+mod category;
 mod commit;
 pub mod config;
 pub mod connect;
@@ -32,6 +33,7 @@ mod tree_util;
 pub mod validate;
 pub mod vault;
 
+pub use category::ErrorCategory;
 pub use commit::CleanupFailure;
 pub use error::OpsError;
 
