@@ -1,0 +1,35 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-fine-10);
+  color: var(--color-text-primary);
+}
+
+.mark {
+  flex: none;
+  width: var(--size-logo);
+  height: var(--size-logo);
+  fill: var(--color-accent-text);
+}
+
+.mark polyline {
+  fill: none;
+  stroke: var(--color-accent-text);
+  stroke-width: var(--stroke-logo);
+  stroke-linejoin: round;
+}
+
+.wordmark {
+  font-size: var(--font-size-logo);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-title);
+}
+
+.large .mark {
+  width: var(--size-logo-large);
+  height: var(--size-logo-large);
+}
+
+.large .wordmark {
+  font-size: var(--font-size-logo-large);
+}

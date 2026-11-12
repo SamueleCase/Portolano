@@ -1,0 +1,51 @@
+.item {
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--size-report-column) minmax(0, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-fine-9) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-size-secondary);
+  text-align: left;
+}
+
+button.row {
+  cursor: pointer;
+}
+
+button.row:hover {
+  background: var(--color-surface-subtle);
+}
+
+.partial {
+  color: var(--color-warn);
+}
+
+.unsupported {
+  color: var(--color-text-secondary);
+}
+
+.skipped {
+  color: var(--color-text-muted);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-2);
+  min-width: 0;
+}
+
+.path {
+  overflow-wrap: anywhere;
+}
+
+.reason {
+  color: var(--color-text-muted);
+}

@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "e2e": "playwright test",
+    "perf:glass": "PERF_GLASS=1 playwright test",
     "bindings": "cargo run --quiet -p portolano-app --example export_bindings -- src/bindings.ts",
     "bindings:check": "cargo test --quiet -p portolano-app --lib bindings::",
     "tauri": "TAURI_APP_PATH=../crates/portolano-app TAURI_FRONTEND_PATH=. tauri",

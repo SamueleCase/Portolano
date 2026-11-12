@@ -1,0 +1,120 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-fine-6);
+  padding: var(--space-2) var(--space-fine-14);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-default);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.secondary:hover,
+.toolbar:hover,
+.ghost:hover {
+  background: var(--color-active);
+}
+
+.primary {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-strong);
+}
+
+.primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.primary:active {
+  transform: scale(var(--motion-press-scale));
+}
+
+.toolbar {
+  padding: var(--space-2) var(--space-fine-13);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.add {
+  padding: var(--space-fine-7) var(--space-3);
+  border: var(--border-width) dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.add:hover {
+  background: var(--color-field);
+}
+
+.danger {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-error);
+  color: var(--color-text-on-error);
+  font-weight: var(--font-weight-strong);
+}
+
+.danger:hover {
+  background: var(--color-error-hover);
+}
+
+.dangerText {
+  background: transparent;
+  color: var(--color-error-text);
+}
+
+.dangerText:hover {
+  background: var(--color-surface-raised);
+}
+
+.small {
+  padding: var(--space-fine-6) var(--space-3);
+  background: var(--color-surface-chip);
+}
+
+.small:hover {
+  background: var(--color-active);
+}
+
+.wide {
+  padding-inline: var(--space-fine-18);
+}
+
+.large {
+  padding: var(--space-fine-10) var(--space-fine-18);
+  font-size: var(--font-size-button-large);
+}
+
+/* Ambiguity 7: the disabled button of the DS. */
+.disabled,
+.disabled:hover {
+  background: var(--color-field);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-strong);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ghost.disabled,
+.dangerText.disabled,
+.add.disabled {
+  background: transparent;
+}
+
+.button[aria-busy="true"] {
+  cursor: progress;
+}

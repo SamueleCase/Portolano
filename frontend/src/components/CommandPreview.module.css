@@ -1,0 +1,23 @@
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-6);
+  margin: 0;
+  padding: var(--space-fine-14) var(--space-4);
+  border: var(--border-width) solid var(--color-terminal-border);
+  border-radius: var(--radius-card);
+  background: var(--color-terminal);
+}
+
+.caption {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.command {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-code);
+  overflow-wrap: anywhere;
+}

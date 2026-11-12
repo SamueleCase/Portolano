@@ -1,0 +1,80 @@
+.group {
+  position: relative;
+  display: flex;
+  align-self: flex-start;
+  padding: var(--space-fine-3);
+  border: var(--border-width) solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+}
+
+.fullWidth {
+  align-self: stretch;
+}
+
+.indicator {
+  position: absolute;
+  top: var(--space-fine-3);
+  bottom: var(--space-fine-3);
+  left: 0;
+  border-radius: var(--radius-segment);
+  background: var(--color-accent);
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    width var(--duration-base) var(--ease-spring);
+}
+
+.option {
+  position: relative;
+  padding: var(--space-fine-6) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.fullWidth .option {
+  flex: 1;
+  padding-inline: var(--space-2);
+  text-align: center;
+}
+
+.option:hover {
+  color: var(--color-text-primary);
+}
+
+.chosen,
+.chosen:hover {
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Reduce motion: the fill fades on the chosen option instead of sliding. */
+:global(:root[data-motion="reduced"]) .indicator {
+  display: none;
+}
+
+:global(:root[data-motion="reduced"]) .chosen {
+  background: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    display: none;
+  }
+
+  .chosen {
+    background: var(--color-accent);
+  }
+}
+
+.unavailable,
+.unavailable:hover {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}

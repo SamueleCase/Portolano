@@ -1,0 +1,111 @@
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-fine-10);
+  padding: var(--space-2) var(--space-fine-10);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+  transform: translateY(var(--row-offset, 0));
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.lifted {
+  z-index: 1;
+  border-color: var(--color-accent-text);
+  background: var(--color-hover);
+  box-shadow: var(--shadow-drag);
+  transform: translateY(var(--row-offset, 0)) rotate(var(--motion-lift-rotation));
+  /* The lifted row follows the pointer without delay. */
+  transition: none;
+}
+
+.placeholder {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: var(--size-placeholder);
+  border: var(--border-width-strong) dashed var(--color-accent-text);
+  border-radius: var(--radius-control);
+}
+
+.handle {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  letter-spacing: var(--tracking-handle);
+  cursor: grab;
+  touch-action: none;
+}
+
+.lifted .handle {
+  color: var(--color-accent-text);
+  cursor: grabbing;
+}
+
+.position {
+  flex: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.remove {
+  flex: none;
+  padding: 0 var(--space-fine-2);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--color-text-primary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.instructions {
+  position: absolute;
+  width: var(--space-fine-1);
+  height: var(--space-fine-1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

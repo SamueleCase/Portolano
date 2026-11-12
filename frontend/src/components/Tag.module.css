@@ -1,0 +1,33 @@
+.tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-fine-3) var(--space-fine-9);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-chip);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+  white-space: nowrap;
+}
+
+.detail {
+  background: var(--color-surface-raised);
+}
+
+.editor {
+  font-size: var(--font-size-secondary);
+}
+
+.remove {
+  padding: 0 var(--space-fine-2);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--color-text-primary);
+}

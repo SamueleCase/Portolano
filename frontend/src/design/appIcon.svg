@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The application icon (ambiguity 3): the mark of the App board, a route
+       drawing a "P" through four ports, on the window background, inside the
+       macOS icon grid. Colors of the tokens: background, border, accent text.
+       Regenerate with: npx tauri icon src/design/appIcon.svg -o <directory> -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#1B1A17"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="184.5" fill="none" stroke="#FFF5E1" stroke-opacity=".16"/>
+  <g transform="translate(172 182) scale(10)" fill="#7FC2A0">
+    <polyline points="20,54 20,12 40,12 48,22 40,32 20,32" fill="none" stroke="#7FC2A0" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="20" cy="54" r="5"/>
+    <circle cx="20" cy="12" r="5"/>
+    <circle cx="48" cy="22" r="5"/>
+    <circle cx="20" cy="32" r="5"/>
+  </g>
+</svg>

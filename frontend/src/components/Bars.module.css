@@ -1,0 +1,135 @@
+/* ProgressBar */
+.progress {
+  height: var(--size-progress);
+  overflow: hidden;
+  border-radius: var(--radius-tiny);
+  background: var(--color-track);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent-text);
+  transform: scaleX(var(--fill));
+  transform-origin: left;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* StackedBar */
+.stacked {
+  display: flex;
+  gap: var(--space-fine-2);
+  height: var(--size-stacked-bar);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+}
+
+.segment {
+  flex: var(--share);
+}
+
+.imported {
+  background: var(--color-accent-text);
+}
+
+.partial {
+  background: var(--color-warn);
+}
+
+.unsupported {
+  background: var(--color-node-unsupported);
+}
+
+.skipped {
+  background: var(--color-skipped);
+}
+
+/* MiniBar */
+.mini {
+  display: grid;
+  grid-template-columns: var(--size-import-label-column) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-fine-10);
+  font-size: var(--font-size-secondary);
+}
+
+.miniLabel {
+  color: var(--color-text-secondary);
+}
+
+.miniTrack {
+  height: var(--size-minibar);
+  overflow: hidden;
+  border-radius: var(--radius-bar);
+  background: var(--color-surface-chip);
+}
+
+.miniFill {
+  display: block;
+  height: 100%;
+  transform: scaleX(var(--fill));
+  transform-origin: left;
+}
+
+.miniValue {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.ssh {
+  background: var(--color-node-ssh);
+}
+
+.rdp {
+  background: var(--color-node-rdp);
+}
+
+.credential {
+  background: var(--color-node-credential);
+}
+
+.folder {
+  background: var(--color-node-folder);
+}
+
+/* StatTile */
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-fine-14) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.tileLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-fine-6);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+}
+
+.tileDot {
+  width: var(--size-marker);
+  height: var(--size-marker);
+  border-radius: var(--radius-round);
+}
+
+.tileDot.skipped {
+  background: var(--color-skipped-marker);
+}
+
+/* Hanken Grotesk has tabular figures by default (ambiguity 22). */
+.tileValue {
+  font-size: var(--font-size-tile);
+  font-weight: var(--font-weight-strong);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tile);
+}
+
+.tilePercent {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+}
