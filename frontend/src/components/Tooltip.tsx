@@ -9,12 +9,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { TOOLTIP_DELAY_MS } from "../design/tokens";
 import { classNames } from "./classNames";
 import styles from "./Tooltip.module.css";
 import { visibleText } from "./visibleText";
-
-/** The tooltip appears after 500 ms (inventario §4.14). */
-const TOOLTIP_DELAY_MS = 500;
 
 interface TriggerProps {
   "aria-describedby"?: string | undefined;

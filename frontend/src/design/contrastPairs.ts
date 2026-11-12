@@ -29,6 +29,7 @@ export const surfaces = {
   active: ["--color-active"],
   terminal: ["--color-terminal"],
   accent: ["--color-accent"],
+  toggleOn: ["--color-toggle-track-on"],
   accentHover: ["--color-accent-hover"],
   error: ["--color-error"],
   errorHover: ["--color-error-hover"],
@@ -86,7 +87,8 @@ export const contrastPairs: readonly ContrastPair[] = [
     "toggleOffOnPanel",
     "toggleOffOnDialog",
   ]),
-  ...on("pomello del toggle acceso", "control", "--color-toggle-knob-on", ["accent"]),
+  ...on("binario del toggle acceso", "control", "--color-toggle-track-on", ["panel", "dialog"]),
+  ...on("pomello del toggle acceso", "control", "--color-toggle-knob-on", ["toggleOn"]),
   ...on("anello del fuoco", "control", "--color-accent-text", ["panel", "dialog", "active"]),
   ...on("icona non supportato", "control", "--color-node-unsupported", ["panel", "fieldOnPanel"]),
 ];

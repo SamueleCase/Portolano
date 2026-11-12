@@ -7,6 +7,9 @@
  * This is the only place with literal colors and measures: stylesheets use
  * the custom properties.
  */
+/** A tooltip appears after this long (inventario §4.14). */
+export const TOOLTIP_DELAY_MS = 500;
+
 export const tokens = {
   // Surfaces (inventario §2.1, §2.11).
   "--color-bg": "#1B1A17",
@@ -31,6 +34,9 @@ export const tokens = {
   "--color-track": "rgba(255,255,255,.12)",
   // The track of a switched-off toggle: `.16` is 1.7:1 on a dialog.
   "--color-toggle-track-off": "rgba(255,255,255,.34)",
+  // The track of a switched-on toggle tells the state: the accent fill of the
+  // buttons (#2B7454) is 2.9:1 on a panel, the mock accent reaches 3:1.
+  "--color-toggle-track-on": "#2F7D5B",
   "--color-toggle-knob-on": "#F5F1E8",
   "--color-toggle-knob-off": "#CFC9BD",
   "--color-skipped": "rgba(255,255,255,.25)",
@@ -247,7 +253,7 @@ export const tokens = {
   "--duration-base": "260ms",
   "--duration-slow": "480ms",
   "--duration-spinner": "800ms",
-  "--delay-tooltip": "500ms",
+  "--delay-tooltip": `${TOOLTIP_DELAY_MS}ms`,
   "--ease-spring": "cubic-bezier(.34,1.56,.64,1)",
   "--ease-out": "cubic-bezier(.2,.8,.2,1)",
   "--motion-enter-scale": ".96",

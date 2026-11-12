@@ -12,7 +12,7 @@
 }
 
 .toggle[aria-checked="true"] {
-  background: var(--color-accent);
+  background: var(--color-toggle-track-on);
 }
 
 .toggle:disabled {
