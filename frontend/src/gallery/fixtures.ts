@@ -53,6 +53,8 @@ export const sample = {
   addProperty: "+ Proprietà",
   options: "Opzioni libere (chiave = valore)",
   addOption: "+ Opzione",
+  addFromTree: "+ Dall'albero…",
+  addAddress: "+ Indirizzo libero",
   optionError: "Opzione non ammessa: aggiungila al tuo ~/.ssh/config",
   toggles: ["Agent forwarding", "Compressione", "X11 forwarding", "X11 trusted"],
   x11Hint: "attivabile solo con X11 acceso",

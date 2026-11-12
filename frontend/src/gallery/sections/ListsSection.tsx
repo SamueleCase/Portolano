@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Button } from "../../components/Button";
 import { NodeTypeIcon } from "../../components/icons/NodeTypeIcon";
 import { KeyValueGrid } from "../../components/KeyValueGrid";
 import { ReportRow } from "../../components/ReportRow";
@@ -8,7 +9,14 @@ import { SortableRow } from "../../components/SortableRow";
 import { SourceChip } from "../../components/SourceChip";
 import { ValidationRow } from "../../components/ValidationRow";
 import { gallery } from "../../i18n/gallery";
-import { type JumpHost, jumpHosts, reportRows, sessionFacts, validationRows } from "../fixtures";
+import {
+  type JumpHost,
+  jumpHosts,
+  reportRows,
+  sample,
+  sessionFacts,
+  validationRows,
+} from "../fixtures";
 import styles from "../Gallery.module.css";
 import { GallerySection, Specimen } from "../GallerySection";
 
@@ -50,6 +58,12 @@ export function ListsSection() {
                 })
               }
               onRemove={(index) => setJumps((current) => current.filter((_, at) => at !== index))}
+              footer={
+                <>
+                  <Button variant="add">{sample.addFromTree}</Button>
+                  <Button variant="add">{sample.addAddress}</Button>
+                </>
+              }
             />
           </div>
         </Specimen>
