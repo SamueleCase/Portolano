@@ -187,6 +187,8 @@ export const tokens = {
   "--size-minibar": "6px",
   "--size-stacked-bar": "10px",
   "--size-mode-list": "270px",
+  "--size-picker-column": "220px",
+  "--size-sidebar-max": "320px",
   "--size-label-column": "150px",
   "--size-session-label-column": "140px",
   "--size-import-label-column": "90px",
