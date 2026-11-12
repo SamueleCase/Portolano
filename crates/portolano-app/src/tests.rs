@@ -3,7 +3,7 @@
 //! and the sentinel secret that must never reach the frontend.
 
 use std::fs;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Once};
 
 use serde_json::{Value, json};
 use tauri::ipc::{CallbackFn, InvokeBody};
@@ -154,11 +154,41 @@ fn build_commands() -> Vec<String> {
         .collect()
 }
 
+/// What the app logs while the tests of this process run, at every level.
+static LOGS: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+
+/// Appends to [`LOGS`].
+struct LogBuffer;
+
+impl std::io::Write for LogBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        LOGS.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Sends every log of the process to [`LOGS`], from any thread.
+fn capture_logs() {
+    static INSTALLED: Once = Once::new();
+    INSTALLED.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_writer(|| LogBuffer)
+            .with_max_level(tracing::Level::TRACE)
+            .init();
+    });
+}
+
 /// SPEC-UI §7: a sentinel password typed in the interface goes into the
 /// vault and nowhere else: not in the answers of the commands, not in the
-/// events, not in the files of the app outside the encrypted vault.
+/// events, not in the logs, not in the files of the app outside the
+/// encrypted vault.
 #[test]
 fn sentinel_secret_never_reaches_the_frontend() {
+    capture_logs();
     let test = TestApp::new();
     let app = mock_app(&test);
     let main = window(&app, "main");
@@ -231,6 +261,8 @@ fn sentinel_secret_never_reaches_the_frontend() {
         "events were sent: {events}"
     );
     assert!(!events.contains(SENTINEL));
+    let logs = String::from_utf8_lossy(&LOGS.lock().unwrap()).into_owned();
+    assert!(!logs.contains(SENTINEL), "{logs}");
     assert!(!test.files_text().contains(SENTINEL));
 }
 
