@@ -52,6 +52,7 @@ pub fn builder<R: Runtime>() -> Builder<R> {
             nodes::add_node::<Wry>,
             nodes::edit_node::<Wry>,
             nodes::move_node::<Wry>,
+            nodes::choose_key_file::<Wry>,
             nodes::duplicate_node::<Wry>,
             nodes::preview_delete::<Wry>,
             nodes::delete_node::<Wry>,

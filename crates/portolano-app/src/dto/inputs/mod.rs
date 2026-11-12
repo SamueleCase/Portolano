@@ -14,6 +14,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use super::secret::SecretText;
+use crate::error::IpcError;
 
 pub use actions::{DeleteOptionsInput, PlacementInput, SecretSlotInput};
 pub use edit::NodeEditInput;
@@ -179,6 +180,23 @@ impl DetailsInput {
             remove_properties,
         }
     }
+}
+
+/// Refuses a private key file that is not an absolute path or a path under
+/// the home directory (`~/…`), or that holds control characters (DEC-031.4).
+/// The app never opens it: it is a datum of the document for `ssh`, typed
+/// or chosen with `choose_key_file`. Empty clears the key file.
+fn check_key_file(path: &str) -> Result<(), IpcError> {
+    let usable = path.is_empty() || path.starts_with('/') || path.starts_with("~/");
+    if !usable || path.chars().any(char::is_control) {
+        return Err(IpcError::invalid(
+            "key_file",
+            format!(
+                "file della chiave non valido: indica un percorso assoluto o che inizia con ~/ ({path:?})"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn non_blank(value: String) -> Option<String> {

@@ -45,7 +45,9 @@ fn credential_by_id_is_resolved_as_a_path_by_id() {
 
 #[test]
 fn new_tag_list_becomes_tags_to_add_and_to_remove() {
-    let (edit, _) = edit_of(json!({ "details": { "tags": ["b", "c"] } })).into_edit(&web01());
+    let (edit, _) = edit_of(json!({ "details": { "tags": ["b", "c"] } }))
+        .into_edit(&web01())
+        .unwrap();
 
     assert_eq!(edit.details.add_tags, vec!["c"]);
     assert_eq!(edit.details.remove_tags, vec!["a"]);
@@ -53,14 +55,18 @@ fn new_tag_list_becomes_tags_to_add_and_to_remove() {
 
 #[test]
 fn text_properties_left_out_are_removed_and_secret_ones_stay() {
-    let (edit, _) = edit_of(json!({ "details": { "properties": [] } })).into_edit(&web01());
+    let (edit, _) = edit_of(json!({ "details": { "properties": [] } }))
+        .into_edit(&web01())
+        .unwrap();
 
     assert_eq!(edit.details.remove_properties, vec!["rack"]);
 }
 
 #[test]
 fn new_settings_replace_the_old_ones() {
-    let (edit, _) = edit_of(json!({ "settings": { "x11": true } })).into_edit(&web01());
+    let (edit, _) = edit_of(json!({ "settings": { "x11": true } }))
+        .into_edit(&web01())
+        .unwrap();
 
     assert_eq!(edit.settings_set, vec![("x11".to_owned(), json!(true))]);
     assert_eq!(edit.settings_unset, vec!["agent_forwarding"]);
@@ -75,7 +81,8 @@ fn staged_secrets_become_editor_changes() {
         },
         "defaultPort": true,
     }))
-    .into_edit(&web01());
+    .into_edit(&web01())
+    .unwrap();
 
     assert!(
         matches!(changes.password, Some(SecretChange::Set(secret)) if secret.expose() == "sentinel-input")
@@ -88,7 +95,8 @@ fn staged_secrets_become_editor_changes() {
 fn inline_choice_on_a_credential_that_is_not_inline_replaces_it() {
     let (edit, _) =
         edit_of(json!({ "credential": { "mode": "inline", "username": "ops", "domain": null } }))
-            .into_edit(&web01());
+            .into_edit(&web01())
+            .unwrap();
 
     assert_eq!(
         edit.credential,
@@ -115,4 +123,56 @@ fn new_node_path_is_built_from_the_parent_and_an_escaped_name() {
     let node = input.into_new_node(&doc).unwrap();
 
     assert_eq!(node.path, "/Clienti/a\\/b");
+}
+
+#[test]
+fn key_file_must_be_absolute_or_under_home() {
+    for path in [
+        "id_ed25519",
+        "../chiavi/id",
+        "~utente/id",
+        "/tmp/id\u{1b}[31m",
+    ] {
+        let result = edit_of(json!({ "keyFile": path })).into_edit(&web01());
+
+        assert!(
+            matches!(&result, Err(error) if error.details == Some(crate::error::IpcErrorDetails::Invalid { field: "key_file".to_owned() })),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn absolute_home_and_empty_key_files_are_accepted() {
+    for path in [
+        "/Users/utente-di-prova/.ssh/id_ed25519",
+        "~/.ssh/id_ed25519",
+        "",
+    ] {
+        assert!(
+            edit_of(json!({ "keyFile": path }))
+                .into_edit(&web01())
+                .is_ok(),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn empty_name_is_refused_on_the_name_field() {
+    let input: NewNodeInput = serde_json::from_value(json!({
+        "parent": null,
+        "name": " ",
+        "kind": { "type": "folder", "credential": { "mode": "inherit" } },
+    }))
+    .unwrap();
+
+    let error = input.into_new_node(&Document::new("Test")).unwrap_err();
+
+    assert_eq!(
+        error.details,
+        Some(crate::error::IpcErrorDetails::Invalid {
+            field: "name".to_owned()
+        })
+    );
 }

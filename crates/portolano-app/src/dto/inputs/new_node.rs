@@ -5,10 +5,11 @@ use portolano_ops::nodes::{NewNode, NewNodeKind, NodeSecrets};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use super::{CredentialChoice, DetailsInput, SecretProperty};
+use super::{CredentialChoice, DetailsInput, SecretProperty, check_key_file};
 use crate::dto::json::JsonObject;
 use crate::dto::secret::SecretText;
 use crate::error::IpcError;
+use portolano_ops::OpsError;
 
 /// The secrets typed for a new node.
 #[derive(Debug, Default, Deserialize, specta::Type)]
@@ -85,6 +86,10 @@ impl NewNodeInput {
     /// # Errors
     /// A parent that does not exist or is not a folder.
     pub fn into_new_node(self, doc: &Document) -> Result<NewNode, IpcError> {
+        // Checked first: an empty last segment would be refused as a path.
+        if self.name.trim().is_empty() {
+            return Err(OpsError::EmptyName.into());
+        }
         let parent_path = match self.parent {
             Some(parent) => doc.path_of(parent).ok_or(portolano_ops::OpsError::Core(
                 portolano_core::Error::NodeNotFound { id: parent },
@@ -112,11 +117,14 @@ impl NewNodeInput {
                 username,
                 domain,
                 key_file,
-            } => NewNodeKind::Credential {
-                username,
-                domain,
-                key_file,
-            },
+            } => {
+                check_key_file(key_file.as_deref().unwrap_or_default())?;
+                NewNodeKind::Credential {
+                    username,
+                    domain,
+                    key_file,
+                }
+            }
         };
         Ok(NewNode {
             path: format!(

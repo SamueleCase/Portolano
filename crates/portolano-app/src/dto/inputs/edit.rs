@@ -5,9 +5,10 @@ use portolano_core::{CredentialSpec, Node, NodeKind};
 use portolano_ops::nodes::{CredentialInput, EditorChanges, NodeEdit, SecretChange};
 use serde::Deserialize;
 
-use super::{CredentialChoice, DetailsInput, SecretProperty};
+use super::{CredentialChoice, DetailsInput, SecretProperty, check_key_file};
 use crate::dto::json::JsonObject;
 use crate::dto::secret::SecretText;
+use crate::error::IpcError;
 
 /// A secret of the editor changed by "Imposta", "Sostituisci" or "Cancella",
 /// applied by "Salva" (SPEC-UI §5.4).
@@ -78,7 +79,13 @@ pub struct NodeEditInput {
 
 impl NodeEditInput {
     /// The changes to `current`, in the terms of `portolano-ops`.
-    pub fn into_edit(self, current: &Node) -> (NodeEdit, EditorChanges) {
+    ///
+    /// # Errors
+    /// A key file that is not a usable path (DEC-031.4).
+    pub fn into_edit(self, current: &Node) -> Result<(NodeEdit, EditorChanges), IpcError> {
+        if let Some(key_file) = &self.key_file {
+            check_key_file(key_file)?;
+        }
         let (settings_set, settings_unset) = match (self.settings, current.as_connection()) {
             (Some(settings), Some(connection)) => (
                 settings.clone().into_iter().collect(),
@@ -118,7 +125,7 @@ impl NodeEditInput {
             key_file: self.key_file,
             default_port: self.default_port,
         };
-        (edit, changes)
+        Ok((edit, changes))
     }
 }
 

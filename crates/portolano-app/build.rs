@@ -19,6 +19,7 @@ const COMMANDS: &[&str] = &[
     "add_node",
     "edit_node",
     "move_node",
+    "choose_key_file",
     "duplicate_node",
     "preview_delete",
     "delete_node",

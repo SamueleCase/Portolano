@@ -2,6 +2,7 @@
 //! serialization of results and errors, the permissions of the capability,
 //! and the sentinel secret that must never reach the frontend.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::sync::{Arc, Mutex, Once};
 
@@ -9,7 +10,7 @@ use serde_json::{Value, json};
 use tauri::ipc::{CallbackFn, InvokeBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Listener, WebviewWindow, WebviewWindowBuilder};
+use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 use super::*;
 use crate::commands::test_support::{
@@ -133,15 +134,48 @@ fn every_command_of_the_bindings_is_allowed_to_the_main_window() {
     }
 }
 
-#[test]
-fn capability_grants_every_command_of_build_rs() {
-    let capability = include_str!("../capabilities/main.json");
-
-    for command in build_commands() {
-        let permission = format!("\"allow-{}\"", command.replace('_', "-"));
-        assert!(capability.contains(&permission), "{permission} missing");
-    }
+/// The commands registered with `collect_commands!`, as the bindings call
+/// them.
+fn registered_commands() -> BTreeSet<String> {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bindings.ts");
+    export_bindings(&path).unwrap();
+    let bindings = fs::read_to_string(path).unwrap();
+    bindings
+        .split("__TAURI_INVOKE(\"")
+        .skip(1)
+        .map(|rest| rest[..rest.find('"').unwrap()].to_owned())
+        .collect()
 }
+
+/// The commands the capability of the main window allows.
+fn allowed_commands() -> BTreeSet<String> {
+    let capability: Value =
+        serde_json::from_str(include_str!("../capabilities/main.json")).unwrap();
+    capability["permissions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_str)
+        .filter_map(|permission| permission.strip_prefix("allow-"))
+        .map(|command| command.replace('-', "_"))
+        .collect()
+}
+
+#[test]
+fn registered_commands_are_exactly_those_of_build_rs_and_of_the_capability() {
+    let registered = registered_commands();
+
+    assert_eq!(
+        build_commands().into_iter().collect::<BTreeSet<_>>(),
+        registered
+    );
+    assert_eq!(allowed_commands(), registered);
+}
+
+/// A Royal document whose import asks for passwords.
+const ROYAL_WORKSPACE: &[u8] =
+    include_bytes!("../../portolano-import/tests/fixtures/workspace.royal.xml");
 
 /// The commands listed in `build.rs`.
 fn build_commands() -> Vec<String> {
@@ -248,7 +282,40 @@ fn sentinel_secret_never_reaches_the_frontend() {
     ] {
         call(command, args).unwrap();
     }
-    call("delete_node", json!({ "id": web01, "options": {} })).unwrap();
+    call(
+        "edit_node",
+        json!({ "id": admin, "edit": { "secrets": {
+            "passphrase": { "action": "set", "value": SENTINEL },
+            "privateKey": { "action": "set", "value": SENTINEL },
+        } } }),
+    )
+    .unwrap();
+    // A command that receives a secret and fails: the name is taken.
+    let refused = call("add_node", json!({ "node": admin_with_sentinel() }));
+    assert!(refused.is_err());
+    let import_file = test.dir.path().join("infra.rtsx");
+    fs::write(&import_file, ROYAL_WORKSPACE).unwrap();
+    app.state::<AppState>()
+        .chosen()
+        .set(crate::state::FileKind::Import, &import_file);
+    let options = json!({ "into": null, "onConflict": "newIds", "includeTrash": false });
+    let preview = call("import_preview", json!({ "options": options })).unwrap();
+    let answers_to_import: Vec<Value> = preview["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|request| {
+            json!({ "nodePath": request["nodePath"], "field": request["field"], "value": SENTINEL })
+        })
+        .collect();
+    assert!(!answers_to_import.is_empty());
+    call(
+        "import_apply",
+        json!({ "options": options, "answers": answers_to_import }),
+    )
+    .unwrap();
+    let deleted = call("delete_node", json!({ "id": web01, "options": {} })).unwrap();
+    call("undo_delete", json!({ "undoId": deleted["undoId"] })).unwrap();
     call("lock_vault", json!({})).unwrap();
     call("tree", json!({})).unwrap();
 

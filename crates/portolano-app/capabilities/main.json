@@ -34,6 +34,7 @@
     "allow-add-node",
     "allow-edit-node",
     "allow-move-node",
+    "allow-choose-key-file",
     "allow-duplicate-node",
     "allow-preview-delete",
     "allow-delete-node",

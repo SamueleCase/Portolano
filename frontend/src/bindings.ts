@@ -46,10 +46,16 @@ export const commands = {
 	editNode: (id: string, edit: NodeEditInput_Deserialize) => typedError<EditOutcome, IpcError_Serialize>(__TAURI_INVOKE("edit_node", { id, edit })),
 	/**  Moves node `id` into `destination` (none is the root), or reorders it. */
 	moveNode: (id: string, destination: string | null, placement: PlacementInput) => typedError<MoveOutcome, IpcError_Serialize>(__TAURI_INVOKE("move_node", { id, destination, placement })),
+	/**
+	 *  Asks for a private key file with the native dialog and returns its
+	 *  path, for the editor: the key file is a datum of the document that `ssh`
+	 *  reads and the app never opens (DEC-031.4). `None` if the user cancels.
+	 */
+	chooseKeyFile: () => typedError<string | null, IpcError_Serialize>(__TAURI_INVOKE("choose_key_file")),
 	/**  Copies node `id` with new ids and new secrets right after it. */
 	duplicateNode: (id: string) => typedError<DuplicateOutcome, IpcError_Serialize>(__TAURI_INVOKE("duplicate_node", { id })),
 	/**  What deleting node `id` would remove, for the confirmation dialog. */
-	previewDelete: (id: string) => typedError<DeletePreviewView, IpcError_Serialize>(__TAURI_INVOKE("preview_delete", { id })),
+	previewDelete: (id: string) => typedError<DeletePreview, IpcError_Serialize>(__TAURI_INVOKE("preview_delete", { id })),
 	/**
 	 *  Deletes node `id` and its subtree; `undo_delete` puts it back during the
 	 *  next 10 seconds, after which its secrets leave the vault.
@@ -504,15 +510,9 @@ export type DeletePreview = {
 	secrets: number,
 	/**  References from outside the subtree to nodes in it. */
 	references: ExternalReference[],
-};
-
-/**  What deleting a node would remove and who uses it. */
-export type DeletePreviewView = {
-	/**  What would go, and the nodes that refer to it. */
-	preview: DeletePreview,
 	/**
 	 *  Connections outside the subtree that receive one of its credentials
-	 *  by inheritance (ambiguity 13).
+	 *  by inheritance (ambiguity 13 of the mock): they lose it too.
 	 */
 	inherited: NodeRef[],
 };

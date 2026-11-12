@@ -38,6 +38,15 @@ pub fn report<R: Runtime>(app: &AppHandle<R>) -> FileDialogBuilder<R> {
         .set_file_name("report-import.json")
 }
 
+/// A dialog for a private key file, starting from `~/.ssh` if it exists.
+pub fn key_file<R: Runtime>(app: &AppHandle<R>) -> FileDialogBuilder<R> {
+    let dialog = app.dialog().file();
+    match std::env::home_dir().map(|home| home.join(".ssh")) {
+        Some(ssh) if ssh.is_dir() => dialog.set_directory(ssh),
+        _ => dialog,
+    }
+}
+
 /// A dialog for any file: a program or the file vault.
 pub fn any_file<R: Runtime>(app: &AppHandle<R>) -> FileDialogBuilder<R> {
     app.dialog().file()
