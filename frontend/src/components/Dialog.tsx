@@ -24,6 +24,12 @@ interface DialogProps {
   /** The buttons at the bottom, right aligned. */
   footer?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
+  /**
+   * The default action, run by Enter (SPEC-UI §5.5): the content becomes a
+   * form and the footer button of the default action is `type="submit"`.
+   * In the delete confirmation the default action is "Annulla".
+   */
+  onSubmit?: (() => void) | undefined;
   children?: ReactNode;
 }
 
@@ -41,12 +47,19 @@ export function Dialog({
   centered = false,
   footer,
   initialFocus,
+  onSubmit,
   children,
 }: DialogProps) {
   const surface = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const keyDown = useModal({ open, onClose, container: surface, initialFocus });
   if (!open) return null;
+  const body = (
+    <>
+      {children}
+      {footer && <footer className={styles.footer}>{footer}</footer>}
+    </>
+  );
 
   return createPortal(
     <div
@@ -74,8 +87,20 @@ export function Dialog({
             {subtitle && <p className={styles.subtitle}>{visibleText(subtitle)}</p>}
           </header>
         )}
-        {children}
-        {footer && <footer className={styles.footer}>{footer}</footer>}
+        {onSubmit ? (
+          <form
+            className={styles.form}
+            onSubmit={(event) => {
+              // The form is only the keyboard of the default action: nothing is sent.
+              event.preventDefault();
+              onSubmit();
+            }}
+          >
+            {body}
+          </form>
+        ) : (
+          body
+        )}
       </div>
     </div>,
     document.body,

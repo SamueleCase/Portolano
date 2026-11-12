@@ -139,4 +139,77 @@ describe("Dialog", () => {
     expect(screen.getByRole("dialog", { name: "Elimina web\\u{1b}01" })).toBeInTheDocument();
     expect(screen.getByText("Prod\\u{7} / web01")).toBeInTheDocument();
   });
+
+  it("runs the default action with Enter in a field", async () => {
+    const onSubmit = vi.fn();
+    render(
+      <Dialog
+        open
+        onClose={vi.fn()}
+        title="Imposta la password"
+        onSubmit={onSubmit}
+        footer={
+          <Button variant="primary" type="submit">
+            Imposta
+          </Button>
+        }
+      >
+        <TextField label="Password" type="password" />
+      </Dialog>,
+    );
+
+    await userEvent.keyboard("abc{Enter}");
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("can make Annulla the default action, as the delete confirmation does", async () => {
+    const onCancel = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <Dialog
+        open
+        onClose={onCancel}
+        title="Eliminare web01?"
+        onSubmit={onCancel}
+        footer={
+          <>
+            <Button type="submit">Annulla</Button>
+            <Button variant="danger" onClick={onDelete}>
+              Elimina comunque
+            </Button>
+          </>
+        }
+      />,
+    );
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByRole("button", { name: "Annulla" })).toHaveFocus();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("does not run the default action while its button is disabled", async () => {
+    const onSubmit = vi.fn();
+    render(
+      <Dialog
+        open
+        onClose={vi.fn()}
+        title="Imposta la password"
+        onSubmit={onSubmit}
+        footer={
+          <Button variant="primary" type="submit" disabled>
+            Imposta
+          </Button>
+        }
+      >
+        <TextField label="Password" type="password" />
+      </Dialog>,
+    );
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });

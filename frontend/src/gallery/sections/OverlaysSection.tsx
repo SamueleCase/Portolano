@@ -75,10 +75,11 @@ export function OverlaysSection() {
         onClose={() => setDialog(false)}
         title={sample.dialogTitle}
         subtitle={sample.dialogSubtitle}
+        onSubmit={() => setDialog(false)}
         footer={
           <>
             <Button onClick={() => setDialog(false)}>{sample.cancel}</Button>
-            <Button variant="primary" disabled={password === "" || mismatch}>
+            <Button variant="primary" type="submit" disabled={password === "" || mismatch}>
               {sample.set}
             </Button>
           </>

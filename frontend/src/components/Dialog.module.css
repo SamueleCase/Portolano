@@ -58,6 +58,11 @@
   text-align: center;
 }
 
+/* The form of the default action does not change the layout. */
+.form {
+  display: contents;
+}
+
 .header {
   display: flex;
   flex-direction: column;
