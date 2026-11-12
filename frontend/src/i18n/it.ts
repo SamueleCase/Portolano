@@ -1,5 +1,8 @@
+import { ipc } from "./ipc";
+
 /** The texts of the interface, in Italian (SPEC-UI: no text outside i18n/). */
 export const texts = {
+  ipc,
   status: {
     title: "Portolano",
     loading: "Caricamento…",
