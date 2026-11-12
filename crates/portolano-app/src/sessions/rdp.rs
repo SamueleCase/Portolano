@@ -3,19 +3,18 @@
 //! can show that it runs, when it ended and, on failure, its log.
 
 use std::fs::{File, OpenOptions};
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::io::{self, Read, Seek, SeekFrom};
+use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::mpsc::{self, Sender};
 
-use portolano_connectors::{CHILD_ENV_REMOVE, PreparedLaunch};
-use portolano_core::Secret;
+use portolano_connectors::PreparedLaunch;
 
 use super::channel::SessionSink;
 use super::error::SessionError;
 use super::model::{SessionKind, SessionState};
-use super::process::{Exit, WAIT_FAILED, spawn_thread, wait_for_exit};
+use super::process::{Exit, Program, WAIT_FAILED, hand_over, start_waiter, stop};
 use super::session::{Finish, Session};
 
 /// The end of the log shown by "Mostra log": FreeRDP logs warnings and
@@ -42,31 +41,49 @@ impl RdpSession {
         sink: Arc<dyn SessionSink>,
         finish: Finish,
     ) -> Result<RdpSession, SessionError> {
-        let mut child = command(&launch, log.as_deref())?
-            .spawn()
-            .map_err(|source| SessionError::Spawn {
-                program: launch.program().to_path_buf(),
-                source,
-            })?;
-        if let (Some(secret), Some(mut stdin)) = (launch.stdin_secret(), child.stdin.take())
-            && let Err(error) = write_secret(&mut stdin, secret)
-        {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(SessionError::Io {
-                context: "scrittura della password sullo stdin di FreeRDP",
-                source: error,
-            });
+        // Opened once and read back through the same descriptor: the
+        // connectors remove logs older than 10 minutes by name whenever
+        // another connection is prepared, and a long session keeps its own.
+        let mut log = log
+            .map(|path| OpenOptions::new().read(true).append(true).open(path))
+            .transpose()
+            .map_err(SessionError::io("apertura del log di FreeRDP"))?;
+        let stderr = match &log {
+            Some(file) => Stdio::from(
+                file.try_clone()
+                    .map_err(SessionError::io("apertura del log di FreeRDP"))?,
+            ),
+            None => Stdio::null(),
+        };
+        let mut command = launch.command();
+        if launch.stdin_secret().is_none() {
+            command.stdin(Stdio::null());
         }
-        sink.state(&SessionState::Connected);
+        command.stdout(Stdio::null()).stderr(stderr);
 
         let (close, close_requests) = mpsc::channel();
-        let mut child: Box<dyn portable_pty::Child + Send + Sync> = Box::new(child);
-        spawn_thread("wait", move || {
-            let exit = wait_for_exit(child.as_mut(), &close_requests);
+        let waiter = start_waiter(close_requests, move |exit, launch: PreparedLaunch| {
             drop(launch);
-            finish(final_state(exit, log.as_deref()));
+            finish(final_state(exit, log.as_mut()));
         })?;
+        let mut child = command.spawn().map_err(|source| SessionError::Spawn {
+            program: launch.program().to_path_buf(),
+            source,
+        })?;
+        let written = child
+            .stdin
+            .take()
+            .map_or(Ok(()), |mut stdin| launch.write_stdin_secret(&mut stdin));
+        let mut program: Program = Box::new(child);
+        if let Err(source) = written {
+            stop(program.as_mut());
+            return Err(SessionError::Io {
+                context: "scrittura della password sullo stdin di FreeRDP",
+                source,
+            });
+        }
+        hand_over(&waiter, program, launch)?;
+        sink.state(&SessionState::Connected);
         Ok(RdpSession { close })
     }
 }
@@ -81,48 +98,8 @@ impl Session for RdpSession {
     }
 }
 
-/// The command that starts FreeRDP: no terminal, the password (if any) on a
-/// pipe, its messages in the log of the launch.
-fn command(launch: &PreparedLaunch, log: Option<&Path>) -> Result<Command, SessionError> {
-    let mut command = Command::new(launch.program());
-    command.args(launch.args());
-    for name in CHILD_ENV_REMOVE {
-        command.env_remove(name);
-    }
-    command.envs(launch.env().iter().map(|(name, value)| (name, value)));
-    let stdin = if launch.stdin_secret().is_some() {
-        Stdio::piped()
-    } else {
-        Stdio::null()
-    };
-    let stderr = match log {
-        Some(path) => Stdio::from(
-            OpenOptions::new()
-                .append(true)
-                .open(path)
-                .map_err(SessionError::io("apertura del log di FreeRDP"))?,
-        ),
-        None => Stdio::null(),
-    };
-    command.stdin(stdin).stdout(Stdio::null()).stderr(stderr);
-    Ok(command)
-}
-
-/// Writes `secret` and a newline, as `PreparedLaunch::launch` does for the
-/// CLI; dropping `stdin` afterwards closes it. A program that exits without
-/// reading is not an error: its exit code tells the story.
-fn write_secret(stdin: &mut impl Write, secret: &Secret) -> io::Result<()> {
-    match stdin
-        .write_all(secret.expose().as_bytes())
-        .and_then(|()| stdin.write_all(b"\n"))
-    {
-        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
-        other => other,
-    }
-}
-
 /// The last state of FreeRDP: a failure carries the end of its log.
-fn final_state(exit: Exit, log: Option<&Path>) -> SessionState {
+fn final_state(exit: Exit, log: Option<&mut File>) -> SessionState {
     match exit {
         Exit { code: None, .. } => SessionState::Failed {
             code: None,
@@ -137,22 +114,21 @@ fn final_state(exit: Exit, log: Option<&Path>) -> SessionState {
         } => SessionState::Failed {
             code: Some(code),
             reason: log
-                .and_then(|path| log_tail(path).ok())
+                .and_then(|file| log_tail(file).ok())
                 .filter(|tail| !tail.is_empty())
                 .unwrap_or_else(|| format!("FreeRDP è uscito con codice {code}")),
         },
     }
 }
 
-/// The last [`LOG_TAIL_BYTES`] of the log at `path`, from the first whole
-/// line, as text.
-fn log_tail(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let length = file.metadata()?.len();
+/// The last [`LOG_TAIL_BYTES`] of `log`, from the first whole line, as
+/// text.
+fn log_tail(log: &mut File) -> io::Result<String> {
+    let length = log.seek(SeekFrom::End(0))?;
     let start = length.saturating_sub(LOG_TAIL_BYTES);
-    file.seek(SeekFrom::Start(start))?;
+    log.seek(SeekFrom::Start(start))?;
     let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes)?;
+    log.read_to_end(&mut bytes)?;
     let text = String::from_utf8_lossy(&bytes);
     let text = match text.split_once('\n') {
         Some((_, whole_lines)) if start > 0 => whole_lines,
@@ -163,15 +139,17 @@ fn log_tail(path: &Path) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
 
     use super::*;
 
-    fn log_in(dir: &TempDir, contents: &[u8]) -> PathBuf {
-        let path = dir.path().join("freerdp.log");
-        std::fs::write(&path, contents).unwrap();
-        path
+    /// A log holding `contents`, as FreeRDP leaves it.
+    fn log_with(contents: &[u8]) -> File {
+        let mut log = tempfile::tempfile().unwrap();
+        log.write_all(contents).unwrap();
+        log
     }
 
     fn failed(code: i32) -> Exit {
@@ -191,10 +169,9 @@ mod tests {
 
     #[test]
     fn a_failure_shows_the_end_of_the_log() {
-        let dir = TempDir::new().unwrap();
-        let log = log_in(&dir, b"[ERROR] connessione rifiutata da 192.0.2.10\n");
+        let mut log = log_with(b"[ERROR] connessione rifiutata da 192.0.2.10\n");
 
-        let state = final_state(failed(131), Some(&log));
+        let state = final_state(failed(131), Some(&mut log));
 
         assert_eq!(
             state,
@@ -217,12 +194,11 @@ mod tests {
 
     #[test]
     fn a_long_log_is_cut_to_its_last_whole_lines() {
-        let dir = TempDir::new().unwrap();
         let mut contents = "riga vecchia\n".repeat(1000).into_bytes();
         contents.extend_from_slice(b"ultima riga\n");
-        let log = log_in(&dir, &contents);
+        let mut log = log_with(&contents);
 
-        let tail = log_tail(&log).unwrap();
+        let tail = log_tail(&mut log).unwrap();
 
         assert!(tail.len() <= LOG_TAIL_BYTES as usize);
         assert!(tail.starts_with("riga vecchia"), "{tail:?}");

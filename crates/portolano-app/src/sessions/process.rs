@@ -1,6 +1,7 @@
 //! Following the program of a session until it exits.
 
-use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::io;
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SendError, Sender};
 use std::time::Duration;
 
 use portable_pty::{Child, ExitStatus};
@@ -25,7 +26,7 @@ pub(super) struct Exit {
 ///
 /// Waiting and killing happen on this one thread, so the process is never
 /// signalled after it has been reaped, when its pid may belong to another.
-pub(super) fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Receiver<()>) -> Exit {
+fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Receiver<()>) -> Exit {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -61,6 +62,61 @@ pub(super) fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Recei
 /// `portable_pty` reports it.
 fn exit_code(status: &ExitStatus) -> i32 {
     i32::try_from(status.exit_code()).unwrap_or(i32::MAX)
+}
+
+/// A started program, followed by its waiting thread.
+pub(super) type Program = Box<dyn Child + Send + Sync>;
+
+/// Starts the thread that will follow a program, before the program itself:
+/// once the program runs, handing it over cannot fail for want of a thread,
+/// so no program is left running unattended. The thread waits for the
+/// program and what goes with it (`T`, such as its `PreparedLaunch`) on the
+/// returned sender, follows it until it exits or a close request arrives on
+/// `close`, then calls `then`. If the sender is dropped instead, the program
+/// never started and the thread ends.
+///
+/// # Errors
+/// [`SessionError::Io`] if the system refuses a new thread.
+pub(super) fn start_waiter<T: Send + 'static>(
+    close: Receiver<()>,
+    then: impl FnOnce(Exit, T) + Send + 'static,
+) -> Result<Sender<(Program, T)>, SessionError> {
+    let (sender, receiver) = mpsc::channel::<(Program, T)>();
+    spawn_thread("wait", move || {
+        let Ok((mut program, with)) = receiver.recv() else {
+            return;
+        };
+        let exit = wait_for_exit(program.as_mut(), &close);
+        then(exit, with);
+    })?;
+    Ok(sender)
+}
+
+/// Hands `program` over to its waiting thread (see [`start_waiter`]); if the
+/// thread is gone, ends the program instead.
+///
+/// # Errors
+/// [`SessionError::Io`] if the waiting thread is gone.
+pub(super) fn hand_over<T>(
+    waiter: &Sender<(Program, T)>,
+    program: Program,
+    with: T,
+) -> Result<(), SessionError> {
+    waiter
+        .send((program, with))
+        .map_err(|SendError((mut program, _))| {
+            stop(program.as_mut());
+            SessionError::Io {
+                context: "avvio del controllo della sessione",
+                source: io::Error::other("il thread di attesa è terminato"),
+            }
+        })
+}
+
+/// Ends a program that cannot be followed, and reaps it.
+pub(super) fn stop(program: &mut (dyn Child + Send + Sync)) {
+    let _ = program.kill();
+    let _ = program.wait();
 }
 
 /// Starts a thread of the session called `name`; it is never joined; it ends

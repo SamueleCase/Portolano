@@ -12,7 +12,7 @@ use portolano_connectors::{CHILD_ENV_REMOVE, PreparedLaunch};
 use super::channel::{FrameKind, SessionSink, frame};
 use super::error::SessionError;
 use super::model::{SessionKind, SessionState, TerminalSize};
-use super::process::{Exit, WAIT_FAILED, spawn_thread, wait_for_exit};
+use super::process::{Exit, WAIT_FAILED, hand_over, spawn_thread, start_waiter};
 use super::session::{Finish, Session};
 
 /// The terminal xterm.js emulates.
@@ -57,19 +57,15 @@ impl TerminalSession {
         if launch.stdin_secret().is_some() {
             return Err(SessionError::StdinSecretInTerminal);
         }
+        // Everything that can fail comes before the program starts, which
+        // then only has to be handed over to its waiting thread.
         let pair = native_pty_system()
             .openpty(pty_size(size))
             .map_err(terminal_error)?;
-        let mut child = pair
-            .slave
-            .spawn_command(command(&launch))
-            .map_err(terminal_error)?;
-        // Only the program holds the terminal now: when it exits, reading
-        // reaches the end of the output.
-        drop(pair.slave);
         let reader = pair.master.try_clone_reader().map_err(terminal_error)?;
         let writer = pair.master.take_writer().map_err(terminal_error)?;
-
+        // Until the program starts, reading waits; if it never starts, the
+        // terminal closes with this function and the thread ends.
         let (output_done, output_drained) = mpsc::channel::<()>();
         let output_sink = Arc::clone(&sink);
         spawn_thread("output", move || {
@@ -77,13 +73,21 @@ impl TerminalSession {
             drop(output_done);
         })?;
         let (close, close_requests) = mpsc::channel();
-        spawn_thread("wait", move || {
-            let exit = wait_for_exit(child.as_mut(), &close_requests);
+        let waiter = start_waiter(close_requests, move |exit, launch: PreparedLaunch| {
             let _ = output_drained.recv_timeout(OUTPUT_DRAIN);
             // Stops the askpass server and zeroes its secrets.
             drop(launch);
             finish(final_state(exit));
         })?;
+
+        let child = pair
+            .slave
+            .spawn_command(command(&launch))
+            .map_err(terminal_error)?;
+        // Only the program holds the terminal now: when it exits, reading
+        // reaches the end of the output.
+        drop(pair.slave);
+        hand_over(&waiter, child, launch)?;
         Ok(TerminalSession {
             master: Mutex::new(pair.master),
             writer: Mutex::new(writer),

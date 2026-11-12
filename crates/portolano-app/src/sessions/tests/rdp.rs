@@ -34,28 +34,34 @@ fn running_client_is_connected_and_a_clean_exit_ends_the_session() {
 }
 
 #[test]
-fn a_failure_carries_the_end_of_the_log() {
+fn a_failure_carries_the_end_of_the_log_even_once_its_file_is_removed() {
     let dir = TempDir::new().unwrap();
     let log = dir.path().join("freerdp.log");
     fs::write(&log, "").unwrap();
-    let launch = prepared(
-        &plan(vec![run(&probe(
-            &dir,
-            "freerdp",
-            "echo '[ERROR] connessione a 192.0.2.10 rifiutata' >&2\nexit 131\n",
-        ))]),
-        &MemoryVault::default(),
-    );
+    // The probe exits only once the log is gone, as when another connection
+    // cleans up the old logs while FreeRDP runs.
+    let mut step = run(&probe(
+        &dir,
+        "freerdp",
+        "echo '[ERROR] connessione a 192.0.2.10 rifiutata' >&2\n\
+         while [ -e \"$1\" ]; do sleep 0.05; done\n\
+         exit 131\n",
+    ));
+    if let LaunchStep::Run { args, .. } = &mut step {
+        args.push(log.to_string_lossy().into_owned());
+    }
+    let launch = prepared(&plan(vec![step]), &MemoryVault::default());
     let recorder = Arc::new(Recorder::default());
     let (finished, last) = std::sync::mpsc::channel();
-
     let _session = crate::sessions::rdp::RdpSession::start(
         launch,
-        Some(log),
+        Some(log.clone()),
         Arc::clone(&recorder) as Arc<dyn SessionSink>,
         Box::new(move |state| finished.send(state).unwrap()),
     )
     .unwrap();
+
+    fs::remove_file(&log).unwrap();
 
     assert_eq!(
         last.recv_timeout(TIMEOUT).unwrap(),
