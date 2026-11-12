@@ -222,7 +222,7 @@ sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brie
 |---|---|---|
 | Inventario del mock | fatto | `docs/ui/inventario.md` |
 | Ricognizione tecnica | fatta | `docs/ui/ricerca-tauri.md` |
-| UI-WP0 – prototipo e scheletro | correzioni della revisione in corso | punti incerti chiusi (DEC-028); branch `worktree-agent-ab96bd840230a5f0d`; correzioni in `docs/pm/ui-wp0-correzioni.md`; poi gate del PM con e2e e merge |
-| UI-WP1…WP3 (ondata B) | da fare | checkpoint visivo con l'utente sulla galleria dei componenti |
+| UI-WP0 – prototipo e scheletro | **integrato** | merge `3c710d1`; due giri di revisione indipendente; punti incerti chiusi (DEC-028); gate su `main`: Rust 1035 test superati e 2 ignorati, frontend (typecheck, lint, format, Vitest, build, bindings) verdi, smoke `SMOKE OK`, e2e verdi (1 timeout di `page.screenshot` su 5 esecuzioni, affidato a UI-WP1) |
+| UI-WP1…WP3 (ondata B) | in corso | brief in `docs/pm/ui-wp{1,2,3}-brief.md`; proprietà dei file e UI-WP3 in due fasi (DEC-029); checkpoint visivo con l'utente sulla galleria dei componenti |
 | UI-WP4…WP6 (ondata C) | da fare | checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
