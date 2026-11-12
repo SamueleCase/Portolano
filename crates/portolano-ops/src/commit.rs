@@ -199,6 +199,9 @@ fn remove_written(vault: &dyn Vault, secrets: &[(SecretRef, Secret)]) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use portolano_core::VaultError;
     use portolano_core::vault::MemoryVault;
     use pretty_assertions::assert_eq;
 
@@ -258,6 +261,61 @@ mod tests {
         });
         assert!(result.is_err());
         assert!(!vault.contains(&reference).unwrap());
+    }
+
+    /// A memory vault that refuses the second secret it is asked to write.
+    #[derive(Default)]
+    struct FailsOnSecondWrite {
+        inner: MemoryVault,
+        writes: AtomicUsize,
+    }
+
+    impl Vault for FailsOnSecondWrite {
+        fn backend(&self) -> &'static str {
+            "memory"
+        }
+
+        fn get(&self, reference: &SecretRef) -> Result<Option<Secret>, VaultError> {
+            self.inner.get(reference)
+        }
+
+        fn set(&self, reference: &SecretRef, secret: &Secret) -> Result<(), VaultError> {
+            if self.writes.fetch_add(1, Ordering::SeqCst) == 1 {
+                return Err(VaultError::Backend {
+                    backend: "memory",
+                    reason: "scrittura rifiutata dal test".to_owned(),
+                });
+            }
+            self.inner.set(reference, secret)
+        }
+
+        fn delete(&self, reference: &SecretRef) -> Result<(), VaultError> {
+            self.inner.delete(reference)
+        }
+    }
+
+    #[test]
+    fn failed_second_secret_removes_the_first_and_keeps_the_document() {
+        let mut stored = stored(vec![]);
+        let vault = FailsOnSecondWrite::default();
+        let mut change = Change::from(&stored.doc);
+        let first = change.add_secret(secret(SENTINEL));
+        let second = change.add_secret(secret(SENTINEL));
+        change
+            .doc
+            .nodes
+            .push(credential("Admin", "admin", Some(first.clone())));
+        change
+            .doc
+            .nodes
+            .push(credential("Root", "root", Some(second)));
+
+        let result = change.commit(&stored.store, &vault, &mut stored.doc, |_| Ok(()));
+
+        assert!(result.is_err());
+        assert!(!vault.contains(&first).unwrap());
+        assert!(stored.reloaded().nodes.is_empty());
+        assert!(stored.doc.nodes.is_empty());
     }
 
     #[test]
