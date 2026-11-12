@@ -16,6 +16,11 @@ declare global {
 
 const SECONDS = 10;
 const MAX_DRAWS_PER_SECOND = 30;
+/**
+ * Below this the background would not be animating at all: the threshold is
+ * low enough for a busy machine, which delays frames, and far above zero.
+ */
+const MIN_DRAWS_PER_SECOND = 20;
 
 test.use({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
 
@@ -68,9 +73,11 @@ test("the glass background stays within 30 drawings per second and stops when hi
       `disegni ${sample.draws} (${drawsPerSecond.toFixed(1)}/s), finestra a fuoco: ${String(sample.focused)}`,
     ].join("\n"),
   );
-  // Without focus or drawings there would be nothing measured.
+  // Without focus or an animation there would be nothing measured.
   expect(sample.focused, "la finestra della misura deve avere il fuoco").toBe(true);
-  expect(sample.draws, "lo sfondo deve disegnare durante la misura").toBeGreaterThan(0);
+  expect(drawsPerSecond, "lo sfondo deve animarsi durante la misura").toBeGreaterThanOrEqual(
+    MIN_DRAWS_PER_SECOND,
+  );
   expect(drawsPerSecond).toBeLessThanOrEqual(MAX_DRAWS_PER_SECOND);
 
   // A hidden page: the visibility the WebView reports when the window is hidden.
