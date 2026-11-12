@@ -350,3 +350,24 @@ fn gc_removes_nothing_when_the_document_on_disk_is_missing() {
     assert!(matches!(error, Error::Io { .. }));
     assert!(store.path_for(&icon).unwrap().exists());
 }
+
+#[test]
+fn stored_image_is_named_after_the_hash_of_its_bytes() {
+    let dir = TempDir::new().unwrap();
+
+    let icon = icon_store(&dir).add(PNG, "image/png").unwrap();
+
+    let Icon::Custom { sha256, .. } = icon else {
+        panic!("custom icon expected");
+    };
+    assert_eq!(sha256, sha256_hex(PNG));
+    assert!(is_sha256_hex(&sha256));
+}
+
+#[test]
+fn extension_of_a_stored_image_maps_to_its_type() {
+    assert_eq!(mime_for_extension("jpg"), Some("image/jpeg"));
+    assert_eq!(mime_for_extension("svg"), Some("image/svg+xml"));
+    assert_eq!(mime_for_extension("html"), None);
+    assert_eq!(mime_for_extension("jpeg"), None);
+}
