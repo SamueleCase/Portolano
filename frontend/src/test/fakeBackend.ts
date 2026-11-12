@@ -2,6 +2,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 
 import type { IpcError } from "../ipc/result";
+import * as deletes from "./fakeBackendDelete";
 import * as documents from "./fakeBackendDocument";
 import * as misc from "./fakeBackendMisc";
 import { type FakeBackendState, FakeFailure, openDocument } from "./fakeBackendModel";
@@ -95,11 +96,11 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
     case "duplicate_node":
       return nodes.duplicateNode(state, text(args, "id"));
     case "preview_delete":
-      return nodes.previewDelete(state, text(args, "id"));
+      return deletes.previewDelete(state, text(args, "id"));
     case "delete_node":
-      return nodes.deleteNode(state, text(args, "id"), arg(args, "options"));
+      return deletes.deleteNode(state, text(args, "id"), arg(args, "options"));
     case "undo_delete":
-      return nodes.undoDelete(state, text(args, "undoId"));
+      return deletes.undoDelete(state, text(args, "undoId"));
     case "secret_status":
       return vault.secretStatus(state, text(args, "id"));
     case "set_secret":
