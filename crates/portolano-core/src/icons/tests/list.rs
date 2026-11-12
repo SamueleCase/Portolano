@@ -68,3 +68,20 @@ fn list_leaves_out_files_the_store_did_not_write() {
 
     assert_eq!(store.list().unwrap(), vec![png]);
 }
+
+#[cfg(unix)]
+#[test]
+fn list_leaves_out_symlinks_named_as_stored_images() {
+    let dir = TempDir::new().unwrap();
+    let store = icon_store(&dir);
+    let png = store.add(PNG, "image/png").unwrap();
+    let target = dir.path().join("elsewhere.gif");
+    fs::write(&target, GIF).unwrap();
+    std::os::unix::fs::symlink(
+        &target,
+        icons_dir(&dir).join(format!("{}.gif", "cd".repeat(32))),
+    )
+    .unwrap();
+
+    assert_eq!(store.list().unwrap(), vec![png]);
+}
