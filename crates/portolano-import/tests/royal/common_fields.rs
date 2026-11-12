@@ -114,6 +114,36 @@ fn an_unrecognized_image_stays_in_extra() {
 }
 
 #[test]
+fn an_image_over_the_icon_limit_stays_in_extra_with_its_reason() {
+    let mut png = PNG.to_vec();
+    png.resize(
+        usize::try_from(portolano_core::icons::MAX_ICON_BYTES).unwrap() + 1,
+        0,
+    );
+    let image = STANDARD.encode(&png);
+
+    let outcome = import(&folder_with(&[("CustomImage", &image)]));
+
+    let node = find(&outcome.root, uuid(2));
+    assert_eq!(node.icon, None);
+    assert_eq!(node.extra["royal.CustomImage"], image.as_str());
+    assert!(outcome.icons.is_empty());
+    let item = outcome
+        .report
+        .items
+        .iter()
+        .find(|item| item.status == ItemStatus::Partial)
+        .unwrap();
+    assert!(
+        item.reasons
+            .iter()
+            .any(|reason| reason.contains("oltre 4 MiB")),
+        "{:?}",
+        item.reasons
+    );
+}
+
+#[test]
 fn html_notes_become_text_and_keep_the_original() {
     let html = "&lt;p&gt;Uno &amp;amp; due&lt;/p&gt;&lt;p&gt;tre&lt;/p&gt;";
 
