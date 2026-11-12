@@ -50,7 +50,9 @@ pub fn run() {
         })
         .setup(move |app| {
             commands.mount_events(app);
-            setup(app)
+            setup(app)?;
+            announce_ended_sessions(app.handle());
+            Ok(())
         })
         .build(tauri::generate_context!());
     match app {
@@ -84,11 +86,25 @@ fn setup<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+/// Tells the frontend about every session whose program is over, with the
+/// `session-ended` event.
+fn announce_ended_sessions<R: Runtime>(app: &AppHandle<R>) {
+    let handle = app.clone();
+    app.state::<AppState>()
+        .sessions()
+        .on_ended(move |ended| events::emit(&handle, ended));
+}
+
 /// Finishes the deletions that could still be undone when the app quits,
-/// so that their secrets do not stay in the vault.
+/// so that their secrets do not stay in the vault, and ends the sessions,
+/// so that no FreeRDP window outlives the app.
 fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: RunEvent) {
     if let RunEvent::Exit = event {
-        app.state::<AppState>().purge_pending_deletes();
+        let state = app.state::<AppState>();
+        state.purge_pending_deletes();
+        if !state.sessions().close_all() {
+            tracing::warn!("alcune sessioni erano ancora aperte all'uscita dell'app");
+        }
     }
 }
 

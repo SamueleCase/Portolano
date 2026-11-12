@@ -25,19 +25,19 @@ use super::*;
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The size of the terminals of the tests.
-const SIZE: TerminalSize = TerminalSize { cols: 80, rows: 24 };
+pub(crate) const SIZE: TerminalSize = TerminalSize { cols: 80, rows: 24 };
 
 /// What a session sent to its sink.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Sent {
+pub(crate) enum Sent {
     Output(Vec<u8>),
     State(SessionState),
 }
 
 /// A sink that records everything, for the tests to wait on.
 #[derive(Default)]
-struct Recorder {
-    sent: Mutex<Vec<Sent>>,
+pub(crate) struct Recorder {
+    pub(crate) sent: Mutex<Vec<Sent>>,
     changed: Condvar,
 }
 
@@ -58,7 +58,7 @@ impl Recorder {
     }
 
     /// Waits until `done` holds for what was sent; returns it.
-    fn wait_until(&self, what: &str, done: impl Fn(&[Sent]) -> bool) -> Vec<Sent> {
+    pub(crate) fn wait_until(&self, what: &str, done: impl Fn(&[Sent]) -> bool) -> Vec<Sent> {
         let deadline = Instant::now() + TIMEOUT;
         let mut sent = self.sent.lock().unwrap();
         while !done(&sent) {
@@ -70,7 +70,7 @@ impl Recorder {
     }
 
     /// Waits for the last state of the session.
-    fn wait_for_end(&self) -> SessionState {
+    pub(crate) fn wait_for_end(&self) -> SessionState {
         let sent = self.wait_until("fine della sessione", |sent| {
             sent.iter()
                 .any(|sent| matches!(sent, Sent::State(state) if is_final(state)))
@@ -79,7 +79,7 @@ impl Recorder {
     }
 
     /// Waits until the terminal output contains `text`.
-    fn wait_for_output(&self, text: &str) -> String {
+    pub(crate) fn wait_for_output(&self, text: &str) -> String {
         let sent = self.wait_until(&format!("output {text:?}"), |sent| {
             terminal_text(sent).contains(text)
         });
@@ -108,7 +108,7 @@ fn states(sent: &[Sent]) -> Vec<SessionState> {
 }
 
 /// The payloads of the terminal frames, as text.
-fn terminal_text(sent: &[Sent]) -> String {
+pub(crate) fn terminal_text(sent: &[Sent]) -> String {
     sent.iter()
         .filter_map(|sent| match sent {
             Sent::Output(frame) => {
@@ -166,7 +166,8 @@ fn vault_with(value: &str) -> (MemoryVault, SecretRef) {
 fn manager() -> (SessionManager, Arc<Mutex<Vec<SessionEnded>>>) {
     let ended = Arc::new(Mutex::new(Vec::new()));
     let recorded = Arc::clone(&ended);
-    let manager = SessionManager::new(move |session| recorded.lock().unwrap().push(session));
+    let manager = SessionManager::default();
+    manager.on_ended(move |session| recorded.lock().unwrap().push(session));
     (manager, ended)
 }
 
@@ -188,10 +189,36 @@ fn open(
     (opened, recorder)
 }
 
-#[test]
-fn environment_needs_the_cli_next_to_the_app() {
-    // The test binary has no `portolano` next to it.
-    let result = environment(&AppConfig::default());
+/// The CLI of the workspace, `target/<profile>/portolano`, linked where the
+/// app looks for its sidecar: next to the test binaries, in
+/// `target/<profile>/deps/`. The sessions need it for askpass and new
+/// windows; `cargo test --workspace` builds it first.
+pub(crate) fn cli_next_to_the_tests() -> PathBuf {
+    let deps = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_owned();
+    let cli = deps.parent().unwrap().join("portolano");
+    assert!(
+        cli.is_file(),
+        "CLI mancante in {}: `cargo build -p portolano-cli`",
+        cli.display()
+    );
+    match std::os::unix::fs::symlink(&cli, deps.join("portolano")) {
+        Err(error) if error.kind() != std::io::ErrorKind::AlreadyExists => panic!("{error}"),
+        _ => cli,
+    }
+}
 
-    assert!(matches!(result, Err(SessionError::Sidecar(_))));
+#[test]
+fn askpass_and_new_windows_use_the_cli_next_to_the_app() {
+    let cli = cli_next_to_the_tests();
+
+    let environment = environment(&AppConfig::default()).unwrap();
+
+    assert_eq!(
+        environment.self_exe.canonicalize().unwrap(),
+        cli.canonicalize().unwrap()
+    );
 }

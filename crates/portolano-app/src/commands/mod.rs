@@ -27,6 +27,8 @@ use crate::events::{
     DocumentChanged, DocumentMissing, DocumentModifiedExternally, VaultLocked, emit,
 };
 use crate::menu::MenuAction;
+use crate::sessions::SessionEnded;
+use crate::sessions::ipc as sessions;
 use crate::state::AppState;
 
 /// The commands and the events, with the shape of their TypeScript
@@ -81,6 +83,11 @@ pub fn builder<R: Runtime>() -> Builder<R> {
             icons::custom_icons::<Wry>,
             icons::choose_icon_file::<Wry>,
             icons::add_icon::<Wry>,
+            sessions::open_session::<Wry>,
+            sessions::session_input::<Wry>,
+            sessions::session_resize::<Wry>,
+            sessions::session_close::<Wry>,
+            sessions::open_in_terminal::<Wry>,
         ])
         .events(collect_events![
             DocumentChanged,
@@ -88,6 +95,7 @@ pub fn builder<R: Runtime>() -> Builder<R> {
             DocumentMissing,
             VaultLocked,
             MenuAction,
+            SessionEnded,
         ])
         .constant("BUILTIN_ICONS", BUILTIN_ICONS)
 }

@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::{Duration, Instant};
 
 use portolano_connectors::PreparedLaunch;
@@ -29,21 +29,22 @@ const CLOSE_ALL_WAIT: Duration = Duration::from_secs(2);
 /// Opens, drives and closes sessions. A session stays known until it is
 /// closed, also after its program is over, so that closing its tab is
 /// always valid.
+#[derive(Default)]
 pub struct SessionManager {
     sessions: Mutex<HashMap<SessionId, Arc<dyn Session>>>,
     running: Arc<Running>,
-    on_ended: Arc<EndedListener>,
+    on_ended: Arc<RwLock<Option<Arc<EndedListener>>>>,
 }
 
 impl SessionManager {
-    /// A manager without sessions; `on_ended` hears of each session whose
-    /// program is over.
-    pub fn new(on_ended: impl Fn(SessionEnded) + Send + Sync + 'static) -> SessionManager {
-        SessionManager {
-            sessions: Mutex::new(HashMap::new()),
-            running: Arc::default(),
-            on_ended: Arc::new(on_ended),
-        }
+    /// Makes `listener` hear of each session whose program is over, from
+    /// then on. The app sets it once it can emit events, after the state
+    /// that holds the manager exists.
+    pub fn on_ended(&self, listener: impl Fn(SessionEnded) + Send + Sync + 'static) {
+        *self
+            .on_ended
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = Some(Arc::new(listener));
     }
 
     /// Opens a session of `kind` (see [`super::session_kind`]) that runs
@@ -137,7 +138,13 @@ impl SessionManager {
         let running = Arc::clone(&self.running);
         Box::new(move |state| {
             sink.state(&state);
-            on_ended(SessionEnded { id, state });
+            let listener = on_ended
+                .read()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone();
+            if let Some(listener) = listener {
+                listener(SessionEnded { id, state });
+            }
             running.remove(id);
         })
     }

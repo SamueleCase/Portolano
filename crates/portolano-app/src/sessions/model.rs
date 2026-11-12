@@ -2,11 +2,11 @@
 
 use std::fmt;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Identifies an open session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(transparent)]
 pub struct SessionId(Uuid);
 
@@ -50,7 +50,7 @@ impl SessionKind {
 }
 
 /// The state of a session (ambiguity 11 of SPEC-UI §6).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum SessionState {
     /// Started, nothing received yet.
@@ -67,13 +67,14 @@ pub enum SessionState {
     Failed {
         /// The exit code, when the program ended with one.
         code: Option<i32>,
-        /// What happened, in Italian; never a secret.
+        /// What happened, in Italian; never a secret. For FreeRDP it is the
+        /// end of its log: text that the frontend shows as untrusted.
         reason: String,
     },
 }
 
 /// The size of a terminal, in characters.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, specta::Type)]
 pub struct TerminalSize {
     /// Columns.
     pub cols: u16,
@@ -90,8 +91,12 @@ pub struct SessionOpened {
     pub kind: SessionKind,
 }
 
-/// A session whose program is over, for the `session-ended` event.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+/// A session whose program is over: the `session-ended` event (SPEC-UI
+/// §4.4). It may arrive before the frontend knows the id of a session that
+/// ended at once.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type, tauri_specta::Event,
+)]
 pub struct SessionEnded {
     /// The session.
     pub id: SessionId,

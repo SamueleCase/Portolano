@@ -29,6 +29,7 @@ use unlock::SharedSlot;
 
 use crate::error::IpcError;
 use crate::prefs::UiPreferences;
+use crate::sessions::SessionManager;
 use crate::watch::DocumentWatcher;
 
 /// The files of the app besides the documents.
@@ -59,6 +60,7 @@ pub struct AppState {
     pending_deletes: PendingDeletes,
     chosen: ChosenFiles,
     last_import_report: Mutex<Option<portolano_import::ImportReport>>,
+    sessions: SessionManager,
 }
 
 impl AppState {
@@ -82,6 +84,7 @@ impl AppState {
             pending_deletes: PendingDeletes::default(),
             chosen: ChosenFiles::default(),
             last_import_report: Mutex::new(None),
+            sessions: SessionManager::default(),
         }
     }
 
@@ -217,6 +220,11 @@ impl AppState {
     /// The deletions that can still be undone.
     pub fn pending_deletes(&self) -> &PendingDeletes {
         &self.pending_deletes
+    }
+
+    /// The open sessions (SPEC-UI §4.5).
+    pub fn sessions(&self) -> &SessionManager {
+        &self.sessions
     }
 
     /// The files chosen in the native dialogs.

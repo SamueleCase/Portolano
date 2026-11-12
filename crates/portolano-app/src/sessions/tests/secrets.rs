@@ -7,19 +7,6 @@ use super::*;
 
 const SENTINEL: &str = "sentinel-session-secret-5c1e";
 
-/// `target/<profile>/portolano`: unit tests live in `target/<profile>/deps/`.
-/// `cargo test --workspace` builds the CLI first.
-fn cli() -> PathBuf {
-    let deps = std::env::current_exe().unwrap();
-    let cli = deps.parent().unwrap().parent().unwrap().join("portolano");
-    assert!(
-        cli.is_file(),
-        "CLI mancante in {}: `cargo build -p portolano-cli`",
-        cli.display()
-    );
-    cli
-}
-
 /// Everything sent, events included, as one text to search.
 fn everything(recorder: &Recorder, ended: &Mutex<Vec<SessionEnded>>) -> String {
     let sent = recorder.sent.lock().unwrap();
@@ -43,7 +30,7 @@ fn askpass_answers_ssh_without_the_password_reaching_the_terminal() {
     let mut step = run(&program);
     if let LaunchStep::Run { askpass, .. } = &mut step {
         *askpass = Some(AskpassSpec {
-            program: cli(),
+            program: cli_next_to_the_tests(),
             entries: vec![AskpassEntry {
                 matcher: PromptMatcher::Password {
                     user: "admin".to_owned(),

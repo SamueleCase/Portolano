@@ -12,6 +12,7 @@
 mod channel;
 mod error;
 mod external;
+pub(crate) mod ipc;
 mod kind;
 mod manager;
 mod model;
@@ -45,4 +46,4 @@ pub fn environment(config: &AppConfig) -> Result<Environment, SessionError> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

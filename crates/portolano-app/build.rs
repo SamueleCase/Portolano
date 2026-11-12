@@ -48,6 +48,11 @@ const COMMANDS: &[&str] = &[
     "custom_icons",
     "choose_icon_file",
     "add_icon",
+    "open_session",
+    "session_input",
+    "session_resize",
+    "session_close",
+    "open_in_terminal",
 ];
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
