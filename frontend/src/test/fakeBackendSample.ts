@@ -52,11 +52,29 @@ export function sampleDocument(state: FakeBackendState, path: string): FakeDocum
     host: "198.51.100.30",
     credential: { mode: "prompt" },
   });
+  const db01 = node("connection", "db01", {
+    protocol: "ssh",
+    host: "db01.example.com",
+    credential: { mode: "byName", name: "Admin ACME" },
+  });
   const acme = node("folder", "ACME", {
     credential: { mode: "byId", id: admin.id },
-    children: [web01, dc01, kiosk],
+    children: [web01, dc01, kiosk, db01],
   });
-  const clienti = node("folder", "Clienti", { children: [acme, admin] });
+  // An RDP connection whose gateway uses a credential by reference, inside
+  // its settings: the references there count as those on the node.
+  const ts01 = node("connection", "ts01", {
+    protocol: "rdp",
+    host: "192.0.2.20",
+    credential: { mode: "none" },
+    settings: {
+      gateway: {
+        host: "gw.example.com",
+        credential: { mode: "by_id", $ref: admin.id },
+      },
+    },
+  });
+  const clienti = node("folder", "Clienti", { children: [acme, admin, ts01] });
   const rete = node("folder", "Rete", { children: [bastion, deploy] });
   const vnc = node("unsupported", "vnc-legacy", {
     unsupported: {

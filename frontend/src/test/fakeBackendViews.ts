@@ -22,6 +22,7 @@ import {
   pathOf,
   walk,
 } from "./fakeBackendModel";
+import { embeddedRefs, embeddedSpecs } from "./fakeBackendSettings";
 
 /** The read-only views of the fake document: what `tree` and `node_details` return. */
 
@@ -235,17 +236,9 @@ export function referencesTo(doc: FakeDocument, target: string): FakeNode[] {
       (node) =>
         ((node.kind === "folder" || node.kind === "connection") &&
           specTarget(doc, node.credential) === target) ||
-        jumpHostsOf(node).includes(target),
+        embeddedRefs(node.settings).includes(target) ||
+        embeddedSpecs(node.settings).some(({ spec }) => specTarget(doc, spec) === target),
     );
-}
-
-function jumpHostsOf(node: FakeNode): string[] {
-  const jumps = node.settings["jump_hosts"];
-  return Array.isArray(jumps)
-    ? jumps.flatMap((jump: unknown) =>
-        typeof jump === "object" && jump !== null && "$ref" in jump ? [String(jump.$ref)] : [],
-      )
-    : [];
 }
 
 /** Who uses node `id`, as `credential_usage`. */

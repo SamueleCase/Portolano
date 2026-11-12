@@ -8,7 +8,8 @@ import {
   type FakeBackendState,
   type FakeDocument,
   type FakeNode,
-  type FakePendingDelete,
+  type FakeDetached,
+  type FakeSpec,
   UNDO_WINDOW_MS,
   checkName,
   childrenOf,
@@ -23,6 +24,7 @@ import {
   subtreeIds,
   walk,
 } from "./fakeBackendModel";
+import { PROMPT_VALUE, embeddedSpecs, setValueAt, valueAt } from "./fakeBackendSettings";
 import { referencesTo, specTarget, usageOf } from "./fakeBackendViews";
 
 /** Deletion with undo, as `delete_undoable` and `restore_deleted`: the subtree goes, its secrets wait. */
@@ -120,34 +122,46 @@ export function deleteNode(
 
 /**
  * Turns into "ask at launch" the credentials outside `node`'s subtree that
- * point to a credential of it, by id or by a name that resolves to it, as
- * `detach_credential_references`; other references, such as jump hosts,
- * stay (dangling).
+ * point to a credential of it, by id or by a name that resolves to it, on
+ * the node or in its settings, as `detach_credential_references`; other
+ * references, such as jump hosts, stay (dangling).
  */
-function detachCredentials(doc: FakeDocument, node: FakeNode): FakePendingDelete["detached"] {
+function detachCredentials(doc: FakeDocument, node: FakeNode): FakeDetached[] {
   const subtree = subtreeIds(node);
   const credentials = new Set(
     [...walk([node])]
       .filter(({ node: inner }) => inner.kind === "credential")
       .map(({ node: inner }) => inner.id),
   );
-  const detached: FakePendingDelete["detached"] = [];
+  const pointsInside = (spec: FakeSpec) => {
+    const target = specTarget(doc, spec);
+    return target !== null && credentials.has(target);
+  };
+  const detached: FakeDetached[] = [];
   for (const { node: user } of walk(doc.nodes)) {
     if (subtree.has(user.id)) continue;
-    const target = specTarget(doc, user.credential);
-    if (target !== null && credentials.has(target)) {
-      detached.push({ id: user.id, credential: user.credential });
+    const change: FakeDetached = { id: user.id, credential: null, settings: [] };
+    if (pointsInside(user.credential)) {
+      change.credential = user.credential;
       user.credential = { mode: "prompt" };
     }
+    for (const { path, spec } of embeddedSpecs(user.settings)) {
+      if (!pointsInside(spec)) continue;
+      const before = structuredClone(valueAt(user.settings, path) ?? null);
+      setValueAt(user.settings, path, PROMPT_VALUE);
+      change.settings.push({ path, before, after: PROMPT_VALUE });
+    }
+    if (change.credential || change.settings.length > 0) detached.push(change);
   }
   return detached;
 }
 
 /**
  * Puts a deleted node back, as `restore_deleted`: a detached credential
- * goes back only if it is still "ask at launch", otherwise the node is
- * listed as kept. A refusal that can be fixed (a sibling took the name)
- * leaves the deletion undoable until it expires.
+ * goes back only if it is still as the deletion left it, otherwise the node
+ * is listed as kept; a node deleted meanwhile is neither. A refusal that can
+ * be fixed (a sibling took the name) leaves the deletion undoable until it
+ * expires.
  */
 export function undoDelete(state: FakeBackendState, undoId: string): RestoreOutcome {
   const pending =
@@ -158,21 +172,32 @@ export function undoDelete(state: FakeBackendState, undoId: string): RestoreOutc
   delete state.pendingDeletes[undoId];
   siblings.splice(Math.min(pending.index, siblings.length), 0, pending.node);
   const kept: string[] = [];
-  for (const { id, credential } of pending.detached) {
-    const user = [...walk(doc.nodes)].find(({ node }) => node.id === id)?.node;
-    if (user?.credential.mode === "prompt") {
-      user.credential = credential;
-    } else {
-      kept.push(id);
-    }
+  for (const change of pending.detached) {
+    const user = [...walk(doc.nodes)].find(({ node }) => node.id === change.id)?.node;
+    if (user && !restore(user, change)) kept.push(user.id);
   }
   return {
     id: pending.node.id,
     path: pathOf(doc, pending.node.id),
-    kept: kept
-      .filter((keptId) => [...walk(doc.nodes)].some(({ node }) => node.id === keptId))
-      .map((keptId) => ({ id: keptId, path: pathOf(doc, keptId) })),
+    kept: kept.map((id) => ({ id, path: pathOf(doc, id) })),
   };
+}
+
+/** Gives back what is still as the deletion left it; whether everything went back. */
+function restore(user: FakeNode, change: FakeDetached): boolean {
+  let all = true;
+  if (change.credential) {
+    if (user.credential.mode === "prompt") user.credential = change.credential;
+    else all = false;
+  }
+  for (const { path, before, after } of change.settings) {
+    if (JSON.stringify(valueAt(user.settings, path)) === JSON.stringify(after)) {
+      setValueAt(user.settings, path, before);
+    } else {
+      all = false;
+    }
+  }
+  return all;
 }
 
 /** Forgets the deletions that can no longer be undone. */

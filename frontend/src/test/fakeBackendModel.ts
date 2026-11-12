@@ -86,6 +86,15 @@ export interface FakeDocument {
   nodes: FakeNode[];
 }
 
+/** What a forced deletion changed in one node outside the subtree (DEC-031.2). */
+export interface FakeDetached {
+  id: string;
+  /** Its own credential before the deletion, if the deletion changed it. */
+  credential: FakeSpec | null;
+  /** The specs of its settings the deletion changed. */
+  settings: { path: (string | number)[]; before: JsonValue; after: JsonValue }[];
+}
+
 /** A deletion that can still be undone. */
 export interface FakePendingDelete {
   node: FakeNode;
@@ -93,8 +102,8 @@ export interface FakePendingDelete {
   index: number;
   /** When it can no longer be undone, by the clock of the state. */
   expiresAt: number;
-  /** The credentials that the deletion turned into "ask at launch". */
-  detached: { id: string; credential: FakeSpec }[];
+  /** The credentials that the deletion turned into "ask at launch", before and after. */
+  detached: FakeDetached[];
 }
 
 /** Everything the fake backend knows; tests change it freely before installing it. */

@@ -3,6 +3,7 @@ import {
   type FakeBackendState,
   type FakeDocument,
   type FakeNode,
+  type FakeSpec,
   findNode,
   newId,
   openDocument,
@@ -12,14 +13,15 @@ import {
   siblingsOf,
   walk,
 } from "./fakeBackendModel";
-import { credentialsNamed } from "./fakeBackendViews";
+import { embeddedObjects, embeddedSpec, embeddedSpecs } from "./fakeBackendSettings";
+import { specTarget } from "./fakeBackendViews";
 
 /**
  * "Duplica" as `duplicate_node` (DEC-016.4, DEC-031.3): new ids, references
  * inside the copy pointing to the copy (by id, and by name when the name
- * resolves to a copied credential), copied credentials that some reference
- * by name looks for renamed so that no name becomes ambiguous, no import
- * origin. Secrets need the vault, which copies them.
+ * resolves to a copied credential, on the node and in its settings), every
+ * copied credential renamed to a name no node has and no reference by name
+ * looks for, no import origin. Secrets need the vault, which copies them.
  */
 export function duplicateNode(state: FakeBackendState, id: string): DuplicateOutcome {
   const doc = openDocument(state);
@@ -34,7 +36,7 @@ export function duplicateNode(state: FakeBackendState, id: string): DuplicateOut
     inner.source = null;
   }
   for (const { node: inner } of walk([copy])) retarget(doc, inner, copies);
-  const renamed = renameWanted(doc, copy);
+  const renamed = renameCredentials(doc, copy);
   const siblings = siblingsOf(doc, parent);
   if (!renamed.includes(copy.id)) {
     copy.name = freeName(node.name, (name) => siblings.some((sibling) => sibling.name === name));
@@ -57,38 +59,53 @@ function freeName(name: string, taken: (candidate: string) => boolean): string {
   return candidate;
 }
 
-/** Points the references of `node` to the copies of their targets. */
+/** Points the references of `node` to the copies of their targets, on the node and in its settings. */
 function retarget(doc: FakeDocument, node: FakeNode, copies: Map<string, string>): void {
-  const spec = node.credential;
-  if (spec.mode === "byId") {
-    node.credential = { mode: "byId", id: copies.get(spec.id) ?? spec.id };
-  } else if (spec.mode === "byName") {
-    const matches = credentialsNamed(doc, spec.name);
-    const copied = matches.length === 1 ? copies.get(matches[0]?.id ?? "") : undefined;
-    if (copied !== undefined) node.credential = { mode: "byId", id: copied };
-  }
-  const jumps = node.settings["jump_hosts"];
-  if (Array.isArray(jumps)) {
-    node.settings["jump_hosts"] = jumps.map((jump) => {
-      const target = typeof jump === "object" && jump !== null && "$ref" in jump ? jump.$ref : null;
-      return typeof target === "string" ? { $ref: copies.get(target) ?? target } : jump;
-    });
+  const copyOf = (spec: FakeSpec) => {
+    const target = specTarget(doc, spec);
+    return target === null ? undefined : copies.get(target);
+  };
+  const ownCopy = copyOf(node.credential);
+  if (ownCopy !== undefined) node.credential = { mode: "byId", id: ownCopy };
+  for (const { object } of embeddedObjects(node.settings)) {
+    const spec = embeddedSpec(object);
+    const ref = object["$ref"];
+    if (spec?.mode === "byName") {
+      const copied = copyOf(spec);
+      if (copied === undefined) continue;
+      delete object["name"];
+      object["mode"] = "by_id";
+      object["$ref"] = copied;
+    } else if (typeof ref === "string") {
+      object["$ref"] = copies.get(ref) ?? ref;
+    }
   }
 }
 
-/** Renames the copied credentials whose name a reference by name looks for. */
-function renameWanted(doc: FakeDocument, copy: FakeNode): string[] {
-  const wanted = new Set(
+/** The names, lowercase, that references by name of `doc` look for, resolved or not. */
+function wantedNames(doc: FakeDocument): Set<string> {
+  return new Set(
     [...walk(doc.nodes)]
-      .map(({ node }) => node.credential)
+      .flatMap(({ node }) => [
+        node.credential,
+        ...embeddedSpecs(node.settings).map(({ spec }) => spec),
+      ])
       .flatMap((spec) => (spec.mode === "byName" ? [spec.name.toLowerCase()] : [])),
   );
-  const taken = new Set(
-    [...walk(doc.nodes), ...walk([copy])].map(({ node }) => node.name.toLowerCase()),
-  );
+}
+
+/**
+ * Gives every copied credential a name that no node has and no reference
+ * by name looks for, ignoring case, as `rename_credentials` (DEC-031.3).
+ */
+function renameCredentials(doc: FakeDocument, copy: FakeNode): string[] {
+  const taken = new Set([
+    ...[...walk(doc.nodes), ...walk([copy])].map(({ node }) => node.name.toLowerCase()),
+    ...wantedNames(doc),
+  ]);
   const renamed: string[] = [];
   for (const { node } of walk([copy])) {
-    if (node.kind !== "credential" || !wanted.has(node.name.toLowerCase())) continue;
+    if (node.kind !== "credential") continue;
     node.name = freeName(node.name, (candidate) => taken.has(candidate.toLowerCase()));
     taken.add(node.name.toLowerCase());
     renamed.push(node.id);
