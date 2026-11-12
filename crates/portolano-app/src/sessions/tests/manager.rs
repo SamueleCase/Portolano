@@ -63,14 +63,30 @@ fn closing_all_ends_every_running_program() {
             &MemoryVault::default(),
         )
     };
-    let (_, first) = open(&manager, SessionKind::RdpExternal, launch());
-    let (_, second) = open(&manager, SessionKind::RdpExternal, launch());
+    open(&manager, SessionKind::RdpExternal, launch());
+    open(&manager, SessionKind::RdpExternal, launch());
 
-    manager.close_all();
+    let all_ended = manager.close_all();
 
-    first.wait_for_end();
-    second.wait_for_end();
+    // Already over when `close_all` returns, without waiting here.
+    assert!(all_ended);
     assert_eq!(ended.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn closing_all_does_not_wait_for_an_external_application() {
+    let dir = TempDir::new().unwrap();
+    let (manager, _) = manager();
+    let launch = prepared(
+        &plan(vec![run(&probe(&dir, "open", "exit 0\n"))]),
+        &MemoryVault::default(),
+    );
+    let (_, recorder) = open(&manager, SessionKind::External, launch);
+    recorder.wait_until("apertura", |sent| {
+        sent.contains(&Sent::State(SessionState::Connected))
+    });
+
+    assert!(manager.close_all());
 }
 
 #[test]
