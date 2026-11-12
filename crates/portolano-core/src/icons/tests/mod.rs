@@ -371,3 +371,5 @@ fn extension_of_a_stored_image_maps_to_its_type() {
     assert_eq!(mime_for_extension("html"), None);
     assert_eq!(mime_for_extension("jpeg"), None);
 }
+
+mod list;

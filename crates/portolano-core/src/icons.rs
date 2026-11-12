@@ -17,6 +17,12 @@ use crate::error::{Error, Result};
 use crate::model::{Document, Icon};
 use crate::store::{Access, io_error, read_document, with_lock, write_atomically};
 
+/// The largest icon image accepted, in bytes. Icons are shown at most 52 px
+/// wide and those of Royal documents weigh a few kilobytes; the limit bounds
+/// what showing one makes the app read into memory, and an image refused
+/// here is never stored only to be refused when shown.
+pub const MAX_ICON_BYTES: u64 = 4 * 1024 * 1024;
+
 /// The icon directory of one document. Obtained from
 /// [`Store::icons`](crate::store::Store::icons).
 #[derive(Debug, Clone)]
@@ -48,9 +54,18 @@ impl IconStore {
     /// only reported when the bytes are not of an accepted type.
     ///
     /// # Errors
+    /// [`Error::IconTooLarge`](crate::Error::IconTooLarge) for an image
+    /// larger than [`MAX_ICON_BYTES`],
     /// [`Error::UnsupportedIcon`](crate::Error::UnsupportedIcon) for a type
     /// that is not accepted, [`Error::Io`](crate::Error::Io).
     pub fn add(&self, bytes: &[u8], mime: &str) -> Result<Icon> {
+        let size = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+        if size > MAX_ICON_BYTES {
+            return Err(Error::IconTooLarge {
+                size,
+                max: MAX_ICON_BYTES,
+            });
+        }
         let image = ImageType::detect(bytes).ok_or_else(|| Error::UnsupportedIcon {
             mime: mime.to_owned(),
         })?;
@@ -90,6 +105,30 @@ impl IconStore {
         }
         let image = ImageType::from_mime(mime)?;
         Some(self.dir.join(image.file_name(sha256)))
+    }
+
+    /// The stored images, as [`Icon::Custom`], ordered by hash: the choices
+    /// of the icon picker of the app. Files whose name is not that of a
+    /// stored image are left out, as by [`IconStore::gc`].
+    ///
+    /// # Errors
+    /// [`Error::Io`](crate::Error::Io) if the directory cannot be read; a
+    /// missing directory is an empty store.
+    pub fn list(&self) -> Result<Vec<Icon>> {
+        let entries = match fs::read_dir(&self.dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(source) => return Err(io_error(&self.dir)(source)),
+        };
+        let mut icons = Vec::new();
+        for entry in entries {
+            let path = entry.map_err(io_error(&self.dir))?.path();
+            if let Some(icon) = stored_icon(&path) {
+                icons.push(icon);
+            }
+        }
+        icons.sort_by(|a, b| sha256_of(a).cmp(sha256_of(b)));
+        Ok(icons)
     }
 
     /// Removes the images no longer used by `doc` and returns how many were
@@ -338,9 +377,29 @@ pub fn mime_for_extension(extension: &str) -> Option<&'static str> {
 
 /// Whether `path` is named `<sha256>.<extension of an accepted type>`.
 fn is_stored_image(path: &Path) -> bool {
-    let stem = path.file_stem().and_then(OsStr::to_str);
-    let extension = path.extension().and_then(OsStr::to_str);
-    stem.is_some_and(is_sha256_hex) && extension.and_then(ImageType::from_extension).is_some()
+    stored_icon(path).is_some()
+}
+
+/// The icon stored at `path`, if it is named
+/// `<sha256>.<extension of an accepted type>`.
+fn stored_icon(path: &Path) -> Option<Icon> {
+    let stem = path.file_stem().and_then(OsStr::to_str)?;
+    let image = path
+        .extension()
+        .and_then(OsStr::to_str)
+        .and_then(ImageType::from_extension)?;
+    is_sha256_hex(stem).then(|| Icon::Custom {
+        sha256: stem.to_owned(),
+        mime: image.mime().to_owned(),
+    })
+}
+
+/// The hash of a custom icon; empty for the other kinds.
+fn sha256_of(icon: &Icon) -> &str {
+    match icon {
+        Icon::Custom { sha256, .. } => sha256,
+        Icon::Builtin { .. } | Icon::Royal { .. } => "",
+    }
 }
 
 #[cfg(test)]
