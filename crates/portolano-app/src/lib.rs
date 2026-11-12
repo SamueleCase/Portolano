@@ -23,6 +23,8 @@ pub fn run() {
     init_logging();
     let commands = commands::builder();
     let result = tauri::Builder::default()
+        // For the native dialogs that Rust opens (SPEC-UI §4.6): the
+        // capability grants none of its commands to the frontend.
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(commands.invoke_handler())

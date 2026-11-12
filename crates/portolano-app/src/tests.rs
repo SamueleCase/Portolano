@@ -19,6 +19,7 @@ fn app_with_config(dir: &TempDir, config: &str) -> App<MockRuntime> {
     let config_path = dir.path().join("config.toml");
     fs::write(&config_path, config).unwrap();
     mock_builder()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(commands::builder().invoke_handler())
         .manage(AppState::new(config_path))
         .build(tauri::generate_context!(test = true))
@@ -87,10 +88,21 @@ fn window_without_the_capability_cannot_call_commands() {
 
     let error = invoke(&window(&app, "other"), "app_status").unwrap_err();
 
-    assert!(
-        error
-            .as_str()
-            .is_some_and(|message| message.contains("not allowed")),
-        "{error}"
-    );
+    assert!(is_refused_by_the_acl(&error), "{error}");
+}
+
+#[test]
+fn main_window_cannot_open_dialogs_of_the_plugin() {
+    let dir = TempDir::new().unwrap();
+    let app = app_with_config(&dir, "");
+
+    let error = invoke(&window(&app, "main"), "plugin:dialog|message").unwrap_err();
+
+    assert!(is_refused_by_the_acl(&error), "{error}");
+}
+
+fn is_refused_by_the_acl(error: &Value) -> bool {
+    error
+        .as_str()
+        .is_some_and(|message| message.contains("not allowed"))
 }

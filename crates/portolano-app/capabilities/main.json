@@ -1,13 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "The main window: events, its own window, links in the browser and the commands of the app (SPEC-UI §4.8). No file dialog: paths are chosen by Rust (SPEC-UI §4.6).",
+  "description": "The main window: events, its own window, links in the browser and the commands of the app (SPEC-UI §4.8). No dialog permission: native dialogs are opened by Rust (SPEC-UI §4.6), the others are components of the interface.",
   "windows": ["main"],
   "permissions": [
     "core:event:default",
     "core:window:default",
     "core:window:allow-start-dragging",
-    "dialog:allow-message",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://*" }, { "url": "http://*" }]
