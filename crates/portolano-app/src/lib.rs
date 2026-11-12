@@ -9,6 +9,7 @@ mod commands;
 mod dto;
 mod error;
 mod icons;
+pub mod sessions;
 mod sidecar;
 mod state;
 
