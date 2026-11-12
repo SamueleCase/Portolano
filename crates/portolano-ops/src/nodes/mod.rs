@@ -92,6 +92,7 @@ pub struct AddOutcome {
     /// Path of the new node.
     pub path: String,
     /// Secrets written to the vault.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub secrets_written: usize,
 }
 

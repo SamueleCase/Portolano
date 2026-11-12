@@ -24,6 +24,7 @@ pub struct ImportReport {
     /// Items that were not fully imported (all items with `--verbose`).
     pub items: Vec<ReportItem>,
     /// Source fields without a mapping: type → field → occurrences.
+    #[cfg_attr(feature = "specta", specta(type = BTreeMap<String, BTreeMap<String, u32>>))]
     pub unmapped_fields: BTreeMap<String, BTreeMap<String, usize>>,
     /// Document-level warnings.
     pub warnings: Vec<String>,
@@ -76,14 +77,19 @@ impl ImportReport {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TypeCounts {
     /// Objects of this type in the source.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub source: usize,
     /// Imported completely.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub imported: usize,
     /// Imported with missing data.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub partial: usize,
     /// Kept as unsupported nodes.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub unsupported: usize,
     /// Not imported (for example in the trash).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub skipped: usize,
 }
 

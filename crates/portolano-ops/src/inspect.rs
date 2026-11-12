@@ -96,6 +96,7 @@ pub struct Entry {
     /// The node id.
     pub id: Uuid,
     /// Depth below the starting point: 0 for its children.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub depth: usize,
     /// The node name.
     pub name: String,

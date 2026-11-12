@@ -44,6 +44,7 @@ notify-debouncer-full.workspace = true
 tauri-build.workspace = true
 
 [dev-dependencies]
+portolano-import = { workspace = true, features = ["specta"] }
 tauri = { workspace = true, features = ["test"] }
 pretty_assertions.workspace = true
 tempfile.workspace = true
