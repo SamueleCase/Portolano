@@ -14,12 +14,16 @@ use crate::protocol::PlanContext;
 const CMD_PLACEHOLDER: &str = "{cmd}";
 
 /// The step that relaunches Portolano on the same connection in a new
-/// window: `<self_exe> <relaunch_args…> connect @<id>`. The command holds no
-/// secret: the new process opens the vault itself.
-pub(crate) fn relaunch_step(ctx: &PlanContext) -> LaunchStep {
+/// window: `<self_exe> <relaunch_args…> connect <connect_options…> @<id>`.
+/// `connect_options` are the options of `connect` that the protocol needs
+/// to make the same plan there, such as the client it chose. The command
+/// holds no secret: the new process opens the vault itself.
+pub(crate) fn relaunch_step(ctx: &PlanContext, connect_options: &[&str]) -> LaunchStep {
     let mut argv = vec![ctx.env.self_exe.to_string_lossy().into_owned()];
     argv.extend(ctx.options.relaunch_args.iter().cloned());
-    argv.extend(["connect".to_owned(), format!("@{}", ctx.node_id)]);
+    argv.push("connect".to_owned());
+    argv.extend(connect_options.iter().map(|option| (*option).to_owned()));
+    argv.push(format!("@{}", ctx.node_id));
     LaunchStep::OpenInTerminal { argv }
 }
 
@@ -143,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn relaunch_step_passes_the_global_options_before_connect() {
+    fn relaunch_step_passes_the_global_options_before_connect_and_its_own_after() {
         let doc = document(vec![]);
         let env = environment();
         let app_config = portolano_core::AppConfig::default();
@@ -161,7 +165,7 @@ mod tests {
             options: &options,
         };
 
-        let step = relaunch_step(&ctx);
+        let step = relaunch_step(&ctx, &["--wait"]);
 
         assert_eq!(
             step,
@@ -171,6 +175,7 @@ mod tests {
                     "--file".into(),
                     "/tmp/doc.json".into(),
                     "connect".into(),
+                    "--wait".into(),
                     format!("@{node_id}"),
                 ],
             }

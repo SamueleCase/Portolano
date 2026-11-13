@@ -111,11 +111,47 @@ fn freerdp_in_a_new_window_relaunches_portolano_in_a_terminal() {
                 "--file".to_owned(),
                 "/tmp/portolano.json".to_owned(),
                 "connect".to_owned(),
+                "--client".to_owned(),
+                "freerdp".to_owned(),
                 format!("@{conn_id}"),
             ],
         }]
     );
     assert!(plan.warnings.is_empty());
+}
+
+#[test]
+fn a_new_window_keeps_the_chosen_client_and_the_wait() {
+    let conn = connection_node(
+        "rdp",
+        "dc01.example.com",
+        CredentialSpec::None,
+        json!({ "client": "windows-app" }),
+    );
+    let conn_id = conn.id;
+    let doc = document(vec![conn]);
+    let options = ConnectOptions {
+        new_window: true,
+        wait: true,
+        rdp_client: Some(RdpClient::FreeRdp),
+        ..ConnectOptions::default()
+    };
+
+    let plan = plan_with(&RdpProtocol, &doc, conn_id, &options).unwrap();
+
+    let Some(LaunchStep::OpenInTerminal { argv }) = plan.steps.last() else {
+        panic!("expected a new window, got {plan:?}");
+    };
+    assert_eq!(
+        argv[argv.len() - 5..],
+        [
+            "connect",
+            "--client",
+            "freerdp",
+            "--wait",
+            &format!("@{conn_id}")
+        ]
+    );
 }
 
 #[test]

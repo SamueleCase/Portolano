@@ -215,13 +215,15 @@ fn a_new_window_reopens_the_same_document_configuration_and_vault() {
 }
 
 #[test]
-fn freerdp_opens_in_a_new_window_without_reading_the_vault() {
+fn freerdp_opens_in_a_new_window_with_its_client_without_reading_the_vault() {
     let (app, _) = app_with_ssh_probe("exit 0\n");
     let freerdp = probe(&app, "freerdp", "exit 0\n");
+    // The configuration chooses Windows App, the connection FreeRDP: the new
+    // window must keep FreeRDP.
     configure(
         &app,
         &format!(
-            "[rdp]\nfreerdp_program = {:?}\n",
+            "[rdp]\nclient = \"windows-app\"\nfreerdp_program = {:?}\n",
             freerdp.display().to_string()
         ),
     );
@@ -231,7 +233,7 @@ fn freerdp_opens_in_a_new_window_without_reading_the_vault() {
         "kind": {
             "type": "connection", "protocol": "rdp", "host": "192.0.2.10", "port": null,
             "credential": { "mode": "inline", "username": "operatore", "domain": null },
-            "settings": {},
+            "settings": { "client": "freerdp" },
         },
         "secrets": { "password": SENTINEL },
     }));
@@ -243,8 +245,13 @@ fn freerdp_opens_in_a_new_window_without_reading_the_vault() {
 
     let arguments = received_arguments(&received);
     assert_eq!(
-        arguments[arguments.len() - 2..],
-        ["connect".to_owned(), format!("@{dc01}")]
+        arguments[arguments.len() - 4..],
+        [
+            "connect".to_owned(),
+            "--client".to_owned(),
+            "freerdp".to_owned(),
+            format!("@{dc01}"),
+        ]
     );
     assert!(!arguments.iter().any(|argument| argument.contains(SENTINEL)));
 }

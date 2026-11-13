@@ -136,10 +136,16 @@ impl Protocol for RdpProtocol {
                 if ctx.options.new_window {
                     // In a new terminal window FreeRDP can ask what it needs
                     // (DEC-033.1). The plan above only validates the
-                    // connection early; the relaunched process plans again
-                    // and shows its own warnings.
+                    // connection early; the relaunched process plans again,
+                    // with the same client and waiting if asked, whatever
+                    // the connection or the configuration choose, and shows
+                    // its own warnings.
+                    let mut options = vec!["--client", "freerdp"];
+                    if ctx.options.wait {
+                        options.push("--wait");
+                    }
                     return Ok(LaunchPlan {
-                        steps: vec![relaunch_step(ctx)],
+                        steps: vec![relaunch_step(ctx, &options)],
                         warnings: Vec::new(),
                     });
                 }

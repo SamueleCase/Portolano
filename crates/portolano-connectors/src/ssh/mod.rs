@@ -117,7 +117,7 @@ impl Protocol for SshProtocol {
             // The plan above only validates the connection early; the new
             // window plans again and shows its own warnings.
             return Ok(LaunchPlan {
-                steps: vec![relaunch_step(ctx)],
+                steps: vec![relaunch_step(ctx, &[])],
                 warnings: Vec::new(),
             });
         }
