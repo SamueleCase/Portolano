@@ -320,12 +320,19 @@ fn sentinel_secret_never_reaches_the_frontend() {
     .unwrap();
     let deleted = call("delete_node", json!({ "id": web01, "options": {} })).unwrap();
     call("undo_delete", json!({ "undoId": deleted["undoId"] })).unwrap();
-    // A session whose login is asked at launch, with a probe as `ssh`
-    // that gets the typed password from askpass and prints its length.
+    // A session whose login is asked at launch, with a probe as `ssh` that
+    // gets the typed password from askpass: it exits with 0 only if the
+    // answer has the length of the sentinel, so the password did reach it.
+    // The output and state channels cannot be read on the mock runtime:
+    // their content is checked with a recording sink by the tests of
+    // `sessions/ipc/tests.rs` and `sessions/tests/secrets.rs`.
     let ssh = test.dir.path().join("ssh");
     fs::write(
         &ssh,
-        "#!/bin/sh\nanswer=$(\"$SSH_ASKPASS\" \"operatore@web02.example.com's password: \" </dev/null 2>/dev/null)\nprintf 'LUNGHEZZA=%s\\n' \"${#answer}\"\n",
+        format!(
+            "#!/bin/sh\nanswer=$(\"$SSH_ASKPASS\" \"operatore@web02.example.com's password: \" </dev/null 2>/dev/null)\n[ \"${{#answer}}\" -eq {} ] || exit 3\n",
+            SENTINEL.len()
+        ),
     )
     .unwrap();
     fs::set_permissions(&ssh, fs::Permissions::from_mode(0o755)).unwrap();
@@ -350,8 +357,16 @@ fn sentinel_secret_never_reaches_the_frontend() {
         }),
     )
     .unwrap();
-    // The payload of `session-ended`: the probe exits with 0.
+    // The payload of `session-ended`.
     wait_for(&events, r#""state":"ended""#);
+    assert!(
+        events
+            .lock()
+            .unwrap()
+            .contains(r#""state":"ended","code":0"#),
+        "the probe got the password: {}",
+        events.lock().unwrap()
+    );
     call("lock_vault", json!({})).unwrap();
     call("tree", json!({})).unwrap();
 
