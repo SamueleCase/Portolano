@@ -79,7 +79,16 @@ impl SessionManager {
         }
         match start(kind, launch, size, sink, finish) {
             Ok(session) => {
-                self.lock().insert(id, session);
+                let mut sessions = self.lock();
+                // `close_all` may have run while the session started: it set
+                // the flag before taking this lock, so either it sees this
+                // session or this sees the flag.
+                if self.closing.load(Ordering::SeqCst) {
+                    drop(sessions);
+                    session.close();
+                    return Err(SessionError::Closing);
+                }
+                sessions.insert(id, session);
                 Ok(SessionOpened { id, kind })
             }
             Err(error) => {
