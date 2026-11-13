@@ -533,6 +533,22 @@ mock in `docs/ui/NOTE.md`.
 8. **"Riprova"** con "chiedi all'avvio": il controller delle sessioni chiede il nuovo login all'host (`onRetry`), che
    in UI-WP4 lo ottiene con `login_request` e il dialogo delle credenziali; il login non viene mai conservato.
 
+### DEC-034 – xterm.js e `freezePrototype` (deciso dal PM al checkpoint visivo 1, 2026-11-13)
+- **Problema** (trovato dall'utente in `tauri dev`: galleria nera): con `freezePrototype: true` (SPEC-UI §4.8) Tauri
+  congela `Object.prototype` prima della pagina; `@xterm/xterm` 6.0.0 (codice di VS Code) esegue al caricamento
+  `o.toString = s` su un oggetto normale, che con il prototipo congelato fallisce ("Attempted to assign to readonly
+  property"). Ogni schermata con il terminale si romperebbe anche nel bundle. Gli e2e non lo vedevano perché non
+  simulano `freezePrototype`. Non esiste una versione stabile corretta (ultima 6.0.0; 6.1 solo beta).
+- **Decisione**: `freezePrototype` resta. Una trasformazione di build mirata (plugin di Vite, valida anche per il
+  pre-bundling delle dipendenze in sviluppo) sostituisce quell'assegnazione con `Object.defineProperty` nel solo
+  modulo di xterm, e fa fallire il build se lo schema non compare esattamente come previsto (un aggiornamento di
+  xterm non passa in silenzio). Gli e2e congelano `Object.prototype` prima della pagina, come Tauri, così ogni
+  libreria incompatibile emerge nei test.
+- **Alternativa scartata**: togliere `freezePrototype`, che rinuncia a una difesa contro l'inquinamento dei prototipi.
+- Limite: il controllo del plugin scatta solo sul file `lib/xterm.mjs`; se una versione futura di xterm cambiasse
+  file, a segnalarlo sarebbero gli e2e con il prototipo congelato (la versione resta fissata a 6.0.0). Il plugin vive
+  in `frontend/src/build/` (codice del solo build, fuori dal bundle), aggiunto a SPEC-UI §5.1.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.

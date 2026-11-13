@@ -238,7 +238,8 @@ Connetti ⌘↩, Modifica ⌘E, Duplica ⌘D, Elimina ⌘⌫), Vista (Cerca ⌘F
 mappa degli errori, **trasporto delle sessioni dietro un'interfaccia** per poterlo simulare nei test), `state/`
 (Zustand: selezione, tab e sessioni aperte, pannelli, vault, toast, preferenze UI), `design/` (token, font, sfondo,
 motion), `components/` (catalogo §5.3), `features/` (tree, details, editor, dialogs, sessions, import, validation,
-preferences, first-run), `i18n/` (testi italiani centralizzati, singolare/plurale), `test/` (utilità, finto backend).
+preferences, first-run), `i18n/` (testi italiani centralizzati, singolare/plurale), `test/` (utilità, finto backend),
+`build/` (plugin del solo build di Vite, fuori dal bundle; DEC-034).
 **TanStack Query** per i dati del backend (chiavi per albero, dettaglio, validazione, config; invalidazione dopo le
 mutazioni e sugli eventi); **Zustand** per lo stato dell'interfaccia. Sessioni:
 `Session { id, nodeId, kind: 'terminal' | 'rdp-external' | 'external' | 'rdp-embedded', state, startedAt, exitCode? }`
