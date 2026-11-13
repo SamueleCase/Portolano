@@ -5,7 +5,7 @@ use serde_json::json;
 
 use super::*;
 use crate::protocol::{ConnectOptions, SessionCredential};
-use crate::testutil::{connection_node, credential_node, document, plan_with};
+use crate::testutil::{connection_node, credential_node, document, environment, plan_with};
 
 fn program(plan: &LaunchPlan) -> PathBuf {
     match plan.steps.last() {
@@ -87,6 +87,59 @@ fn connection_client_overrides_the_configuration_and_option_overrides_both() {
     assert_eq!(
         program(&by_option),
         PathBuf::from("/opt/homebrew/bin/sdl-freerdp")
+    );
+}
+
+#[test]
+fn freerdp_in_a_new_window_relaunches_portolano_in_a_terminal() {
+    let conn = connection_node("rdp", "dc01.example.com", CredentialSpec::None, json!({}));
+    let conn_id = conn.id;
+    let doc = document(vec![conn]);
+    let options = ConnectOptions {
+        new_window: true,
+        relaunch_args: vec!["--file".to_owned(), "/tmp/portolano.json".to_owned()],
+        ..ConnectOptions::default()
+    };
+
+    let plan = plan_with(&RdpProtocol, &doc, conn_id, &options).unwrap();
+
+    assert_eq!(
+        plan.steps,
+        vec![LaunchStep::OpenInTerminal {
+            argv: vec![
+                environment().self_exe.to_string_lossy().into_owned(),
+                "--file".to_owned(),
+                "/tmp/portolano.json".to_owned(),
+                "connect".to_owned(),
+                format!("@{conn_id}"),
+            ],
+        }]
+    );
+    assert!(plan.warnings.is_empty());
+}
+
+#[test]
+fn windows_app_in_a_new_window_opens_its_own_window_with_a_warning() {
+    let conn = connection_node(
+        "rdp",
+        "dc01.example.com",
+        CredentialSpec::None,
+        json!({ "client": "windows-app" }),
+    );
+    let conn_id = conn.id;
+    let doc = document(vec![conn]);
+    let options = ConnectOptions {
+        new_window: true,
+        ..ConnectOptions::default()
+    };
+
+    let plan = plan_with(&RdpProtocol, &doc, conn_id, &options).unwrap();
+
+    assert_eq!(program(&plan), PathBuf::from("/usr/bin/open"));
+    assert!(
+        plan.warnings
+            .iter()
+            .any(|warning| warning.contains("--new-window"))
     );
 }
 
