@@ -74,16 +74,18 @@ impl RdpSession {
             .stdin
             .take()
             .map_or(Ok(()), |mut stdin| launch.write_stdin_secret(&mut stdin));
-        let mut program: Program = Box::new(child);
+        let mut program: Program = child;
         if let Err(source) = written {
-            stop(program.as_mut());
+            stop(&mut program);
             return Err(SessionError::Io {
                 context: "scrittura della password sullo stdin di FreeRDP",
                 source,
             });
         }
-        hand_over(&waiter, program, launch)?;
+        // Before the waiting thread can report the end: a FreeRDP that exits
+        // at once still reads as started, then failed.
         sink.state(&SessionState::Connected);
+        hand_over(&waiter, program, launch)?;
         Ok(RdpSession { close })
     }
 }

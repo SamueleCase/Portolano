@@ -1,10 +1,11 @@
 //! Following the program of a session until it exits.
 
 use std::io;
+use std::process::{Child, ExitStatus};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SendError, Sender};
 use std::time::Duration;
 
-use portable_pty::{Child, ExitStatus};
+use portable_pty::ChildKiller;
 
 use super::error::SessionError;
 
@@ -26,7 +27,7 @@ pub(super) struct Exit {
 ///
 /// Waiting and killing happen on this one thread, so the process is never
 /// signalled after it has been reaped, when its pid may belong to another.
-fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Receiver<()>) -> Exit {
+fn wait_for_exit(child: &mut Child, close: &Receiver<()>) -> Exit {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -46,9 +47,7 @@ fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Receiver<()>) ->
         match close.recv_timeout(POLL) {
             Err(RecvTimeoutError::Timeout) => {}
             Ok(()) | Err(RecvTimeoutError::Disconnected) => {
-                // SIGHUP first, as a terminal that closes; then SIGKILL if
-                // the program is still there (`portable_pty::ChildKiller`).
-                let _ = child.kill();
+                stop_gently(child);
                 return Exit {
                     code: child.wait().ok().map(|status| exit_code(&status)),
                     closed: true,
@@ -58,14 +57,28 @@ fn wait_for_exit(child: &mut (dyn Child + Send + Sync), close: &Receiver<()>) ->
     }
 }
 
-/// The exit code; a program killed by a signal counts as 1, as
-/// `portable_pty` reports it.
-fn exit_code(status: &ExitStatus) -> i32 {
-    i32::try_from(status.exit_code()).unwrap_or(i32::MAX)
+/// SIGHUP first, as a terminal that closes, then SIGKILL if the program is
+/// still there after a short grace (`portable_pty::ChildKiller`).
+fn stop_gently(child: &mut Child) {
+    let _ = ChildKiller::kill(child);
 }
 
-/// A started program, followed by its waiting thread.
-pub(super) type Program = Box<dyn Child + Send + Sync>;
+/// The exit code, as the CLI reports it: `128 + n` for a program killed by
+/// signal `n` (DEC-033.5).
+fn exit_code(status: &ExitStatus) -> i32 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return 128 + signal;
+        }
+    }
+    status.code().unwrap_or(1)
+}
+
+/// A started program, followed by its waiting thread. The program of a
+/// terminal is one too: `portable_pty` starts it as a standard child.
+pub(super) type Program = Child;
 
 /// Starts the thread that will follow a program, before the program itself:
 /// once the program runs, handing it over cannot fail for want of a thread,
@@ -86,7 +99,7 @@ pub(super) fn start_waiter<T: Send + 'static>(
         let Ok((mut program, with)) = receiver.recv() else {
             return;
         };
-        let exit = wait_for_exit(program.as_mut(), &close);
+        let exit = wait_for_exit(&mut program, &close);
         then(exit, with);
     })?;
     Ok(sender)
@@ -105,7 +118,7 @@ pub(super) fn hand_over<T>(
     waiter
         .send((program, with))
         .map_err(|SendError((mut program, _))| {
-            stop(program.as_mut());
+            stop(&mut program);
             SessionError::Io {
                 context: "avvio del controllo della sessione",
                 source: io::Error::other("il thread di attesa è terminato"),
@@ -114,8 +127,8 @@ pub(super) fn hand_over<T>(
 }
 
 /// Ends a program that cannot be followed, and reaps it.
-pub(super) fn stop(program: &mut (dyn Child + Send + Sync)) {
-    let _ = program.kill();
+pub(super) fn stop(program: &mut Child) {
+    stop_gently(program);
     let _ = program.wait();
 }
 

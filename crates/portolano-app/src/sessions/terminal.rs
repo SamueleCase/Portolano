@@ -80,14 +80,23 @@ impl TerminalSession {
             finish(final_state(exit));
         })?;
 
-        let child = pair
+        let child: Box<dyn portable_pty::Child> = pair
             .slave
             .spawn_command(command(&launch))
             .map_err(terminal_error)?;
         // Only the program holds the terminal now: when it exits, reading
         // reaches the end of the output.
         drop(pair.slave);
-        hand_over(&waiter, child, launch)?;
+        // On Unix `portable_pty` starts a standard child: followed as such,
+        // its exit status keeps the number of a signal that killed it.
+        let child = child
+            .downcast::<std::process::Child>()
+            .map_err(|mut other| {
+                let _ = other.kill();
+                let _ = other.wait();
+                terminal_error("processo del terminale non riconosciuto")
+            })?;
+        hand_over(&waiter, *child, launch)?;
         Ok(TerminalSession {
             master: Mutex::new(pair.master),
             writer: Mutex::new(writer),

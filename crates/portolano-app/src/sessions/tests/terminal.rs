@@ -62,6 +62,15 @@ fn exit_255_is_a_failed_connection() {
 }
 
 #[test]
+fn a_program_killed_by_a_signal_ends_with_128_plus_its_number() {
+    let dir = TempDir::new().unwrap();
+    let (_manager, _, recorder) = terminal(&dir, "echo pronto\nkill -TERM $$\n");
+
+    // SIGTERM is 15, as the CLI reports it (DEC-033.5).
+    assert_eq!(recorder.wait_for_end(), SessionState::Ended { code: 143 });
+}
+
+#[test]
 fn typed_input_reaches_the_program() {
     let dir = TempDir::new().unwrap();
     let (manager, opened, recorder) = terminal(&dir, "read line\necho \"letto:$line\"\n");
