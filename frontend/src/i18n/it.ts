@@ -1,6 +1,7 @@
 import { components } from "./components";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
+import { sessions } from "./sessions";
 import { status } from "./status";
 
 /**
@@ -13,4 +14,5 @@ export const texts = {
   components,
   icons,
   ipc,
+  sessions,
 } as const;

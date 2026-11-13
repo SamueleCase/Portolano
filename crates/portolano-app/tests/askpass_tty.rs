@@ -9,6 +9,9 @@
 //! so that only `/dev/tty` can reach the terminal, and prints what it
 //! answered. The client is the `portolano` CLI of the workspace, next to the
 //! test binaries.
+//!
+//! For hidden input the client turns the echo off before it writes the
+//! prompt, and back on even when interrupted (DEC-028.2).
 #![cfg(unix)]
 // The helpers of this test are not `#[test]` functions, which clippy.toml
 // already exempts: a failure there is a failed test too (DEC-019.8).
@@ -34,9 +37,6 @@ use tempfile::TempDir;
 /// How long to wait for the probe to print something expected.
 const TIMEOUT: Duration = Duration::from_secs(20);
 
-/// How often to read the echo flag of the PTY while waiting for it to change.
-const POLL: Duration = Duration::from_millis(10);
-
 /// The password the askpass server knows: it must never reach the terminal.
 const SENTINEL_PASSWORD: &str = "sentinel-pty-password";
 
@@ -60,13 +60,36 @@ fn cli() -> PathBuf {
 /// A script that runs the askpass program on its first argument, as `ssh`
 /// does, and prints the answer between markers. Without stdin and stderr the
 /// askpass client can reach the person only through `/dev/tty`.
-fn probe(dir: &TempDir) -> PathBuf {
+const ANSWERING_PROBE: &str = "#!/bin/sh\n\
+    answer=$(\"$SSH_ASKPASS\" \"$1\" </dev/null 2>/dev/null)\n\
+    printf 'RISPOSTA=[%s]\\n' \"$answer\"\n";
+
+/// As [`ANSWERING_PROBE`], but it survives Ctrl-C (its trap, unlike an
+/// ignored signal, is not inherited by the askpass client), prints the exit
+/// code of the client and then waits for a line, so that the PTY stays open
+/// while the test reads its modes.
+const INTERRUPTED_PROBE: &str = "#!/bin/sh\n\
+    trap 'printf \"INTERROTTO\\n\"' INT\n\
+    \"$SSH_ASKPASS\" \"$1\" </dev/null >/dev/null 2>&1\n\
+    printf 'USCITA=%s\\n' \"$?\"\n\
+    read line\n";
+
+/// As [`ANSWERING_PROBE`], but with job control, as in a shell of the user:
+/// the client runs as a foreground job, whose group Ctrl-Z stops. Without
+/// it the probe leads an orphaned group, for which the system discards the
+/// stop signals of the terminal.
+const SUSPENDED_PROBE: &str = "#!/bin/sh\n\
+    set -m\n\
+    \"$SSH_ASKPASS\" \"$1\" </dev/null >/dev/null 2>&1\n\
+    printf 'USCITA=%s\\n' \"$?\"\n";
+
+/// How often to read the echo flag while waiting for it to change.
+const POLL: Duration = Duration::from_millis(10);
+
+/// Writes `script` as an executable probe in `dir`.
+fn probe(dir: &TempDir, script: &str) -> PathBuf {
     let path = dir.path().join("ssh-probe.sh");
-    fs::write(
-        &path,
-        "#!/bin/sh\nanswer=$(\"$SSH_ASKPASS\" \"$1\" </dev/null 2>/dev/null)\nprintf 'RISPOSTA=[%s]\\n' \"$answer\"\n",
-    )
-    .unwrap();
+    fs::write(&path, script).unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
     path
 }
@@ -119,20 +142,22 @@ impl Terminal {
         &self.seen
     }
 
-    /// Waits until the PTY no longer echoes what is typed.
-    fn wait_for_echo_off(&self) {
+    /// Whether the PTY echoes what is typed, read now.
+    fn echoes(&self) -> bool {
+        self.master
+            .get_termios()
+            .unwrap_or_else(|| panic!("termios della PTY non leggibili"))
+            .local_flags
+            .contains(LocalFlags::ECHO)
+    }
+
+    /// Waits until the PTY echoes again what is typed.
+    fn wait_for_echo_on(&self) {
         let deadline = Instant::now() + TIMEOUT;
-        loop {
-            let termios = self
-                .master
-                .get_termios()
-                .unwrap_or_else(|| panic!("termios della PTY non leggibili"));
-            if !termios.local_flags.contains(LocalFlags::ECHO) {
-                return;
-            }
+        while !self.echoes() {
             assert!(
                 Instant::now() < deadline,
-                "l'eco della PTY non si è spento entro {TIMEOUT:?}; terminale: {:?}",
+                "l'eco della PTY non è tornato entro {TIMEOUT:?}; terminale: {:?}",
                 self.seen
             );
             std::thread::sleep(POLL);
@@ -161,16 +186,16 @@ impl Terminal {
     }
 }
 
-/// Starts `prompt` through the probe in a new PTY, with the environment the
-/// terminal of the app gives to `ssh`.
-fn run_in_pty(dir: &TempDir, prompt: &str) -> Session {
+/// Starts `prompt` through the probe `script` in a new PTY, with the
+/// environment the terminal of the app gives to `ssh`.
+fn run_in_pty(dir: &TempDir, script: &str, prompt: &str) -> Session {
     let password = SecretRef::new();
     let vault = MemoryVault::default();
     vault
         .set(&password, &Secret::new(SENTINEL_PASSWORD.to_owned()))
         .unwrap();
     let prepared = prepare(
-        &plan(probe(dir), prompt, &password),
+        &plan(probe(dir, script), prompt, &password),
         &vault,
         &AppConfig::default(),
     )
@@ -239,7 +264,7 @@ impl Session {
 #[test]
 fn host_key_confirmation_is_asked_in_the_pty_and_answered_from_it() {
     let dir = TempDir::new().unwrap();
-    let mut session = run_in_pty(&dir, HOST_KEY_PROMPT);
+    let mut session = run_in_pty(&dir, ANSWERING_PROBE, HOST_KEY_PROMPT);
 
     session.terminal.wait_for(HOST_KEY_PROMPT);
     session.terminal.type_line("yes");
@@ -254,13 +279,9 @@ fn host_key_confirmation_is_asked_in_the_pty_and_answered_from_it() {
 #[test]
 fn unknown_prompt_is_asked_in_the_pty_without_echo() {
     let dir = TempDir::new().unwrap();
-    let mut session = run_in_pty(&dir, UNKNOWN_PROMPT);
+    let mut session = run_in_pty(&dir, ANSWERING_PROBE, UNKNOWN_PROMPT);
 
     session.terminal.wait_for(UNKNOWN_PROMPT);
-    // The client prints the prompt before turning the echo off (DEC-028.2,
-    // until UI-WP3): typing as soon as the prompt shows could be echoed, so
-    // the test types only once the PTY no longer echoes.
-    session.terminal.wait_for_echo_off();
     session.terminal.type_line("424242");
     session.terminal.wait_for("RISPOSTA=[424242]");
     let shown = session.finish();
@@ -269,4 +290,54 @@ fn unknown_prompt_is_asked_in_the_pty_without_echo() {
     // line printed by the probe.
     assert_eq!(shown.matches("424242").count(), 1, "{shown:?}");
     assert!(!shown.contains(SENTINEL_PASSWORD), "{shown:?}");
+}
+
+#[test]
+fn hidden_prompt_shows_only_once_the_echo_is_off() {
+    let dir = TempDir::new().unwrap();
+    let mut session = run_in_pty(&dir, ANSWERING_PROBE, UNKNOWN_PROMPT);
+
+    session.terminal.wait_for(UNKNOWN_PROMPT);
+
+    // Read as soon as the prompt is visible, without waiting: whatever is
+    // typed from now on is not echoed.
+    assert!(!session.terminal.echoes(), "{:?}", session.terminal.seen);
+    session.terminal.type_line("424242");
+    session.finish();
+}
+
+#[test]
+fn interrupted_hidden_prompt_turns_the_echo_back_on() {
+    let dir = TempDir::new().unwrap();
+    let mut session = run_in_pty(&dir, INTERRUPTED_PROBE, UNKNOWN_PROMPT);
+    session.terminal.wait_for(UNKNOWN_PROMPT);
+    assert!(!session.terminal.echoes());
+
+    // Ctrl-C, as typed in the terminal: SIGINT to the foreground group.
+    session.terminal.writer.write_all(b"\x03").unwrap();
+    session.terminal.writer.flush().unwrap();
+
+    // 130 = 128 + SIGINT: the client still ends because of the signal.
+    session.terminal.wait_for("USCITA=130");
+    assert!(session.terminal.echoes(), "{:?}", session.terminal.seen);
+    session.terminal.type_line("");
+    session.finish();
+}
+
+#[test]
+fn ctrl_z_on_a_hidden_prompt_waits_until_the_echo_is_back() {
+    let dir = TempDir::new().unwrap();
+    let mut session = run_in_pty(&dir, SUSPENDED_PROBE, UNKNOWN_PROMPT);
+    session.terminal.wait_for(UNKNOWN_PROMPT);
+
+    // Ctrl-Z, as typed in the terminal: SIGTSTP to the foreground group.
+    session.terminal.writer.write_all(b"\x1a").unwrap();
+    session.terminal.writer.flush().unwrap();
+    // A client stopped at once would keep the echo off and never read this.
+    session.terminal.type_line("424242");
+
+    session.terminal.wait_for_echo_on();
+    // The stop reached the client after the restore. Ending the probe
+    // orphans the stopped client, which the system then hangs up.
+    session.child.kill().unwrap();
 }

@@ -160,7 +160,11 @@ export const components = {
     choose: "Scegli",
     chooseNamed: "Scegli {name}",
   },
-  terminal: { label: "Terminale", leave: "Ctrl+Tab o Ctrl+Maiusc+Tab per uscire dal terminale." },
+  terminal: {
+    label: "Terminale",
+    input: "Input del terminale",
+    leave: "Ctrl+Tab o Ctrl+Maiusc+Tab per uscire dal terminale.",
+  },
   tagInput: {
     placeholder: "Aggiungi tag…",
     remove: "Rimuovi il tag {tag}",

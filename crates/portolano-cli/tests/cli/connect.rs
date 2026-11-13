@@ -83,6 +83,33 @@ fn print_of_a_new_window_relaunches_with_the_same_document() {
     assert!(!output.contains(TEST_MASTER_PASSWORD));
 }
 
+#[test]
+fn a_new_window_of_freerdp_keeps_the_client_and_the_wait() {
+    let workspace = with_probes("exit 0", "exit 0");
+    with_connections(&workspace);
+    let freerdp = workspace.script("probe-freerdp", "exit 0");
+    // The configuration chooses Windows App: the new window must not.
+    workspace.write_config(&format!(
+        "[rdp]\nclient = \"windows-app\"\nfreerdp_program = \"{}\"\n",
+        freerdp.display()
+    ));
+
+    let output = workspace.ok(&[
+        "connect",
+        "--print",
+        "--new-window",
+        "--client",
+        "freerdp",
+        "--wait",
+        "/dc01",
+    ]);
+
+    assert!(
+        output.contains(" connect --client freerdp --wait @"),
+        "{output}"
+    );
+}
+
 /// A probe that fails with 9 if the master password reached it, by name or
 /// by value (DEC-023.1), and otherwise exits with 0.
 const NO_MASTER_PASSWORD: &str = "[ -z \"${PORTOLANO_VAULT_PASSWORD+set}\" ] || exit 9\n\

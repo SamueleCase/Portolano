@@ -19,6 +19,7 @@ import { ListsSection } from "./sections/ListsSection";
 import { NavigationSection } from "./sections/NavigationSection";
 import { OverlaysSection } from "./sections/OverlaysSection";
 import { SelectorsSection } from "./sections/SelectorsSection";
+import { SessionsSection } from "./sections/SessionsSection";
 import { SurfacesSection } from "./sections/SurfacesSection";
 import { TerminalSection } from "./sections/TerminalSection";
 import { TreeSection } from "./sections/TreeSection";
@@ -38,6 +39,7 @@ const sections = [
   ["selectors", SelectorsSection],
   ["terminal", TerminalSection],
   ["untrusted", UntrustedSection],
+  ["sessions", SessionsSection],
 ] as const;
 
 /**

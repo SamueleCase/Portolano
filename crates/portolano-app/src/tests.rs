@@ -4,6 +4,8 @@
 
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex, Once};
 
 use serde_json::{Value, json};
@@ -14,7 +16,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 use super::*;
 use crate::commands::test_support::{
-    SENTINEL, TEST_MASTER_PASSWORD, TestApp, admin_with_sentinel, ssh,
+    SENTINEL, TEST_MASTER_PASSWORD, TestApp, admin_with_sentinel, ssh as ssh_node,
 };
 
 /// The app with the real configuration of Tauri (capabilities included),
@@ -30,6 +32,7 @@ fn mock_app(test: &TestApp) -> App<MockRuntime> {
         .build(tauri::generate_context!(test = true))
         .unwrap();
     builder.mount_events(&app);
+    announce_ended_sessions(app.handle());
     app
 }
 
@@ -232,6 +235,7 @@ fn sentinel_secret_never_reaches_the_frontend() {
         "document-modified-externally",
         "document-missing",
         "vault-locked",
+        "session-ended",
     ] {
         let events = Arc::clone(&events);
         app.listen_any(name, move |event| {
@@ -256,7 +260,7 @@ fn sentinel_secret_never_reaches_the_frontend() {
     )
     .unwrap();
     let admin = call("add_node", json!({ "node": admin_with_sentinel() })).unwrap()["id"].clone();
-    let web01 = call("add_node", json!({ "node": ssh("web01", None) })).unwrap()["id"].clone();
+    let web01 = call("add_node", json!({ "node": ssh_node("web01", None) })).unwrap()["id"].clone();
     call(
         "edit_node",
         json!({ "id": web01, "edit": { "secrets": { "password": { "action": "set", "value": SENTINEL } } } }),
@@ -316,6 +320,53 @@ fn sentinel_secret_never_reaches_the_frontend() {
     .unwrap();
     let deleted = call("delete_node", json!({ "id": web01, "options": {} })).unwrap();
     call("undo_delete", json!({ "undoId": deleted["undoId"] })).unwrap();
+    // A session whose login is asked at launch, with a probe as `ssh` that
+    // gets the typed password from askpass: it exits with 0 only if the
+    // answer has the length of the sentinel, so the password did reach it.
+    // The output and state channels cannot be read on the mock runtime:
+    // their content is checked with a recording sink by the tests of
+    // `sessions/ipc/tests.rs` and `sessions/tests/secrets.rs`.
+    let ssh = test.dir.path().join("ssh");
+    fs::write(
+        &ssh,
+        format!(
+            "#!/bin/sh\nanswer=$(\"$SSH_ASKPASS\" \"operatore@web02.example.com's password: \" </dev/null 2>/dev/null)\n[ \"${{#answer}}\" -eq {} ] || exit 3\n",
+            SENTINEL.len()
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(&ssh, fs::Permissions::from_mode(0o755)).unwrap();
+    let mut config = fs::OpenOptions::new()
+        .append(true)
+        .open(&test.state.paths().config)
+        .unwrap();
+    writeln!(config, "[ssh]\nprogram = {:?}", ssh.display().to_string()).unwrap();
+    crate::sessions::tests::cli_next_to_the_tests();
+    let mut web02 = ssh_node("web02", None);
+    web02["kind"]["credential"] = json!({ "mode": "prompt" });
+    let web02 = call("add_node", json!({ "node": web02 })).unwrap()["id"].clone();
+    call(
+        "open_session",
+        json!({
+            "node": web02,
+            "options": {},
+            "login": { "username": "operatore", "domain": null, "password": SENTINEL },
+            "size": { "cols": 80, "rows": 24 },
+            "output": "__CHANNEL__:1",
+            "states": "__CHANNEL__:2",
+        }),
+    )
+    .unwrap();
+    // The payload of `session-ended`.
+    wait_for(&events, r#""state":"ended""#);
+    assert!(
+        events
+            .lock()
+            .unwrap()
+            .contains(r#""state":"ended","code":0"#),
+        "the probe got the password: {}",
+        events.lock().unwrap()
+    );
     call("lock_vault", json!({})).unwrap();
     call("tree", json!({})).unwrap();
 
@@ -331,6 +382,19 @@ fn sentinel_secret_never_reaches_the_frontend() {
     let logs = String::from_utf8_lossy(&LOGS.lock().unwrap()).into_owned();
     assert!(!logs.contains(SENTINEL), "{logs}");
     assert!(!test.files_text().contains(SENTINEL));
+}
+
+/// Waits until the events heard contain `text`.
+fn wait_for(events: &Mutex<String>, text: &str) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while !events.lock().unwrap().contains(text) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{text} non ricevuto: {}",
+            events.lock().unwrap()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }
 
 fn is_refused_by_the_acl(error: &Value) -> bool {

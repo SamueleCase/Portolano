@@ -21,6 +21,7 @@ use crate::plan::LaunchPlan;
 use crate::protocol::{
     PlanContext, Protocol, apply_session_credential, check_value, connection_node, error_issue,
 };
+use crate::terminal::relaunch_step;
 
 /// Port of RDP when the connection does not set one.
 const RDP_PORT: u16 = 3389;
@@ -109,10 +110,9 @@ impl Protocol for RdpProtocol {
         let client = choose_client(requested, config.client, ctx.env)?;
 
         let mut warnings = Vec::new();
-        if ctx.options.new_window {
+        if ctx.options.new_window && matches!(client, ChosenClient::WindowsApp { .. }) {
             warnings.push(
-                "--new-window non ha effetto su RDP: il client apre una propria finestra"
-                    .to_owned(),
+                "--new-window non ha effetto con Windows App: apre una propria finestra".to_owned(),
             );
         }
         let credential = apply_session_credential(
@@ -132,7 +132,24 @@ impl Protocol for RdpProtocol {
 
         let mut plan = match client {
             ChosenClient::FreeRdp(program) => {
-                freerdp::plan(program, &target, config.cert, ctx.options.wait)?
+                let plan = freerdp::plan(program, &target, config.cert, ctx.options.wait)?;
+                if ctx.options.new_window {
+                    // In a new terminal window FreeRDP can ask what it needs
+                    // (DEC-033.1). The plan above only validates the
+                    // connection early; the relaunched process plans again,
+                    // with the same client and waiting if asked, whatever
+                    // the connection or the configuration choose, and shows
+                    // its own warnings.
+                    let mut options = vec!["--client", "freerdp"];
+                    if ctx.options.wait {
+                        options.push("--wait");
+                    }
+                    return Ok(LaunchPlan {
+                        steps: vec![relaunch_step(ctx, &options)],
+                        warnings: Vec::new(),
+                    });
+                }
+                plan
             }
             ChosenClient::WindowsApp { app, fallback } => {
                 windows_app::plan(&app, &target, fallback)?

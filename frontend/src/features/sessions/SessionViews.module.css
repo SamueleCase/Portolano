@@ -1,0 +1,148 @@
+/* The session tabs (inventario §5.4): a header of inner glass, then the
+   terminal or a centered card. */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  min-height: 0;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-fine-14) var(--space-fine-18);
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-mono-large);
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The state, in the color of its phase. */
+.connecting,
+.connected,
+.ended,
+.failed {
+  font-weight: var(--font-weight-strong);
+  white-space: nowrap;
+}
+
+.connecting {
+  color: var(--color-accent-text);
+}
+
+.connected {
+  color: var(--color-ok);
+}
+
+.ended {
+  color: var(--color-text-secondary);
+}
+
+.failed {
+  color: var(--color-error-text);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.route {
+  padding: 0 var(--space-fine-18) var(--space-fine-14);
+}
+
+.actionError {
+  margin: 0;
+  padding: 0 var(--space-fine-18) var(--space-fine-14);
+  color: var(--color-error-text);
+  font-size: var(--font-size-secondary);
+}
+
+/* The terminal takes the rest of the tab. */
+.terminal {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: var(--size-terminal-min-height);
+}
+
+.centered {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+/* The cards of the RDP and Windows App tabs (inventario §5.4, DEC-033.4). */
+.card,
+.failure {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card {
+  gap: var(--space-4);
+  max-width: var(--width-session-card);
+  padding: var(--space-fine-28);
+}
+
+/* Doubled to win over the border of the glass, whatever the order of the
+   style sheets. */
+.failure.failure {
+  gap: var(--space-3);
+  max-width: var(--width-session-failure);
+  padding: var(--space-fine-26);
+  border-color: var(--color-error);
+}
+
+.cardTitle,
+.failureTitle {
+  margin: 0;
+  font-size: var(--font-size-panel-title);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-title);
+}
+
+.failureTitle {
+  color: var(--color-error-text);
+}
+
+.cardText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lead);
+  line-height: var(--line-height-lead);
+}
+
+.duration {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.logFigure {
+  margin: 0;
+}
+
+/* The end of a log: untrusted text, kept on its lines. */
+.log {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  overflow: auto;
+  border: var(--border-width) solid var(--color-terminal-border);
+  border-radius: var(--radius-card);
+  background: var(--color-terminal);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -27,6 +27,7 @@ export const gallery = {
     selectors: "Selettori",
     terminal: "Terminale",
     untrusted: "Stringhe non fidate",
+    sessions: "Sessioni",
   },
   states: {
     rest: "A riposo",
