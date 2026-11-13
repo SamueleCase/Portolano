@@ -446,7 +446,10 @@ fn write_secret(stdin: &mut impl Write, secret: &Secret) -> io::Result<()> {
     }
 }
 
-fn exit_code(status: ExitStatus) -> i32 {
+/// The exit code of a program, as `connect` reports it: `128 + n` for a
+/// program killed by signal `n`, as a shell does. For a caller that follows
+/// the program itself, such as the sessions of the app.
+pub fn exit_code(status: ExitStatus) -> i32 {
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt;

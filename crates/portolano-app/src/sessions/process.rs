@@ -1,11 +1,12 @@
 //! Following the program of a session until it exits.
 
 use std::io;
-use std::process::{Child, ExitStatus};
+use std::process::Child;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SendError, Sender};
 use std::time::Duration;
 
 use portable_pty::ChildKiller;
+use portolano_connectors::exit_code;
 
 use super::error::SessionError;
 
@@ -32,7 +33,7 @@ fn wait_for_exit(child: &mut Child, close: &Receiver<()>) -> Exit {
         match child.try_wait() {
             Ok(Some(status)) => {
                 return Exit {
-                    code: Some(exit_code(&status)),
+                    code: Some(exit_code(status)),
                     closed: false,
                 };
             }
@@ -49,7 +50,7 @@ fn wait_for_exit(child: &mut Child, close: &Receiver<()>) -> Exit {
             Ok(()) | Err(RecvTimeoutError::Disconnected) => {
                 stop_gently(child);
                 return Exit {
-                    code: child.wait().ok().map(|status| exit_code(&status)),
+                    code: child.wait().ok().map(exit_code),
                     closed: true,
                 };
             }
@@ -61,19 +62,6 @@ fn wait_for_exit(child: &mut Child, close: &Receiver<()>) -> Exit {
 /// still there after a short grace (`portable_pty::ChildKiller`).
 fn stop_gently(child: &mut Child) {
     let _ = ChildKiller::kill(child);
-}
-
-/// The exit code, as the CLI reports it: `128 + n` for a program killed by
-/// signal `n` (DEC-033.5).
-fn exit_code(status: &ExitStatus) -> i32 {
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::ExitStatusExt;
-        if let Some(signal) = status.signal() {
-            return 128 + signal;
-        }
-    }
-    status.code().unwrap_or(1)
 }
 
 /// A started program, followed by its waiting thread. The program of a
