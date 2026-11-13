@@ -171,39 +171,116 @@ fn received_arguments(path: &Path) -> Vec<String> {
         .collect()
 }
 
-#[test]
-fn a_new_window_reopens_the_same_document_and_configuration() {
-    let (app, web01) = app_with_ssh_probe("exit 0\n");
+/// Makes the terminal of new windows the probe that writes its arguments,
+/// one per line, to the returned file.
+fn terminal_probe(app: &TestApp) -> PathBuf {
     let received = app.dir.path().join("argv");
     let terminal = probe(
-        &app,
+        app,
         "terminal",
         &format!("printf '%s\\n' \"$@\" > '{}'\n", received.display()),
     );
     configure(
-        &app,
+        app,
         &format!(
             "[terminal]\napp = \"custom\"\ncommand = {:?}\n",
             format!("{} {{cmd}}", terminal.display())
         ),
     );
+    received
+}
+
+/// The value after `option` in `arguments`.
+fn value_of<'a>(arguments: &'a [String], option: &str) -> Option<&'a str> {
+    let index = arguments.iter().position(|argument| argument == option)?;
+    arguments.get(index + 1).map(String::as_str)
+}
+
+#[test]
+fn a_new_window_reopens_the_same_document_configuration_and_vault() {
+    let (app, web01) = app_with_ssh_probe("exit 0\n");
+    let received = terminal_probe(&app);
 
     open_new_window(&app.state, web01).unwrap();
 
     let arguments = received_arguments(&received);
-    let config = app.state.paths().config.display().to_string();
     let document = app.document_path().display().to_string();
-    let position = |value: &str| arguments.iter().position(|argument| argument == value);
-    assert_eq!(
-        position("--file").map(|i| &arguments[i + 1]),
-        Some(&document)
-    );
-    assert_eq!(
-        position("--config").map(|i| &arguments[i + 1]),
-        Some(&config)
-    );
+    let config = app.state.paths().config.display().to_string();
+    let vault = app.dir.path().join("vault.json").display().to_string();
+    assert_eq!(value_of(&arguments, "--file"), Some(document.as_str()));
+    assert_eq!(value_of(&arguments, "--config"), Some(config.as_str()));
+    assert_eq!(value_of(&arguments, "--vault"), Some("file"));
+    assert_eq!(value_of(&arguments, "--vault-file"), Some(vault.as_str()));
     assert_eq!(arguments.last(), Some(&format!("@{web01}")));
+}
+
+#[test]
+fn freerdp_opens_in_a_new_window_without_reading_the_vault() {
+    let (app, _) = app_with_ssh_probe("exit 0\n");
+    let freerdp = probe(&app, "freerdp", "exit 0\n");
+    configure(
+        &app,
+        &format!(
+            "[rdp]\nfreerdp_program = {:?}\n",
+            freerdp.display().to_string()
+        ),
+    );
+    let dc01 = app.add(json!({
+        "parent": null,
+        "name": "dc01",
+        "kind": {
+            "type": "connection", "protocol": "rdp", "host": "192.0.2.10", "port": null,
+            "credential": { "mode": "inline", "username": "operatore", "domain": null },
+            "settings": {},
+        },
+        "secrets": { "password": SENTINEL },
+    }));
+    let received = terminal_probe(&app);
+    // Locked: a read of the password would fail.
+    app.state.vault().unwrap().lock();
+
+    open_new_window(&app.state, dc01).unwrap();
+
+    let arguments = received_arguments(&received);
+    assert_eq!(
+        arguments[arguments.len() - 2..],
+        ["connect".to_owned(), format!("@{dc01}")]
+    );
     assert!(!arguments.iter().any(|argument| argument.contains(SENTINEL)));
+}
+
+#[test]
+fn windows_app_does_not_open_in_a_terminal() {
+    let node = portolano_core::Node::connection("ts01", "rdp", "192.0.2.11");
+    let id = node.id;
+    let mut doc = portolano_core::Document::new("Test");
+    doc.nodes = vec![node];
+    let environment = Environment {
+        os: portolano_connectors::Os::MacOs,
+        ssh: None,
+        ssh_add: None,
+        freerdp: None,
+        windows_app: Some(PathBuf::from("/Applications/Windows App.app")),
+        self_exe: PathBuf::from("/Applications/Portolano.app/Contents/MacOS/portolano"),
+        rejected: Vec::new(),
+    };
+    let plan = plan_connection(
+        &doc,
+        &AppConfig::default(),
+        &environment,
+        &portolano_connectors::Registry::with_defaults(),
+        id,
+        &ConnectOptions {
+            new_window: true,
+            ..ConnectOptions::default()
+        },
+    )
+    .unwrap();
+
+    let error = ensure_terminal_window(&plan).unwrap_err();
+
+    assert!(matches!(error, SessionError::NotInTerminal));
+    assert_eq!(IpcError::from(error).code, ErrorCode::Connect);
 }
 
 #[test]

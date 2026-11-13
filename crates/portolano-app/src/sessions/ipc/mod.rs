@@ -6,8 +6,9 @@ mod wire;
 
 use std::sync::Arc;
 
-use portolano_connectors::{ConnectOptions, Environment, LaunchPlan, prepare};
-use portolano_core::AppConfig;
+use portolano_connectors::{ConnectOptions, Environment, LaunchPlan, LaunchStep, prepare};
+use portolano_core::vault::MemoryVault;
+use portolano_core::{AppConfig, VaultSelection};
 use portolano_ops::OpsError;
 use portolano_ops::connect::plan_connection;
 use portolano_ops::vault::SessionVault;
@@ -19,8 +20,8 @@ use wire::{ChannelSink, LoginInput, OutputFrame, SessionOptionsInput};
 
 use crate::error::IpcError;
 use crate::sessions::{
-    SessionId, SessionOpened, SessionSink, SessionState, TerminalSize, environment,
-    open_in_new_window, session_kind,
+    SessionError, SessionId, SessionOpened, SessionSink, SessionState, TerminalSize, environment,
+    open_in_new_window, require_cli, session_kind,
 };
 use crate::state::AppState;
 
@@ -118,35 +119,64 @@ pub(crate) fn open(
     };
     let plan = plan_of(state, &config, node, &environment, &connect)?;
     let kind = session_kind(&plan)?;
+    require_cli(&plan)?;
     let launch = prepare(&plan, &session, &config).map_err(OpsError::from)?;
     Ok(state.sessions().open(kind, launch, size, sink)?)
 }
 
-/// Opens `node` in a new terminal window.
+/// Opens `node` in a new terminal window, SSH or FreeRDP (DEC-033.1).
 ///
 /// # Errors
-/// No open document, a plan that cannot be made, a launcher that fails.
+/// No open document, a plan that cannot be made or that does not open a
+/// terminal (Windows App), a launcher that fails.
 pub(crate) fn open_new_window(state: &AppState, node: Uuid) -> Result<(), IpcError> {
     let config = state.config()?;
     let environment = environment(&config)?;
-    let document = state.document_path().ok_or_else(IpcError::no_document)?;
-    // The same document and configuration (DEC-004, DEC-022.8); the vault
-    // comes from the configuration, and its master password is never
-    // passed.
     let connect = ConnectOptions {
         new_window: true,
-        relaunch_args: vec![
-            "--file".to_owned(),
-            document.display().to_string(),
-            "--config".to_owned(),
-            state.paths().config.display().to_string(),
-        ],
+        relaunch_args: relaunch_args(state)?,
         ..ConnectOptions::default()
     };
     let plan = plan_of(state, &config, node, &environment, &connect)?;
-    let vault = state.vault()?;
-    let launch = prepare(&plan, vault.as_ref(), &config).map_err(OpsError::from)?;
+    ensure_terminal_window(&plan)?;
+    require_cli(&plan)?;
+    // A new window reads no secret: the relaunched CLI opens the vault itself.
+    let launch = prepare(&plan, &MemoryVault::default(), &config).map_err(OpsError::from)?;
     Ok(open_in_new_window(launch)?)
+}
+
+/// Refuses a plan that does not open a terminal window: Windows App opens
+/// a window of its own, and running it from here would bypass the sessions.
+fn ensure_terminal_window(plan: &LaunchPlan) -> Result<(), SessionError> {
+    match plan.steps.last() {
+        Some(LaunchStep::OpenInTerminal { .. }) => Ok(()),
+        _ => Err(SessionError::NotInTerminal),
+    }
+}
+
+/// The options that make the CLI of a new window use the same document,
+/// configuration and vault as the app (DEC-004, DEC-033.5). The master
+/// password is never passed: the new window asks for it.
+fn relaunch_args(state: &AppState) -> Result<Vec<String>, IpcError> {
+    let document = state.document_path().ok_or_else(IpcError::no_document)?;
+    let mut args = vec![
+        "--file".to_owned(),
+        document.display().to_string(),
+        "--config".to_owned(),
+        state.paths().config.display().to_string(),
+    ];
+    let vault = match state.locations()?.vault {
+        VaultSelection::Keychain => vec!["keychain".to_owned()],
+        VaultSelection::File { path } => vec![
+            "file".to_owned(),
+            "--vault-file".to_owned(),
+            path.display().to_string(),
+        ],
+        VaultSelection::Memory => vec!["memory".to_owned()],
+    };
+    args.push("--vault".to_owned());
+    args.extend(vault);
+    Ok(args)
 }
 
 /// The plan of `node` in the open document.

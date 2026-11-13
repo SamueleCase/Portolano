@@ -74,6 +74,26 @@ fn closing_all_ends_every_running_program() {
 }
 
 #[test]
+fn no_session_opens_once_all_were_closed() {
+    let dir = TempDir::new().unwrap();
+    let (manager, _) = manager();
+    manager.close_all();
+    let launch = prepared(
+        &plan(vec![run(&probe(&dir, "ssh", "echo mai\n"))]),
+        &MemoryVault::default(),
+    );
+
+    let result = manager.open(
+        SessionKind::Terminal,
+        launch,
+        SIZE,
+        Arc::new(Recorder::default()),
+    );
+
+    assert!(matches!(result, Err(SessionError::Closing)));
+}
+
+#[test]
 fn closing_all_does_not_wait_for_an_external_application() {
     let dir = TempDir::new().unwrap();
     let (manager, _) = manager();

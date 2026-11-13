@@ -191,8 +191,9 @@ fn open(
 
 /// The CLI of the workspace, `target/<profile>/portolano`, linked where the
 /// app looks for its sidecar: next to the test binaries, in
-/// `target/<profile>/deps/`. The sessions need it for askpass and new
-/// windows; `cargo test --workspace` builds it first.
+/// `target/<profile>/deps/`, with a relative link that stays valid if
+/// `target` moves. The sessions need it for askpass and new windows;
+/// `cargo test --workspace` builds it first.
 pub(crate) fn cli_next_to_the_tests() -> PathBuf {
     let deps = std::env::current_exe()
         .unwrap()
@@ -205,10 +206,23 @@ pub(crate) fn cli_next_to_the_tests() -> PathBuf {
         "CLI mancante in {}: `cargo build -p portolano-cli`",
         cli.display()
     );
-    match std::os::unix::fs::symlink(&cli, deps.join("portolano")) {
+    let link = deps.join("portolano");
+    let target = Path::new("../portolano");
+    // Another test of the process may create it at the same moment.
+    match std::os::unix::fs::symlink(target, &link) {
         Err(error) if error.kind() != std::io::ErrorKind::AlreadyExists => panic!("{error}"),
-        _ => cli,
+        _ => {}
     }
+    let found = fs::read_link(&link)
+        .unwrap_or_else(|error| panic!("{} non è un collegamento: {error}", link.display()));
+    assert_eq!(
+        found,
+        target,
+        "{} punta a {} invece che alla CLI: rimuovilo",
+        link.display(),
+        found.display()
+    );
+    cli
 }
 
 #[test]
@@ -221,4 +235,30 @@ fn askpass_and_new_windows_use_the_cli_next_to_the_app() {
         environment.self_exe.canonicalize().unwrap(),
         cli.canonicalize().unwrap()
     );
+}
+
+#[test]
+fn only_askpass_and_new_windows_need_the_cli() {
+    let program = PathBuf::from("/opt/homebrew/bin/sdl-freerdp");
+    let freerdp = plan(vec![run(&program)]);
+    let mut ssh = run(&PathBuf::from("/usr/bin/ssh"));
+    if let LaunchStep::Run { askpass, .. } = &mut ssh {
+        *askpass = Some(portolano_connectors::AskpassSpec {
+            program: PathBuf::from("/Applications/Portolano.app/Contents/MacOS/portolano"),
+            entries: vec![portolano_connectors::AskpassEntry {
+                matcher: portolano_connectors::PromptMatcher::Password {
+                    user: "operatore".to_owned(),
+                    host: "web01.example.com".to_owned(),
+                },
+                secret: SecretRef::new(),
+            }],
+        });
+    }
+    let window = plan(vec![LaunchStep::OpenInTerminal {
+        argv: vec!["portolano".to_owned()],
+    }]);
+
+    assert!(!runs_the_cli(&freerdp));
+    assert!(runs_the_cli(&plan(vec![ssh])));
+    assert!(runs_the_cli(&window));
 }

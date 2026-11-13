@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::{Duration, Instant};
 
@@ -34,6 +35,8 @@ pub struct SessionManager {
     sessions: Mutex<HashMap<SessionId, Arc<dyn Session>>>,
     running: Arc<Running>,
     on_ended: Arc<RwLock<Option<Arc<EndedListener>>>>,
+    /// Set by [`SessionManager::close_all`]: the app is quitting.
+    closing: AtomicBool,
 }
 
 impl SessionManager {
@@ -53,7 +56,8 @@ impl SessionManager {
     /// terminal session; the other kinds ignore it.
     ///
     /// # Errors
-    /// As the start of each kind: [`SessionError::StdinSecretInTerminal`],
+    /// [`SessionError::Closing`] once the app quits; as the start of each
+    /// kind: [`SessionError::StdinSecretInTerminal`],
     /// [`SessionError::Terminal`], [`SessionError::Spawn`],
     /// [`SessionError::Io`].
     pub fn open(
@@ -63,6 +67,9 @@ impl SessionManager {
         size: TerminalSize,
         sink: Arc<dyn SessionSink>,
     ) -> Result<SessionOpened, SessionError> {
+        if self.closing.load(Ordering::SeqCst) {
+            return Err(SessionError::Closing);
+        }
         let id = SessionId::new();
         sink.state(&SessionState::Connecting);
         let finish = self.finish(id, Arc::clone(&sink));
@@ -118,6 +125,8 @@ impl SessionManager {
     /// programs to end: FreeRDP lives in its own window and would outlive
     /// the app. Returns whether they all ended in time.
     pub fn close_all(&self) -> bool {
+        // No session may start after the others were asked to end.
+        self.closing.store(true, Ordering::SeqCst);
         for (_, session) in self.lock().drain() {
             session.close();
         }

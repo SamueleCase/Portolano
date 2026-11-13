@@ -38,6 +38,17 @@ pub enum SessionError {
     )]
     StdinSecretInTerminal,
 
+    /// The app is quitting: no session starts any more.
+    #[error("l'app si sta chiudendo: nessuna nuova sessione")]
+    Closing,
+
+    /// The connection does not open in a terminal window: its client opens
+    /// a window of its own (Windows App).
+    #[error(
+        "questa connessione non si apre in un terminale: il suo client apre una propria finestra"
+    )]
+    NotInTerminal,
+
     /// The plan does not end with a program to run in a session.
     #[error("il piano di lancio non apre una sessione: {reason}")]
     NotASession {

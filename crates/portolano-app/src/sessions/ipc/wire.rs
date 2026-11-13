@@ -113,6 +113,8 @@ impl From<SessionError> for IpcError {
             SessionError::Unsupported { .. } => ErrorCode::Invalid,
             SessionError::Io { .. } => ErrorCode::Io,
             SessionError::Connect(_)
+            | SessionError::Closing
+            | SessionError::NotInTerminal
             | SessionError::StdinSecretInTerminal
             | SessionError::NotASession { .. }
             | SessionError::Terminal { .. }
