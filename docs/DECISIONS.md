@@ -509,6 +509,30 @@ mock in `docs/ui/NOTE.md`.
    `tauri dev`.
 5. **Screenshot**: WebKit headless di Playwright non disegna `backdrop-filter`; il vetro si valuta in `tauri dev`.
 
+### DEC-033 – Revisione di UI-WP3 (decise dal PM, 2026-11-13)
+1. **"Apri in terminale esterno" per RDP**: con FreeRDP il piano RDP con `new_window` riapre `portolano connect @<id>`
+   in una nuova finestra del terminale (lo stesso passo `OpenInTerminal` di SSH, con `relaunch_args`), dove vale il
+   comportamento della CLI (DEC-025, DEC-030.3). Vale anche per `portolano connect --new-window` della CLI, che prima
+   ignorava l'opzione per RDP con un avviso. Con Windows App la nuova finestra non ha senso: `open_in_terminal`
+   rifiuta con un errore chiaro ogni piano che non termina con `OpenInTerminal`. Eccezione di proprietà su
+   `portolano-connectors/src/rdp/**` per UI-WP3.
+2. **Ordine di input e ridimensionamenti**: il trasporto del frontend serializza per sessione (una chiamata alla
+   volta, l'input in attesa accorpato, del ridimensionamento conta solo l'ultimo), così la PTY riceve i tasti in ordine.
+3. **"Riprova"**: riapre con le stesse opzioni (non segrete) e lascia all'host la richiesta di un nuovo login per
+   "chiedi all'avvio"; la nuova sessione sostituisce la vecchia **al suo posto** nelle tab e resta selezionata; se la
+   riapertura fallisce la tab resta, con l'errore.
+4. **Schede RDP e Windows App** come nel mock: vetro, raggio 18, larghezze con token semantici nuovi
+   (`--width-session-card` 520 px, `--width-session-failure` 560 px; eccezione su `design/tokens.ts` per UI-WP3).
+   Durante la connessione il bottone è "Chiudi", "Disconnetti" solo a sessione connessa (come il mock).
+5. Il codice d'uscita di un processo ucciso da un segnale è 128 + n, come nella CLI; la nuova finestra riceve anche
+   `--vault`/`--vault-file` dell'app (DEC-004); il sidecar si richiede solo ai piani che lo usano.
+6. Limite annotato: con SIGTTIN bloccato (DEC-030.6), il client askpass lanciato in background (`&`) riceve EIO
+   invece di fermarsi fino al primo piano.
+7. Deviazione minore dal mock: la tab RDP mostra il client come "FreeRDP" e non "FreeRDP (automatico)", perché il
+   piano non dice se il client viene da `auto` o è stato imposto.
+8. **"Riprova"** con "chiedi all'avvio": il controller delle sessioni chiede il nuovo login all'host (`onRetry`), che
+   in UI-WP4 lo ottiene con `login_request` e il dialogo delle credenziali; il login non viene mai conservato.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
