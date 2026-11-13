@@ -215,6 +215,9 @@ export const tokens = {
   "--width-dialog-margin": "70px",
   "--width-side-panel": "620px",
   "--width-empty-state": "440px",
+  // The cards of the RDP and Windows App tabs (inventario §5.4, DEC-033.4).
+  "--width-session-card": "520px",
+  "--width-session-failure": "560px",
   "--width-toast": "360px",
   "--width-context-menu": "220px",
   "--width-tooltip": "260px",

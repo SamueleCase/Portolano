@@ -54,6 +54,10 @@
   flex: 1;
 }
 
+.route {
+  padding: 0 var(--space-fine-18) var(--space-fine-14);
+}
+
 .actionError {
   margin: 0;
   padding: 0 var(--space-fine-18) var(--space-fine-14);
@@ -77,11 +81,27 @@
   padding: var(--space-6);
 }
 
+/* The cards of the RDP and Windows App tabs (inventario §5.4, DEC-033.4). */
+.card,
+.failure {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
 .card {
   gap: var(--space-4);
-  width: 100%;
-  max-width: var(--width-empty-state);
+  max-width: var(--width-session-card);
   padding: var(--space-fine-28);
+}
+
+/* Doubled to win over the border of the glass, whatever the order of the
+   style sheets. */
+.failure.failure {
+  gap: var(--space-3);
+  max-width: var(--width-session-failure);
+  padding: var(--space-fine-26);
+  border-color: var(--color-error);
 }
 
 .cardTitle,
@@ -106,6 +126,10 @@
 .duration {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.logFigure {
+  margin: 0;
 }
 
 /* The end of a log: untrusted text, kept on its lines. */

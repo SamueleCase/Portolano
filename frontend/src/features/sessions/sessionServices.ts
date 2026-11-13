@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { TerminalIo } from "../../components/terminal/terminalIo";
 import { presentFailure } from "../../ipc/errors";
-import type { SessionId } from "../../ipc/sessions";
+import type { SessionId, SessionLogin } from "../../ipc/sessions";
 import type { SessionController } from "./controller";
 import type { OutputBus } from "./outputBus";
+import type { Session } from "./store";
 
 /**
  * What the session views work with: the app gives them the transport of the
@@ -15,6 +16,17 @@ export interface SessionServices {
   output: OutputBus;
   /** Opens an `http(s)` link of a terminal in the browser. */
   openLink: (url: string) => void;
+  /** A key typed in a terminal: the host calms the background while the user works. */
+  onActivity?: () => void;
+  /**
+   * Asked before "Riprova" opens `session` again (DEC-033.3): for a credential
+   * "ask at launch" the host asks the login anew and returns it; `{}` retries
+   * without a login, `null` gives up. The login goes to the backend and is not
+   * kept. Without it, "Riprova" retries without a login.
+   */
+  onRetry?: (session: Session) => Promise<{ login?: SessionLogin } | null>;
+  /** "Riprova" put session `next` in the place of `previous`: the host keeps it selected. */
+  onReplaced?: (previous: SessionId, next: SessionId) => void;
 }
 
 /** The services of the session views; the window that mounts them provides it. */
@@ -47,17 +59,33 @@ export function useTerminalIo(id: SessionId): TerminalIo {
   );
 }
 
-/** An action of a session tab, with the message of its last failure. */
+/**
+ * An action of a session tab: while it runs, `pending` is set and a second
+ * click does nothing; a failure leaves its message in `error`.
+ */
 export function useSessionAction(): {
   run: (action: () => Promise<unknown>) => void;
+  pending: boolean;
   error: string | undefined;
 } {
   const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  // Read synchronously: two clicks before a render must not both start.
+  const running = useRef(false);
   return {
     run: (action) => {
+      if (running.current) return;
+      running.current = true;
+      setPending(true);
       setError(undefined);
-      action().catch((failure: unknown) => setError(presentFailure(failure).message));
+      action()
+        .catch((failure: unknown) => setError(presentFailure(failure).message))
+        .finally(() => {
+          running.current = false;
+          setPending(false);
+        });
     },
+    pending,
     error,
   };
 }

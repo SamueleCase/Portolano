@@ -10,6 +10,8 @@ export interface SessionViewProps {
   session: Session;
   /** The summary of the connection, such as `user@host:22`: untrusted text. */
   summary: string;
+  /** The jumps and the destination of the connection, for its route. */
+  route?: readonly string[] | undefined;
 }
 
 /**
@@ -25,10 +27,15 @@ interface SessionViewHostProps extends SessionViewProps {
 }
 
 /** The body of the tab of `session`, from `views`. */
-export function SessionView({ session, summary, views = sessionViews }: SessionViewHostProps) {
+export function SessionView({
+  session,
+  summary,
+  route,
+  views = sessionViews,
+}: SessionViewHostProps) {
   const View = views[session.kind];
   if (View === undefined) {
     return <p role="status">{texts.sessions.missingView}</p>;
   }
-  return <View session={session} summary={summary} />;
+  return <View session={session} summary={summary} route={route} />;
 }

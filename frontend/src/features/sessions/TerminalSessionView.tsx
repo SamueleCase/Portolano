@@ -12,16 +12,17 @@ import { useSessionServices, useTerminalIo } from "./sessionServices";
  * single state, and the terminal, which stays after the end so that the last
  * output (the error of `ssh`, for one) can be read.
  */
-export function TerminalSessionView({ session, summary }: SessionViewProps) {
-  const { openLink } = useSessionServices();
+export function TerminalSessionView({ session, summary, route }: SessionViewProps) {
+  const { openLink, onActivity } = useSessionServices();
   const io = useTerminalIo(session.id);
   return (
     <div className={styles.view}>
-      <SessionHeader session={session} summary={summary} />
+      <SessionHeader session={session} summary={summary} route={route} />
       <div className={styles.terminal}>
         <Terminal
           io={io}
           onOpenLink={openLink}
+          {...(onActivity && { onActivity })}
           label={interpolate(texts.sessions.terminal, { summary: visibleText(summary) })}
         />
       </div>

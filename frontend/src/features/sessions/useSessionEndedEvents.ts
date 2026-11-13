@@ -4,11 +4,13 @@ import { events } from "../../bindings";
 import { useSessionsStore } from "./store";
 
 /**
- * Applies the `session-ended` events while mounted: the last state of a
- * session also reaches the tab whose state channel is gone (the window was
- * reloaded). An event of a session the interface does not know yet, one that
- * ended before `open_session` answered, changes nothing: its channel brings
- * the same state once the session is known.
+ * Applies the `session-ended` events while mounted. The state channel of a
+ * session already brings its last state; the event is the record the backend
+ * keeps of every end, so the store is right even if the message of the channel
+ * did not arrive. Applying it twice changes nothing, and an event of a session
+ * the store does not hold (a tab closed or replaced, or a session that ended
+ * before `open_session` answered, whose channel brings the end once it is
+ * added) is ignored by the store.
  */
 export function useSessionEndedEvents(): void {
   useEffect(() => {

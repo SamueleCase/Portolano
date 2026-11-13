@@ -71,6 +71,30 @@ describe("useSessionsStore", () => {
     expect(useSessionsStore.getState().sessions).toEqual([session]);
   });
 
+  it("puts a session in the place of another", () => {
+    const { added, replaced } = useSessionsStore.getState();
+    added(session);
+    added({ ...session, id: "session-2" });
+
+    replaced("session-1", { ...session, id: "session-3" });
+
+    expect(useSessionsStore.getState().sessions.map(({ id }) => id)).toEqual([
+      "session-3",
+      "session-2",
+    ]);
+  });
+
+  it("does not change the list for a state it ignores", () => {
+    const { added, stateChanged } = useSessionsStore.getState();
+    added({ ...session, state: { state: "ended", code: 0 } });
+    const before = useSessionsStore.getState().sessions;
+
+    stateChanged("session-1", { state: "connected" });
+    stateChanged("session-9", { state: "connected" });
+
+    expect(useSessionsStore.getState().sessions).toBe(before);
+  });
+
   it("forgets a removed session", () => {
     const { added, removed } = useSessionsStore.getState();
     added(session);

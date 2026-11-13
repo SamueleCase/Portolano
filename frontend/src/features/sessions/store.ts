@@ -18,16 +18,17 @@ export interface Session {
   exitCode?: number;
 }
 
-/** The open sessions, in the order they were opened. */
+/** The open sessions, in the order of their tabs. */
 export interface SessionsState {
   sessions: Session[];
   /** Adds a session just opened. */
   added: (session: Session) => void;
+  /** Puts `session` in the place of session `id` ("Riprova", DEC-033.3). */
+  replaced: (id: SessionId, session: Session) => void;
   /**
    * Records a new state of session `id` at time `at`. Unknown sessions (a
-   * `session-ended` that comes before the answer of `open_session`), and
-   * sessions already over (the close of a session that had failed), are left
-   * as they are.
+   * closed tab, or one replaced by "Riprova"), and sessions already over (the
+   * close of a session that had failed), are left as they are.
    */
   stateChanged: (id: SessionId, state: SessionState, at?: number) => void;
   /** Forgets session `id`, whose tab was closed. */
@@ -38,21 +39,28 @@ export interface SessionsState {
 export const useSessionsStore = create<SessionsState>()((set) => ({
   sessions: [],
   added: (session) => set(({ sessions }) => ({ sessions: [...sessions, session] })),
-  stateChanged: (id, state, at = Date.now()) =>
+  replaced: (id, session) =>
     set(({ sessions }) => ({
-      sessions: sessions.map((session) =>
-        session.id === id ? withState(session, state, at) : session,
-      ),
+      sessions: sessions.map((current) => (current.id === id ? session : current)),
     })),
+  stateChanged: (id, state, at = Date.now()) =>
+    set((current) => {
+      const index = current.sessions.findIndex((session) => session.id === id);
+      const session = current.sessions[index];
+      if (session === undefined || isOver(session.state)) {
+        // The same state: nothing re-renders for a state that changes nothing.
+        return current;
+      }
+      const sessions = [...current.sessions];
+      sessions[index] = withState(session, state, at);
+      return { sessions };
+    }),
   removed: (id) =>
     set(({ sessions }) => ({ sessions: sessions.filter((session) => session.id !== id) })),
 }));
 
-/** `session` in `state`; a session that is over keeps its last state. */
+/** `session`, still running, in `state`. */
 function withState(session: Session, state: SessionState, at: number): Session {
-  if (isOver(session.state)) {
-    return session;
-  }
   if (!isOver(state)) {
     return { ...session, state };
   }

@@ -1,4 +1,4 @@
-import { Card } from "../../components/Card";
+import { GlassPanel } from "../../components/GlassPanel";
 import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import { SessionHeader } from "./SessionHeader";
@@ -10,22 +10,22 @@ import styles from "./SessionViews.module.css";
  * follow, only "Aperta in Windows App" and "Chiudi"; if the application did
  * not open, the reason.
  */
-export function ExternalSessionView({ session, summary }: SessionViewProps) {
+export function ExternalSessionView({ session, summary, route }: SessionViewProps) {
   const { external, failure } = texts.sessions;
   return (
     <div className={styles.view}>
-      <SessionHeader session={session} summary={summary} />
+      <SessionHeader session={session} summary={summary} route={route} />
       <div className={styles.centered}>
         {session.state.state === "failed" ? (
-          <Card large tone="error" className={styles.card}>
+          <GlassPanel className={styles.failure}>
             <h3 className={styles.failureTitle}>{failure.title}</h3>
             <p className={styles.log}>{visibleText(session.state.reason)}</p>
-          </Card>
+          </GlassPanel>
         ) : (
-          <Card large className={styles.card}>
+          <GlassPanel className={styles.card}>
             <h3 className={styles.cardTitle}>{external.title}</h3>
             <p className={styles.cardText}>{external.text}</p>
-          </Card>
+          </GlassPanel>
         )}
       </div>
     </div>

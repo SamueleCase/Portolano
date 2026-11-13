@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 
 import { Button } from "../../components/Button";
-import { Card } from "../../components/Card";
+import { GlassPanel } from "../../components/GlassPanel";
 import { KeyValueGrid } from "../../components/KeyValueGrid";
 import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
@@ -17,18 +17,18 @@ import { formatDuration, isOver } from "./sessionState";
  * "Mostra log" shows the end of its log. No "Porta in primo piano" (SPEC-UI
  * §4.5). The space below is the one the integrated RDP panel will take.
  */
-export function RdpSessionView({ session, summary }: SessionViewProps) {
+export function RdpSessionView({ session, summary, route }: SessionViewProps) {
   const now = useNow(!isOver(session.state));
   const { rdp } = texts.sessions;
   const duration = formatDuration((session.endedAt ?? now) - session.startedAt);
   return (
     <div className={styles.view}>
-      <SessionHeader session={session} summary={summary} />
+      <SessionHeader session={session} summary={summary} route={route} />
       <div className={styles.centered}>
         {session.state.state === "failed" ? (
           <FailureCard reason={session.state.reason} />
         ) : (
-          <Card large className={styles.card}>
+          <GlassPanel className={styles.card}>
             <h3 className={styles.cardTitle}>{rdp.title}</h3>
             <p className={styles.cardText}>{rdp.text}</p>
             <KeyValueGrid
@@ -42,20 +42,24 @@ export function RdpSessionView({ session, summary }: SessionViewProps) {
                 },
               ]}
             />
-          </Card>
+          </GlassPanel>
         )}
       </div>
     </div>
   );
 }
 
-/** A failed FreeRDP, with its log behind "Mostra log": the log is untrusted text. */
+/**
+ * A failed FreeRDP, with its log behind "Mostra log". The log stays in the
+ * page, hidden, so that the button always controls an element; it is
+ * untrusted text.
+ */
 function FailureCard({ reason }: { reason: string }) {
   const [shown, setShown] = useState(false);
   const logId = useId();
   const { actions, failure, rdp } = texts.sessions;
   return (
-    <Card large tone="error" className={styles.card}>
+    <GlassPanel className={styles.failure}>
       <h3 className={styles.failureTitle}>{failure.title}</h3>
       <div>
         <Button
@@ -67,11 +71,9 @@ function FailureCard({ reason }: { reason: string }) {
           {shown ? actions.hideLog : actions.showLog}
         </Button>
       </div>
-      {shown && (
-        <pre id={logId} aria-label={rdp.log} className={styles.log}>
-          {visibleText(reason)}
-        </pre>
-      )}
-    </Card>
+      <figure id={logId} hidden={!shown} aria-label={rdp.log} className={styles.logFigure}>
+        <pre className={styles.log}>{visibleText(reason)}</pre>
+      </figure>
+    </GlassPanel>
   );
 }

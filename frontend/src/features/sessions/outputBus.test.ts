@@ -19,7 +19,7 @@ describe("createOutputBus", () => {
   });
 
   it("keeps only the latest whole chunks within the limit", () => {
-    const bus = createOutputBus(8);
+    const bus = createOutputBus({ bytes: 8, chunks: 100 });
     bus.open("session-1");
     bus.publish("session-1", bytes("vecchio"));
     bus.publish("session-1", bytes("nuovo"));
@@ -28,6 +28,17 @@ describe("createOutputBus", () => {
     bus.subscribe("session-1", (chunk) => received.push(chunk));
 
     expect(text(received)).toEqual(["nuovo"]);
+  });
+
+  it("keeps only the latest pieces within their number", () => {
+    const bus = createOutputBus({ bytes: 1024, chunks: 3 });
+    bus.open("session-1");
+    for (const key of "abcdef") bus.publish("session-1", bytes(key));
+    const received: Uint8Array[] = [];
+
+    bus.subscribe("session-1", (chunk) => received.push(chunk));
+
+    expect(text(received)).toEqual(["d", "e", "f"]);
   });
 
   it("keeps sessions apart and stops a listener on request", () => {
