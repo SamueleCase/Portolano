@@ -89,6 +89,21 @@ describe("serializedTransport", () => {
     ]);
   });
 
+  it("starts a later burst at once, once the queue of the first is gone", async () => {
+    const slow = slowTransport();
+    const transport = serializedTransport(slow.transport);
+    const first = transport.input("session-1", "a");
+    await slow.finish();
+    await first;
+
+    const second = transport.input("session-1", "b");
+
+    // Sent at once, not queued behind the first burst.
+    expect(slow.calls).toEqual(["session-1 input a", "session-1 input b"]);
+    await slow.finish();
+    await second;
+  });
+
   it("lets two sessions run side by side", async () => {
     const slow = slowTransport();
     const transport = serializedTransport(slow.transport);
