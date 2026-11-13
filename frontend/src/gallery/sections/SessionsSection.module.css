@@ -1,0 +1,9 @@
+/* The body of the selected session tab. Its height is definite, as the tab
+   area of the window: the terminal fills it and its size never follows its
+   rows. Twice the least height of a terminal holds the header, the route and
+   the whole RDP card. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: calc(2 * var(--size-terminal-min-height));
+}

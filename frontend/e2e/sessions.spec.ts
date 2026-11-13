@@ -67,6 +67,11 @@ test.describe("the session tabs", () => {
     await expect(terminal(section)).toContainText("Connection refused");
     await shoot(section, "ssh-failed");
     await section.getByRole("button", { name: actions.retry }).click();
+
+    // The new session took the place of the old tab, and is still selected.
+    const selected = section.getByRole("tab", { selected: true });
+    await expect(selected).toContainText(sessionsGallery.names["node-ssh-refused"]);
+    await expect(section.getByRole("tab")).toHaveCount(4);
     await expect(state(section)).toHaveText(status.connected);
     await expect(terminal(section)).toContainText("Last login");
   });

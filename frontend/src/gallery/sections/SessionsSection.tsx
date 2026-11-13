@@ -15,12 +15,14 @@ import type { SessionKind } from "../../ipc/sessions";
 import { FakeSessionTransport } from "../../test/fakeSessions";
 import styles from "../Gallery.module.css";
 import { GallerySection } from "../GallerySection";
+import sessionStyles from "./SessionsSection.module.css";
 
 type FakeNode = keyof typeof sessionsGallery.names;
 
 /** The names and summaries of the fake nodes, by id. */
 const names: Readonly<Record<string, string>> = sessionsGallery.names;
 const summaries: Readonly<Record<string, string>> = sessionsGallery.summaries;
+const routes: Readonly<Record<string, readonly string[]>> = sessionsGallery.routes;
 
 const PANEL = "gallery-sessions";
 const SIZE = { cols: 80, rows: 24 };
@@ -60,6 +62,7 @@ function workTab(session: Session): WorkTab {
  * brings back, FreeRDP running or failed with its log, Windows App.
  */
 export function SessionsSection() {
+  const [chosen, setChosen] = useState<string>();
   const services = useMemo(() => {
     const output = createOutputBus();
     const controller = createSessionController({
@@ -67,10 +70,15 @@ export function SessionsSection() {
       store: useSessionsStore.getState,
       output,
     });
-    return { controller, output, openLink: () => undefined };
+    return {
+      controller,
+      output,
+      openLink: () => undefined,
+      // "Riprova" keeps the new tab selected in the place of the old one.
+      onReplaced: (_previous: string, next: string) => setChosen(next),
+    };
   }, []);
   const sessions = useSessionsStore((state) => state.sessions);
-  const [chosen, setChosen] = useState<string>();
   // Once, even if the effect runs twice (strict mode in development).
   const started = useRef(false);
 
@@ -109,13 +117,14 @@ export function SessionsSection() {
             id={PANEL}
             role="tabpanel"
             aria-labelledby={selected ? tabElementId(PANEL, selected.id) : undefined}
-            className={styles.terminalBox}
+            className={sessionStyles.panel}
           >
             {selected ? (
               <SessionView
                 key={selected.id}
                 session={selected}
                 summary={summaries[selected.nodeId] ?? ""}
+                route={routes[selected.nodeId]}
               />
             ) : (
               <p className={styles.note}>{sessionsGallery.empty}</p>

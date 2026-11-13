@@ -64,5 +64,12 @@ export const sessionsGallery = {
     "node-rdp-failed": "EXAMPLE\\operatore@192.0.2.12:3389",
     "node-windows-app": "EXAMPLE\\operatore@192.0.2.11:3389",
   },
+  routes: {
+    "node-ssh-ok": ["bastion.example.com", "web01.example.com"],
+    "node-ssh-refused": ["web02.example.com"],
+    "node-rdp": ["192.0.2.10"],
+    "node-rdp-failed": ["192.0.2.12"],
+    "node-windows-app": ["192.0.2.11"],
+  },
   empty: "Nessuna sessione aperta.",
 } as const;
