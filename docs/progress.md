@@ -225,8 +225,12 @@ sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brie
 | UI-WP0 – prototipo e scheletro | **integrato** | merge `3c710d1`; due giri di revisione indipendente; punti incerti chiusi (DEC-028); gate su `main`: Rust 1035 test superati e 2 ignorati, frontend (typecheck, lint, format, Vitest, build, bindings) verdi, smoke `SMOKE OK`, e2e verdi (1 timeout di `page.screenshot` su 5 esecuzioni, affidato a UI-WP1) |
 | UI-WP1…WP3 (ondata B) | in corso | brief in `docs/pm/ui-wp{1,2,3}-brief.md`; proprietà dei file e UI-WP3 in due fasi (DEC-029, DEC-030); checkpoint visivo con l'utente sulla galleria dei componenti |
 | ↳ UI-WP1 design system | **integrato** | merge `53166dc`; due giri di revisione più i minori; gate su `main`: Rust 1035 + 2 ignorati, Vitest 336, e2e 10/10, smoke OK; vetro 29 disegni/s, p95 18 ms, fermo a pagina nascosta (DEC-032) |
-| ↳ UI-WP2 comandi | correzioni fatte, merge di `main` in corso | branch `worktree-agent-a890726d4e55c4c46`; due revisioni indipendenti (Rust e frontend, DEC-031); poi secondo giro di revisione e merge |
-| ↳ UI-WP3 sessioni | fase 1 fatta e revisionata, correzioni fatte | branch `worktree-agent-aefbdbbf96d392569` (ultimo `427d3bc`); fase 2 dopo il merge di WP1 e WP2, poi revisione completa |
+| ↳ UI-WP2 comandi | **integrato** | merge `0b9ff1a`; due giri di revisione (Rust e frontend) più le correzioni del secondo (DEC-031); gate su `main`: Rust 1223 + 2 ignorati, Vitest 406, e2e 10/10, smoke OK |
+| ↳ UI-WP3 sessioni | fase 2 in corso | branch `worktree-agent-aefbdbbf96d392569`; fase 1 revisionata e corretta (DEC-030); poi revisione completa e merge |
+
+`npm audit`: 0 vulnerabilità nelle dipendenze di produzione; 10 moderate solo in quelle di sviluppo (ESLint 10 e
+typescript-eslint tramite `minimatch`, DoS sui pattern glob), senza correzione compatibile con le versioni di SPEC-UI
+§2.1 (npm propone di tornare a ESLint 9): accettate, da ricontrollare in UI-WP7.
 
 Ripresa dell'ondata B: per ogni branch `git -C .claude/worktrees/<agent> log --oneline d49eb52..HEAD` e `status`; un
 sottoagente interrotto si riprende con SendMessage se la sessione è la stessa, altrimenti con un nuovo sottoagente nel
