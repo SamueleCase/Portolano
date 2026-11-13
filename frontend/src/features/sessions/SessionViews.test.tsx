@@ -151,6 +151,31 @@ describe("the RDP tab", () => {
     });
   });
 
+  it("shows the spinner only on the button pressed, and disables the other", async () => {
+    const calls = renderView(
+      session({ state: { state: "failed", code: 131, reason: "rifiutata" } }),
+    );
+    let finish: () => void = () => undefined;
+    calls.retry.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          finish = () => resolve("session-2");
+        }),
+    );
+
+    const retry = screen.getByRole("button", { name: actions.retry });
+    const close = screen.getByRole("button", { name: actions.close });
+
+    await userEvent.click(retry);
+
+    expect(retry).toHaveAttribute("aria-busy", "true");
+    expect(close).toHaveAttribute("aria-disabled", "true");
+    expect(close).not.toHaveAttribute("aria-busy");
+    act(() => {
+      finish();
+    });
+  });
+
   it("keeps the log in the page, hidden until asked", () => {
     renderView(session({ state: { state: "failed", code: 131, reason: "rifiutata" } }));
     const toggle = screen.getByRole("button", { name: actions.showLog });

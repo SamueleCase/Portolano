@@ -6,7 +6,7 @@ import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import type { SessionState } from "../../ipc/sessions";
 import styles from "./SessionViews.module.css";
-import { useSessionAction, useSessionServices } from "./sessionServices";
+import { type SessionAction, useSessionAction, useSessionServices } from "./sessionServices";
 import { canRetry, sessionDot, statusLabel } from "./sessionState";
 import type { Session } from "./store";
 
@@ -36,6 +36,11 @@ export function SessionHeader({ session, summary, route }: SessionHeaderProps) {
   const services = useSessionServices();
   const { controller } = services;
   const { run, pending, error } = useSessionAction();
+  // The button pressed shows the spinner, the other one waits disabled.
+  const busy = (action: SessionAction) => ({
+    loading: pending === action,
+    disabled: pending !== undefined && pending !== action,
+  });
   const { actions } = texts.sessions;
   const phase = routePhase(session.state);
   // With Windows App the connection is not ours to end.
@@ -59,16 +64,22 @@ export function SessionHeader({ session, summary, route }: SessionHeaderProps) {
         </span>
         <span className={styles.spacer} />
         {canRetry(session.state) && (
-          <Button variant="primary" loading={pending} onClick={() => run(retry)}>
+          <Button variant="primary" {...busy("retry")} onClick={() => run("retry", retry)}>
             {actions.retry}
           </Button>
         )}
         {connected ? (
-          <Button loading={pending} onClick={() => run(() => controller.disconnect(session.id))}>
+          <Button
+            {...busy("disconnect")}
+            onClick={() => run("disconnect", () => controller.disconnect(session.id))}
+          >
             {actions.disconnect}
           </Button>
         ) : (
-          <Button loading={pending} onClick={() => run(() => controller.close(session.id))}>
+          <Button
+            {...busy("close")}
+            onClick={() => run("close", () => controller.close(session.id))}
+          >
             {actions.close}
           </Button>
         )}

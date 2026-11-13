@@ -59,30 +59,34 @@ export function useTerminalIo(id: SessionId): TerminalIo {
   );
 }
 
+/** The actions of the header of a session tab. */
+export type SessionAction = "retry" | "disconnect" | "close";
+
 /**
- * An action of a session tab: while it runs, `pending` is set and a second
- * click does nothing; a failure leaves its message in `error`.
+ * The actions of a session tab, one at a time: while one runs, `pending`
+ * names it and another click does nothing; a failure leaves its message in
+ * `error`.
  */
 export function useSessionAction(): {
-  run: (action: () => Promise<unknown>) => void;
-  pending: boolean;
+  run: (name: SessionAction, action: () => Promise<unknown>) => void;
+  pending: SessionAction | undefined;
   error: string | undefined;
 } {
   const [error, setError] = useState<string>();
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<SessionAction>();
   // Read synchronously: two clicks before a render must not both start.
   const running = useRef(false);
   return {
-    run: (action) => {
+    run: (name, action) => {
       if (running.current) return;
       running.current = true;
-      setPending(true);
+      setPending(name);
       setError(undefined);
       action()
         .catch((failure: unknown) => setError(presentFailure(failure).message))
         .finally(() => {
           running.current = false;
-          setPending(false);
+          setPending(undefined);
         });
     },
     pending,
