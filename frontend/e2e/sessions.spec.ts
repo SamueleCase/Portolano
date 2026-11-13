@@ -25,8 +25,10 @@ function state(section: Locator): Locator {
   return section.getByRole("tabpanel").getByRole("status");
 }
 
+/** The terminal of the selected tab, named after its connection. */
 function terminal(section: Locator): Locator {
-  return section.getByRole("group", { name: texts.components.terminal.label });
+  const name = new RegExp(`^${texts.sessions.terminal.replace("{summary}", "")}`);
+  return section.getByRole("tabpanel").getByRole("group", { name });
 }
 
 async function shoot(section: Locator, name: string): Promise<void> {

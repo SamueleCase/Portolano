@@ -17,6 +17,7 @@ export const sessions = {
     hideLog: "Nascondi log",
   },
   header: "Stato della sessione",
+  terminal: "Sessione {summary}",
   rdp: {
     title: "Sessione RDP aperta in una finestra esterna",
     text: "Il desktop remoto è gestito da FreeRDP. Qui vedi solo lo stato della sessione.",

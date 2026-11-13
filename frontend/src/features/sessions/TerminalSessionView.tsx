@@ -1,4 +1,7 @@
 import { Terminal } from "../../components/terminal/Terminal";
+import { visibleText } from "../../components/visibleText";
+import { interpolate } from "../../i18n/format";
+import { texts } from "../../i18n/it";
 import { SessionHeader } from "./SessionHeader";
 import type { SessionViewProps } from "./SessionView";
 import styles from "./SessionViews.module.css";
@@ -16,7 +19,11 @@ export function TerminalSessionView({ session, summary }: SessionViewProps) {
     <div className={styles.view}>
       <SessionHeader session={session} summary={summary} />
       <div className={styles.terminal}>
-        <Terminal io={io} onOpenLink={openLink} />
+        <Terminal
+          io={io}
+          onOpenLink={openLink}
+          label={interpolate(texts.sessions.terminal, { summary: visibleText(summary) })}
+        />
       </div>
     </div>
   );

@@ -15,16 +15,21 @@ import { type Session, useSessionsStore } from "./store";
 // sends to the terminal; the e2e runs the real one in WebKit.
 vi.mock("../../components/terminal/Terminal", async () => {
   const { useEffect, useState } = await import("react");
-  const { texts: shown } = await import("../../i18n/it");
   return {
-    Terminal: ({ io }: { io: import("../../components/terminal/terminalIo").TerminalIo }) => {
+    Terminal: ({
+      io,
+      label,
+    }: {
+      io: import("../../components/terminal/terminalIo").TerminalIo;
+      label: string;
+    }) => {
       const [text, setText] = useState("");
       useEffect(
         () => io.subscribe((data) => setText((before) => before + new TextDecoder().decode(data))),
         [io],
       );
       return (
-        <div role="group" aria-label={shown.components.terminal.label}>
+        <div role="group" aria-label={label}>
           {text}
         </div>
       );
@@ -132,7 +137,13 @@ describe("the SSH tab", () => {
   it("shows the terminal under the state of the connection", () => {
     renderView(session({ kind: "terminal", nodeId: "node-ssh-ok" }));
 
-    expect(screen.getByRole("group", { name: texts.components.terminal.label })).toBeVisible();
+    expect(
+      screen.getByRole("group", {
+        name: interpolate(texts.sessions.terminal, {
+          summary: "EXAMPLE\\operatore@192.0.2.10:3389",
+        }),
+      }),
+    ).toBeVisible();
     expect(screen.getByRole("status")).toHaveTextContent(status.connected);
   });
 
