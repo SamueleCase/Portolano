@@ -68,7 +68,10 @@ function renderView(
     output,
   });
   const calls = {
-    retry: vi.spyOn(controller, "retry").mockResolvedValue("session-2"),
+    retry: vi.spyOn(controller, "retry").mockImplementation((_id, again) => {
+      again.onReplaced?.("session-2");
+      return Promise.resolve("session-2");
+    }),
     disconnect: vi.spyOn(controller, "disconnect").mockResolvedValue(),
     close: vi.spyOn(controller, "close").mockResolvedValue(),
   };
@@ -179,7 +182,10 @@ describe("the RDP tab", () => {
 
     await userEvent.click(screen.getByRole("button", { name: actions.retry }));
 
-    expect(calls.retry).toHaveBeenCalledWith("session-1", { cols: 80, rows: 24 }, undefined);
+    expect(calls.retry).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({ size: { cols: 80, rows: 24 }, login: undefined }),
+    );
   });
 
   it("asks the host for a login before retrying, and tells it the new session", async () => {
@@ -193,7 +199,10 @@ describe("the RDP tab", () => {
 
     await userEvent.click(screen.getByRole("button", { name: actions.retry }));
 
-    expect(calls.retry).toHaveBeenCalledWith("session-1", { cols: 80, rows: 24 }, login);
+    expect(calls.retry).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({ size: { cols: 80, rows: 24 }, login }),
+    );
     expect(onReplaced).toHaveBeenCalledWith("session-1", "session-2");
   });
 

@@ -134,7 +134,7 @@ describe("createSessionController", () => {
     });
     await controller.open({ nodeId: "node-rdp", size: SIZE });
 
-    const retried = await controller.retry(failed, SIZE);
+    const retried = await controller.retry(failed, { size: SIZE });
 
     expect(sessions().map(({ nodeId }) => nodeId)).toEqual([
       "node-ssh-ok",
@@ -150,13 +150,31 @@ describe("createSessionController", () => {
     expect(transport.closed).toEqual([failed]);
   });
 
+  it("tells the host of the new session before closing the old one", async () => {
+    const { controller, transport } = setup();
+    const failed = await controller.open({ nodeId: "node-ssh-refused", size: SIZE });
+    const order: string[] = [];
+    const close = transport.close.bind(transport);
+    transport.close = (id) => {
+      order.push(`close ${id}`);
+      return close(id);
+    };
+
+    const retried = await controller.retry(failed, {
+      size: SIZE,
+      onReplaced: (next) => order.push(`replaced by ${next}`),
+    });
+
+    expect(order).toEqual([`replaced by ${retried}`, `close ${failed}`]);
+  });
+
   it("keeps the old tab when the connection cannot open again", async () => {
     const { controller, transport } = setup();
     const failed = await controller.open({ nodeId: "node-ssh-refused", size: SIZE });
     transport.open = () =>
       Promise.reject(new IpcFailure({ code: "vaultLocked", message: "vault bloccato" }));
 
-    await expect(controller.retry(failed, SIZE)).rejects.toBeInstanceOf(IpcFailure);
+    await expect(controller.retry(failed, { size: SIZE })).rejects.toBeInstanceOf(IpcFailure);
 
     expect(sessions().map(({ id }) => id)).toEqual([failed]);
     expect(transport.closed).toEqual([]);
@@ -168,7 +186,7 @@ describe("createSessionController", () => {
     const login = { username: "operatore", domain: null, password: "digitata-sentinella" };
     const first = await controller.open({ nodeId: "node-ssh-refused", size: SIZE, login });
 
-    await controller.retry(first, SIZE);
+    await controller.retry(first, { size: SIZE });
 
     expect(opened.mock.calls[0]?.[0].login).toEqual(login);
     expect(opened.mock.calls[1]?.[0]).not.toHaveProperty("login");
@@ -233,7 +251,7 @@ describe("createSessionController", () => {
   it("refuses to retry a session it does not know", async () => {
     const { controller } = setup();
 
-    await expect(controller.retry("session-9", SIZE)).rejects.toMatchObject({
+    await expect(controller.retry("session-9", { size: SIZE })).rejects.toMatchObject({
       ipc: { code: "notFound", message: texts.sessions.notFound },
     });
   });

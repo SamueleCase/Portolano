@@ -30,12 +30,25 @@ export interface SessionController {
   close: (id: SessionId) => Promise<void>;
   /**
    * Opens the connection of session `id` again with its options (DEC-033.3):
-   * the new session takes the place of the old one in the store, which is
-   * then closed; resolves to the new id. `login` is a login asked anew for a
-   * credential "ask at launch", not kept. If the new session cannot open,
-   * the old one stays and the promise rejects.
+   * the new session takes the place of the old one in the store, `again.onReplaced`
+   * hears of it, and only then the old one is closed; resolves to the new
+   * id. If the new session cannot open, the old one stays and the promise
+   * rejects.
    */
-  retry: (id: SessionId, size: TerminalSize, login?: SessionLogin) => Promise<SessionId>;
+  retry: (id: SessionId, again: RetryRequest) => Promise<SessionId>;
+}
+
+/** How "Riprova" opens a session again. */
+export interface RetryRequest {
+  /** The size of the terminal of the new session. */
+  size: TerminalSize;
+  /** A login asked anew for a credential "ask at launch"; never kept. */
+  login?: SessionLogin | undefined;
+  /**
+   * Called with the id of the new session once it has taken the place of the
+   * old one, before the old one is closed: the host selects it at once.
+   */
+  onReplaced?: (next: SessionId) => void;
 }
 
 /** What the controller works with; `now` is a parameter for the tests. */
@@ -132,7 +145,7 @@ export function createSessionController({
         forget(id);
       }
     },
-    async retry(id, size, login) {
+    async retry(id, { size, login, onReplaced }) {
       const previous = store().sessions.find((session) => session.id === id);
       if (previous === undefined) {
         throw new IpcFailure({ code: "notFound", message: texts.sessions.notFound });
@@ -145,6 +158,7 @@ export function createSessionController({
       store().replaced(id, session);
       attach();
       forget(id);
+      onReplaced?.(session.id);
       // The old program is over or about to be: a failure to end it leaves
       // nothing to show, its tab is already the new one.
       await release(id).catch(() => undefined);

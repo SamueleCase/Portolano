@@ -43,8 +43,11 @@ export function SessionHeader({ session, summary, route }: SessionHeaderProps) {
   const retry = async () => {
     const again = services.onRetry ? await services.onRetry(session) : {};
     if (again === null) return;
-    const next = await controller.retry(session.id, RETRY_SIZE, again.login);
-    services.onReplaced?.(session.id, next);
+    await controller.retry(session.id, {
+      size: RETRY_SIZE,
+      login: again.login,
+      onReplaced: (next) => services.onReplaced?.(session.id, next),
+    });
   };
   return (
     <GlassPanel variant="inner" role="group" aria-label={texts.sessions.header}>
