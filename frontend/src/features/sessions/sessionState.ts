@@ -1,3 +1,5 @@
+import type { DotState } from "../../components/StatusDot";
+import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import type { SessionKind, SessionState } from "../../ipc/sessions";
 
@@ -42,10 +44,22 @@ export function statusLabel(kind: SessionKind, state: SessionState): string {
       }
       return kind === "external" ? status.externalOpen : status.connected;
     case "ended":
-      return status.endedWithCode(state.code);
+      return interpolate(status.endedWithCode, { code: state.code });
     case "failed":
-      return state.code === null ? status.failed : status.failedWithCode(state.code);
+      return state.code === null
+        ? status.failed
+        : interpolate(status.failedWithCode, { code: state.code });
   }
+}
+
+/** Whether the program still runs, so that the tab offers "Disconnetti". */
+export function isRunning(state: SessionState): boolean {
+  return state.state === "connecting" || state.state === "connected";
+}
+
+/** The dot of the tab and of the header: none once the session has ended. */
+export function sessionDot(state: SessionState): DotState {
+  return state.state === "ended" ? "idle" : state.state;
 }
 
 /** A duration as `hh:mm:ss`, as the RDP tab shows it. */

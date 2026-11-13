@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
-import { canRetry, exitCodeOf, formatDuration, isOver, statusLabel } from "./sessionState";
+import {
+  canRetry,
+  exitCodeOf,
+  formatDuration,
+  isOver,
+  isRunning,
+  sessionDot,
+  statusLabel,
+} from "./sessionState";
 
 const status = texts.sessions.status;
 
@@ -37,13 +46,29 @@ describe("statusLabel", () => {
   });
 
   it("names the exit code of a session that is over", () => {
-    expect(statusLabel("terminal", { state: "ended", code: 0 })).toBe(status.endedWithCode(0));
+    expect(statusLabel("terminal", { state: "ended", code: 0 })).toBe(
+      interpolate(status.endedWithCode, { code: 0 }),
+    );
     expect(statusLabel("terminal", { state: "failed", code: 255, reason: "rifiutata" })).toBe(
-      status.failedWithCode(255),
+      interpolate(status.failedWithCode, { code: 255 }),
     );
     expect(statusLabel("terminal", { state: "failed", code: null, reason: "persa" })).toBe(
       status.failed,
     );
+  });
+});
+
+describe("running sessions", () => {
+  it("run until their program is over", () => {
+    expect(isRunning({ state: "connecting" })).toBe(true);
+    expect(isRunning({ state: "connected" })).toBe(true);
+    expect(isRunning({ state: "ended", code: 0 })).toBe(false);
+  });
+
+  it("show a dot of their phase, and none once ended", () => {
+    expect(sessionDot({ state: "connected" })).toBe("connected");
+    expect(sessionDot({ state: "failed", code: 255, reason: "rifiutata" })).toBe("failed");
+    expect(sessionDot({ state: "ended", code: 0 })).toBe("idle");
   });
 });
 

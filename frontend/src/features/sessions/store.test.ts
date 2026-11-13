@@ -31,12 +31,22 @@ describe("useSessionsStore", () => {
     const { added, stateChanged } = useSessionsStore.getState();
     added(session);
 
-    stateChanged("session-1", { state: "ended", code: 3 });
+    stateChanged("session-1", { state: "ended", code: 3 }, 9_000);
 
     expect(useSessionsStore.getState().sessions[0]).toMatchObject({
       state: { state: "ended", code: 3 },
       exitCode: 3,
+      endedAt: 9_000,
     });
+  });
+
+  it("has no end time while the program runs", () => {
+    const { added, stateChanged } = useSessionsStore.getState();
+    added(session);
+
+    stateChanged("session-1", { state: "connected" }, 9_000);
+
+    expect(useSessionsStore.getState().sessions[0]?.endedAt).toBeUndefined();
   });
 
   it("keeps the last state of a session that is over", () => {

@@ -1,32 +1,36 @@
 /**
  * The transport of the sessions (SPEC-UI §4.4, §5.1): how the interface opens,
  * drives and closes a session and receives its output and states. The app uses
- * the Tauri channels (`sessionsTauri.ts`); the tests a fake in memory
- * (`test/fakeSessions.ts`). Nothing that crosses it is a secret.
+ * the commands and channels of the bindings (`sessionsTauri.ts`); the tests a
+ * fake in memory (`test/fakeSessions.ts`). The only secret that crosses it is
+ * the password of a login asked at launch, on its way to the backend.
  */
 
-/** Identifies an open session. */
-export type SessionId = string;
+import type {
+  SessionKind as BackendSessionKind,
+  LoginInput_Deserialize,
+  SessionId,
+  SessionOptionsInput_Deserialize,
+  SessionState_Serialize,
+  TerminalSize,
+} from "../bindings";
+
+export type { SessionId, TerminalSize };
 
 /**
- * How a session is shown: a terminal (SSH, or FreeRDP that has to ask), FreeRDP
- * in its own window, an application that has the connection (Windows App), and
- * the integrated RDP panel to come (DEC-027).
+ * How a session is shown: the kinds of the backend, and the integrated RDP
+ * panel to come (DEC-027), which has no view yet.
  */
-export type SessionKind = "terminal" | "rdp-external" | "external" | "rdp-embedded";
+export type SessionKind = BackendSessionKind | "rdp-embedded";
 
 /** The state of a session, as the backend sends it (ambiguity 11). */
-export type SessionState =
-  | { state: "connecting" }
-  | { state: "connected" }
-  | { state: "ended"; code: number }
-  | { state: "failed"; code: number | null; reason: string };
+export type SessionState = SessionState_Serialize;
 
-/** The size of a terminal, in characters. */
-export interface TerminalSize {
-  cols: number;
-  rows: number;
-}
+/** The options of a connection: the RDP client chosen in the interface. */
+export type SessionOptions = SessionOptionsInput_Deserialize;
+
+/** The login typed for a credential "ask at launch" (DEC-016.3). */
+export type SessionLogin = LoginInput_Deserialize;
 
 /** What opening a session needs. */
 export interface OpenSessionRequest {
@@ -34,6 +38,9 @@ export interface OpenSessionRequest {
   nodeId: string;
   /** The size of the terminal, for a session that turns out to have one. */
   size: TerminalSize;
+  options?: SessionOptions;
+  /** Only for a credential "ask at launch"; never kept after the call. */
+  login?: SessionLogin;
 }
 
 /** A session just opened: its kind picks the view of its tab. */

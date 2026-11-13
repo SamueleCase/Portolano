@@ -1,5 +1,6 @@
 import { texts } from "../../i18n/it";
 import type {
+  OpenSessionRequest,
   SessionHandlers,
   SessionId,
   SessionTransport,
@@ -21,14 +22,25 @@ export class SessionNotFound extends Error {
 
 /** Opens and drives sessions, keeping the store and the output bus current. */
 export interface SessionController {
-  /** Opens a session on connection `nodeId`; resolves to its id. */
-  open: (nodeId: string, size: TerminalSize) => Promise<SessionId>;
+  /**
+   * Opens a session on the connection of `request`; resolves to its id. The
+   * login, if any, goes to the backend and is not kept.
+   */
+  open: (request: OpenSessionRequest) => Promise<SessionId>;
   input: (id: SessionId, data: string) => Promise<void>;
   resize: (id: SessionId, size: TerminalSize) => Promise<void>;
-  /** Closes session `id` and forgets it. */
+  /**
+   * Ends the program of session `id` ("Disconnetti"); its tab stays, with the
+   * last state the backend sends.
+   */
+  disconnect: (id: SessionId) => Promise<void>;
+  /** Closes session `id`, ending its program if it still runs, and forgets it. */
   close: (id: SessionId) => Promise<void>;
-  /** Closes session `id` and opens its connection again; resolves to the new id. */
-  retry: (id: SessionId, size: TerminalSize) => Promise<SessionId>;
+  /**
+   * Closes session `id` and opens its connection again with `again` (a login
+   * asked anew, if the credential is asked at launch); resolves to the new id.
+   */
+  retry: (id: SessionId, again: Omit<OpenSessionRequest, "nodeId">) => Promise<SessionId>;
 }
 
 /** What the controller works with; `now` is a parameter for the tests. */
@@ -47,12 +59,12 @@ export function createSessionController({
   output,
   now = Date.now,
 }: SessionControllerDeps): SessionController {
-  const open = async (nodeId: string, size: TerminalSize): Promise<SessionId> => {
+  const open = async (request: OpenSessionRequest): Promise<SessionId> => {
     const deferred = deferredHandlers();
-    const opened = await transport.open({ nodeId, size }, deferred.handlers);
+    const opened = await transport.open(request, deferred.handlers);
     const session: Session = {
       id: opened.id,
-      nodeId,
+      nodeId: request.nodeId,
       kind: opened.kind,
       state: { state: "connecting" },
       startedAt: now(),
@@ -61,14 +73,25 @@ export function createSessionController({
     output.open(opened.id);
     deferred.attach({
       onOutput: (bytes) => output.publish(opened.id, bytes),
-      onState: (state) => store().stateChanged(opened.id, state),
+      onState: (state) => store().stateChanged(opened.id, state, now()),
     });
     return opened.id;
   };
 
+  // The sessions already closed in the backend by "Disconnetti": closing their
+  // tab only forgets them.
+  const released = new Set<SessionId>();
+
+  const disconnect = async (id: SessionId): Promise<void> => {
+    released.add(id);
+    await transport.close(id);
+  };
+
   const close = async (id: SessionId): Promise<void> => {
     try {
-      await transport.close(id);
+      if (!released.delete(id)) {
+        await transport.close(id);
+      }
     } finally {
       // The tab goes away even if the backend no longer knows the session.
       store().removed(id);
@@ -80,14 +103,15 @@ export function createSessionController({
     open,
     input: (id, data) => transport.input(id, data),
     resize: (id, size) => transport.resize(id, size),
+    disconnect,
     close,
-    async retry(id, size) {
+    async retry(id, again) {
       const session = store().sessions.find((candidate) => candidate.id === id);
       if (session === undefined) {
         throw new SessionNotFound(id);
       }
       await close(id);
-      return open(session.nodeId, size);
+      return open({ ...again, nodeId: session.nodeId });
     },
   };
 }

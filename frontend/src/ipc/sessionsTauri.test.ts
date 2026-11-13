@@ -7,11 +7,15 @@ import { IpcFailure } from "./result";
 import { FRAME_VERSION, FrameKind, type SessionHandlers, type SessionState } from "./sessions";
 import { tauriSessionTransport } from "./sessionsTauri";
 
+/** The arguments of a command as an object; the session commands always pass one. */
+function argsOf(args: InvokeArgs | undefined): Record<string, unknown> {
+  // `InvokeArgs` also admits byte arrays, which no session command sends.
+  return (args ?? {}) as Record<string, unknown>;
+}
+
 /** The channel passed to a command as `name`. */
 function channel(args: InvokeArgs | undefined, name: string): Channel<unknown> {
-  // `InvokeArgs` also admits byte arrays, but the session commands always
-  // pass an object; the `instanceof` below checks what is read from it.
-  const value = (args as Record<string, unknown> | undefined)?.[name];
+  const value = argsOf(args)[name];
   if (!(value instanceof Channel)) {
     throw new Error(`no channel "${name}"`);
   }
@@ -29,11 +33,18 @@ function handlers(): SessionHandlers & { outputs: string[]; states: SessionState
   };
 }
 
+const SIZE = { cols: 80, rows: 24 };
+
 describe("tauriSessionTransport", () => {
-  it("opens a session and passes on its output frames and states", async () => {
+  it("opens a session with the generated command and passes on its frames and states", async () => {
     mockIPC((command, args) => {
       expect(command).toBe("open_session");
-      expect(args).toMatchObject({ nodeId: "node-1", size: { cols: 80, rows: 24 } });
+      expect(argsOf(args)).toMatchObject({
+        node: "node-1",
+        options: {},
+        login: null,
+        size: SIZE,
+      });
       channel(args, "states").onmessage({ state: "connected" });
       const frame = new Uint8Array([FRAME_VERSION, FrameKind.terminalOutput, 111, 107]);
       channel(args, "output").onmessage(frame.buffer);
@@ -41,14 +52,39 @@ describe("tauriSessionTransport", () => {
     });
     const received = handlers();
 
-    const opened = await tauriSessionTransport.open(
-      { nodeId: "node-1", size: { cols: 80, rows: 24 } },
-      received,
-    );
+    const opened = await tauriSessionTransport.open({ nodeId: "node-1", size: SIZE }, received);
 
     expect(opened).toEqual({ id: "session-1", kind: "terminal" });
     expect(received.states).toEqual([{ state: "connected" }]);
     expect(received.outputs).toEqual(["ok"]);
+  });
+
+  it("passes the login and the options to the backend", async () => {
+    const calls = vi.fn();
+    mockIPC((_command, args) => {
+      calls(argsOf(args)["login"], argsOf(args)["options"]);
+      return { id: "session-1", kind: "rdp-external" };
+    });
+    const login = { username: "operatore", domain: "EXAMPLE", password: "digitata" };
+
+    await tauriSessionTransport.open(
+      { nodeId: "node-1", size: SIZE, options: { rdpClient: "freerdp" }, login },
+      handlers(),
+    );
+
+    expect(calls).toHaveBeenCalledWith(login, { rdpClient: "freerdp" });
+  });
+
+  it("reads a failure without code as one with a null code", async () => {
+    mockIPC((_command, args) => {
+      channel(args, "states").onmessage({ state: "failed", reason: "persa" });
+      return { id: "session-1", kind: "terminal" };
+    });
+    const received = handlers();
+
+    await tauriSessionTransport.open({ nodeId: "node-1", size: SIZE }, received);
+
+    expect(received.states).toEqual([{ state: "failed", code: null, reason: "persa" }]);
   });
 
   it("drops frames it cannot read", async () => {
@@ -58,7 +94,7 @@ describe("tauriSessionTransport", () => {
     });
     const received = handlers();
 
-    await tauriSessionTransport.open({ nodeId: "node-1", size: { cols: 80, rows: 24 } }, received);
+    await tauriSessionTransport.open({ nodeId: "node-1", size: SIZE }, received);
 
     expect(received.outputs).toEqual([]);
   });

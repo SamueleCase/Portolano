@@ -34,7 +34,7 @@ describe("createSessionController", () => {
   it("adds an opened session with its kind and start time", async () => {
     const { controller } = setup();
 
-    const id = await controller.open("node-rdp", SIZE);
+    const id = await controller.open({ nodeId: "node-rdp", size: SIZE });
 
     expect(sessions()).toEqual([
       {
@@ -50,7 +50,7 @@ describe("createSessionController", () => {
   it("follows the states of the session", async () => {
     const { controller } = setup();
 
-    await controller.open("node-ssh-ok", SIZE);
+    await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
     await played();
 
     expect(sessions()[0]?.state).toEqual({ state: "connected" });
@@ -59,7 +59,7 @@ describe("createSessionController", () => {
   it("records a failed connection with its exit code", async () => {
     const { controller } = setup();
 
-    await controller.open("node-ssh-refused", SIZE);
+    await controller.open({ nodeId: "node-ssh-refused", size: SIZE });
     await vi.waitFor(() => expect(sessions()[0]?.state.state).toBe("failed"));
 
     expect(sessions()[0]?.exitCode).toBe(255);
@@ -67,7 +67,7 @@ describe("createSessionController", () => {
 
   it("sends the output of the terminal to the bus", async () => {
     const { controller, output } = setup();
-    const id = await controller.open("node-ssh-ok", SIZE);
+    const id = await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
     await played();
     const received: string[] = [];
 
@@ -78,7 +78,7 @@ describe("createSessionController", () => {
 
   it("passes input and size to the transport", async () => {
     const { controller, transport } = setup();
-    const id = await controller.open("node-ssh-ok", SIZE);
+    const id = await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
 
     await controller.input(id, "ls\r");
     await controller.resize(id, { cols: 120, rows: 40 });
@@ -89,7 +89,32 @@ describe("createSessionController", () => {
 
   it("closes and forgets a session", async () => {
     const { controller, transport } = setup();
-    const id = await controller.open("node-ssh-ok", SIZE);
+    const id = await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
+
+    await controller.close(id);
+
+    expect(transport.closed).toEqual([id]);
+    expect(sessions()).toEqual([]);
+  });
+
+  it("disconnects a session and keeps its tab with the last state", async () => {
+    const { controller, transport } = setup();
+    const id = await controller.open({ nodeId: "node-rdp", size: SIZE });
+
+    await controller.disconnect(id);
+
+    expect(transport.closed).toEqual([id]);
+    expect(sessions()[0]).toMatchObject({
+      id,
+      state: { state: "ended", code: 0 },
+      endedAt: 42_000,
+    });
+  });
+
+  it("closes a disconnected tab without asking the backend again", async () => {
+    const { controller, transport } = setup();
+    const id = await controller.open({ nodeId: "node-rdp", size: SIZE });
+    await controller.disconnect(id);
 
     await controller.close(id);
 
@@ -99,9 +124,9 @@ describe("createSessionController", () => {
 
   it("retries a failed connection as a new session on the same node", async () => {
     const { controller } = setup();
-    const failed = await controller.open("node-ssh-refused", SIZE);
+    const failed = await controller.open({ nodeId: "node-ssh-refused", size: SIZE });
 
-    const retried = await controller.retry(failed, SIZE);
+    const retried = await controller.retry(failed, { size: SIZE });
 
     expect(retried).not.toBe(failed);
     expect(sessions().map(({ id, nodeId }) => ({ id, nodeId }))).toEqual([
@@ -124,7 +149,7 @@ describe("createSessionController", () => {
     });
     const received: string[] = [];
 
-    await controller.open("node-ssh-ok", SIZE);
+    await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
     output.subscribe("session-early", (bytes) => received.push(new TextDecoder().decode(bytes)));
 
     expect(sessions()[0]?.state).toEqual({ state: "connected" });
@@ -138,7 +163,7 @@ describe("createSessionController", () => {
       late = handlers;
       return Promise.resolve({ id: "session-late", kind: "terminal" });
     };
-    await controller.open("node-ssh-ok", SIZE);
+    await controller.open({ nodeId: "node-ssh-ok", size: SIZE });
     await controller.close("session-late");
     const received: Uint8Array[] = [];
 
@@ -153,13 +178,17 @@ describe("createSessionController", () => {
   it("refuses to retry a session it does not know", async () => {
     const { controller } = setup();
 
-    await expect(controller.retry("session-9", SIZE)).rejects.toBeInstanceOf(SessionNotFound);
+    await expect(controller.retry("session-9", { size: SIZE })).rejects.toBeInstanceOf(
+      SessionNotFound,
+    );
   });
 
   it("rejects the opening of an unknown connection without adding a session", async () => {
     const { controller } = setup();
 
-    await expect(controller.open("node-missing", SIZE)).rejects.toBeInstanceOf(IpcFailure);
+    await expect(controller.open({ nodeId: "node-missing", size: SIZE })).rejects.toBeInstanceOf(
+      IpcFailure,
+    );
     expect(sessions()).toEqual([]);
   });
 });

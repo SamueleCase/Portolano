@@ -12,6 +12,8 @@ export interface Session {
   state: SessionState;
   /** When it was opened, in milliseconds since the epoch. */
   startedAt: number;
+  /** When its program was over, for a duration that stops there. */
+  endedAt?: number;
   /** The exit code of its program, once over. */
   exitCode?: number;
 }
@@ -22,10 +24,12 @@ export interface SessionsState {
   /** Adds a session just opened. */
   added: (session: Session) => void;
   /**
-   * Records a new state of session `id`. Unknown sessions, and sessions already
-   * over (the close of a session that had failed), are left as they are.
+   * Records a new state of session `id` at time `at`. Unknown sessions (a
+   * `session-ended` that comes before the answer of `open_session`), and
+   * sessions already over (the close of a session that had failed), are left
+   * as they are.
    */
-  stateChanged: (id: SessionId, state: SessionState) => void;
+  stateChanged: (id: SessionId, state: SessionState, at?: number) => void;
   /** Forgets session `id`, whose tab was closed. */
   removed: (id: SessionId) => void;
 }
@@ -34,10 +38,10 @@ export interface SessionsState {
 export const useSessionsStore = create<SessionsState>()((set) => ({
   sessions: [],
   added: (session) => set(({ sessions }) => ({ sessions: [...sessions, session] })),
-  stateChanged: (id, state) =>
+  stateChanged: (id, state, at = Date.now()) =>
     set(({ sessions }) => ({
       sessions: sessions.map((session) =>
-        session.id === id ? withState(session, state) : session,
+        session.id === id ? withState(session, state, at) : session,
       ),
     })),
   removed: (id) =>
@@ -45,12 +49,16 @@ export const useSessionsStore = create<SessionsState>()((set) => ({
 }));
 
 /** `session` in `state`; a session that is over keeps its last state. */
-function withState(session: Session, state: SessionState): Session {
+function withState(session: Session, state: SessionState, at: number): Session {
   if (isOver(session.state)) {
     return session;
   }
+  if (!isOver(state)) {
+    return { ...session, state };
+  }
   const exitCode = exitCodeOf(state);
   // With `exactOptionalPropertyTypes` an absent code is a missing key, not
-  // `undefined`; only the last state has one, so none is ever taken away.
-  return exitCode === undefined ? { ...session, state } : { ...session, state, exitCode };
+  // `undefined`.
+  const ended = { ...session, state, endedAt: at };
+  return exitCode === undefined ? ended : { ...ended, exitCode };
 }

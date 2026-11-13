@@ -1,20 +1,15 @@
-import { Channel, invoke, type InvokeArgs } from "@tauri-apps/api/core";
+import { Channel } from "@tauri-apps/api/core";
 
-import { IpcFailure, type IpcError } from "./result";
-import {
-  decodeFrame,
-  FrameKind,
-  type SessionOpened,
-  type SessionState,
-  type SessionTransport,
-} from "./sessions";
+import { commands, type SessionState_Deserialize } from "../bindings";
+import { unwrap } from "./result";
+import { decodeFrame, FrameKind, type SessionState, type SessionTransport } from "./sessions";
 
 /**
- * The transport of the sessions over the commands and channels of Tauri
- * (SPEC-UI §4.4): output as raw bytes on one channel, states as JSON on another.
+ * The transport of the sessions over the generated commands and two channels
+ * (SPEC-UI §4.4): output as raw bytes, states as JSON.
  */
 export const tauriSessionTransport: SessionTransport = {
-  async open(request, handlers) {
+  async open({ nodeId, size, options, login }, handlers) {
     // Handlers go on the channels before the command runs: messages sent
     // before them would be lost.
     const output = new Channel<ArrayBuffer>((buffer) => {
@@ -23,28 +18,29 @@ export const tauriSessionTransport: SessionTransport = {
         handlers.onOutput(frame.payload);
       }
     });
-    const states = new Channel<SessionState>(handlers.onState);
-    return call<SessionOpened>("open_session", { ...request, output, states });
+    const states = new Channel<SessionState_Deserialize>((state) =>
+      handlers.onState(asSent(state)),
+    );
+    return unwrap(
+      await commands.openSession(nodeId, options ?? {}, login ?? null, size, output, states),
+    );
   },
-  input: (id, data) => call("session_input", { id, data }),
-  resize: (id, size) => call("session_resize", { id, size }),
-  close: (id) => call("session_close", { id }),
+  async input(id, data) {
+    unwrap(await commands.sessionInput(id, data));
+  },
+  async resize(id, size) {
+    unwrap(await commands.sessionResize(id, size));
+  },
+  async close(id) {
+    unwrap(await commands.sessionClose(id));
+  },
 };
 
-/** Runs `command`; a failure rejects with an {@link IpcFailure}. */
-async function call<T = void>(command: string, args: InvokeArgs): Promise<T> {
-  try {
-    return await invoke<T>(command, args);
-  } catch (error) {
-    throw new IpcFailure(asIpcError(error));
-  }
-}
-
-/** The error of a command: the backend rejects with an `IpcError` value. */
-function asIpcError(error: unknown): IpcError {
-  if (typeof error === "object" && error !== null && "code" in error && "message" in error) {
-    // The shape checked above is the one the backend serializes.
-    return error as IpcError;
-  }
-  return { code: "internal", message: String(error) };
+/**
+ * A state as the backend sends it. The bindings type a channel with the shape
+ * the backend would read, where the code of a failure may be absent; the
+ * backend always writes it, `null` when there is none.
+ */
+function asSent(state: SessionState_Deserialize): SessionState {
+  return state.state === "failed" ? { ...state, code: state.code ?? null } : state;
 }
