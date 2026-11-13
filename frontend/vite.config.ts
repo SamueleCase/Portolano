@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 import tauriConfig from "../crates/portolano-app/tauri.conf.json" with { type: "json" };
+import { xtermFrozenPrototype } from "./src/build/xtermFrozenPrototype.ts";
 
 /** The CSP of the app (SPEC-UI §4.8) as an HTTP header value. */
 const appCsp = Object.entries(tauriConfig.app.security.csp)
@@ -10,7 +11,11 @@ const appCsp = Object.entries(tauriConfig.app.security.csp)
 
 // Settings from the Tauri guide for Vite (https://v2.tauri.app/start/frontend/vite/).
 export default defineConfig({
-  plugins: [react()],
+  // xterm needs a rewrite to load with the frozen prototype of Tauri
+  // (DEC-034): here for the build, in `optimizeDeps` for the development
+  // server, which pre-bundles xterm without the plugins of the app.
+  plugins: [react(), xtermFrozenPrototype()],
+  optimizeDeps: { rolldownOptions: { plugins: [xtermFrozenPrototype()] } },
   // Tauri prints its own output in the same terminal.
   clearScreen: false,
   server: {
