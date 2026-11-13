@@ -3,12 +3,14 @@ import { Channel } from "@tauri-apps/api/core";
 import { commands, type SessionState_Deserialize } from "../bindings";
 import { unwrap } from "./result";
 import { decodeFrame, FrameKind, type SessionState, type SessionTransport } from "./sessions";
+import { serializedTransport } from "./sessionsQueue";
 
 /**
  * The transport of the sessions over the generated commands and two channels
- * (SPEC-UI §4.4): output as raw bytes, states as JSON.
+ * (SPEC-UI §4.4): output as raw bytes, states as JSON; input and sizes go one
+ * call at a time per session, in order.
  */
-export const tauriSessionTransport: SessionTransport = {
+export const tauriSessionTransport: SessionTransport = serializedTransport({
   async open({ nodeId, size, options, login }, handlers) {
     // Handlers go on the channels before the command runs: messages sent
     // before them would be lost.
@@ -34,7 +36,7 @@ export const tauriSessionTransport: SessionTransport = {
   async close(id) {
     unwrap(await commands.sessionClose(id));
   },
-};
+});
 
 /**
  * A state as the backend sends it. The bindings type a channel with the shape
