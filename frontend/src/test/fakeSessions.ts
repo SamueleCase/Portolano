@@ -49,7 +49,7 @@ export const fakeScenarios: Record<string, FakeScenario> = {
     end: {
       state: "failed",
       code: 131,
-      reason: "[ERROR][com.freerdp.core] connessione a 192.0.2.10 rifiutata \u001b[31m",
+      reason: "[ERROR][com.freerdp.core] connessione a 192.0.2.12 rifiutata \u001b[31m",
     },
   },
   "node-windows-app": { kind: "external" },
