@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use portolano_connectors::{ConnectOptions, Environment, Os, RdpClient, Registry};
-use portolano_core::{AppConfig, CredentialSpec, Document, Node, SecretRef};
+use portolano_core::{AppConfig, CredentialSpec, Document, Node, PrivateKey, SecretRef};
 use portolano_ops::connect::plan_connection;
 use pretty_assertions::assert_eq;
 
@@ -83,6 +83,75 @@ fn windows_app_is_an_external_session() {
     let kind = kind_of(connection("rdp", true), &options);
 
     assert_eq!(kind.unwrap(), SessionKind::External);
+}
+
+#[test]
+fn ssh_through_jump_hosts_runs_in_a_terminal() {
+    let mut node = connection("ssh", true);
+    if let Some(connection) = node.as_connection_mut() {
+        connection.settings = serde_json::json!({
+            "jump_hosts": [{ "address": "admin@bastion.example.com" }],
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+    }
+
+    let kind = kind_of(node, &ConnectOptions::default());
+
+    assert_eq!(kind.unwrap(), SessionKind::Terminal);
+}
+
+#[test]
+fn ssh_with_a_key_in_the_vault_runs_in_a_terminal_after_adding_it() {
+    let mut key_owner = Node::credential("Chiave");
+    if let Some(credential) = key_owner.as_credential_mut() {
+        credential.username = Some("operatore".to_owned());
+        credential.private_key = Some(PrivateKey::Vault {
+            secret: SecretRef::new(),
+        });
+    }
+    let mut node = Node::connection("srv01", "ssh", "srv01.example.com");
+    if let Some(connection) = node.as_connection_mut() {
+        connection.credential = CredentialSpec::ById { id: key_owner.id };
+    }
+    let id = node.id;
+    let mut doc = Document::new("Test");
+    doc.nodes = vec![key_owner, node];
+    let plan = plan_connection(
+        &doc,
+        &AppConfig::default(),
+        &environment(),
+        &Registry::with_defaults(),
+        id,
+        &ConnectOptions::default(),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        plan.steps.first(),
+        Some(LaunchStep::SshAddKey { .. })
+    ));
+    assert_eq!(session_kind(&plan).unwrap(), SessionKind::Terminal);
+}
+
+#[test]
+fn a_terminal_that_wants_a_secret_on_stdin_is_refused_from_the_plan() {
+    let plan = LaunchPlan {
+        steps: vec![LaunchStep::Run {
+            program: PathBuf::from("/opt/homebrew/bin/sdl-freerdp"),
+            args: Vec::new(),
+            env: Vec::new(),
+            stdin_secret: Some(SecretRef::new()),
+            askpass: None,
+            wait: true,
+        }],
+        warnings: Vec::new(),
+    };
+
+    let kind = session_kind(&plan);
+
+    assert!(matches!(kind, Err(SessionError::StdinSecretInTerminal)));
 }
 
 #[test]

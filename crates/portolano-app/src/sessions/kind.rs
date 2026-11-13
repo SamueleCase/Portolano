@@ -7,7 +7,9 @@
 //!   password (DEC-025), and then it runs in the foreground;
 //! - `ssh` is always waited for, since the askpass server must outlive it.
 //!
-//! So a waited program is a terminal, a detached one an RDP window.
+//! So a waited program is a terminal, a detached one an RDP window. A
+//! terminal whose program wants a secret on stdin is refused here, from the
+//! plan, before any secret is read from the vault (DEC-030.3).
 
 use portolano_connectors::{LaunchPlan, LaunchStep};
 
@@ -19,19 +21,23 @@ use super::model::SessionKind;
 /// # Errors
 /// [`SessionError::NotASession`] for a plan that opens a new terminal
 /// window (see [`super::open_in_new_window`]) or does not end with a
-/// program.
+/// program; [`SessionError::StdinSecretInTerminal`] for a terminal whose
+/// program wants a secret on stdin.
 pub fn session_kind(plan: &LaunchPlan) -> Result<SessionKind, SessionError> {
     match plan.steps.last() {
-        Some(LaunchStep::Run { wait, .. }) => {
+        Some(LaunchStep::Run {
+            wait, stdin_secret, ..
+        }) => {
             let writes_files = plan
                 .steps
                 .iter()
                 .any(|step| matches!(step, LaunchStep::WriteTempFile { .. }));
-            Ok(match (writes_files, *wait) {
-                (true, _) => SessionKind::External,
-                (false, true) => SessionKind::Terminal,
-                (false, false) => SessionKind::RdpExternal,
-            })
+            match (writes_files, *wait) {
+                (true, _) => Ok(SessionKind::External),
+                (false, true) if stdin_secret.is_some() => Err(SessionError::StdinSecretInTerminal),
+                (false, true) => Ok(SessionKind::Terminal),
+                (false, false) => Ok(SessionKind::RdpExternal),
+            }
         }
         Some(LaunchStep::OpenInTerminal { .. }) => Err(SessionError::NotASession {
             reason: "apre una nuova finestra del terminale",
