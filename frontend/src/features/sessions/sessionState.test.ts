@@ -7,7 +7,6 @@ import {
   exitCodeOf,
   formatDuration,
   isOver,
-  isRunning,
   sessionDot,
   statusLabel,
 } from "./sessionState";
@@ -58,14 +57,8 @@ describe("statusLabel", () => {
   });
 });
 
-describe("running sessions", () => {
-  it("run until their program is over", () => {
-    expect(isRunning({ state: "connecting" })).toBe(true);
-    expect(isRunning({ state: "connected" })).toBe(true);
-    expect(isRunning({ state: "ended", code: 0 })).toBe(false);
-  });
-
-  it("show a dot of their phase, and none once ended", () => {
+describe("sessionDot", () => {
+  it("shows the phase of a session, and none once ended", () => {
     expect(sessionDot({ state: "connected" })).toBe("connected");
     expect(sessionDot({ state: "failed", code: 255, reason: "rifiutata" })).toBe("failed");
     expect(sessionDot({ state: "ended", code: 0 })).toBe("idle");

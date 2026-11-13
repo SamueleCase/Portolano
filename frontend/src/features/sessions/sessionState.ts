@@ -52,11 +52,6 @@ export function statusLabel(kind: SessionKind, state: SessionState): string {
   }
 }
 
-/** Whether the program still runs, so that the tab offers "Disconnetti". */
-export function isRunning(state: SessionState): boolean {
-  return state.state === "connecting" || state.state === "connected";
-}
-
 /** The dot of the tab and of the header: none once the session has ended. */
 export function sessionDot(state: SessionState): DotState {
   return state.state === "ended" ? "idle" : state.state;
