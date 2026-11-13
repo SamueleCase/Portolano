@@ -14,6 +14,7 @@ interface FakeXterm {
   written: Uint8Array[];
   disposed: boolean;
   keys: ((event: KeyboardEvent) => boolean) | undefined;
+  textarea: HTMLTextAreaElement | undefined;
 }
 
 const fake = vi.hoisted((): FakeXterm => ({
@@ -24,6 +25,7 @@ const fake = vi.hoisted((): FakeXterm => ({
   written: [],
   disposed: false,
   keys: undefined,
+  textarea: undefined,
 }));
 
 vi.mock("@xterm/xterm", () => ({
@@ -37,7 +39,7 @@ vi.mock("@xterm/xterm", () => ({
     constructor(options: unknown) {
       fake.options = options;
     }
-    textarea = undefined;
+    textarea = (fake.textarea = document.createElement("textarea"));
     loadAddon() {}
     open() {}
     attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean) {
@@ -100,6 +102,12 @@ describe("Terminal", () => {
     render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
 
     expect(screen.getByRole("group", { name: "Terminale" })).toBeInTheDocument();
+  });
+
+  it("names its input in Italian", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+
+    expect(fake.textarea?.getAttribute("aria-label")).toBe("Input del terminale");
   });
 
   it("writes the output of the session", () => {

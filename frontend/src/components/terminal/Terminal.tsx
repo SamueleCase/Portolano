@@ -70,6 +70,8 @@ export function Terminal({
       return false;
     });
     terminal.open(element);
+    // xterm.js names its input "Terminal input", in English.
+    terminal.textarea?.setAttribute("aria-label", texts.components.terminal.input);
     terminal.textarea?.setAttribute("aria-describedby", hintId);
     const unsubscribe = io.subscribe((data) => terminal.write(data));
     const resize = new ResizeObserver(() => fit.fit());
