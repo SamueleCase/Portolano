@@ -19,7 +19,7 @@ function RdpStub({ session }: SessionViewProps) {
 
 describe("SessionView", () => {
   it("shows the view registered for the kind of the session", () => {
-    render(<SessionView session={session} views={{ "rdp-external": RdpStub }} />);
+    render(<SessionView session={session} summary="dc01" views={{ "rdp-external": RdpStub }} />);
 
     expect(screen.getByText("vista RDP di node-rdp")).toBeInTheDocument();
   });
@@ -28,6 +28,7 @@ describe("SessionView", () => {
     render(
       <SessionView
         session={{ ...session, kind: "rdp-embedded" }}
+        summary="dc01"
         views={{ "rdp-external": RdpStub }}
       />,
     );
