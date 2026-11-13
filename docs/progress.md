@@ -226,7 +226,8 @@ sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brie
 | UI-WP1…WP3 (ondata B) | in corso | brief in `docs/pm/ui-wp{1,2,3}-brief.md`; proprietà dei file e UI-WP3 in due fasi (DEC-029, DEC-030); checkpoint visivo con l'utente sulla galleria dei componenti |
 | ↳ UI-WP1 design system | **integrato** | merge `53166dc`; due giri di revisione più i minori; gate su `main`: Rust 1035 + 2 ignorati, Vitest 336, e2e 10/10, smoke OK; vetro 29 disegni/s, p95 18 ms, fermo a pagina nascosta (DEC-032) |
 | ↳ UI-WP2 comandi | **integrato** | merge `0b9ff1a`; due giri di revisione (Rust e frontend) più le correzioni del secondo (DEC-031); gate su `main`: Rust 1223 + 2 ignorati, Vitest 406, e2e 10/10, smoke OK |
-| ↳ UI-WP3 sessioni | fase 2 in corso | branch `worktree-agent-aefbdbbf96d392569`; fase 1 revisionata e corretta (DEC-030); poi revisione completa e merge |
+| ↳ UI-WP3 sessioni | **integrato** | merge `31d382d`; fase 1 rivista e corretta (DEC-030), poi due giri di revisione completa (Rust e frontend, DEC-033); gate su `main`: Rust 1290 + 2 ignorati, Vitest 484, e2e 17/17, smoke OK |
+| Checkpoint visivo 1 | **in attesa dell'utente** | screenshot in `frontend/e2e-screenshots/{gallery,sessions}/`; vetro in Playwright WebKit 24,7 disegni/s, p95 14 ms, fermo a pagina nascosta (senza `backdrop-filter`, che WebKit headless non disegna); misura in WKWebView con Web Inspector da fare in `tauri dev` |
 
 `npm audit`: 0 vulnerabilità nelle dipendenze di produzione; 10 moderate solo in quelle di sviluppo (ESLint 10 e
 typescript-eslint tramite `minimatch`, DoS sui pattern glob), senza correzione compatibile con le versioni di SPEC-UI
