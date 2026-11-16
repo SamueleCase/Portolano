@@ -228,7 +228,7 @@ sottoagenti: `docs/pm/brief-common-ui.md` (regole comuni da allegare a ogni brie
 | ↳ UI-WP2 comandi | **integrato** | merge `0b9ff1a`; due giri di revisione (Rust e frontend) più le correzioni del secondo (DEC-031); gate su `main`: Rust 1223 + 2 ignorati, Vitest 406, e2e 10/10, smoke OK |
 | ↳ UI-WP3 sessioni | **integrato** | merge `31d382d`; fase 1 rivista e corretta (DEC-030), poi due giri di revisione completa (Rust e frontend, DEC-033); gate su `main`: Rust 1290 + 2 ignorati, Vitest 484, e2e 17/17, smoke OK |
 | Correzione xterm / `freezePrototype` | **integrata** | merge `82e7d98`; trovata dall'utente in `tauri dev` (galleria nera); revisione indipendente; e2e ora con `Object.prototype` congelato (DEC-034) |
-| Checkpoint visivo 1 | **in attesa dell'utente** | screenshot in `frontend/e2e-screenshots/{gallery,sessions}/`; vetro in Playwright WebKit 24,7 disegni/s, p95 14 ms, fermo a pagina nascosta (senza `backdrop-filter`, che WebKit headless non disegna); misura in WKWebView con Web Inspector da fare in `tauri dev` |
+| Checkpoint visivo 1 | **approvato** ("vai", 2026-11-16; DEC-035) | screenshot in `frontend/e2e-screenshots/{gallery,sessions}/`; vetro in Playwright WebKit 24,7 disegni/s, p95 14 ms, fermo a pagina nascosta (senza `backdrop-filter`, che WebKit headless non disegna); misura in WKWebView con Web Inspector da fare in `tauri dev` |
 
 `npm audit`: 0 vulnerabilità nelle dipendenze di produzione; 10 moderate solo in quelle di sviluppo (ESLint 10 e
 typescript-eslint tramite `minimatch`, DoS sui pattern glob), senza correzione compatibile con le versioni di SPEC-UI
@@ -240,5 +240,5 @@ worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: 
 l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
 chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
 esterno".
-| UI-WP4…WP6 (ondata C) | da fare | checkpoint visivo con l'utente sulle schermate |
+| UI-WP4…WP6 (ondata C) | in corso | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |

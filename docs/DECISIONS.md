@@ -549,6 +549,25 @@ mock in `docs/ui/NOTE.md`.
   file, a segnalarlo sarebbero gli e2e con il prototipo congelato (la versione resta fissata a 6.0.0). Il plugin vive
   in `frontend/src/build/` (codice del solo build, fuori dal bundle), aggiunto a SPEC-UI §5.1.
 
+### DEC-035 – Checkpoint visivo 1 approvato; piano dell'ondata C (2026-11-16)
+- **Checkpoint 1**: dopo la correzione di DEC-034 l'utente ha risposto "vai": aspetto della galleria e delle tab di
+  sessione approvato senza correzioni. La misura del vetro in WKWebView (DEC-028.6) non è stata fornita: i valori di
+  blur restano quelli dell'inventario e la misura si ripete al checkpoint visivo 2.
+- **Proprietà dei file dell'ondata C** (SPEC-UI §8 non assegna `state/` né il montaggio delle funzioni nella cornice):
+  1. **UI-WP4** possiede anche `frontend/src/state/**` (stato dell'interfaccia: selezione, tab, pannelli, toast,
+     preferenze) e definisce i **punti d'aggancio** della cornice: un insieme tipizzato di richieste (apri l'editor per
+     aggiungere/modificare, chiedi una password per un nodo e un campo, sblocca o crea il vault, chiedi le credenziali
+     all'avvio, apri l'import, apri la validazione, apri le preferenze) che la barra, l'albero, il dettaglio, il menu
+     nativo e le scorciatoie emettono, e un registro dove una funzione dichiara il componente che le serve. Senza
+     registrazione la richiesta non è offerta (bottone disattivato), non c'è codice segnaposto. Fa anche la conferma
+     d'eliminazione (inventario §5.11), parte del flusso di eliminazione di §8, e il tasto Tab in WKWebView
+     (DEC-032.4), con l'eccezione di proprietà sulla configurazione della finestra in `crates/portolano-app`.
+  2. **UI-WP5** e **UI-WP6** lavorano in **due fasi** come UI-WP3: prima le proprie funzioni, autonome, con test,
+     galleria/e2e sul finto backend; poi, dopo il merge di UI-WP4, `git merge main` e la registrazione nei punti
+     d'aggancio (righe d'integrazione in `app/` e `state/` concesse). Ordine di merge invariato: WP4 → WP5 → WP6.
+  3. Il dialogo delle credenziali all'avvio (DEC-016.3) è di UI-WP5; lo usano la connessione di UI-WP4 e "Riprova"
+     delle sessioni (`onRetry`, DEC-033.8).
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
