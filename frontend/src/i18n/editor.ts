@@ -135,7 +135,6 @@ export const editor = {
 
 /** The texts of the gallery section of the editor and the dialogs, outside `texts`. */
 export const editorGallery = {
-  title: "Editor e dialoghi",
   editor: "Editor",
   dialogs: "Dialoghi",
   open: {
