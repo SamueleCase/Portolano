@@ -47,7 +47,8 @@ test.describe("the main window", () => {
   });
 
   test("connects to an SSH connection in a tab with its terminal", async ({ page }) => {
-    await openApp(page);
+    // Open vault: with the unlock dialog mounted (UI-WP5) a locked one is asked first.
+    await openApp(page, { vaultLocked: false });
 
     await row(await documentTree(page), "bastion").dblclick();
 
@@ -60,7 +61,8 @@ test.describe("the main window", () => {
   });
 
   test("brings the open session in front instead of opening another", async ({ page }) => {
-    await openApp(page);
+    // Open vault: with the unlock dialog mounted (UI-WP5) a locked one is asked first.
+    await openApp(page, { vaultLocked: false });
     const tree = await documentTree(page);
     await row(tree, "bastion").dblclick();
     const session = page.getByRole("tab", { name: /bastion.*SSH/ });
@@ -74,7 +76,8 @@ test.describe("the main window", () => {
   });
 
   test("closes the session tab with ⌘W and goes back to the detail", async ({ page }) => {
-    await openApp(page);
+    // Open vault: with the unlock dialog mounted (UI-WP5) a locked one is asked first.
+    await openApp(page, { vaultLocked: false });
     await row(await documentTree(page), "bastion").dblclick();
     const session = page.getByRole("tab", { name: /bastion.*SSH/ });
     await expect(session).toHaveAttribute("aria-selected", "true");

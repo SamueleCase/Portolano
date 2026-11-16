@@ -107,7 +107,8 @@ test.describe("the tree", () => {
   });
 
   test("connects to the focused connection with ⌘↩", async ({ page }) => {
-    await openApp(page);
+    // Open vault: with the unlock dialog mounted (UI-WP5) a locked one is asked first.
+    await openApp(page, { vaultLocked: false });
     const tree = await documentTree(page);
     await row(tree, "bastion").focus();
 
