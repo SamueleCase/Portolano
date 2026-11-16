@@ -1,11 +1,11 @@
 /* The validation tab (inventario §5.14): heading with the counters and
-   "Ricontrolla", then the rows on two lines. */
+   "Ricontrolla", then the rows on two lines. The panel of the window gives
+   the glass and its padding. */
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-fine-14);
   min-height: 0;
-  padding: var(--space-6);
   overflow: auto;
 }
 
