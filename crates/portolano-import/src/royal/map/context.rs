@@ -107,8 +107,9 @@ impl<'p> SecretCollector<'p> {
     }
 }
 
-/// The reason of a skipped secret; for a password it is the exact text of
-/// SPEC §8.3.5.
+/// The reason of a skipped secret. It names no command of the CLI: the same
+/// report is shown by the CLI and by the app (DEC-039.2, in place of the
+/// text of SPEC §8.3.5).
 fn skipped_reason(field: &SecretField) -> String {
     let what = match field {
         SecretField::Password => "password Royal cifrata".to_owned(),
@@ -116,5 +117,5 @@ fn skipped_reason(field: &SecretField) -> String {
         SecretField::PrivateKey => "chiave privata Royal cifrata".to_owned(),
         SecretField::CustomProperty(name) => format!("proprietà protetta `{name}` cifrata"),
     };
-    format!("{what} non importata: impostala con `portolano secret set`")
+    format!("{what} non importata: impostala dal nodo")
 }
