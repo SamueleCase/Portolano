@@ -1,0 +1,294 @@
+/* The detail of a node (inventario §5.2): a scrolling column in the panel. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.identity {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: calc(var(--size-label-column) + var(--space-8) * 2);
+}
+
+.type {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-node-title);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-title);
+  overflow-wrap: anywhere;
+}
+
+.star {
+  color: var(--color-node-credential);
+  font-size: var(--font-size-dialog-title);
+}
+
+.tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-fine-6);
+}
+
+.summary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-mono-large);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-10);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-section-title);
+  font-weight: var(--font-weight-strong);
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.problem {
+  margin: 0;
+  color: var(--color-warn);
+  line-height: var(--line-height-body);
+}
+
+.warnings {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-warn);
+  font-size: var(--font-size-secondary);
+}
+
+.credential {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-14);
+}
+
+.credentialHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-fine-10);
+}
+
+.origin {
+  color: var(--color-text-secondary);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-label-column), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.facts dt {
+  margin-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.keyText {
+  color: var(--color-text-secondary);
+}
+
+.secretRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-fine-10);
+  padding: var(--space-3) var(--space-fine-14);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.secretLabel {
+  width: var(--size-secret-label);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-secondary);
+  overflow-wrap: anywhere;
+}
+
+.secretActions {
+  display: flex;
+  gap: var(--space-fine-6);
+  margin-left: auto;
+}
+
+.dialogText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.usageCount {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.usageList,
+.usedByList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usageRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-fine-6) var(--space-fine-10);
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.usageRow:hover {
+  background: var(--color-hover);
+}
+
+.relation {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.notes {
+  white-space: pre-wrap;
+}
+
+.extra {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.extraTitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-medium);
+}
+
+.unsupported {
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-lead);
+}
+
+.sourceType {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-strong);
+}
+
+.raw {
+  margin: 0;
+  padding: var(--space-fine-14) var(--space-4);
+  overflow: auto;
+  border: var(--border-width) solid var(--color-terminal-border);
+  border-radius: var(--radius-card);
+  background: var(--color-terminal);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-terminal);
+  white-space: pre-wrap;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.boneTitle,
+.bone {
+  border-radius: var(--radius-tiny);
+  background: var(--color-surface-raised);
+}
+
+.boneTitle {
+  width: 40%;
+  height: var(--space-6);
+}
+
+.bone {
+  width: 70%;
+  height: var(--space-fine-14);
+}
+
+/* "Annulla" is the default action of the confirmation (inventario §5.11). */
+.defaultCancel {
+  font-weight: var(--font-weight-strong);
+}
+
+.usedBy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.usedByTitle {
+  margin: 0;
+  color: var(--color-warn);
+  font-weight: var(--font-weight-strong);
+}
+
+.usedByRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-body);
+}

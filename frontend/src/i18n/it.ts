@@ -1,8 +1,11 @@
+import { app } from "./app";
 import { components } from "./components";
+import { details } from "./details";
+import { firstRun } from "./firstRun";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
 import { sessions } from "./sessions";
-import { status } from "./status";
+import { tree } from "./tree";
 
 /**
  * The texts of the interface, in Italian (SPEC-UI: no text outside i18n/).
@@ -10,9 +13,12 @@ import { status } from "./status";
  * its file and its line.
  */
 export const texts = {
-  status,
   components,
   icons,
   ipc,
   sessions,
+  app,
+  tree,
+  details,
+  firstRun,
 } as const;

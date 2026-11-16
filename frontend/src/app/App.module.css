@@ -1,0 +1,9 @@
+/* What the window says before it can show the document. */
+.status {
+  position: relative;
+  z-index: var(--z-app);
+  margin: 0;
+  padding: var(--space-8);
+  color: var(--color-text-secondary);
+  text-align: center;
+}

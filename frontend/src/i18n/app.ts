@@ -1,0 +1,72 @@
+/** The texts of the frame of the main window (inventario §5.1, §5.15, §6). */
+export const app = {
+  loading: "Apertura del documento…",
+  startFailed: "Impossibile leggere lo stato dell'app",
+  toolbar: {
+    label: "Barra degli strumenti",
+    newConnection: "+ Connessione",
+    newConnectionMenu: "Nuova connessione",
+    protocols: { ssh: "SSH", rdp: "RDP" },
+    newFolder: "+ Cartella",
+    newCredential: "+ Credenziale",
+    import: "Importa",
+    validate: "Valida",
+    preferences: "Preferenze",
+    connect: "Connetti",
+  },
+  reasons: {
+    unavailable: "Non ancora disponibile in questa versione",
+    notConnection: "Seleziona una connessione",
+    noSelection: "Seleziona un nodo",
+    unsupported: "Elemento in sola lettura",
+  },
+  shortcuts: {
+    connect: "⌘↩",
+    edit: "⌘E",
+    duplicate: "⌘D",
+    delete: "⌘⌫",
+    newConnection: "⌘N",
+    newFolder: "⇧⌘N",
+    search: "⌘F",
+    validate: "⇧⌘V",
+    preferences: "⌘,",
+    import: "⌘I",
+  },
+  work: {
+    panel: "Area di lavoro",
+    validationTitle: "Validazione",
+    noSelection: "Seleziona un nodo dell'albero per vederne il dettaglio.",
+    detailTitle: "Dettaglio",
+  },
+  banner: {
+    modified: "{file} è stato modificato da un altro programma.",
+    reload: "Ricarica",
+    missing: "{file} non esiste più: è stato spostato o eliminato.",
+    recreate: "Ricrea vuoto",
+    openOther: "Apri altro…",
+    close: "Chiudi l'avviso",
+  },
+  connection: {
+    noLoginDialog:
+      "Questa connessione chiede le credenziali all'avvio: il dialogo non è ancora disponibile. Usa «Apri in terminale esterno».",
+  },
+  toasts: {
+    error: "{title}: {message}",
+    candidates: "{message} ({candidates})",
+    deleted: "{name} eliminato",
+    undo: "Annulla",
+    restored: "{name} ripristinato",
+    kept: {
+      one: "{n} nodo era cambiato nel frattempo e resta com'è: {paths}",
+      other: "{n} nodi erano cambiati nel frattempo e restano come sono: {paths}",
+    },
+    duplicated: "Copia creata: {path}",
+    renamed: {
+      one: "La credenziale copiata è stata rinominata: {paths}",
+      other: "Le credenziali copiate sono state rinominate: {paths}",
+    },
+    moved: "Spostato in {path}",
+    secretCleared: "Segreto cancellato",
+    openedInTerminal: "Aperta in una nuova finestra del terminale",
+  },
+} as const;
