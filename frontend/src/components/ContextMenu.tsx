@@ -21,6 +21,8 @@ export interface MenuItem {
   /** "Elimina…" in red. */
   destructive?: boolean;
   disabled?: boolean;
+  /** Why the entry is disabled, shown under it and read with it. */
+  reason?: string | undefined;
 }
 
 /** An entry of a context menu, or a separator. */
@@ -136,6 +138,9 @@ export function ContextMenu({ label, entries, position, onSelect, onClose }: Con
               <span className={styles.shortcut} aria-hidden="true">
                 {entry.shortcut}
               </span>
+            )}
+            {entry.disabled && entry.reason && (
+              <span className={styles.reason}>{visibleText(entry.reason)}</span>
             )}
           </button>
         ) : (

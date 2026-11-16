@@ -23,18 +23,23 @@ interface ToastProps {
 
 /**
  * One toast. It leaves by itself after its time, which stops while the
- * pointer or the focus is on it; errors stay until "×".
+ * pointer or the focus is on it (not for "Annulla", which has a deadline);
+ * errors stay until "×".
  */
 export function Toast({ toast, onDismiss }: ToastProps) {
   const [held, setHeld] = useState(false);
   const duration = toastDuration[toast.kind];
   const dismiss = useEffectEvent(() => onDismiss(toast.id));
 
+  // "Annulla" of a deletion is good only until the backend makes it final:
+  // its time runs even under the pointer or the focus (DEC-041.6).
+  const paused = held && toast.kind !== "undo";
+
   useEffect(() => {
-    if (duration === undefined || held) return undefined;
+    if (duration === undefined || paused) return undefined;
     const timer = window.setTimeout(dismiss, duration);
     return () => window.clearTimeout(timer);
-  }, [duration, held]);
+  }, [duration, paused]);
 
   return (
     <li

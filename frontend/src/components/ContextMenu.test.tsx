@@ -81,4 +81,18 @@ describe("ContextMenu", () => {
 
     expect(screen.getByRole("menu", { name: "web\\u{1b}01" })).toBeInTheDocument();
   });
+
+  it("says why a disabled entry is not available", () => {
+    render(
+      <ContextMenu
+        label="web01"
+        entries={[{ id: "edit", label: "Modifica…", disabled: true, reason: "Non disponibile" }]}
+        position={{ x: 0, y: 0 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("menuitem", { name: /Modifica…\s*Non disponibile/ })).toBeDisabled();
+  });
 });

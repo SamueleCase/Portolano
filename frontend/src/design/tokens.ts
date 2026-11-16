@@ -195,6 +195,10 @@ export const tokens = {
   "--size-mode-list": "270px",
   "--size-picker-column": "220px",
   "--size-sidebar-max": "320px",
+  // The narrowest sidebar and identity block of the detail (inventario
+  // §2.16, §5.2).
+  "--size-sidebar-min": "220px",
+  "--size-detail-identity": "240px",
   "--size-label-column": "150px",
   "--size-session-label-column": "140px",
   "--size-import-label-column": "90px",
