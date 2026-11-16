@@ -169,12 +169,26 @@ fn recreate_writes_the_open_document_where_its_file_was() {
 }
 
 #[test]
-fn recreate_refuses_a_file_that_is_back() {
+fn recreate_accepts_a_file_back_with_the_same_content() {
     let app = TestApp::new();
     app.create_default();
 
+    let info = recreate(&app.state).unwrap();
+
+    assert_eq!(info.name, "Test");
+}
+
+#[test]
+fn recreate_refuses_a_file_back_with_other_content_as_modified_externally() {
+    let app = TestApp::new();
+    app.create_default();
+    let store = portolano_core::Store::open(app.document_path()).unwrap();
+    let mut doc = store.load().unwrap();
+    doc.name = "Cambiato dalla CLI".to_owned();
+    store.save(&mut doc).unwrap();
+
     let error = recreate(&app.state).unwrap_err();
 
-    assert_ne!(error.code, ErrorCode::Internal);
-    assert!(app.document_path().is_file());
+    assert_eq!(error.code, ErrorCode::ModifiedExternally);
+    assert_eq!(store.load().unwrap().name, "Cambiato dalla CLI");
 }

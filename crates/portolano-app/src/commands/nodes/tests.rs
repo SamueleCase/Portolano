@@ -61,6 +61,37 @@ fn detail_of_a_connection_lists_the_hosts_of_its_jumps_in_order() {
 }
 
 #[test]
+fn detail_shows_the_host_of_an_address_without_its_port() {
+    let app = TestApp::with_document();
+    let mut web01 = ssh("web01", None);
+    web01["kind"]["settings"] =
+        json!({ "jump_hosts": [{ "address": "deploy@198.51.100.40:2222" }] });
+    let web01 = app.add(web01);
+
+    let connection = details(&app.state, web01).unwrap().connection.unwrap();
+
+    assert_eq!(connection.jumps, vec![Some("198.51.100.40".to_owned())]);
+}
+
+#[test]
+fn detail_has_no_host_for_a_jump_to_a_node_that_is_gone() {
+    let app = TestApp::with_document();
+    let bastion = app.add(ssh("bastion", None));
+    let mut web01 = ssh("web01", None);
+    web01["kind"]["settings"] = json!({ "jump_hosts": [{ "$ref": bastion }] });
+    let web01 = app.add(web01);
+    let force = DeleteOptionsInput {
+        force: true,
+        ..DeleteOptionsInput::default()
+    };
+    remove(&app.state, bastion, force).unwrap();
+
+    let connection = details(&app.state, web01).unwrap().connection.unwrap();
+
+    assert_eq!(connection.jumps, vec![None]);
+}
+
+#[test]
 fn name_taken_is_reported_on_the_name_field() {
     let app = TestApp::with_document();
     app.add(ssh("web01", None));

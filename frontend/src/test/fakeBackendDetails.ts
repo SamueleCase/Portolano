@@ -1,4 +1,5 @@
 import type { NodeDetailsView_Serialize, SecretSlot, SecretView, TraceEnd } from "../bindings";
+import { summaryHost } from "../features/tree/treeModel";
 import {
   type FakeBackendState,
   type FakeDocument,
@@ -13,17 +14,6 @@ import { DEFAULT_PORTS, iconView, specView, summaryOf, traceOf, usageOf } from "
 
 /** The detail of a node, as `node_details`: without secrets, with their states. */
 
-/** The host of an address `[user@]host[:port]`, as `address_host` of the app. */
-function addressHost(address: string): string {
-  const host = address.slice(address.lastIndexOf("@") + 1);
-  if (host.startsWith("[")) {
-    const end = host.indexOf("]");
-    return end === -1 ? host.slice(1) : host.slice(1, end);
-  }
-  const colon = host.indexOf(":");
-  return colon === -1 ? host : host.slice(0, colon);
-}
-
 /** The hosts of the jump hosts of a connection, as `jump_hosts` of the app. */
 function jumpHosts(doc: FakeDocument, node: FakeNode): (string | null)[] {
   const jumps = node.settings["jump_hosts"];
@@ -36,7 +26,7 @@ function jumpHosts(doc: FakeDocument, node: FakeNode): (string | null)[] {
       return target ? (target.host ?? target.name) : null;
     }
     const address = jump["address"];
-    return typeof address === "string" ? addressHost(address) : null;
+    return typeof address === "string" ? summaryHost(address) : null;
   });
 }
 

@@ -158,8 +158,8 @@ export function pathName(path: string): string {
 }
 
 /**
- * The host in the summary of a connection, `[user@]host[:port]` (`[…]`
- * around an IPv6 host): the meta of its row (inventario §4.19).
+ * The host of `[user@]host[:port]` (`[…]` around an IPv6 host): the summary
+ * of a connection, the meta of its row (inventario §4.19).
  */
 export function summaryHost(summary: string): string {
   const host = summary.slice(summary.lastIndexOf("@") + 1);

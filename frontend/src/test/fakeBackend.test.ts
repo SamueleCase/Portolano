@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { commands } from "../bindings";
 import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "./fakeBackend";
-import { idOf, ok, unlocked } from "./fakeBackendFixtures";
+import { idOf, ok, refused, unlocked } from "./fakeBackendFixtures";
 
 /** The fake backend answers with the semantics of the Rust commands, errors included. */
 
@@ -173,6 +173,17 @@ describe("fake backend for the main window", () => {
     ok(await commands.recreateDocument());
 
     expect(state.files[path]).toBe(state.document);
+  });
+
+  it("refuses to recreate over another document as changed by another program", async () => {
+    const state = initialFakeState();
+    const path = state.document?.path ?? "";
+    state.files[path] = { name: "Altro", path, nodes: [] };
+    installFakeBackend(state);
+
+    const error = refused(await commands.recreateDocument());
+
+    expect(error.code).toBe("modifiedExternally");
   });
 
   it("gives the hosts of the jump hosts of a connection", async () => {
