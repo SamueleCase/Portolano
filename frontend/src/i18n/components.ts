@@ -157,6 +157,7 @@ export const components = {
     results: { one: "{n} risultato.", other: "{n} risultati." },
     empty: "Nessun nodo corrisponde alla ricerca.",
     emptyFolders: "Nessuna cartella corrisponde alla ricerca.",
+    onlyExcluded: "Alla ricerca corrispondono solo voci escluse.",
     root: "Radice del documento",
     cancel: "Annulla",
     choose: "Scegli",

@@ -71,7 +71,13 @@ export function NodePicker(props: NodePickerProps) {
       ? folderRows(nodes, search, t.root, props.exclude)
       : nodeRows(nodes, search);
   const choosable = rows.filter((row) => !row.heading && !row.disabled);
-  const active = choosable.find((row) => row.key === activeKey) ?? choosable[0];
+  // The folders that lead to a result stay reachable, but the result comes first.
+  const active =
+    choosable.find((row) => row.key === activeKey) ??
+    choosable.find((row) => row.match) ??
+    choosable[0];
+  const results = choosable.filter((row) => row.match).length;
+  const onlyExcluded = rows.some((row) => row.match && row.disabled);
   const optionId = (row: PickerRow) => `${id}-${row.key}`;
 
   const choose = (row: PickerRow) => {
@@ -94,6 +100,12 @@ export function NodePicker(props: NodePickerProps) {
       event.preventDefault();
       choose(active);
     }
+  };
+
+  const summary = () => {
+    if (results > 0) return plural(results, t.results);
+    if (onlyExcluded) return t.onlyExcluded;
+    return folders ? t.emptyFolders : t.empty;
   };
 
   const confirmLabel = (row: PickerRow | undefined) => {
@@ -165,11 +177,7 @@ export function NodePicker(props: NodePickerProps) {
         )}
       </ul>
       <p className={styles.summary} role="status">
-        {choosable.length > 0
-          ? plural(choosable.length, t.results)
-          : folders
-            ? t.emptyFolders
-            : t.empty}
+        {summary()}
         {note && ` ${note}`}
       </p>
     </Dialog>

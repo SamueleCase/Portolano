@@ -183,12 +183,38 @@ describe("NodePicker choosing folders", () => {
     expect(optionNames()).toEqual(["Produzione", "Database"]);
   });
 
-  it("lets a folder that leads to a result be chosen", async () => {
+  it("starts on the folder found, not on the folder that leads to it", async () => {
     const onChoose = renderFolderPicker();
 
     await userEvent.keyboard("data{Enter}");
 
+    expect(onChoose).toHaveBeenCalledWith("db");
+  });
+
+  it("reaches the folder that leads to a result with the arrows", async () => {
+    const onChoose = renderFolderPicker();
+
+    await userEvent.keyboard("data{ArrowUp}{Enter}");
+
     expect(onChoose).toHaveBeenCalledWith("prod");
+  });
+
+  it("counts only the folders found", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("data");
+
+    expect(screen.getByRole("status")).toHaveTextContent("1 risultato.");
+  });
+
+  it("says when only excluded folders match", async () => {
+    renderFolderPicker("archive");
+
+    await userEvent.keyboard("vecchi");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Alla ricerca corrispondono solo voci escluse.",
+    );
   });
 
   it("finds the root by its name", async () => {
