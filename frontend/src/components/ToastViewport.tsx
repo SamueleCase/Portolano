@@ -19,7 +19,7 @@ function visibleToasts(toasts: readonly ToastMessage[]): readonly ToastMessage[]
   const undo = toasts.filter((toast) => toast.kind === "undo").length;
   const others = toasts.filter((toast) => toast.kind !== "undo");
   const room = Math.max(0, MAX_VISIBLE_TOASTS - undo);
-  const kept = new Set(others.slice(others.length - room));
+  const kept = new Set(others.slice(Math.max(0, others.length - room)));
   return toasts.filter((toast) => toast.kind === "undo" || kept.has(toast));
 }
 

@@ -127,6 +127,23 @@ describe("ToastViewport", () => {
     ]);
   });
 
+  it("shows both of two confirmations", () => {
+    const copied: ToastMessage = { id: "c", kind: "success", text: "Copia creata" };
+    render(<ToastViewport toasts={[saved, copied]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      saved.text,
+      "Copia creata",
+    ]);
+  });
+
+  it("shows both of two errors", () => {
+    const failed: ToastMessage = { id: "f", kind: "error", text: "db03: connessione rifiutata" };
+    render(<ToastViewport toasts={[refused, failed]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
   it("keeps a toast with «Annulla» among those shown when newer ones come", () => {
     const undo: ToastMessage = {
       id: "u",
