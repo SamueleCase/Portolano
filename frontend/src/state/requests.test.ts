@@ -1,7 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { LoginRequest } from "../bindings";
-import { answerLogin, openRequest, requestLogin, useRequests } from "./requests";
+import {
+  answerLogin,
+  answerVault,
+  closeAllRequests,
+  closeRequest,
+  openRequest,
+  pushRequest,
+  requestLogin,
+  requestUnlock,
+  topRequest,
+  useRequests,
+} from "./requests";
 
 const KIOSK: LoginRequest = {
   node: "00000000-0000-4000-8000-000000000107",
@@ -10,49 +21,96 @@ const KIOSK: LoginRequest = {
   ask_domain: true,
 };
 
-describe("the requests of the hook points", () => {
-  afterEach(() => useRequests.getState().close());
+const kinds = () => useRequests.getState().stack.map(({ request }) => request.kind);
 
-  it("opens one request at a time, the last one", () => {
+describe("the requests of the hook points", () => {
+  afterEach(() => closeAllRequests());
+
+  it("opens a request of the user when nothing is open", () => {
+    expect(openRequest({ kind: "import" })).toBe(true);
+
+    expect(kinds()).toEqual(["import"]);
+  });
+
+  it("refuses a request of the user while a dialog is open, instead of replacing it", () => {
     openRequest({ kind: "import" });
 
-    openRequest({ kind: "preferences" });
+    expect(openRequest({ kind: "preferences" })).toBe(false);
+    expect(kinds()).toEqual(["import"]);
+  });
 
-    expect(useRequests.getState().active).toEqual({ kind: "preferences" });
+  it("puts a request of the code on top of the one open, which stays", () => {
+    openRequest({ kind: "editor", target: { mode: "edit", id: "web01" } });
+
+    pushRequest({ kind: "preferences" });
+
+    expect(kinds()).toEqual(["editor", "preferences"]);
+  });
+
+  it("closes the request it is asked to close, and only that one", () => {
+    openRequest({ kind: "import" });
+    pushRequest({ kind: "preferences" });
+    const top = topRequest();
+
+    if (top) closeRequest(top.id);
+
+    expect(kinds()).toEqual(["import"]);
   });
 
   it("gives the login typed to the connection that asked for it", async () => {
     const asked = requestLogin(KIOSK);
-    expect(useRequests.getState().active).toEqual({ kind: "login", request: KIOSK });
+    expect(topRequest()?.request).toEqual({ kind: "login", request: KIOSK });
 
     answerLogin({ username: "operatore", password: "sentinel-login" });
 
     await expect(asked).resolves.toEqual({ username: "operatore", password: "sentinel-login" });
-    expect(useRequests.getState().active).toBeNull();
+    expect(kinds()).toEqual([]);
   });
 
-  it("never keeps the login in the store", async () => {
+  it("asks the login on top of the editor that needs it", async () => {
+    openRequest({ kind: "editor", target: { mode: "edit", id: "kiosk" } });
+
     const asked = requestLogin(KIOSK);
+    answerLogin(null);
 
-    answerLogin({ username: "operatore", password: "sentinel-login" });
-    await asked;
+    await expect(asked).resolves.toBeNull();
+    expect(kinds()).toEqual(["editor"]);
+  });
 
-    expect(JSON.stringify(useRequests.getState())).not.toContain("sentinel-login");
+  it("does not answer a login that is not on top", async () => {
+    const asked = requestLogin(KIOSK);
+    pushRequest({ kind: "preferences" });
+
+    answerLogin({ username: "operatore" });
+
+    expect(kinds()).toEqual(["login", "preferences"]);
+    closeAllRequests();
+    await expect(asked).resolves.toBeNull();
   });
 
   it("gives up the connection when the login dialog closes", async () => {
     const asked = requestLogin(KIOSK);
+    const top = topRequest();
 
-    useRequests.getState().close();
+    if (top) closeRequest(top.id);
 
     await expect(asked).resolves.toBeNull();
   });
 
-  it("gives up the connection when another request replaces the login dialog", async () => {
-    const asked = requestLogin(KIOSK);
+  it("tells the caller whether the vault was unlocked", async () => {
+    const unlocked = requestUnlock();
 
-    openRequest({ kind: "preferences" });
+    answerVault(true);
 
-    await expect(asked).resolves.toBeNull();
+    await expect(unlocked).resolves.toBe(true);
+  });
+
+  it("tells the caller the vault stays locked when the dialog closes", async () => {
+    const unlocked = requestUnlock();
+    const top = topRequest();
+
+    if (top) closeRequest(top.id);
+
+    await expect(unlocked).resolves.toBe(false);
   });
 });

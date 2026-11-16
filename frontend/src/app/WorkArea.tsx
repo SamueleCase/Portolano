@@ -36,6 +36,7 @@ export function WorkArea({ index, backend }: WorkAreaProps) {
   const showTab = useWorkspace((state) => state.showTab);
   const selectedId = useWorkspace((state) => state.selectedId);
   const sessions = useSessionsStore((state) => state.sessions);
+  const summaries = useWorkspace((state) => state.sessionSummaries);
   const { closeTab } = useWindowActions();
   const Validation = useFeatures().validation;
   const goToNode = useGoToNode();
@@ -48,6 +49,7 @@ export function WorkArea({ index, backend }: WorkAreaProps) {
   useEffect(() => {
     backgroundControl.setSessionTabActive(session !== undefined);
   }, [session]);
+  useEffect(() => () => backgroundControl.setSessionTabActive(false), []);
 
   if (tabs.length === 0) {
     return (
@@ -72,6 +74,7 @@ export function WorkArea({ index, backend }: WorkAreaProps) {
             key={session.id}
             session={session}
             entry={index.entries.get(session.nodeId)}
+            summary={summaries[session.id] ?? ""}
           />
         ) : (
           <GlassPanel className={styles.panel}>

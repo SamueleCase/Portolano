@@ -6,7 +6,10 @@ import { FilterChip } from "../../components/FilterChip";
 import { GlassPanel } from "../../components/GlassPanel";
 import type { VaultBackend } from "../../components/SecretBadge";
 import { TextField } from "../../components/TextField";
+import { visibleText } from "../../components/visibleText";
+import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
+import { presentFailure } from "../../ipc/errors";
 import { searchQuery } from "../../ipc/queries";
 import { type TreeFilter, useWorkspace } from "../../state/workspace";
 import { MoveToDialog } from "./MoveToDialog";
@@ -15,10 +18,14 @@ import { NodeTree } from "./NodeTree";
 import styles from "./Sidebar.module.css";
 import { TreeSkeleton } from "./TreeSkeleton";
 import { nodeCount, visibleIds } from "./treeModel";
+import { useDebounced } from "./useDebounced";
 import { useTreeIndex } from "./useTreeIndex";
 import { VaultFooter } from "./VaultFooter";
 
 const FILTERS: readonly TreeFilter[] = ["all", "ssh", "rdp", "credentials", "favorites"];
+
+/** How long the search waits for the typing to pause. */
+const SEARCH_DELAY_MS = 150;
 
 /**
  * The sidebar (inventario §5.1): the search (name, host, tag, by the backend)
@@ -38,9 +45,11 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
   const [menu, setMenu] = useState<{ id: string; position: { x: number; y: number } }>();
   const [moving, setMoving] = useState<string>();
 
-  const searching = query.trim() !== "";
+  // The backend searches once the user pauses typing.
+  const searched = useDebounced(query.trim(), SEARCH_DELAY_MS);
+  const searching = searched !== "";
   const search = useQuery({
-    ...searchQuery(query.trim()),
+    ...searchQuery(searched),
     enabled: searching,
     placeholderData: keepPreviousData,
   });
@@ -70,6 +79,7 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
           variant="search"
           label={t.search}
           placeholder={t.searchPlaceholder}
+          aria-keyshortcuts="Meta+F"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -91,26 +101,34 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
           <TreeSkeleton />
         ) : index.rootIds.length === 0 ? (
           <p className={styles.empty}>{t.empty}</p>
+        ) : searching && search.isError ? (
+          <p className={styles.empty} role="alert">
+            {interpolate(t.searchFailed, {
+              message: visibleText(presentFailure(search.error).message),
+            })}
+          </p>
         ) : visible !== null && visible.size === 0 ? (
           <p className={styles.empty} role="status">
-            {t.noResults}
+            {searching ? t.noResults : t.noFilterResults}
           </p>
         ) : (
           <NodeTree
             index={index}
             visible={visible}
-            query={query.trim()}
+            query={searched}
             backend={backend}
             onConnect={actions.connect}
             onMove={actions.move}
+            onMoveBy={actions.moveBy}
             onContextMenu={(id, position) => setMenu({ id, position })}
           />
         )}
       </div>
       <VaultFooter nodeCount={index ? nodeCount(index) : 0} />
-      {menu && menuEntry && (
+      {menu && index && menuEntry && (
         <NodeContextMenu
           entry={menuEntry}
+          index={index}
           position={menu.position}
           onMoveTo={setMoving}
           onClose={() => setMenu(undefined)}

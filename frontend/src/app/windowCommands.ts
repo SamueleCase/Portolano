@@ -58,10 +58,12 @@ export function runWindowCommand(
       if (selection && selection.kind !== "unsupported") actions.edit(selection.id);
       return;
     case "duplicate":
-      if (selection) actions.duplicate(selection.id);
+      // An unsupported node is kept read-only and is not copied (DEC-041.4).
+      if (selection && selection.kind !== "unsupported") actions.duplicate(selection.id);
       return;
     case "delete":
-      if (selection) actions.remove(selection.id);
+      // ⌘⌫ of the menu, too, deletes text in a field rather than the node.
+      if (selection && !editsText(document.activeElement)) actions.remove(selection.id);
       return;
     case "search":
       return workspace.requestSearch();

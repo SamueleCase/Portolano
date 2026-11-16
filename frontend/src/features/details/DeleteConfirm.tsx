@@ -14,36 +14,10 @@ import { treeQuery } from "../../ipc/queries";
 import { showToast } from "../../state/toasts";
 import { useWorkspace } from "../../state/workspace";
 import { indexTree, isWithin, readablePath } from "../tree/treeModel";
+import { useGoToNode } from "../tree/useGoToNode";
 import { useDeleteConfirm } from "./deleteStore";
+import { deleteUsage } from "./deleteUsage";
 import styles from "./Details.module.css";
-
-/** A row of "È usata da N nodi": who, and how. */
-interface UsageRow {
-  key: string;
-  path: string;
-  relation: string;
-}
-
-/** The users of what is deleted (DEC-018.1 and ambiguity 13): direct references, then heirs. */
-function usageRows(preview: DeletePreview): UsageRow[] {
-  const t = texts.details.remove;
-  const credential = preview.node_type.type === "credential";
-  return [
-    ...preview.references.map((reference) => ({
-      key: `${reference.from}-${reference.target}`,
-      path: reference.from_path,
-      relation:
-        credential && reference.target === preview.id
-          ? t.linked
-          : interpolate(t.references, { target: readablePath(reference.target_path) }),
-    })),
-    ...preview.inherited.map((node) => ({
-      key: `${node.id}-inherited`,
-      path: node.path,
-      relation: t.inherited,
-    })),
-  ];
-}
 
 function title(preview: DeletePreview, name: string): string {
   const t = texts.details.remove;
@@ -57,11 +31,12 @@ function title(preview: DeletePreview, name: string): string {
 }
 
 /**
- * The confirmation of a deletion (inventario §5.11, generic): who uses what is
- * deleted, the content and the secrets of a folder, "Elimina comunque" when
- * used. Enter means "Annulla", the default action. Once deleted, "Annulla" of
- * the toast puts everything back for 10 seconds (`undo_delete`); then the
- * secrets leave the vault.
+ * The confirmation of a deletion (inventario §5.11, generic): who refers to
+ * what is deleted (each row goes to the node), how many receive it by
+ * inheritance, the content and the secrets of a folder, "Elimina comunque"
+ * when used. Enter means "Annulla", the default action. Once deleted,
+ * "Annulla" of the toast puts everything back for 10 seconds (`undo_delete`);
+ * then the secrets leave the vault.
  */
 export function DeleteConfirm() {
   const t = texts.details.remove;
@@ -71,56 +46,49 @@ export function DeleteConfirm() {
   const dismiss = useDeleteConfirm((state) => state.dismiss);
   const deleteNode = useDeleteNode();
   const { mutateAsync: undo } = useUndoDelete();
+  const goToNode = useGoToNode();
   const cancel = useRef<HTMLButtonElement>(null);
 
-  const rows = preview ? usageRows(preview) : [];
-  const used = rows.length > 0;
-  const credential = preview?.node_type.type === "credential";
-  // Credentials leave their users "ask at launch"; other references stay dangling.
-  const consequences = preview
-    ? [
-        credential || preview.inherited.length > 0 ? t.credentialText : "",
-        !credential && preview.references.length > 0 ? t.referencesText : "",
-      ].filter((text) => text !== "")
-    : [];
+  const view = queryClient.getQueryData(treeQuery.queryKey);
+  const usage = preview ? deleteUsage(preview, view ? indexTree(view) : undefined) : undefined;
+  const used = usage !== undefined && (usage.rows.length > 0 || usage.inherited > 0);
+  const consequences = [
+    usage?.credentialsUsed ? t.credentialText : "",
+    usage?.otherReferences ? t.referencesText : "",
+  ].filter((text) => text !== "");
+
+  const undoDeletion = (undoId: string) =>
+    void undo(undoId)
+      .then((restored) => {
+        showToast({ kind: "success", text: interpolate(texts.app.toasts.restored, { name }) });
+        if (restored.kept.length > 0) {
+          showToast({
+            kind: "info",
+            text: interpolate(plural(restored.kept.length, texts.app.toasts.kept), {
+              paths: restored.kept.map((node) => readablePath(node.path)).join(", "),
+            }),
+          });
+        }
+      })
+      .catch((failure: unknown) => reportFailure(failure, queryClient));
 
   const confirm = async () => {
     if (!preview) return;
-    // Closing the selection first: the detail of a deleted node has nothing to show.
-    const index = queryClient.getQueryData(treeQuery.queryKey);
     const { selectedId, clearSelection } = useWorkspace.getState();
     try {
       const result = await deleteNode.mutateAsync({
         id: preview.id,
         options: { recursive: preview.children > 0, force: used },
       });
-      if (selectedId !== null && index && isWithin(indexTree(index), selectedId, preview.id)) {
+      // The detail of a deleted node has nothing to show.
+      if (selectedId !== null && view && isWithin(indexTree(view), selectedId, preview.id)) {
         clearSelection();
       }
       dismiss();
       showToast({
         kind: "undo",
         text: interpolate(texts.app.toasts.deleted, { name }),
-        action: {
-          label: texts.app.toasts.undo,
-          onAction: () =>
-            void undo(result.undoId)
-              .then((restored) => {
-                showToast({
-                  kind: "success",
-                  text: interpolate(texts.app.toasts.restored, { name }),
-                });
-                if (restored.kept.length > 0) {
-                  showToast({
-                    kind: "info",
-                    text: interpolate(plural(restored.kept.length, texts.app.toasts.kept), {
-                      paths: restored.kept.map((node) => readablePath(node.path)).join(", "),
-                    }),
-                  });
-                }
-              })
-              .catch((failure: unknown) => reportFailure(failure, queryClient)),
-        },
+        action: { label: texts.app.toasts.undo, onAction: () => undoDeletion(result.undoId) },
       });
     } catch (failure) {
       dismiss();
@@ -149,17 +117,33 @@ export function DeleteConfirm() {
         </>
       }
     >
-      {preview && used && (
+      {usage && used && (
         <Card tone="warning" className={styles.usedBy}>
-          <p className={styles.usedByTitle}>{plural(rows.length, t.usedBy)}</p>
-          <ul className={styles.usedByList}>
-            {rows.map((row) => (
-              <li key={row.key} className={styles.usedByRow}>
-                <span>{visibleText(readablePath(row.path))}</span>
-                <span className={styles.relation}>{row.relation}</span>
-              </li>
-            ))}
-          </ul>
+          {usage.rows.length > 0 && (
+            <>
+              <p className={styles.usedByTitle}>{plural(usage.rows.length, t.usedBy)}</p>
+              <ul className={styles.usedByList}>
+                {usage.rows.map((row) => (
+                  <li key={row.key}>
+                    <button
+                      type="button"
+                      className={styles.usageRow}
+                      onClick={() => {
+                        dismiss();
+                        goToNode(row.id);
+                      }}
+                    >
+                      <span>{visibleText(readablePath(row.path))}</span>
+                      <span className={styles.relation}>{row.relation}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {usage.inherited > 0 && (
+            <p className={styles.inheritedBy}>{plural(usage.inherited, t.inheritedBy)}</p>
+          )}
         </Card>
       )}
       {preview && preview.node_type.type === "folder" && preview.descendants > 0 && (

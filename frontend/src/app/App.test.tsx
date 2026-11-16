@@ -1,19 +1,32 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { commands } from "../bindings";
 import { useDeleteConfirm } from "../features/details/deleteStore";
 import { useSessionsStore } from "../features/sessions/store";
 import { texts } from "../i18n/it";
 import { createQueryClient } from "../ipc/queryClient";
 import type { OpenSessionRequest, SessionTransport } from "../ipc/sessions";
-import { useRequests } from "../state/requests";
+import { requestUnlock, useRequests } from "../state/requests";
 import { useToasts } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
-import { type FakeBackendState, initialFakeState, installFakeBackend } from "../test/fakeBackend";
+import {
+  type FakeBackendState,
+  initialFakeState,
+  installFakeBackend,
+  TEST_MASTER_PASSWORD,
+} from "../test/fakeBackend";
 import { FakeSessionTransport, workingConnection } from "../test/fakeSessions";
 import { App } from "./App";
-import type { EditorProps, FeatureRegistry, LoginProps } from "./features";
+import type {
+  EditorProps,
+  FeatureRegistry,
+  LoginProps,
+  PasswordProps,
+  VaultDialogProps,
+} from "./features";
 
 // xterm.js needs a real layout engine: the e2e runs the real terminal in WebKit.
 vi.mock("../components/terminal/Terminal", () => ({
@@ -38,20 +51,45 @@ function recordingTransport(): { transport: SessionTransport; opened: OpenSessio
   };
 }
 
+let queryClient: QueryClient;
+
 function renderApp(
   state: FakeBackendState = initialFakeState(),
   features: FeatureRegistry = {},
   transport: SessionTransport = recordingTransport().transport,
 ) {
   installFakeBackend(state);
-  return render(
-    <App queryClient={createQueryClient()} transport={transport} features={features} />,
-  );
+  queryClient = createQueryClient();
+  return render(<App queryClient={queryClient} transport={transport} features={features} />);
 }
 
 async function tree() {
   return screen.findByRole("tree", { name: texts.tree.label });
 }
+
+/** The row of node `name`: its accessible name starts with the name. */
+async function row(name: string) {
+  return within(await tree()).findByRole("treeitem", { name: new RegExp(`^${name},`) });
+}
+
+/** A login dialog that answers with the sentinel password. */
+const Login = ({ onDone }: LoginProps) => (
+  <button type="button" onClick={() => onDone({ username: "operatore", password: SENTINEL })}>
+    accedi
+  </button>
+);
+
+/** An unlock dialog that opens the fake vault with the test master password. */
+const Unlock = ({ onDone }: VaultDialogProps) => (
+  <button
+    type="button"
+    onClick={() => void commands.unlockVault(TEST_MASTER_PASSWORD).then(() => onDone(true))}
+  >
+    sblocca
+  </button>
+);
+
+const SENTINEL = "sentinel-login";
 
 describe("the window", () => {
   beforeEach(() => {
@@ -59,7 +97,7 @@ describe("the window", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     useWorkspace.getState().documentSwitched();
     useSessionsStore.setState({ sessions: [] });
-    useRequests.setState({ active: null });
+    useRequests.setState({ stack: [] });
     useToasts.setState({ toasts: [] });
     useDeleteConfirm.getState().dismiss();
   });
@@ -107,6 +145,18 @@ describe("the window", () => {
     expect(await tree()).toBeInTheDocument();
   });
 
+  it("opens the default document when the last one is gone", async () => {
+    const state = initialFakeState();
+    const sample = state.document;
+    state.document = null;
+    state.recent = ["/Users/utente-di-prova/infra/spostato.json"];
+    if (sample) state.files[state.defaultDocumentPath] = sample;
+
+    renderApp(state);
+
+    expect(await tree()).toBeInTheDocument();
+  });
+
   it("disables a function that is not mounted, with its reason", async () => {
     renderApp();
     await tree();
@@ -131,6 +181,22 @@ describe("the window", () => {
     expect(screen.queryByRole("button", { name: "chiudi import" })).not.toBeInTheDocument();
   });
 
+  it("keeps the editor mounted under the unlock it asks for", async () => {
+    const Editor = () => (
+      <button type="button" onClick={() => void requestUnlock()}>
+        salva
+      </button>
+    );
+    renderApp(initialFakeState(), { editor: Editor, unlockVault: Unlock });
+    await userEvent.click(await row("Rete"));
+    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "salva" }));
+
+    expect(await screen.findByRole("button", { name: "sblocca" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "salva" })).toBeInTheDocument();
+  });
+
   it("opens the editor of a new folder inside the folder selected", async () => {
     const targets: EditorProps["target"][] = [];
     const Editor = ({ target }: EditorProps) => {
@@ -138,7 +204,7 @@ describe("the window", () => {
       return <p>editor</p>;
     };
     renderApp(initialFakeState(), { editor: Editor });
-    await userEvent.click(within(await tree()).getByRole("treeitem", { name: "Rete" }));
+    await userEvent.click(await row("Rete"));
 
     await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
 
@@ -147,33 +213,91 @@ describe("the window", () => {
     expect(targets.at(-1)).toHaveProperty("parent", useWorkspace.getState().selectedId);
   });
 
-  it("asks the login of a credential «ask at launch» and opens the session with it", async () => {
-    const Login = ({ onDone }: LoginProps) => (
-      <button
-        type="button"
-        onClick={() => onDone({ username: "operatore", password: "sentinel-login" })}
-      >
-        accedi
-      </button>
+  it("unlocks the vault before «Imposta…» of a secret, then asks the password", async () => {
+    const Password = ({ field }: PasswordProps) => <p>password {field.kind}</p>;
+    renderApp(initialFakeState(), { password: Password, unlockVault: Unlock });
+    await userEvent.click(await row("Admin ACME"));
+    const secrets = await screen.findByRole("region", { name: texts.details.secrets.heading });
+
+    await userEvent.click(
+      within(secrets).getAllByRole("button", { name: /Imposta|Sostituisci/ })[0]!,
     );
-    const { transport, opened } = recordingTransport();
-    renderApp(initialFakeState(), { login: Login }, transport);
-    await userEvent.click(within(await tree()).getByRole("treeitem", { name: "ACME" }));
+    await userEvent.click(await screen.findByRole("button", { name: "sblocca" }));
 
-    await userEvent.dblClick(within(await tree()).getByRole("treeitem", { name: "kiosk" }));
-    await userEvent.click(await screen.findByRole("button", { name: "accedi" }));
+    expect(await screen.findByText("password password")).toBeInTheDocument();
+  });
 
-    await waitFor(() => expect(opened.at(-1)?.login?.username).toBe("operatore"));
-    expect(await screen.findByRole("tab", { name: /kiosk.*SSH/ })).toBeInTheDocument();
-    expect(JSON.stringify(useRequests.getState())).not.toContain("sentinel-login");
+  it("repeats a command refused with the vault locked once it is unlocked", async () => {
+    renderApp(initialFakeState(), { unlockVault: Unlock });
+    await userEvent.click(await row("Admin ACME"));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: texts.details.actions.duplicate }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "sblocca" }));
+
+    expect(await row("Admin ACME \\(copia\\)")).toBeInTheDocument();
+  });
+
+  describe("with a credential «ask at launch»", () => {
+    async function connectToKiosk(transport: SessionTransport) {
+      renderApp(initialFakeState(), { login: Login }, transport);
+      await userEvent.click(await row("ACME"));
+      await userEvent.dblClick(await row("kiosk"));
+    }
+
+    it("opens the session with the login asked", async () => {
+      const { transport, opened } = recordingTransport();
+      await connectToKiosk(transport);
+
+      await userEvent.click(await screen.findByRole("button", { name: "accedi" }));
+
+      await waitFor(() => expect(opened.at(-1)?.login?.username).toBe("operatore"));
+      expect(await screen.findByRole("tab", { name: /kiosk.*SSH/ })).toBeInTheDocument();
+    });
+
+    it("keeps the password out of every store while the dialog is open and after", async () => {
+      const seen: string[] = [];
+      const record = (state: unknown) => seen.push(JSON.stringify(state));
+      const unsubscribe = [
+        useRequests.subscribe(record),
+        useWorkspace.subscribe(record),
+        useSessionsStore.subscribe(record),
+        useToasts.subscribe(record),
+      ];
+      await connectToKiosk(recordingTransport().transport);
+
+      await userEvent.click(await screen.findByRole("button", { name: "accedi" }));
+      await screen.findByRole("tab", { name: /kiosk.*SSH/ });
+
+      unsubscribe.forEach((stop) => stop());
+      expect(seen.join("\n")).not.toContain(SENTINEL);
+    });
+
+    it("keeps the password out of the cache of the queries", async () => {
+      await connectToKiosk(recordingTransport().transport);
+
+      await userEvent.click(await screen.findByRole("button", { name: "accedi" }));
+      await screen.findByRole("tab", { name: /kiosk.*SSH/ });
+
+      const cached = queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => JSON.stringify(query.state.data));
+      const mutations = queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => JSON.stringify(mutation.state.variables));
+      expect([...cached, ...mutations].join("\n")).not.toContain(SENTINEL);
+    });
   });
 
   it("does not connect when the login dialog is not mounted, and says why", async () => {
     const { transport, opened } = recordingTransport();
     renderApp(initialFakeState(), {}, transport);
-    await userEvent.click(within(await tree()).getByRole("treeitem", { name: "ACME" }));
+    await userEvent.click(await row("ACME"));
 
-    await userEvent.dblClick(within(await tree()).getByRole("treeitem", { name: "kiosk" }));
+    await userEvent.dblClick(await row("kiosk"));
 
     expect((await screen.findAllByText(texts.app.connection.noLoginDialog)).length).toBeGreaterThan(
       0,
@@ -183,7 +307,7 @@ describe("the window", () => {
 
   it("deletes a node after the confirmation and puts it back with «Annulla»", async () => {
     renderApp();
-    await userEvent.click(within(await tree()).getByRole("treeitem", { name: "vnc-legacy" }));
+    await userEvent.click(await row("vnc-legacy"));
     await userEvent.click(
       await screen.findByRole("button", { name: texts.details.actions.delete }),
     );
@@ -193,23 +317,31 @@ describe("the window", () => {
       within(dialog).getByRole("button", { name: texts.details.remove.delete }),
     );
     await waitFor(() =>
-      expect(screen.queryByRole("treeitem", { name: "vnc-legacy" })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("treeitem", { name: /^vnc-legacy,/ })).not.toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: texts.app.toasts.undo }));
 
-    expect(await screen.findByRole("treeitem", { name: "vnc-legacy" })).toBeInTheDocument();
+    expect(await row("vnc-legacy")).toBeInTheDocument();
   });
 
   it("offers «Imposta…» of a secret only with the password dialog mounted", async () => {
     const state = initialFakeState();
     state.vault.locked = false;
     renderApp(state);
-    await userEvent.click(within(await tree()).getByRole("treeitem", { name: "deploy" }));
+    await userEvent.click(await row("deploy"));
 
     const secrets = await screen.findByRole("region", { name: texts.details.secrets.heading });
 
     for (const button of within(secrets).getAllByRole("button", { name: /Imposta|Sostituisci/ })) {
       expect(button).toHaveAttribute("aria-disabled", "true");
     }
+  });
+
+  it("names a row with what it shows, for the screen readers", async () => {
+    renderApp();
+
+    expect(await row("bastion")).toHaveAccessibleName(
+      "bastion, Connessione SSH, bastion.example.com",
+    );
   });
 });

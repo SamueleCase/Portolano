@@ -4,10 +4,12 @@ import { isConnection } from "../../components/nodeKind";
 import { texts } from "../../i18n/it";
 import type { NewNodeKind } from "../../state/requests";
 import { useWorkspace } from "../../state/workspace";
-import type { TreeEntry } from "./treeModel";
+import { siblingPlacement, type TreeEntry, type TreeIndex } from "./treeModel";
 
 interface NodeContextMenuProps {
   entry: TreeEntry;
+  /** The tree, for "Sposta su" / "Sposta giù" at the edges. */
+  index: TreeIndex;
   position: { x: number; y: number };
   /** "Sposta in…": the picker of the destination folder. */
   onMoveTo: (id: string) => void;
@@ -22,6 +24,8 @@ type Action =
   | "duplicate"
   | "favorite"
   | "move"
+  | "up"
+  | "down"
   | "delete"
   | `new-${NewNodeKind}`;
 
@@ -34,20 +38,36 @@ const SEPARATOR = { separator: true } as const;
  * itself (the menu selects the node first, and the new nodes go into the
  * selected folder).
  */
-export function NodeContextMenu({ entry, position, onMoveTo, onClose }: NodeContextMenuProps) {
+export function NodeContextMenu({
+  entry,
+  index,
+  position,
+  onMoveTo,
+  onClose,
+}: NodeContextMenuProps) {
   const actions = useWindowActions();
   const showCommand = useWorkspace((state) => state.showCommand);
   const m = texts.tree.menu;
   const s = texts.app.shortcuts;
   const { id } = entry.node;
   const noEditor = !actions.offers("editor");
+  const editorReason = noEditor ? texts.app.reasons.unavailable : undefined;
   const item = (action: Action, label: string, extra: Omit<MenuItem, "id" | "label"> = {}) =>
     ({ id: action, label, ...extra }) satisfies MenuItem;
 
-  const edit = item("edit", m.edit, { shortcut: s.edit, disabled: noEditor });
+  const edit = item("edit", m.edit, { shortcut: s.edit, disabled: noEditor, reason: editorReason });
   const duplicate = item("duplicate", m.duplicate, { shortcut: s.duplicate });
   const favorite = item("favorite", entry.node.favorite ? m.unfavorite : m.favorite);
   const move = item("move", m.moveTo);
+  // The keyboard alternative to dragging among the siblings (SPEC-UI §5.5).
+  const up = item("up", m.moveUp, {
+    shortcut: s.moveUp,
+    disabled: siblingPlacement(index, id, -1) === undefined,
+  });
+  const down = item("down", m.moveDown, {
+    shortcut: s.moveDown,
+    disabled: siblingPlacement(index, id, 1) === undefined,
+  });
   const remove = item("delete", m.delete, { shortcut: s.delete, destructive: true });
 
   const entries: MenuEntry[] = (() => {
@@ -61,30 +81,34 @@ export function NodeContextMenu({ entry, position, onMoveTo, onClose }: NodeCont
         duplicate,
         favorite,
         move,
+        up,
+        down,
         SEPARATOR,
         remove,
       ];
     }
     if (entry.kind === "folder") {
       return [
-        item("new-ssh", m.newSsh, { disabled: noEditor }),
-        item("new-rdp", m.newRdp, { disabled: noEditor }),
-        item("new-folder", m.newFolder, { disabled: noEditor }),
-        item("new-credential", m.newCredential, { disabled: noEditor }),
+        item("new-ssh", m.newSsh, { disabled: noEditor, reason: editorReason }),
+        item("new-rdp", m.newRdp, { disabled: noEditor, reason: editorReason }),
+        item("new-folder", m.newFolder, { disabled: noEditor, reason: editorReason }),
+        item("new-credential", m.newCredential, { disabled: noEditor, reason: editorReason }),
         SEPARATOR,
         edit,
         duplicate,
         favorite,
         move,
+        up,
+        down,
         SEPARATOR,
         remove,
       ];
     }
     if (entry.kind === "credential") {
-      return [edit, duplicate, favorite, move, SEPARATOR, remove];
+      return [edit, duplicate, favorite, move, up, down, SEPARATOR, remove];
     }
-    // Unsupported: read-only, it can only be moved or deleted.
-    return [move, SEPARATOR, remove];
+    // Unsupported: read-only, it can only be moved or deleted (DEC-041.4).
+    return [move, up, down, SEPARATOR, remove];
   })();
 
   const choose = (action: string) => {
@@ -103,6 +127,10 @@ export function NodeContextMenu({ entry, position, onMoveTo, onClose }: NodeCont
         return actions.toggleFavorite(id);
       case "move":
         return onMoveTo(id);
+      case "up":
+        return actions.moveBy(id, -1);
+      case "down":
+        return actions.moveBy(id, 1);
       case "delete":
         return actions.remove(id);
       case "new-ssh":

@@ -6,6 +6,7 @@ import { texts } from "../i18n/it";
 import { presentFailure, type PresentedError } from "../ipc/errors";
 import { queryKeys } from "../ipc/keys";
 import { appStatusQuery } from "../ipc/queries";
+import { requestUnlock } from "../state/requests";
 import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
 
@@ -23,20 +24,21 @@ export function errorText(error: PresentedError): string {
 
 /**
  * Shows a failed command where its code says (SPEC-UI §4.2, `ipc/errors.ts`):
- * the banners of the document, the first run when there is no document, and
- * a persistent error toast for the rest (ambiguity 17). The errors under a
- * field and the confirmation of a deletion are shown by the screens that
- * have them; here they become toasts too.
+ * the banners of the document (alone, without a toast), the first run when
+ * there is no document, and a persistent error toast for the rest (ambiguity
+ * 17). The errors under a field and the confirmation of a deletion are shown
+ * by the screens that have them; here they become toasts.
  */
 export function reportFailure(failure: unknown, queryClient: QueryClient): void {
   const error = presentFailure(failure);
+  const fileName = queryClient.getQueryData(appStatusQuery.queryKey)?.document?.fileName;
   const { setBanner } = useWorkspace.getState();
   switch (error.presentation) {
     case "reloadBanner":
-      setBanner({ kind: "modified", fileName: currentFileName(queryClient) });
+      if (fileName) return setBanner({ kind: "modified", fileName });
       break;
     case "missingBanner":
-      setBanner({ kind: "missing", fileName: currentFileName(queryClient) });
+      if (fileName) return setBanner({ kind: "missing", fileName });
       break;
     case "firstRun":
       // The document is gone: the window goes back to the first run.
@@ -48,7 +50,28 @@ export function reportFailure(failure: unknown, queryClient: QueryClient): void 
   showToast({ kind: "error", text: errorText(error) });
 }
 
-/** The file name of the open document, as the status of the app has it. */
-function currentFileName(queryClient: QueryClient): string {
-  return queryClient.getQueryData(appStatusQuery.queryKey)?.document?.fileName ?? "";
+/** Whether `failure` is a command refused because the vault is locked. */
+export function isVaultLocked(failure: unknown): boolean {
+  return presentFailure(failure).presentation === "unlockVault";
+}
+
+/**
+ * Runs `command`; if it fails because the vault is locked and the unlock
+ * dialog is mounted (`canUnlock`), asks to unlock it and, once unlocked, runs
+ * the command again (DEC-041.2). Any other failure, or a second one, goes to
+ * `reportFailure`.
+ */
+export async function runReported(
+  command: () => Promise<unknown>,
+  queryClient: QueryClient,
+  canUnlock: () => boolean,
+): Promise<void> {
+  try {
+    await command();
+  } catch (failure) {
+    if (isVaultLocked(failure) && canUnlock() && (await requestUnlock())) {
+      return runReported(command, queryClient, () => false);
+    }
+    reportFailure(failure, queryClient);
+  }
 }

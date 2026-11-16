@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useId } from "react";
 
 import { useShortcuts } from "../../app/useWindowCommands";
+import { useWindowActions } from "../../app/windowActions";
 import type { WindowCommand } from "../../app/windowCommands";
 import { Logo } from "../../components/Logo";
 import { Spinner } from "../../components/Spinner";
@@ -22,17 +23,19 @@ export function FirstRun() {
   const t = texts.firstRun;
   const titleId = useId();
   const { createNew, openChosen, openRecent, busy } = useDocumentActions();
+  const { openPreferences } = useWindowActions();
   const recent = useQuery(recentDocumentsQuery);
   const recents = recent.data?.filter((document) => document.exists) ?? [];
 
-  // Without a document only the commands of the File menu make sense.
+  // Without a document only the File menu and the preferences make sense.
   const run = useCallback(
     (command: WindowCommand) => {
       if (command.kind === "newDocument") void createNew();
       if (command.kind === "openDocument") void openChosen();
       if (command.kind === "openRecent") void openRecent(command.path);
+      if (command.kind === "preferences") openPreferences();
     },
-    [createNew, openChosen, openRecent],
+    [createNew, openChosen, openRecent, openPreferences],
   );
   useBackendEvents({ onMenu: run });
   useShortcuts(run);

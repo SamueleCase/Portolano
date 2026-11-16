@@ -37,7 +37,7 @@ export function Toolbar({ documentName }: { documentName: string }) {
       <span className={styles.document} data-tauri-drag-region="">
         {visibleText(documentName)}
       </span>
-      <nav aria-label={t.label} className={styles.actions}>
+      <div role="toolbar" aria-label={t.label} className={styles.actions}>
         <GuardedButton
           ref={setAnchor}
           variant="toolbar"
@@ -53,6 +53,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
         <GuardedButton
           variant="toolbar"
           reason={offered("editor")}
+          hint={t.newFolder}
+          shortcut={shortcuts.newFolder}
           onClick={() => actions.create("folder")}
         >
           {t.newFolder}
@@ -65,12 +67,20 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.newCredential}
         </GuardedButton>
         <span className={styles.separator} aria-hidden="true" />
-        <GuardedButton variant="ghost" reason={offered("import")} onClick={actions.openImport}>
+        <GuardedButton
+          variant="ghost"
+          reason={offered("import")}
+          hint={t.import}
+          shortcut={shortcuts.import}
+          onClick={actions.openImport}
+        >
           {t.import}
         </GuardedButton>
         <GuardedButton
           variant="ghost"
           reason={offered("validation")}
+          hint={t.validate}
+          shortcut={shortcuts.validate}
           onClick={actions.openValidation}
         >
           {t.validate}
@@ -78,6 +88,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
         <GuardedButton
           variant="ghost"
           reason={offered("preferences")}
+          hint={t.preferences}
+          shortcut={shortcuts.preferences}
           onClick={actions.openPreferences}
         >
           {t.preferences}
@@ -92,7 +104,7 @@ export function Toolbar({ documentName }: { documentName: string }) {
         >
           {t.connect}
         </GuardedButton>
-      </nav>
+      </div>
       {menuOpen && anchor && <NewConnectionMenu anchor={anchor} onClose={() => setMenu(false)} />}
     </GlassPanel>
   );

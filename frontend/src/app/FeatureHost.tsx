@@ -2,46 +2,59 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { revealNode } from "../features/tree/useGoToNode";
 import { treeQuery } from "../ipc/queries";
-import { answerLogin, useRequests } from "../state/requests";
+import {
+  answerLogin,
+  answerVault,
+  closeRequest,
+  type OpenRequest,
+  useRequests,
+} from "../state/requests";
 import { useFeatures } from "./features";
 
 /**
- * Mounts the function of the request open now (`features.ts`), one at a time.
- * The editor and the import end on a node, which the window then selects
- * once the tree has it.
+ * Mounts the function of every open request (`features.ts`), the last one on
+ * top: a function that asks for another (the editor that needs the vault)
+ * stays mounted below with its state. The editor and the import end on a
+ * node, which the window then selects once the tree has it.
  */
 export function FeatureHost() {
+  const stack = useRequests((state) => state.stack);
+  return stack.map((open) => <OpenFeature key={open.id} open={open} />);
+}
+
+function OpenFeature({ open }: { open: OpenRequest }) {
   const queryClient = useQueryClient();
   const features = useFeatures();
-  const active = useRequests((state) => state.active);
-  const close = useRequests((state) => state.close);
-  const goToNode = (id: string) =>
+  const { id, request } = open;
+  const close = () => closeRequest(id);
+  const goToNode = (node: string) =>
     void queryClient
       .fetchQuery({ ...treeQuery, staleTime: 0 })
-      .then(() => revealNode(queryClient, id))
-      .catch(() => revealNode(queryClient, id));
+      .catch(() => undefined)
+      .then(() => revealNode(queryClient, node));
 
-  if (active === null) return null;
-  switch (active.kind) {
+  switch (request.kind) {
     case "editor": {
       const Editor = features.editor;
-      return Editor ? <Editor target={active.target} onClose={close} onSaved={goToNode} /> : null;
+      return Editor ? <Editor target={request.target} onClose={close} onSaved={goToNode} /> : null;
     }
     case "password": {
       const Password = features.password;
-      return Password ? <Password node={active.node} field={active.field} onClose={close} /> : null;
+      return Password ? (
+        <Password node={request.node} field={request.field} onClose={close} />
+      ) : null;
     }
     case "unlockVault": {
       const Unlock = features.unlockVault;
-      return Unlock ? <Unlock onClose={close} /> : null;
+      return Unlock ? <Unlock onDone={answerVault} /> : null;
     }
     case "createFileVault": {
       const Create = features.createFileVault;
-      return Create ? <Create onClose={close} /> : null;
+      return Create ? <Create onDone={answerVault} /> : null;
     }
     case "login": {
       const Login = features.login;
-      return Login ? <Login request={active.request} onDone={answerLogin} /> : null;
+      return Login ? <Login request={request.request} onDone={answerLogin} /> : null;
     }
     case "import": {
       const Import = features.import;

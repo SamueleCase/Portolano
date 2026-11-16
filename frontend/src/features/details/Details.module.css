@@ -17,7 +17,7 @@
   flex: 1;
   flex-direction: column;
   gap: var(--space-1);
-  min-width: calc(var(--size-label-column) + var(--space-8) * 2);
+  min-width: var(--size-detail-identity);
 }
 
 .type {
@@ -48,12 +48,15 @@
   gap: var(--space-fine-6);
 }
 
+/* One line: `user@host:port` never breaks in the middle. */
 .summary {
   margin: 0;
+  overflow: hidden;
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
   font-size: var(--font-size-mono-large);
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .actions {
@@ -224,6 +227,7 @@
 }
 
 .unsupported {
+  margin: 0;
   color: var(--color-text-secondary);
   line-height: var(--line-height-lead);
 }
@@ -286,9 +290,8 @@
   font-weight: var(--font-weight-strong);
 }
 
-.usedByRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
+.inheritedBy {
+  margin: 0;
+  color: var(--color-text-secondary);
   font-size: var(--font-size-body);
 }

@@ -5,12 +5,23 @@ import type { WorkTab } from "../components/Tabs";
 import { backgroundControl } from "../design/background/backgroundControl";
 import { indexTree } from "../features/tree/treeModel";
 import { treeQuery } from "../ipc/queries";
+import { useRequests } from "../state/requests";
 import { useWorkspace } from "../state/workspace";
 import type { WindowActions } from "./windowActions";
 import { runWindowCommand, shortcutCommand, type WindowCommand } from "./windowCommands";
 
 /** Whether the shortcuts use ⌘ (macOS) or Ctrl, as `CmdOrCtrl` of the menu. */
 export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
+
+/**
+ * Whether a dialog or the editor is open: a request of the hook points, or
+ * any `Dialog` / `SidePanel` of the window (the confirmation of a deletion,
+ * "Sposta in…"), which all count themselves in the background control
+ * through `useModal` (it slows the background behind them).
+ */
+export function modalOpen(): boolean {
+  return useRequests.getState().stack.length > 0 || backgroundControl.inputs().openDialogs > 0;
+}
 
 /**
  * The function that performs a command of the menu or of a shortcut with the
@@ -34,7 +45,7 @@ export function useCommandRunner(
       runWindowCommand(command, actions, {
         selection: entry && { id: entry.node.id, kind: entry.kind },
         tabs: currentTabs.current.map((tab) => tab.id),
-        modalOpen: backgroundControl.inputs().openDialogs > 0,
+        modalOpen: modalOpen(),
       });
     },
     [queryClient, actions],

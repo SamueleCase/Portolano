@@ -78,6 +78,7 @@ export const details = {
     heading: "Utilizzi",
     usedBy: { one: "È usata da {n} nodo", other: "È usata da {n} nodi" },
     direct: "collegata",
+    folderDefault: "credenziale predefinita",
     inherited: "ereditata",
   },
   info: {
@@ -109,8 +110,12 @@ export const details = {
     titleFolder: "Eliminare la cartella «{name}»?",
     usedBy: { one: "È usata da {n} nodo", other: "È usata da {n} nodi" },
     linked: "collegata",
+    folderDefault: "credenziale predefinita",
     references: "fa riferimento a {target}",
-    inherited: "ereditata",
+    inheritedBy: {
+      one: "La riceve per ereditarietà {n} nodo",
+      other: "La ricevono per ereditarietà {n} nodi",
+    },
     credentialText:
       "Questi nodi passeranno a «Chiedi all'avvio». Password, chiave e passphrase verranno tolte anche dal vault.",
     referencesText: "La validazione segnalerà i riferimenti rimasti.",

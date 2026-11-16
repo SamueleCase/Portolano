@@ -14,30 +14,38 @@ export type StartupView =
   | { view: "document"; status: AppStatus_Serialize };
 
 /**
- * The document to open at startup: the one opened last, else the default one
- * of the configuration, if their file exists; none means the first run
- * (inventario §5.12: the first run appears when there is no document).
+ * The documents to try at startup, in order: the one opened last, then the
+ * default one of the configuration (DEC-041.7), those whose file exists;
+ * none means the first run (inventario §5.12: the first run appears when
+ * there is no document).
  */
-export function startupSource(status: AppStatus_Serialize): DocumentSource | null {
-  if (status.lastDocument?.exists) {
-    return { kind: "recent", path: status.lastDocument.path };
+export function startupSources(status: AppStatus_Serialize): DocumentSource[] {
+  const sources: DocumentSource[] = [];
+  if (status.lastDocument?.exists) sources.push({ kind: "recent", path: status.lastDocument.path });
+  const lastIsDefault = status.lastDocument?.path === status.defaultDocument.path;
+  if (status.defaultDocument.exists && !(lastIsDefault && sources.length > 0)) {
+    sources.push({ kind: "default" });
   }
-  return status.defaultDocument.exists ? { kind: "default" } : null;
+  return sources;
 }
 
 /**
  * The opening of the document at startup, once: the backend starts with none
- * open. A failure is kept as the result, to show it, and the window goes on
- * to the first run.
+ * open. The first source that opens wins; the failure of the last one tried
+ * is kept as the result, to show it, and the window goes on to the first run.
  */
 const startupQuery = queryOptions({
   queryKey: ["startup"],
   queryFn: async (): Promise<{ failure: IpcError | null }> => {
     const status = unwrap(await commands.appStatus());
-    const source = status.document === null ? startupSource(status) : null;
-    if (source === null) return { failure: null };
-    const opened = await commands.openDocument(source);
-    return { failure: opened.status === "error" ? opened.error : null };
+    if (status.document !== null) return { failure: null };
+    let failure: IpcError | null = null;
+    for (const source of startupSources(status)) {
+      const opened = await commands.openDocument(source);
+      if (opened.status === "ok") return { failure: null };
+      failure = opened.error;
+    }
+    return { failure };
   },
   staleTime: Infinity,
   gcTime: Infinity,
@@ -55,8 +63,10 @@ export function useStartup(): StartupView {
   }, [failure, queryClient]);
 
   if (startup.isError) return { view: "failed", error: startup.error };
-  if (status.isError) return { view: "failed", error: status.error };
-  if (!status.isSuccess) return { view: "loading" };
+  // A refetch that fails later leaves the window as it is: only missing data fails it.
+  if (status.data === undefined) {
+    return status.isError ? { view: "failed", error: status.error } : { view: "loading" };
+  }
   return status.data.document === null
     ? { view: "firstRun", status: status.data }
     : { view: "document", status: status.data };

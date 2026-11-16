@@ -19,6 +19,7 @@ import { MainWindow } from "./MainWindow";
 import { appSessionTransport } from "./sessionTransport";
 import { useAppearance } from "./useAppearance";
 import { useStartup } from "./useStartup";
+import { useWindowActionsValue, WindowActionsContext } from "./windowActions";
 import { createWindowServices, WindowServicesContext } from "./windowServices";
 
 interface AppProps {
@@ -36,7 +37,10 @@ export function App({
   features = featureRegistry,
 }: AppProps) {
   const [services] = useState(() =>
-    createWindowServices(transport, queryClient, () => features.login !== undefined),
+    createWindowServices(transport, queryClient, {
+      hasLoginDialog: () => features.login !== undefined,
+      hasUnlockDialog: () => features.unlockVault !== undefined,
+    }),
   );
   return (
     <QueryClientProvider client={queryClient}>
@@ -54,9 +58,10 @@ export function App({
 /**
  * The window over the animated background: loading, the first run without a
  * document, or the main window; the toasts and the functions of the hook
- * points over them.
+ * points over them, all with the actions of the window.
  */
 function Shell() {
+  const actions = useWindowActionsValue();
   useAppearance();
   useSessionEndedEvents();
   const startup = useStartup();
@@ -64,7 +69,7 @@ function Shell() {
   const dismiss = useToasts((state) => state.dismiss);
 
   return (
-    <>
+    <WindowActionsContext value={actions}>
       <BackgroundCanvas />
       {startup.view === "loading" && (
         <p className={styles.status} role="status" aria-busy="true">
@@ -80,6 +85,6 @@ function Shell() {
       {startup.view === "document" && <MainWindow status={startup.status} />}
       <FeatureHost />
       <ToastViewport toasts={toasts} onDismiss={dismiss} />
-    </>
+    </WindowActionsContext>
   );
 }

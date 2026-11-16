@@ -8,6 +8,7 @@ import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { readablePath } from "../tree/treeModel";
 import { useGoToNode } from "../tree/useGoToNode";
+import { useTreeIndex } from "../tree/useTreeIndex";
 import styles from "./Details.module.css";
 import { MultilineText } from "./MultilineText";
 
@@ -26,8 +27,12 @@ function jsonText(value: JsonValue): string {
 export function UsageSection({ details }: { details: NodeDetailsView_Serialize }) {
   const t = texts.details.usage;
   const goTo = useGoToNode();
+  const index = useTreeIndex().data;
+  // A folder that refers to the credential has it as its default one.
+  const directRelation = (node: NodeRef) =>
+    index?.entries.get(node.id)?.kind === "folder" ? t.folderDefault : t.direct;
   const rows: [NodeRef, string][] = [
-    ...details.usage.direct.map((node): [NodeRef, string] => [node, t.direct]),
+    ...details.usage.direct.map((node): [NodeRef, string] => [node, directRelation(node)]),
     ...details.usage.inherited.map((node): [NodeRef, string] => [node, t.inherited]),
   ];
   if (rows.length === 0) return null;
@@ -154,12 +159,14 @@ export function UnsupportedNotice({ details }: { details: NodeDetailsView_Serial
   if (original === null) return null;
   return (
     <>
-      <Card tinted className={styles.unsupported}>
-        {t.before}
-        <strong className={styles.sourceType}>{visibleText(original.sourceType)}</strong>
-        {t.after}
+      <Card tinted>
+        <p className={styles.unsupported}>
+          {t.before}
+          <strong className={styles.sourceType}>{visibleText(original.sourceType)}</strong>
+          {t.after}
+        </p>
       </Card>
-      <pre className={styles.raw} aria-label={t.raw} tabIndex={0}>
+      <pre className={styles.raw} role="region" aria-label={t.raw} tabIndex={0}>
         <MultilineText text={original.raw} />
       </pre>
     </>

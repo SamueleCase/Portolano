@@ -13,7 +13,7 @@ import { CredentialSection } from "./CredentialSection";
 import { DetailHeader } from "./DetailHeader";
 import styles from "./Details.module.css";
 import { InfoSection, UnsupportedNotice, UsageSection } from "./InfoSections";
-import { useRoute } from "./route";
+import { routeOf } from "./route";
 import { SecretsSection } from "./SecretsSection";
 
 interface DetailPanelProps {
@@ -30,7 +30,7 @@ export function DetailPanel({ entry, backend }: DetailPanelProps) {
   const { id } = entry.node;
   const details = useQuery(nodeDetailsQuery(id));
   const commandShown = useWorkspace((state) => state.commandShown);
-  const route = useRoute(details.data);
+  const route = routeOf(details.data);
 
   if (details.isPending) {
     return (

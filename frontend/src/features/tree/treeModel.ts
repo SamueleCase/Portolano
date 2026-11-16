@@ -1,4 +1,9 @@
-import type { IconView, TreeNode_Serialize, TreeView_Serialize } from "../../bindings";
+import type {
+  IconView,
+  PlacementInput,
+  TreeNode_Serialize,
+  TreeView_Serialize,
+} from "../../bindings";
 import type { NodeIconChoice } from "../../components/icons/NodeIcon";
 import type { NodeKind } from "../../components/nodeKind";
 import type { TreeFilter } from "../../state/workspace";
@@ -150,4 +155,40 @@ export function readablePath(path: string): string {
 /** The name at the end of a path of the core. */
 export function pathName(path: string): string {
   return pathSegments(path).at(-1) ?? "";
+}
+
+/**
+ * The host in the summary of a connection, `[user@]host[:port]` (`[…]`
+ * around an IPv6 host): the meta of its row (inventario §4.19).
+ */
+export function summaryHost(summary: string): string {
+  const host = summary.slice(summary.lastIndexOf("@") + 1);
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    return end === -1 ? host.slice(1) : host.slice(1, end);
+  }
+  const colon = host.indexOf(":");
+  return colon === -1 ? host : host.slice(0, colon);
+}
+
+/** The children of the folder that holds `id` (the root's for a root node), by id. */
+export function siblingsOf(index: TreeIndex, id: string): readonly string[] {
+  const parentId = index.entries.get(id)?.parentId ?? null;
+  if (parentId === null) return index.rootIds;
+  return index.entries.get(parentId)?.node.children.map((child) => child.id) ?? [];
+}
+
+/**
+ * Where node `id` goes one place up (`-1`) or down (`1`) among its siblings,
+ * as `move_node` takes it; `undefined` at the edge.
+ */
+export function siblingPlacement(
+  index: TreeIndex,
+  id: string,
+  step: -1 | 1,
+): PlacementInput | undefined {
+  const siblings = siblingsOf(index, id);
+  const neighbor = siblings[siblings.indexOf(id) + step];
+  if (neighbor === undefined) return undefined;
+  return step < 0 ? { kind: "before", id: neighbor } : { kind: "after", id: neighbor };
 }

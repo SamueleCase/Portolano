@@ -46,7 +46,7 @@ export function DetailHeader({ details, kind, descendants }: DetailHeaderProps) 
             </span>
           )}
           {details.tags.length > 0 && (
-            <span className={styles.tags} aria-label={t.tags}>
+            <span className={styles.tags} role="group" aria-label={t.tags}>
               {details.tags.map((tag) => (
                 <Tag key={tag} name={tag} variant="detail" />
               ))}
@@ -79,9 +79,11 @@ export function DetailHeader({ details, kind, descendants }: DetailHeaderProps) 
             {commandShown ? t.actions.hideCommand : t.actions.showCommand}
           </Button>
         )}
-        <Button loading={actions.busy.duplicate} onClick={() => actions.duplicate(details.id)}>
-          {t.actions.duplicate}
-        </Button>
+        {kind !== "unsupported" && (
+          <Button loading={actions.busy.duplicate} onClick={() => actions.duplicate(details.id)}>
+            {t.actions.duplicate}
+          </Button>
+        )}
         <Button
           variant="danger-text"
           loading={actions.busy.remove}

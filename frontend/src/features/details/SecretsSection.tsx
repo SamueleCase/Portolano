@@ -32,19 +32,26 @@ export function SecretsSection({ details, backend }: SecretsSectionProps) {
   const entries = secretEntries(details);
   if (entries.length === 0) return null;
   const node = { id: details.id, path: details.path };
-  const setReason = !actions.offers("password")
-    ? texts.app.reasons.unavailable
-    : details.vaultLocked
-      ? texts.components.secretBadge.locked
-      : undefined;
+  // With the vault locked a secret can be set or cleared once it is unlocked:
+  // the actions ask for it first when the unlock dialog is there (DEC-041.2).
+  const locked = details.vaultLocked && !actions.offers("unlockVault");
+  const lockedReason = locked ? texts.components.secretBadge.locked : undefined;
+  const setReason = actions.offers("password") ? lockedReason : texts.app.reasons.unavailable;
 
   return (
     <section className={styles.section} aria-label={t.heading}>
       <GroupHeader>{t.heading}</GroupHeader>
       {entries.map((entry) => {
         const set = entry.state !== undefined;
+        const key =
+          entry.slot.kind === "property" ? `property:${entry.slot.name}` : entry.slot.kind;
         return (
-          <div key={entry.label} className={styles.secretRow} role="group" aria-label={entry.label}>
+          <div
+            key={key}
+            className={styles.secretRow}
+            role="group"
+            aria-label={visibleText(entry.label)}
+          >
             <span className={styles.secretLabel}>{visibleText(entry.label)}</span>
             <SecretBadge state={entry.state ?? "absent"} backend={backend} />
             <span className={styles.secretActions}>
@@ -56,9 +63,13 @@ export function SecretsSection({ details, backend }: SecretsSectionProps) {
                 {entry.state === "present" ? t.replace : t.set}
               </GuardedButton>
               {set && (
-                <Button variant="danger-text" onClick={() => setClearing(entry)}>
+                <GuardedButton
+                  variant="danger-text"
+                  reason={lockedReason}
+                  onClick={() => setClearing(entry)}
+                >
                   {t.clear}
-                </Button>
+                </GuardedButton>
               )}
             </span>
           </div>

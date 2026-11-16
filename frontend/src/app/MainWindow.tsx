@@ -13,7 +13,7 @@ import { DocumentBanner } from "./DocumentBanner";
 import styles from "./MainWindow.module.css";
 import { Toolbar } from "./Toolbar";
 import { useCommandRunner, useShortcuts } from "./useWindowCommands";
-import { useWindowActionsValue, WindowActionsContext } from "./windowActions";
+import { useWindowActions } from "./windowActions";
 import { WorkArea } from "./WorkArea";
 import { useWorkTabs } from "./workTabs";
 
@@ -45,7 +45,7 @@ function useSessionActivity(): void {
  * The native menu and the shortcuts perform the same commands.
  */
 export function MainWindow({ status }: { status: AppStatus_Serialize }) {
-  const actions = useWindowActionsValue();
+  const actions = useWindowActions();
   const index = useTreeIndex().data;
   const tabs = useWorkTabs(index);
   const run = useCommandRunner(actions, tabs);
@@ -61,7 +61,7 @@ export function MainWindow({ status }: { status: AppStatus_Serialize }) {
   useSessionActivity();
 
   return (
-    <WindowActionsContext value={actions}>
+    <>
       <div className={styles.window}>
         <Toolbar documentName={status.document?.fileName ?? ""} />
         <DocumentBanner />
@@ -71,6 +71,6 @@ export function MainWindow({ status }: { status: AppStatus_Serialize }) {
         </div>
       </div>
       <DeleteConfirm />
-    </WindowActionsContext>
+    </>
   );
 }

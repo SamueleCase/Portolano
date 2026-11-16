@@ -1,7 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { reportFailure } from "../../app/failures";
+import { commands } from "../../bindings";
+import { queryKeys } from "../../ipc/keys";
+import { useCommandMutation } from "../../ipc/mutation";
 import {
   useChooseDocument,
   useChooseNewDocument,
@@ -9,9 +12,10 @@ import {
   useOpenDocument,
   useReloadDocument,
 } from "../../ipc/mutations";
+import { closeAllRequests } from "../../state/requests";
 import { useWorkspace } from "../../state/workspace";
 
-/** What the document commands are doing, for the spinners of their buttons. */
+/** The document command running now, for the spinner of its button. */
 export type DocumentBusy = "new" | "open" | "recent" | "reload" | "recreate" | undefined;
 
 /** Opening, creating and reloading the document (SPEC-UI §4.3 "Documento"). */
@@ -23,8 +27,8 @@ export interface DocumentActions {
   openRecent: (path: string) => Promise<void>;
   /** "Ricarica": the document as the file has it now. */
   reload: () => Promise<void>;
-  /** "Ricrea vuoto": an empty document named `name` where the missing file was. */
-  recreate: (path: string, name: string) => Promise<void>;
+  /** "Ricrea": the document open in memory written where its missing file was. */
+  recreate: () => Promise<void>;
   busy: DocumentBusy;
 }
 
@@ -36,71 +40,66 @@ export function documentName(fileName: string): string {
 /** The document commands, with their failures shown (`reportFailure`). */
 export function useDocumentActions(): DocumentActions {
   const queryClient = useQueryClient();
-  const chooseDocument = useChooseDocument();
-  const chooseNewDocument = useChooseNewDocument();
-  const openDocument = useOpenDocument();
-  const createDocument = useCreateDocument();
-  const reloadDocument = useReloadDocument();
-
-  const busy: DocumentBusy = chooseNewDocument.isPending
-    ? "new"
-    : chooseDocument.isPending
-      ? "open"
-      : reloadDocument.isPending
-        ? "reload"
-        : openDocument.isPending
-          ? "recent"
-          : createDocument.isPending
-            ? "recreate"
-            : undefined;
-
-  const { mutateAsync: chooseOpen } = chooseDocument;
-  const { mutateAsync: chooseNew } = chooseNewDocument;
-  const { mutateAsync: open } = openDocument;
-  const { mutateAsync: create } = createDocument;
-  const { mutateAsync: reloadNow } = reloadDocument;
+  const [busy, setBusy] = useState<DocumentBusy>();
+  const { mutateAsync: chooseOpen } = useChooseDocument();
+  const { mutateAsync: chooseNew } = useChooseNewDocument();
+  const { mutateAsync: open } = useOpenDocument();
+  const { mutateAsync: create } = useCreateDocument();
+  const { mutateAsync: reloadNow } = useReloadDocument();
+  const { mutateAsync: recreateNow } = useCommandMutation(
+    () => commands.recreateDocument(),
+    [queryKeys.appStatus, queryKeys.document],
+  );
 
   const actions = useMemo(() => {
-    const attempt = async (action: () => Promise<unknown>) => {
+    const attempt = async (name: DocumentBusy, action: () => Promise<unknown>) => {
+      setBusy(name);
       try {
         await action();
       } catch (failure) {
         reportFailure(failure, queryClient);
+      } finally {
+        setBusy(undefined);
       }
     };
-    const switched = () => useWorkspace.getState().documentSwitched();
+    const switched = () => {
+      // Nothing open on the previous document stays open on the new one.
+      closeAllRequests();
+      useWorkspace.getState().documentSwitched();
+    };
+    const banner = () => useWorkspace.getState().setBanner(null);
     return {
       createNew: () =>
-        attempt(async () => {
+        attempt("new", async () => {
           const file = await chooseNew();
           if (file === null) return;
           await create({ source: { kind: "chosen" }, name: documentName(file.fileName) });
           switched();
         }),
       openChosen: () =>
-        attempt(async () => {
+        attempt("open", async () => {
           const file = await chooseOpen();
           if (file === null) return;
           await open({ kind: "chosen" });
           switched();
         }),
       openRecent: (path: string) =>
-        attempt(async () => {
+        attempt("recent", async () => {
           await open({ kind: "recent", path });
           switched();
         }),
       reload: () =>
-        attempt(async () => {
+        attempt("reload", async () => {
           await reloadNow();
-          useWorkspace.getState().setBanner(null);
+          banner();
         }),
-      recreate: (path: string, name: string) =>
-        attempt(async () => {
-          await create({ source: { kind: "recent", path }, name });
-          switched();
+      recreate: () =>
+        attempt("recreate", async () => {
+          await recreateNow();
+          banner();
         }),
     };
-  }, [queryClient, chooseNew, chooseOpen, open, create, reloadNow]);
+  }, [queryClient, chooseNew, chooseOpen, open, create, reloadNow, recreateNow]);
 
   return { ...actions, busy };
 }

@@ -35,6 +35,13 @@ export interface WorkspaceState {
   connectionMenuOpen: boolean;
   /** The open folders of the tree; `null` until the user opens or closes one. */
   expanded: readonly string[] | null;
+  /** Grows at each `reveal`: the tree moves its focus to the node revealed. */
+  revealRequests: number;
+  /**
+   * The summary of the connection of each session, when it opened: the title
+   * of its tab once the node is gone (DEC-041.7).
+   */
+  sessionSummaries: Readonly<Record<string, string>>;
 
   /** Selects node `id` and shows its detail, with the command hidden (inventario §5.1). */
   select: (id: string) => void;
@@ -60,6 +67,8 @@ export interface WorkspaceState {
    * nodo", a copy just made, a node just created.
    */
   reveal: (id: string, ancestors: readonly string[]) => void;
+  /** Remembers the summary of the connection of session `id`. */
+  sessionOpened: (id: string, summary: string) => void;
   /** Another document is open: nothing of the previous one stays selected. */
   documentSwitched: () => void;
 }
@@ -75,6 +84,8 @@ const initial = {
   searchRequests: 0,
   connectionMenuOpen: false,
   expanded: null,
+  revealRequests: 0,
+  sessionSummaries: {},
 } satisfies Partial<WorkspaceState>;
 
 /** The store of the main window. */
@@ -90,7 +101,13 @@ export const useWorkspace = create<WorkspaceState>()((set) => ({
       activeTab: state.activeTab === id ? DETAIL_TAB : state.activeTab,
     })),
   tabReplaced: (previous, next) =>
-    set((state) => (state.activeTab === previous ? { activeTab: next } : state)),
+    set((state) => ({
+      activeTab: state.activeTab === previous ? next : state.activeTab,
+      sessionSummaries: {
+        ...state.sessionSummaries,
+        [next]: state.sessionSummaries[previous] ?? "",
+      },
+    })),
   toggleCommand: () => set((state) => ({ commandShown: !state.commandShown })),
   showCommand: (id) => set({ selectedId: id, activeTab: DETAIL_TAB, commandShown: true }),
   setQuery: (query) => set({ query }),
@@ -105,7 +122,10 @@ export const useWorkspace = create<WorkspaceState>()((set) => ({
       activeTab: DETAIL_TAB,
       commandShown: false,
       expanded: [...new Set([...(state.expanded ?? []), ...ancestors])],
+      revealRequests: state.revealRequests + 1,
     })),
+  sessionOpened: (id, summary) =>
+    set((state) => ({ sessionSummaries: { ...state.sessionSummaries, [id]: summary } })),
   documentSwitched: () =>
     set({
       selectedId: null,

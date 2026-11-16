@@ -16,6 +16,9 @@ export const tree = {
   loading: "Caricamento dell'albero…",
   empty: "Nessun nodo. Le connessioni che crei o importi compaiono qui.",
   noResults: "Nessun risultato per questa ricerca.",
+  noFilterResults: "Nessun nodo per questo filtro.",
+  searchFailed: "Ricerca non riuscita: {message}",
+  favorite: "preferito",
   menu: {
     connect: "Connetti",
     openInTerminal: "Apri in terminale esterno",
@@ -25,6 +28,8 @@ export const tree = {
     favorite: "Preferito ★",
     unfavorite: "Togli dai preferiti",
     moveTo: "Sposta in…",
+    moveUp: "Sposta su",
+    moveDown: "Sposta giù",
     delete: "Elimina…",
     newSsh: "Nuova connessione SSH",
     newRdp: "Nuova connessione RDP",

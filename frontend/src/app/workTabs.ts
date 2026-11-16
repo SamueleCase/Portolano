@@ -22,6 +22,7 @@ export function useWorkTabs(index: TreeIndex | undefined): WorkTab[] {
   const selectedId = useWorkspace((state) => state.selectedId);
   const validationOpen = useWorkspace((state) => state.validationOpen);
   const sessions = useSessionsStore((state) => state.sessions);
+  const summaries = useWorkspace((state) => state.sessionSummaries);
   const validation = useFeatures().validation !== undefined;
   const problems = useQuery({ ...validationQuery, enabled: validationOpen && validation }).data;
   const name = (id: string | null) => (id === null ? undefined : index?.entries.get(id)?.node.name);
@@ -30,7 +31,7 @@ export function useWorkTabs(index: TreeIndex | undefined): WorkTab[] {
     tabs.push({
       id: DETAIL_TAB,
       kind: "detail",
-      title: name(selectedId) ?? texts.app.work.detailTitle,
+      title: name(selectedId) ?? texts.app.work.noSelectionTitle,
       dot: "detail",
       closable: false,
     });
@@ -49,7 +50,9 @@ export function useWorkTabs(index: TreeIndex | undefined): WorkTab[] {
     tabs.push({
       id: session.id,
       kind: sessionTabKind[session.kind],
-      title: name(session.nodeId) ?? texts.details.credential.nothing,
+      // A node gone (another document, a deletion) leaves the summary of the
+      // connection as the title (DEC-041.7).
+      title: name(session.nodeId) ?? summaries[session.id] ?? texts.app.work.sessionTitle,
       dot: sessionDot(session.state),
       closable: true,
     });
