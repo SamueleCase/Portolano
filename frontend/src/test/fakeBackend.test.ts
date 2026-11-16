@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { commands } from "../bindings";
 import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "./fakeBackend";
-import { idOf, ok, unlocked } from "./fakeBackendFixtures";
+import { idOf, ok, refused, unlocked } from "./fakeBackendFixtures";
 
 /** The fake backend answers with the semantics of the Rust commands, errors included. */
 
@@ -160,5 +160,97 @@ describe("fake backend", () => {
     );
 
     expect(JSON.stringify(state)).not.toContain("sentinel-import");
+  });
+});
+
+describe("fake backend for the main window", () => {
+  it("writes the open document back where its missing file was", async () => {
+    const state = initialFakeState();
+    const path = state.document?.path ?? "";
+    delete state.files[path];
+    installFakeBackend(state);
+
+    ok(await commands.recreateDocument());
+
+    expect(state.files[path]).toBe(state.document);
+  });
+
+  it("refuses to recreate over another document as changed by another program", async () => {
+    const state = initialFakeState();
+    const path = state.document?.path ?? "";
+    state.files[path] = { name: "Altro", path, nodes: [] };
+    installFakeBackend(state);
+
+    const error = refused(await commands.recreateDocument());
+
+    expect(error.code).toBe("modifiedExternally");
+  });
+
+  it("gives the hosts of the jump hosts of a connection", async () => {
+    installFakeBackend();
+
+    const detail = ok(await commands.nodeDetails(await idOf("web01")));
+
+    expect(detail.connection?.jumps).toEqual(["bastion.example.com"]);
+  });
+});
+
+describe("fake backend seeded by an end-to-end test", () => {
+  afterEach(() => {
+    delete window.__portolanoFakeSeed;
+  });
+
+  it("starts without a document and without recent ones for the first run", async () => {
+    window.__portolanoFakeSeed = { document: "none" };
+    installFakeBackend();
+
+    const status = ok(await commands.appStatus());
+
+    expect(status.document).toBeNull();
+    expect(status.lastDocument).toBeNull();
+  });
+
+  it("answers the native dialogs with the paths of the seed", async () => {
+    window.__portolanoFakeSeed = {
+      document: "none",
+      dialogs: { newDocument: "/Users/utente-di-prova/infra/nuovo.json" },
+    };
+    installFakeBackend();
+
+    expect(ok(await commands.chooseNewDocument())).toEqual({ fileName: "nuovo.json" });
+  });
+
+  it("starts with the vault unlocked when the seed asks", async () => {
+    window.__portolanoFakeSeed = { vaultLocked: false };
+    installFakeBackend();
+
+    expect(ok(await commands.vaultStatus()).locked).toBe(false);
+  });
+
+  it("adds a connection whose credential does not resolve when the seed asks", async () => {
+    window.__portolanoFakeSeed = { unresolvedCredential: true };
+    installFakeBackend();
+
+    const detail = ok(await commands.nodeDetails(await idOf("web03")));
+
+    expect(detail.effective?.kind).toBe("unresolved");
+  });
+
+  it("leaves unanswered the commands the seed names", async () => {
+    window.__portolanoFakeSeed = { unanswered: ["tree"] };
+    installFakeBackend();
+
+    const answer = await Promise.race([
+      commands.tree().then(() => "answered"),
+      new Promise((resolve) => setTimeout(() => resolve("waiting"), 20)),
+    ]);
+
+    expect(answer).toBe("waiting");
+  });
+
+  it("starts from the sample document without a seed", async () => {
+    installFakeBackend();
+
+    expect(ok(await commands.appStatus()).document?.name).toBe("Infrastruttura");
   });
 });

@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use portolano_connectors::Registry;
+use portolano_connectors::ssh::JumpHost;
 use portolano_core::vault::MemoryVault;
 use portolano_core::{Document, Node, NodeKind, PrivateKey, PropertyValue, Vault};
 use portolano_ops::inspect::{CredentialView, SecretState, resolved_credential, summary};
@@ -106,6 +107,10 @@ pub struct ConnectionView {
     /// The settings of the protocol, as stored.
     #[specta(type = JsonObject)]
     pub settings: serde_json::Map<String, serde_json::Value>,
+    /// The hosts of the jump hosts of an SSH connection, in order, for its
+    /// route: the host of a connection of the document or of an address;
+    /// none for a reference to a node that is gone.
+    pub jumps: Vec<Option<String>>,
 }
 
 /// The fields of a credential node.
@@ -232,7 +237,7 @@ pub fn node_details(
         properties: node.custom_properties.iter().map(property_view).collect(),
         created: node.created,
         modified: node.modified,
-        connection: connection_view(node, protocols),
+        connection: connection_view(doc, node, protocols),
         credential_spec: own_spec(node),
         credential: credential_fields(node),
         effective,
@@ -297,7 +302,7 @@ fn property_view(property: &portolano_core::CustomProperty) -> PropertyView {
     }
 }
 
-fn connection_view(node: &Node, protocols: &Registry) -> Option<ConnectionView> {
+fn connection_view(doc: &Document, node: &Node, protocols: &Registry) -> Option<ConnectionView> {
     let connection = node.as_connection()?;
     Some(ConnectionView {
         protocol: connection.protocol.clone(),
@@ -307,7 +312,44 @@ fn connection_view(node: &Node, protocols: &Registry) -> Option<ConnectionView> 
             .get(&connection.protocol)
             .map(|protocol| protocol.default_port()),
         settings: connection.settings.clone(),
+        jumps: jump_hosts(doc, &connection.settings),
     })
+}
+
+/// The hosts of the jump hosts in `settings` (an SSH connection): what the
+/// route of the detail and of a session tab shows. Settings that do not
+/// decode have no route here; the validation reports them.
+fn jump_hosts(
+    doc: &Document,
+    settings: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<Option<String>> {
+    let Some(jumps) = settings.get("jump_hosts") else {
+        return Vec::new();
+    };
+    let Ok(jumps) = serde_json::from_value::<Vec<JumpHost>>(jumps.clone()) else {
+        return Vec::new();
+    };
+    jumps
+        .iter()
+        .map(|jump| match jump {
+            JumpHost::Ref { id } => doc.find(*id).map(|node| {
+                node.as_connection()
+                    .map_or_else(|| node.name.clone(), |c| c.host.clone())
+            }),
+            JumpHost::Address { address } => Some(address_host(address).to_owned()),
+        })
+        .collect()
+}
+
+/// The host of an address `[user@]host[:port]` (`[…]` around an IPv6 host).
+fn address_host(address: &str) -> &str {
+    let host = address.rsplit_once('@').map_or(address, |(_, host)| host);
+    if let Some(bracketed) = host.strip_prefix('[') {
+        return bracketed
+            .split_once(']')
+            .map_or(bracketed, |(inside, _)| inside);
+    }
+    host.split_once(':').map_or(host, |(name, _)| name)
 }
 
 fn own_spec(node: &Node) -> Option<SpecView> {

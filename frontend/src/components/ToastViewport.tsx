@@ -12,13 +12,25 @@ interface ToastViewportProps {
 }
 
 /**
+ * The newest three toasts, in order; a toast with "Annulla" stays among them
+ * until its time is over, even when newer ones come (DEC-041.6).
+ */
+function visibleToasts(toasts: readonly ToastMessage[]): readonly ToastMessage[] {
+  const undo = toasts.filter((toast) => toast.kind === "undo").length;
+  const others = toasts.filter((toast) => toast.kind !== "undo");
+  const room = Math.max(0, MAX_VISIBLE_TOASTS - undo);
+  const kept = new Set(others.slice(Math.max(0, others.length - room)));
+  return toasts.filter((toast) => toast.kind === "undo" || kept.has(toast));
+}
+
+/**
  * The toasts at the bottom right, 360 px wide, the newest three in the order
  * they came, the newest by the edge (ambiguity 17). The list itself is not a
  * live region: each toast is announced once, by a hidden copy of its text in
  * a polite region (confirmations) or an assertive one (errors).
  */
 export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
-  const shown = toasts.slice(-MAX_VISIBLE_TOASTS);
+  const shown = visibleToasts(toasts);
   const announce = (errors: boolean) =>
     shown
       .filter((toast) => (toast.kind === "error") === errors)

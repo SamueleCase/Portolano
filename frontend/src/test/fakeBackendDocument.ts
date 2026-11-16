@@ -100,6 +100,24 @@ export function reloadDocument(state: FakeBackendState): DocumentInfo {
   return info(openDocument(state));
 }
 
+/**
+ * Writes the open document back where its file was (`recreate_document`). A
+ * file back at the path is accepted if it is the same document, and refused
+ * as changed by another program otherwise, as the backend does.
+ */
+export function recreateDocument(state: FakeBackendState): DocumentInfo {
+  const doc = openDocument(state);
+  const there = state.files[doc.path];
+  if (there !== undefined && there !== doc) {
+    fail(
+      "modifiedExternally",
+      `il documento '${doc.path}' è stato modificato da un altro processo`,
+    );
+  }
+  state.files[doc.path] = doc;
+  return info(doc);
+}
+
 export function closeDocument(state: FakeBackendState): null {
   state.pendingDeletes = {};
   state.document = null;

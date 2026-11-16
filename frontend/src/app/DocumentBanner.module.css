@@ -1,0 +1,46 @@
+/* The banner of the document (SPEC-UI §5.4): a warning across the window. */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-fine-10);
+  padding: var(--space-fine-10) var(--space-fine-14);
+  border: var(--border-width) solid var(--color-warn);
+  border-radius: var(--radius-panel);
+  background: var(--color-popover);
+  box-shadow: var(--shadow-edge);
+}
+
+.marker {
+  flex: none;
+  width: var(--size-marker);
+  height: var(--size-marker);
+  border-radius: var(--radius-round);
+  background: var(--color-warn);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.close {
+  padding: 0 var(--space-fine-6);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-section-title);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--color-text-primary);
+}

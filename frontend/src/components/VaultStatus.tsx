@@ -10,7 +10,8 @@ export type VaultFooterState =
 
 interface VaultStatusProps {
   vault: VaultFooterState;
-  nodeCount: number;
+  /** The nodes of the document; none while it loads. */
+  nodeCount?: number | undefined;
   /** Opens the unlock dialog; only offered for a locked file vault. */
   onUnlock: () => void;
 }
@@ -22,7 +23,9 @@ interface VaultStatusProps {
  */
 export function VaultStatus({ vault, nodeCount, onUnlock }: VaultStatusProps) {
   const t = texts.components.vault;
-  const count = <span className={styles.count}>{plural(nodeCount, t.nodes)}</span>;
+  const count = nodeCount !== undefined && (
+    <span className={styles.count}>{plural(nodeCount, t.nodes)}</span>
+  );
   if (vault.backend === "keychain") {
     return (
       <footer className={styles.footer}>
