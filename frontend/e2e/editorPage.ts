@@ -37,6 +37,39 @@ export async function openFromSection(
   return dialog;
 }
 
+/** The IPC of the page as the fake backend installs it (`mockIPC`). */
+interface IpcWindow {
+  __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> };
+  __ipcAnswers: string[];
+}
+
+/**
+ * Keeps every answer of the fake backend from now on, errors included, to
+ * check that none carries a secret (SPEC-UI §7).
+ */
+export async function recordIpcAnswers(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const ipc = window as unknown as IpcWindow;
+    const invoke = ipc.__TAURI_INTERNALS__.invoke.bind(ipc.__TAURI_INTERNALS__);
+    ipc.__ipcAnswers = [];
+    ipc.__TAURI_INTERNALS__.invoke = async (...args: unknown[]) => {
+      try {
+        const answer = await invoke(...args);
+        ipc.__ipcAnswers.push(JSON.stringify(answer) ?? "");
+        return answer;
+      } catch (failure) {
+        ipc.__ipcAnswers.push(JSON.stringify(failure) ?? "");
+        throw failure;
+      }
+    };
+  });
+}
+
+/** The answers recorded by {@link recordIpcAnswers}, as text. */
+export async function ipcAnswers(page: Page): Promise<string> {
+  return page.evaluate(() => (window as unknown as IpcWindow).__ipcAnswers.join("\n"));
+}
+
 /** A screenshot of a dialog or of the side panel of the editor. */
 export async function shoot(surface: Locator, name: string): Promise<void> {
   await surface.screenshot({ path: `${EDITOR_SHOTS}/${name}.png`, animations: "disabled" });

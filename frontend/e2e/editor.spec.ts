@@ -2,7 +2,7 @@ import { editorGallery } from "../src/i18n/editor";
 import { interpolate } from "../src/i18n/format";
 import { texts } from "../src/i18n/it";
 import { TEST_MASTER_PASSWORD } from "../src/test/fakeBackendModel";
-import { editorSection, openFromSection, shoot } from "./editorPage";
+import { editorSection, ipcAnswers, openFromSection, recordIpcAnswers, shoot } from "./editorPage";
 import { expect, test } from "./fixtures";
 
 const t = texts.editor;
@@ -57,6 +57,7 @@ test.describe("the editor", () => {
 
   test("stages a password until Salva and asks to unlock the vault then", async ({ page }) => {
     const section = await editorSection(page);
+    await recordIpcAnswers(page);
     const panel = await openFromSection(page, section, open.editCredential, /deploy/);
     await panel.getByRole("button", { name: t.next }).click();
     await panel
@@ -80,6 +81,16 @@ test.describe("the editor", () => {
       interpolate(editorGallery.saved, { path: "/Rete/deploy" }),
     );
     expect(await page.content()).not.toContain(SENTINEL);
+    const values = await page
+      .locator("input, textarea")
+      .evaluateAll((fields) =>
+        fields.map((field) => ("value" in field ? String(field.value) : "")),
+      );
+    expect(values).not.toContain(SENTINEL);
+    const answers = await ipcAnswers(page);
+    // The answers were recorded (the edit of deploy among them), and none has the secret.
+    expect(answers).toContain("/Rete/deploy");
+    expect(answers).not.toContain(SENTINEL);
   });
 
   test("chooses the folder of a node with the folder picker", async ({ page }) => {
