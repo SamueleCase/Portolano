@@ -156,9 +156,13 @@ export const components = {
     search: "Cerca…",
     results: { one: "{n} risultato.", other: "{n} risultati." },
     empty: "Nessun nodo corrisponde alla ricerca.",
+    emptyFolders: "Nessuna cartella corrisponde alla ricerca.",
+    onlyExcluded: "Alla ricerca corrispondono solo voci escluse.",
+    root: "Radice del documento",
     cancel: "Annulla",
     choose: "Scegli",
     chooseNamed: "Scegli {name}",
+    chooseRoot: "Scegli la radice del documento",
   },
   terminal: {
     label: "Terminale",

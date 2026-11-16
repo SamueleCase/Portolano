@@ -46,6 +46,7 @@ export const gallery = {
     credentialSelector: "Apri il selettore di credenziale",
     iconPicker: "Apri il selettore di icone",
     nodePicker: "Apri il picker dei nodi",
+    folderPicker: "Apri il picker delle cartelle",
   },
   caption: {
     logoToolbar: "Logo · barra",
@@ -127,6 +128,7 @@ export const gallery = {
     credentialSelector: "Selettore di credenziale",
     iconPicker: "Selettore di icone",
     nodePicker: "Picker dei nodi",
+    folderPicker: "Picker delle cartelle",
     preview: "Da dove arriverà",
     previewStates: [
       "eredita",

@@ -8,7 +8,7 @@ import type { NodeIconChoice } from "../../components/icons/NodeIcon";
 import { IconPicker } from "../../components/IconPicker";
 import { NodePicker } from "../../components/NodePicker";
 import { gallery } from "../../i18n/gallery";
-import { customIcons, pickerNodes, previews, sample } from "../fixtures";
+import { customIcons, folderPickerNodes, pickerNodes, previews, sample } from "../fixtures";
 import styles from "../Gallery.module.css";
 import { GallerySection, Specimen } from "../GallerySection";
 
@@ -21,6 +21,7 @@ export function SelectorsSection() {
   const [iconPicker, setIconPicker] = useState(false);
   const [icon, setIcon] = useState<NodeIconChoice>();
   const [nodePicker, setNodePicker] = useState(false);
+  const [folderPicker, setFolderPicker] = useState(false);
   const preview = previews.find((data) => data.mode === mode) ?? { mode: "none" };
   return (
     <GallerySection id="selectors" title={gallery.section.selectors}>
@@ -33,6 +34,9 @@ export function SelectorsSection() {
         </Specimen>
         <Specimen label={caption.nodePicker}>
           <Button onClick={() => setNodePicker(true)}>{gallery.open.nodePicker}</Button>
+        </Specimen>
+        <Specimen label={caption.folderPicker}>
+          <Button onClick={() => setFolderPicker(true)}>{gallery.open.folderPicker}</Button>
         </Specimen>
       </div>
       <div className={styles.grid}>
@@ -75,6 +79,17 @@ export function SelectorsSection() {
         filterLabel={sample.pickerFilter}
         nodes={pickerNodes}
         note={sample.pickerNote}
+      />
+      <NodePicker
+        open={folderPicker}
+        onClose={() => setFolderPicker(false)}
+        onChoose={() => setFolderPicker(false)}
+        choose="folders"
+        exclude="archive"
+        title={sample.folderPickerTitle}
+        filterLabel={sample.folderPickerFilter}
+        nodes={folderPickerNodes}
+        note={sample.folderPickerNote}
       />
     </GallerySection>
   );
