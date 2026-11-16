@@ -103,6 +103,7 @@ export const importWizard = {
       one: "Il cestino di Royal TSX ({n} elemento) non è stato incluso.",
       other: "Il cestino di Royal TSX ({n} elementi) non è stato incluso.",
     },
+    cleanupFailure: "Un segreto non più usato è rimasto nel vault: {reason}",
     toCheck: "Elementi da controllare · {n}",
     nothingToCheck: "Tutti gli elementi sono stati importati.",
     filters: { all: "Tutti", partial: "Parziali", unsupported: "Non supportati" },
@@ -112,4 +113,17 @@ export const importWizard = {
     exported: "Report salvato in {file}.",
     nodeMissing: "Il nodo non è più nel documento.",
   },
+} as const;
+
+/** The captions of the gallery section of the import and the validation (only in the gallery). */
+export const importGallery = {
+  fileRead: "Passo 1 · file letto",
+  fileUnreadable: "Passo 1 · file illeggibile",
+  options: "Passo 2 · opzioni",
+  password: "Passo 3 · password",
+  report: "Passo 4 · report",
+  validation: "Validazione con problemi",
+  validationLocked: "Validazione con il vault bloccato",
+  validationClean: "Validazione senza problemi",
+  wentTo: "Vai al nodo: {target}",
 } as const;
