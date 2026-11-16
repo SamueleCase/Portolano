@@ -568,6 +568,49 @@ mock in `docs/ui/NOTE.md`.
   3. Il dialogo delle credenziali all'avvio (DEC-016.3) è di UI-WP5; lo usano la connessione di UI-WP4 e "Riprova"
      delle sessioni (`onRetry`, DEC-033.8).
 
+### DEC-036 – Piano di UI-WP4 (decise dal PM, 2026-11-16)
+1. **Tab in WKWebView** (chiude in parte DEC-032.4): `wry` 0.57 imposta già `tabFocusesLinks = YES` su ogni
+   WKWebView di macOS, che fa raggiungere con Tab tutti i controlli; il limite visto negli e2e è di Playwright WebKit.
+   Nessuna modifica al Rust; verifica dal vivo in `tauri dev` al checkpoint visivo 2.
+2. **Finto backend per gli e2e della cornice**: `installFakeBackend()` accetta uno stato iniziale impostato dal test
+   (nessun documento aperto, risposte dei dialoghi nativi) e il trasporto finto delle sessioni uno scenario di riserva
+   per i nodi sconosciuti; eccezione di proprietà su `frontend/src/test/fakeBackend.ts` e `fakeSessions.ts` per UI-WP4.
+3. Con lo `StatusScreen` sostituito si tolgono `i18n/status.ts` e `e2e/status.spec.ts`; il controllo dei font inclusi
+   passa all'e2e della finestra principale.
+
+### DEC-037 – Piano di UI-WP6 (decise dal PM, 2026-11-16)
+1. **e2e dell'import**: il meccanismo per impostare lo stato iniziale del finto backend è di UI-WP4 (DEC-036.2). In
+   fase 1 UI-WP6 prova i flussi con Vitest (stato preparato nel test) e con e2e a dati fissi nella galleria; gli e2e dei
+   flussi completi vanno in fase 2. UI-WP6 arricchisce i dati d'import del finto (almeno tre richieste di password, un
+   file illeggibile che fa fallire `import_preview` con `io`) con un'eccezione sul solo modulo d'import del finto.
+2. **Dal report al nodo**: il DTO dell'albero porta `sourceId` (facoltativo) dei nodi importati, nel backend e nel
+   finto; il frontend cerca il nodo sotto la radice dell'import e poi in tutto l'albero. Eccezione di proprietà per
+   UI-WP6 sul DTO dell'albero in `crates/portolano-app/src/dto/`, sui suoi test e sui bindings rigenerati.
+3. **Trascinamento del file**: in Tauri il drop di file arriva al Rust e il frontend non passa percorsi; il passo 1
+   s'intitola "Scegli il documento di Royal TSX" e apre il dialogo nativo. Il trascinamento con un gestore in Rust è
+   una miglioria annotata in `progress.md`.
+4. Le password dell'import restano in un `ref` del wizard fino a `import_apply`, che le vuole tutte insieme (API in due
+   fasi di DEC-031); il `ref` si svuota dopo ogni tentativo, alla chiusura e allo smontaggio. Limite documentato: se
+   l'applicazione fallisce vanno riscritte.
+
+### DEC-038 – Piano di UI-WP5 (decise dal PM, 2026-11-16)
+1. **`NodePicker` per cartelle e radice**: serve all'editor ("Posizione · Cambia…"), a "Sposta in…" (UI-WP4) e alla
+   destinazione dell'import (UI-WP6). Lo aggiunge su `main` un piccolo lavoro separato (prop facoltativa per scegliere
+   le cartelle, anche vuote, e la "Radice del documento"), compatibile con l'uso attuale; i tre WP la incorporano con
+   `git merge main`.
+2. **Segreti in staging dell'editor**: fra "Imposta" e "Salva" stanno in un contenitore privato e non reattivo
+   dell'editor (mai in react-hook-form, Zustand, Query, DOM); la forma conosce solo il segno "da impostare/da
+   cancellare". Il contenitore si svuota a ogni Salva, riuscito o no (in caso d'errore: "Le password impostate non
+   sono state salvate: impostale di nuovo"), con Annulla, alla chiusura e allo smontaggio.
+3. **Anteprima della credenziale** nel selettore: "Eredita" e "Da una credenziale" dai dati di `node_details`; "Per
+   nome" dalle credenziali dell'albero con la regola di SPEC §4.3 (nome esatto, poi senza maiuscole). È solo
+   un'anteprima; decide il backend al salvataggio (deviazione minima da SPEC-UI §2, commentata nel codice).
+4. **Credenziale del gateway RDP**: il selettore offre Eredita, Nessuna, Da una credenziale, Per nome; una spec
+   Inline o Prompt già presente (da import) si mostra e resta com'è finché non la si cambia (limite di DEC-022).
+5. **Chiave privata nel vault**: il dialogo usa una `<textarea>` mascherata (`-webkit-text-security`, autocompletamento
+   e controllo ortografico spenti) per conservare gli a capo, con lo stesso staging.
+6. La riga del titolo della sezione in `i18n/gallery.ts` fa parte della registrazione nella galleria.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
