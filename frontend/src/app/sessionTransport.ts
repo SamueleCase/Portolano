@@ -1,5 +1,7 @@
+import { commands } from "../bindings";
 import type { SessionTransport } from "../ipc/sessions";
 import { tauriSessionTransport } from "../ipc/sessionsTauri";
+import { IpcFailure, unwrap } from "../ipc/result";
 
 /**
  * The transport of the sessions of the app: the commands and channels of
@@ -14,5 +16,22 @@ export const appSessionTransport: SessionTransport =
 async function fakeTransport(): Promise<SessionTransport> {
   const { FakeSessionTransport, fakeScenarios, workingConnection } =
     await import("../test/fakeSessions");
-  return new FakeSessionTransport(fakeScenarios, workingConnection);
+  const transport = new FakeSessionTransport(fakeScenarios, workingConnection);
+  return {
+    // As `open_session` does (DEC-042): a connection whose credential has
+    // secrets fails with the vault locked; one without secrets opens.
+    open: async (request, handlers) => {
+      const details = unwrap(await commands.nodeDetails(request.nodeId));
+      if (details.vaultLocked) {
+        throw new IpcFailure({
+          code: "vaultLocked",
+          message: "il vault è bloccato: sbloccalo con la master password",
+        });
+      }
+      return transport.open(request, handlers);
+    },
+    input: (id, data) => transport.input(id, data),
+    resize: (id, size) => transport.resize(id, size),
+    close: (id) => transport.close(id),
+  };
 }

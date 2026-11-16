@@ -9,8 +9,8 @@ import type { SessionServices } from "../features/sessions/sessionServices";
 import { useSessionsStore } from "../features/sessions/store";
 import type { SessionTransport } from "../ipc/sessions";
 import { useWorkspace } from "../state/workspace";
-import { type Connections, createConnections } from "./connections";
-import { type CanReadyVault, vaultReady } from "./failures";
+import { type Connections, createConnections, retryingAfterUnlock } from "./connections";
+import type { CanReadyVault } from "./failures";
 
 /** The services the window shares: the sessions and the connections. */
 export interface WindowServices {
@@ -39,16 +39,13 @@ export function createWindowServices(
   return {
     connections,
     sessions: {
-      controller,
+      controller: retryingAfterUnlock(controller, queryClient, features.canReadyVault),
       output,
       openLink: (url) => void openUrl(url).catch(() => undefined),
       onActivity: () => backgroundControl.noteSessionActivity(),
-      // "Riprova" of a session: the vault first, if locked and it can be
-      // readied (DEC-041.2), then the login of "ask at launch".
-      onRetry: async (session) => {
-        if (!(await vaultReady(queryClient, features.canReadyVault))) return null;
-        return connections.askLogin(session.nodeId);
-      },
+      // "Riprova" of a session: the login of "ask at launch"; the vault only
+      // if the backend asks for it (`retryingAfterUnlock`, DEC-042).
+      onRetry: (session) => connections.askLogin(session.nodeId),
       onReplaced: (previous, next) => useWorkspace.getState().tabReplaced(previous, next),
     },
   };
