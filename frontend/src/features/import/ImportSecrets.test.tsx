@@ -2,7 +2,17 @@ import type { QueryClient } from "@tanstack/react-query";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { importBackend, passwordField, renderWizard, reportShown, toPasswords } from "./testWizard";
+import {
+  importBackend,
+  passwordField,
+  recordCommands,
+  renderReopenableWizard,
+  renderWizard,
+  reportShown,
+  sent,
+  toOptions,
+  toPasswords,
+} from "./testWizard";
 
 /**
  * The passwords typed in the wizard reach the backend only in
@@ -11,19 +21,6 @@ import { importBackend, passwordField, renderWizard, reportShown, toPasswords } 
  */
 
 const SENTINEL = "sentinel-import-secret-5e7a";
-
-/** The IPC of the page, which the fake backend installs with `mockIPC`. */
-interface TauriInternals {
-  invoke: (command: string, args?: unknown, options?: unknown) => Promise<unknown>;
-}
-
-/** Records every command the page sends, with its arguments. */
-function recordCommands() {
-  // The global of Tauri is untyped: this is its shape in `@tauri-apps/api/mocks`.
-  const internals = (window as unknown as { __TAURI_INTERNALS__: TauriInternals })
-    .__TAURI_INTERNALS__;
-  return vi.spyOn(internals, "invoke");
-}
 
 /** Everything the cache of Query holds, as text. */
 function cacheText(client: QueryClient): string {
@@ -37,6 +34,16 @@ function cacheText(client: QueryClient): string {
       .getAll()
       .map((query) => query.state),
   ]);
+}
+
+/** Whether the page shows or holds the sentinel anywhere. */
+function pageText(): string {
+  const values = [...document.querySelectorAll("input")].map((input) => input.value);
+  return [document.body.innerHTML, ...values].join();
+}
+
+function carrying(commands: ReturnType<typeof recordCommands>) {
+  return commands.mock.calls.filter(([, args]) => JSON.stringify(args ?? null).includes(SENTINEL));
 }
 
 /** Types the sentinel as the first password and skips the other two. */
@@ -62,11 +69,9 @@ describe("passwords of the import", () => {
   it("reach the backend only in import_apply, in the order of the requests", async () => {
     const { commands } = await importWithSentinel();
 
-    const carrying = commands.mock.calls.filter(([, args]) =>
-      JSON.stringify(args ?? null).includes(SENTINEL),
-    );
-    expect(carrying.map(([command]) => command)).toEqual(["import_apply"]);
-    expect(carrying[0]?.[1]).toMatchObject({
+    const calls = carrying(commands);
+    expect(calls.map(([command]) => command)).toEqual(["import_apply"]);
+    expect(calls[0]?.[1]).toMatchObject({
       answers: [
         { nodePath: "Ufficio/Produzione/web10", value: SENTINEL },
         { nodePath: "Ufficio/Produzione/db10", value: null },
@@ -95,7 +100,54 @@ describe("passwords of the import", () => {
   it("stay out of the page once sent", async () => {
     await importWithSentinel();
 
-    const values = [...document.querySelectorAll("input")].map((input) => input.value);
-    expect([document.body.innerHTML, ...values].join()).not.toContain(SENTINEL);
+    expect(pageText()).not.toContain(SENTINEL);
+  });
+
+  it("do not come back in the import that follows a failed one", async () => {
+    const state = importBackend();
+    const commands = recordCommands();
+    const { client, user } = renderWizard();
+    await toPasswords(user);
+    state.vault.locked = true;
+    await user.type(passwordField(), `${SENTINEL}{Enter}`);
+    await screen.findByText("2 / 3");
+    await user.click(screen.getByRole("button", { name: "Salta tutte le restanti" }));
+    await screen.findByRole("alert");
+    state.vault.locked = false;
+
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+    await screen.findByText("1 / 3");
+    await user.click(screen.getByRole("button", { name: "Salta tutte le restanti" }));
+    await reportShown();
+
+    const applied = sent(commands, "import_apply");
+    expect(applied).toHaveLength(2);
+    expect(JSON.stringify(applied[1])).not.toContain(SENTINEL);
+    expect(applied[1]).toMatchObject({
+      answers: [{ value: null }, { value: null }, { value: null }],
+    });
+    expect([cacheText(client), pageText()].join()).not.toContain(SENTINEL);
+  });
+
+  it("never leave when the wizard closes on step 3 and a new import follows", async () => {
+    importBackend();
+    const commands = recordCommands();
+    const { client, user, onClose, setOpen } = renderReopenableWizard();
+    await toPasswords(user);
+    await user.type(passwordField(), `${SENTINEL}{Enter}`);
+    await screen.findByText("2 / 3");
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalled();
+    setOpen(false);
+
+    setOpen(true);
+    await toOptions(user);
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+    await screen.findByText("1 / 3");
+    await user.click(screen.getByRole("button", { name: "Salta tutte le restanti" }));
+    await reportShown();
+
+    expect(carrying(commands)).toEqual([]);
+    expect([cacheText(client), pageText()].join()).not.toContain(SENTINEL);
   });
 });

@@ -32,7 +32,7 @@ export const importWizard = {
     conflicts: "Se un elemento esiste già",
     conflictChoices: { fail: "Errore", update: "Aggiorna", newIds: "Nuovi ID" },
     conflictHints: {
-      fail: "L'importazione si ferma se un elemento esiste già e ti mostra quali.",
+      fail: "L'importazione si ferma se un elemento del file esiste già nel documento.",
       update:
         "Gli elementi già importati vengono aggiornati con i dati del file. Le password che hai impostato in Portolano restano.",
       newIds: "Gli elementi vengono aggiunti come nuovi, anche se esistono già.",
@@ -56,6 +56,10 @@ export const importWizard = {
     vaultLocked:
       "Il vault è bloccato: sbloccalo per salvare le password, oppure spegni «Chiedi le password».",
     failed: "L'importazione non è riuscita: {message}",
+    passwordsDropped:
+      "Le password inserite non sono state salvate: inseriscile di nuovo al passo successivo.",
+    applying: "Importazione in corso…",
+    folderMissing: "cartella non più presente",
   },
   passwords: {
     progress: "Password da reinserire",

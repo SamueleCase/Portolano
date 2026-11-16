@@ -40,6 +40,56 @@ export function renderWizard() {
   return { client, onClose, onGoToNode, onUnlockVault, user };
 }
 
+/** The wizard, open, with `setOpen` to close it and open it again as its host would. */
+export function renderReopenableWizard() {
+  const client: QueryClient = createQueryClient();
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const wizard = (open: boolean) => (
+    <QueryClientProvider client={client}>
+      <ImportWizard open={open} onClose={onClose} onGoToNode={() => undefined} />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(wizard(true));
+  return { client, user, onClose, setOpen: (open: boolean) => rerender(wizard(open)) };
+}
+
+/** The IPC of the page, which the fake backend installs with `mockIPC`. */
+interface TauriInternals {
+  invoke: (command: string, args?: unknown, options?: unknown) => Promise<unknown>;
+}
+
+function tauriInternals(): TauriInternals {
+  // The global of Tauri is untyped: this is its shape in `@tauri-apps/api/mocks`.
+  return (window as unknown as { __TAURI_INTERNALS__: TauriInternals }).__TAURI_INTERNALS__;
+}
+
+/** Records every command the page sends, with its arguments. */
+export function recordCommands() {
+  return vi.spyOn(tauriInternals(), "invoke");
+}
+
+/** Runs `command` through `around`, which gets the answer of the fake backend to change or delay. */
+export function interceptCommand(
+  command: string,
+  around: (answer: () => Promise<unknown>) => Promise<unknown>,
+) {
+  const internals = tauriInternals();
+  const original = internals.invoke.bind(internals);
+  return vi
+    .spyOn(internals, "invoke")
+    .mockImplementation((name, args, options) =>
+      name === command
+        ? around(() => original(name, args, options))
+        : original(name, args, options),
+    );
+}
+
+/** The commands named `command` that were sent, with their arguments. */
+export function sent(commands: ReturnType<typeof recordCommands>, command: string): unknown[] {
+  return commands.mock.calls.filter(([name]) => name === command).map(([, args]) => args);
+}
+
 type User = ReturnType<typeof userEvent.setup>;
 
 /** Chooses the file and waits for it to be read. */

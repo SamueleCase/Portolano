@@ -33,7 +33,7 @@ export function useDestination(
     [tree.data],
   );
   const nodes = useMemo(() => folders(tree.data?.nodes ?? []), [tree.data]);
-  const label = into === null ? options.root : (paths.get(into) ?? into);
+  const label = into === null ? options.root : (paths.get(into) ?? options.folderMissing);
   const picker = (
     <NodePicker
       open={picking}

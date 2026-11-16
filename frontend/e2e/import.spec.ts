@@ -61,16 +61,16 @@ test.describe("the import wizard", () => {
     const figure = await specimen(page, importGallery.password);
 
     await expect(figure.getByText("2 / 4")).toBeVisible();
-    await expect(figure.getByText("Sede/Produzione/db20")).toBeVisible();
+    await expect(figure.getByText("Sede / Produzione / db20")).toBeVisible();
     await shoot(figure, "3-password");
   });
 
   test("leads from a row of the report to its node", async ({ page }) => {
     const figure = await specimen(page, importGallery.report);
 
-    await figure.getByRole("button", { name: /Sede\/Produzione\/web20/ }).click();
+    await figure.getByRole("button", { name: /Sede \/ Produzione \/ web20/ }).click();
 
-    await expect(wentTo(page)).toHaveText("Vai al nodo: Sede/Produzione/web20");
+    await expect(wentTo(page)).toHaveText("Vai al nodo: Sede / Produzione / web20");
   });
 
   test("filters the unsupported items of the report", async ({ page }) => {
@@ -80,13 +80,13 @@ test.describe("the import wizard", () => {
       .getByRole("button", { name: texts.importWizard.report.filters.unsupported })
       .click();
 
-    await expect(figure.getByRole("listitem").filter({ hasText: "Sede/" })).toHaveCount(1);
+    await expect(figure.getByRole("listitem").filter({ hasText: "Sede /" })).toHaveCount(1);
   });
 
   test("counts the outcomes, a skipped password as partial", async ({ page }) => {
     const figure = await specimen(page, importGallery.report);
 
-    await expect(figure.getByRole("button", { name: /Sede\/Produzione\/web20/ })).toContainText(
+    await expect(figure.getByRole("button", { name: /Sede \/ Produzione \/ web20/ })).toContainText(
       texts.importWizard.report.outcome.partial,
     );
     await expect(figure.getByText("3 password saltate", { exact: false })).toBeVisible();

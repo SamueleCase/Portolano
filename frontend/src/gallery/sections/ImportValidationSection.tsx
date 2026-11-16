@@ -2,9 +2,12 @@ import { type ReactNode, useRef, useState } from "react";
 
 import { Stepper } from "../../components/Stepper";
 import { FileStep } from "../../features/import/FileStep";
+import { readableImportPath } from "../../features/import/importPath";
 import { type ImportSettings, OptionsStep } from "../../features/import/OptionsStep";
 import { PasswordStep } from "../../features/import/PasswordStep";
 import { ReportStep } from "../../features/import/ReportStep";
+import { ReportActions, WizardFooter } from "../../features/import/WizardActions";
+import { type WizardStep, wizardSteps } from "../../features/import/wizardSteps";
 import { ValidationReport } from "../../features/validation/ValidationReport";
 import { gallery } from "../../i18n/gallery";
 import { interpolate } from "../../i18n/format";
@@ -23,24 +26,25 @@ import {
 } from "./importValidationFixtures";
 import sectionStyles from "./ImportValidationSection.module.css";
 
-const { steps } = texts.importWizard;
+const nothing = () => undefined;
 
-/** The stepper of the wizard at `current` (0–3). */
-function WizardSteps({ current }: { current: number }) {
-  const labels = [steps.file, steps.options, steps.passwords, steps.report];
+/** A step as the wizard shows it, at the width of its dialog, with the stepper and the footer. */
+function WizardFrame({
+  step,
+  footer,
+  children,
+}: {
+  step: WizardStep;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Stepper
-      steps={labels.map((label, index) => ({
-        label,
-        state: index < current ? "done" : index === current ? "current" : "upcoming",
-      }))}
-    />
+    <div className={step === "report" ? sectionStyles.report : sectionStyles.wizard}>
+      <Stepper steps={wizardSteps(step, false)} />
+      {children}
+      {footer && <div className={sectionStyles.footer}>{footer}</div>}
+    </div>
   );
-}
-
-/** A step as the wizard shows it, at the width of its dialog. */
-function WizardFrame({ wide = false, children }: { wide?: boolean; children: ReactNode }) {
-  return <div className={wide ? sectionStyles.report : sectionStyles.wizard}>{children}</div>;
 }
 
 /**
@@ -58,54 +62,71 @@ export function ImportValidationSection() {
   const [wentTo, setWentTo] = useState<string | null>(null);
   const passwordField = useRef<HTMLInputElement>(null);
   const pathOf = (id: string) => galleryPaths[id] ?? id;
+  const fileFooter = <WizardFooter step="file" applying={false} canGoOn onCancel={nothing} />;
 
   return (
     <GallerySection id="importValidation" title={gallery.section.importValidation}>
       <div className={styles.wide}>
         <Specimen label={importGallery.fileRead}>
-          <WizardFrame>
-            <WizardSteps current={0} />
+          <WizardFrame step="file" footer={fileFooter}>
             <FileStep
               fileName="sede.rtsz"
               reading={{ state: "readable", objects: 17 }}
-              onChoose={() => undefined}
+              onChoose={nothing}
               choosing={false}
             />
           </WizardFrame>
         </Specimen>
         <Specimen label={importGallery.fileUnreadable}>
-          <WizardFrame>
-            <WizardSteps current={0} />
+          <WizardFrame
+            step="file"
+            footer={
+              <WizardFooter step="file" applying={false} canGoOn={false} onCancel={nothing} />
+            }
+          >
             <FileStep
               fileName="illeggibile.rtsz"
               reading={{
                 state: "unreadable",
                 message: "errore di I/O su 'illeggibile.rtsz': Permission denied (os error 13)",
               }}
-              onChoose={() => undefined}
+              onChoose={nothing}
               choosing={false}
             />
           </WizardFrame>
         </Specimen>
         <Specimen label={importGallery.options}>
-          <WizardFrame>
-            <WizardSteps current={1} />
+          <WizardFrame
+            step="options"
+            footer={<WizardFooter step="options" applying={false} canGoOn onBack={nothing} />}
+          >
             <OptionsStep
               settings={settings}
               onChange={(change) => setSettings({ ...settings, ...change })}
               destination={texts.importWizard.options.root}
-              onChooseDestination={() => undefined}
+              importedFolder={galleryResult.report.document_name}
+              onChooseDestination={nothing}
               preview={galleryPreview}
               previewing={false}
               error={null}
-              trashSize={2}
+              passwordsDropped={false}
+              trashSize={galleryResult.report.trash_items}
               vaultLocked={false}
             />
           </WizardFrame>
         </Specimen>
         <Specimen label={importGallery.password}>
-          <WizardFrame>
-            <WizardSteps current={2} />
+          <WizardFrame
+            step="passwords"
+            footer={
+              <WizardFooter
+                step="passwords"
+                applying={false}
+                onSkip={nothing}
+                onSkipAll={nothing}
+              />
+            }
+          >
             <PasswordStep
               request={galleryRequest}
               position={1}
@@ -117,13 +138,19 @@ export function ImportValidationSection() {
           </WizardFrame>
         </Specimen>
         <Specimen label={importGallery.report}>
-          <WizardFrame wide>
-            <WizardSteps current={3} />
+          <WizardFrame step="report">
             <ReportStep
               result={galleryResult}
               passwordsAsked={galleryRequests.length}
-              onGoToItem={(item) => setWentTo(item.path)}
+              onGoToItem={(item) => setWentTo(readableImportPath(item.path))}
               notice={null}
+              actions={
+                <ReportActions
+                  onExport={nothing}
+                  exporting={false}
+                  onGoToTree={() => setWentTo(galleryResult.report.document_name)}
+                />
+              }
             />
           </WizardFrame>
         </Specimen>
@@ -132,7 +159,7 @@ export function ImportValidationSection() {
             issues={galleryIssues}
             pathOf={pathOf}
             onGoToNode={(id) => setWentTo(pathOf(id))}
-            onRecheck={() => undefined}
+            onRecheck={nothing}
             checking={false}
           />
         </Specimen>
@@ -141,7 +168,7 @@ export function ImportValidationSection() {
             issues={galleryLockedIssues}
             pathOf={pathOf}
             onGoToNode={(id) => setWentTo(pathOf(id))}
-            onRecheck={() => undefined}
+            onRecheck={nothing}
             checking={false}
           />
         </Specimen>
@@ -149,8 +176,8 @@ export function ImportValidationSection() {
           <ValidationReport
             issues={[]}
             pathOf={pathOf}
-            onGoToNode={() => undefined}
-            onRecheck={() => undefined}
+            onGoToNode={nothing}
+            onRecheck={nothing}
             checking={false}
           />
         </Specimen>

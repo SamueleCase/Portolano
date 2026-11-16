@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { ChosenFile, ImportPreviewView_Serialize, ImportResult } from "../../bindings";
+import { interpolate } from "../../i18n/format";
+import { texts } from "../../i18n/it";
 import { presentFailure } from "../../ipc/errors";
 import { useChooseImportFile, useImportApply } from "../../ipc/mutations";
 import { vaultStatusQuery } from "../../ipc/queries";
@@ -10,9 +12,7 @@ import { useImportAnswers } from "./importAnswers";
 import type { ImportSettings } from "./OptionsStep";
 import { outcomeTotals } from "./reportSummary";
 import { importOptions, useWizardPreview } from "./useWizardPreview";
-
-/** The four steps of the wizard (inventario §5.13). */
-export type WizardStep = "file" | "options" | "passwords" | "report";
+import type { WizardStep } from "./wizardSteps";
 
 const INITIAL_SETTINGS: ImportSettings = {
   into: null,
@@ -46,12 +46,18 @@ export function useImportWizard() {
   const [file, setFile] = useState<ChosenFile | null>(null);
   const [reading, setReading] = useState<FileReading | null>(null);
   const [trashSize, setTrashSize] = useState(0);
+  /** The name of the imported document: the folder the import creates. */
+  const [documentName, setDocumentName] = useState<string | null>(null);
   const [settings, setSettings] = useState(INITIAL_SETTINGS);
   const [preview, setPreview] = useState<ImportPreviewView_Serialize | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ position: 0, entered: 0, skipped: 0 });
   const [outcome, setOutcome] = useState<ImportOutcomeView | null>(null);
+  /** A failed import dropped the passwords typed for it (DEC-037.4): they go again. */
+  const [passwordsDropped, setPasswordsDropped] = useState(false);
+  const applying = useRef(false);
   const answers = useImportAnswers();
+  const { options } = texts.importWizard;
   const dryRun = useWizardPreview();
   const choose = useChooseImportFile();
   const apply = useImportApply();
@@ -79,9 +85,10 @@ export function useImportWizard() {
       setReading({ state: "unreadable", message: answer.message });
       return;
     }
-    const totals = outcomeTotals(answer.preview.result);
-    setReading({ state: "readable", objects: totals.read });
-    setTrashSize(totals.skipped);
+    const { result } = answer.preview;
+    setReading({ state: "readable", objects: outcomeTotals(result).read });
+    setTrashSize(result.report.trash_items);
+    setDocumentName(result.report.document_name);
   };
 
   const refresh = async (next: ImportSettings) => {
@@ -96,13 +103,18 @@ export function useImportWizard() {
     const next = { ...settings, ...change };
     setSettings(next);
     setError(null);
+    setPasswordsDropped(false);
     if (Object.keys(change).some((key) => key !== "askPasswords")) void refresh(next);
   };
 
   const finish = async () => {
+    // One import at a time: a second click while the first runs does nothing.
+    if (applying.current) return;
+    applying.current = true;
     const asked = requests.length;
     // The answers leave the ref here, whatever the import does next.
     const given = answers.current.take(requests);
+    const typed = given.some((entry) => entry.value !== null);
     try {
       const result = await apply.mutateAsync({ options: importOptions(settings), answers: given });
       setOutcome({ result, passwordsAsked: asked });
@@ -110,7 +122,10 @@ export function useImportWizard() {
     } catch (failure) {
       setStep("options");
       await refresh(settings);
-      setError(presentFailure(failure).message);
+      setError(interpolate(options.failed, { message: presentFailure(failure).message }));
+      setPasswordsDropped(typed);
+    } finally {
+      applying.current = false;
     }
   };
 
@@ -122,6 +137,7 @@ export function useImportWizard() {
       if (!asking) {
         void finish();
       } else if (!vaultLocked) {
+        setPasswordsDropped(false);
         answers.current.start(requests);
         setProgress({ position: 0, entered: 0, skipped: 0 });
         setStep("passwords");
@@ -132,7 +148,7 @@ export function useImportWizard() {
   /** The answer to the current request: a password, or null (an empty field) to skip it. */
   const answer = (value: string | null) => {
     const held = answers.current;
-    if (step !== "passwords" || held.complete) return;
+    if (step !== "passwords" || held.complete || applying.current) return;
     held.record(value === "" ? null : value);
     setProgress(({ position, entered, skipped }) =>
       value
@@ -152,9 +168,11 @@ export function useImportWizard() {
     file,
     reading,
     trashSize,
+    documentName,
     settings,
     preview,
     error,
+    passwordsDropped,
     progress,
     outcome,
     requests,

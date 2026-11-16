@@ -1,8 +1,7 @@
-import { type ReactNode, useRef } from "react";
+import { useRef } from "react";
 
-import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { type Step, Stepper } from "../../components/Stepper";
+import { Stepper } from "../../components/Stepper";
 import { texts } from "../../i18n/it";
 import { FileStep } from "./FileStep";
 import styles from "./ImportWizard.module.css";
@@ -10,8 +9,10 @@ import { OptionsStep } from "./OptionsStep";
 import { PasswordStep } from "./PasswordStep";
 import { ReportStep } from "./ReportStep";
 import { useDestination } from "./useDestination";
-import { useImportWizard, type WizardStep } from "./useImportWizard";
+import { useImportWizard } from "./useImportWizard";
 import { useReportActions } from "./useReportActions";
+import { ReportActions, WizardFooter } from "./WizardActions";
+import { wizardSteps } from "./wizardSteps";
 
 /** The props of the import wizard, the API its host uses (SPEC-UI §5.4). */
 export interface ImportWizardProps {
@@ -26,8 +27,6 @@ export interface ImportWizardProps {
   /** "Sblocca il vault…" of step 2, when the passwords cannot be written yet. */
   onUnlockVault?: (() => void) | undefined;
 }
-
-const STEPS: readonly WizardStep[] = ["file", "options", "passwords", "report"];
 
 /**
  * The import wizard of Royal TSX documents (inventario §5.13), four steps in
@@ -44,20 +43,9 @@ function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWiz
     wizard.changeSettings({ into }),
   );
   const passwordField = useRef<HTMLInputElement>(null);
-  const { actions, steps } = texts.importWizard;
-  const current = STEPS.indexOf(wizard.step);
-
-  const stepper: Step[] = STEPS.map((step, index) => ({
-    label: steps[step],
-    state:
-      step === "passwords" && !wizard.settings.askPasswords
-        ? "skipped"
-        : index < current
-          ? "done"
-          : index === current
-            ? "current"
-            : "upcoming",
-  }));
+  const { step } = wizard;
+  const passwordsSkipped =
+    !wizard.settings.askPasswords || (wizard.preview !== null && wizard.requests.length === 0);
 
   /** The typed password moves to the answers and the field empties at once. */
   const savePassword = () => {
@@ -74,59 +62,29 @@ function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWiz
   const request = wizard.requests[wizard.progress.position];
   const canLeaveOptions =
     wizard.preview !== null && !wizard.previewing && !(wizard.asking && wizard.vaultLocked);
-
-  const footers: Record<WizardStep, ReactNode> = {
-    file: (
-      <>
-        <Button onClick={onClose}>{actions.cancel}</Button>
-        <Button type="submit" variant="primary" disabled={wizard.reading?.state !== "readable"}>
-          {actions.next}
-        </Button>
-      </>
-    ),
-    options: (
-      <>
-        <Button className={styles.footerStart} onClick={wizard.back}>
-          {actions.back}
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={!canLeaveOptions}
-          loading={wizard.applying}
-        >
-          {actions.next}
-        </Button>
-      </>
-    ),
-    passwords: (
-      <>
-        <Button onClick={skipPassword}>{actions.skip}</Button>
-        <Button variant="ghost" className={styles.footerStart} onClick={wizard.skipRemaining}>
-          {actions.skipAll}
-        </Button>
-        <Button type="submit" variant="primary" loading={wizard.applying}>
-          {actions.saveAndContinue}
-        </Button>
-      </>
-    ),
-    report: (
-      <>
-        <Button onClick={() => void report.exportJson()} loading={report.exporting}>
-          {actions.exportJson}
-        </Button>
-        <Button
-          variant="primary"
-          onClick={() => {
-            if (wizard.outcome) onGoToNode(wizard.outcome.result.root);
-            onClose();
-          }}
-        >
-          {actions.goToTree}
-        </Button>
-      </>
-    ),
-  };
+  const footer =
+    step === "file" ? (
+      <WizardFooter
+        step="file"
+        applying={wizard.applying}
+        canGoOn={wizard.reading?.state === "readable"}
+        onCancel={onClose}
+      />
+    ) : step === "options" ? (
+      <WizardFooter
+        step="options"
+        applying={wizard.applying}
+        canGoOn={canLeaveOptions}
+        onBack={wizard.back}
+      />
+    ) : step === "passwords" ? (
+      <WizardFooter
+        step="passwords"
+        applying={wizard.applying}
+        onSkip={skipPassword}
+        onSkipAll={wizard.skipRemaining}
+      />
+    ) : undefined;
 
   return (
     <>
@@ -135,57 +93,71 @@ function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWiz
         onClose={onClose}
         title={texts.importWizard.title}
         subtitle={wizard.file?.fileName}
-        width={wizard.step === "report" ? "report" : "wizard"}
-        footer={footers[wizard.step]}
-        onSubmit={
-          wizard.step === "passwords"
-            ? savePassword
-            : wizard.step === "report"
-              ? undefined
-              : wizard.next
-        }
+        width={step === "report" ? "report" : "wizard"}
+        footer={footer}
+        onSubmit={step === "passwords" ? savePassword : step === "report" ? undefined : wizard.next}
       >
-        <Stepper steps={stepper} />
-        {wizard.step === "file" && (
-          <FileStep
-            fileName={wizard.file?.fileName ?? null}
-            reading={wizard.reading}
-            onChoose={() => void wizard.chooseFile()}
-            choosing={wizard.choosing}
-          />
-        )}
-        {wizard.step === "options" && (
-          <OptionsStep
-            settings={wizard.settings}
-            onChange={wizard.changeSettings}
-            destination={destination.label}
-            onChooseDestination={destination.choose}
-            preview={wizard.preview}
-            previewing={wizard.previewing}
-            error={wizard.error}
-            trashSize={wizard.trashSize}
-            vaultLocked={wizard.vaultLocked}
-            onUnlockVault={onUnlockVault}
-          />
-        )}
-        {wizard.step === "passwords" && request && (
-          <PasswordStep
-            key={wizard.progress.position}
-            request={request}
-            position={wizard.progress.position}
-            total={wizard.requests.length}
-            entered={wizard.progress.entered}
-            skipped={wizard.progress.skipped}
-            fieldRef={passwordField}
-          />
-        )}
-        {wizard.step === "report" && wizard.outcome && (
-          <ReportStep
-            result={wizard.outcome.result}
-            passwordsAsked={wizard.outcome.passwordsAsked}
-            onGoToItem={(item) => void report.goToItem(item)}
-            notice={report.notice}
-          />
+        <Stepper steps={wizardSteps(step, passwordsSkipped)} />
+        {wizard.applying ? (
+          <p role="status" className={styles.muted}>
+            {texts.importWizard.options.applying}
+          </p>
+        ) : (
+          <>
+            {step === "file" && (
+              <FileStep
+                fileName={wizard.file?.fileName ?? null}
+                reading={wizard.reading}
+                onChoose={() => void wizard.chooseFile()}
+                choosing={wizard.choosing}
+              />
+            )}
+            {step === "options" && (
+              <OptionsStep
+                settings={wizard.settings}
+                onChange={wizard.changeSettings}
+                destination={destination.label}
+                importedFolder={wizard.documentName}
+                onChooseDestination={destination.choose}
+                preview={wizard.preview}
+                previewing={wizard.previewing}
+                error={wizard.error}
+                passwordsDropped={wizard.passwordsDropped}
+                trashSize={wizard.trashSize}
+                vaultLocked={wizard.vaultLocked}
+                onUnlockVault={onUnlockVault}
+              />
+            )}
+            {step === "passwords" && request && (
+              <PasswordStep
+                key={wizard.progress.position}
+                request={request}
+                position={wizard.progress.position}
+                total={wizard.requests.length}
+                entered={wizard.progress.entered}
+                skipped={wizard.progress.skipped}
+                fieldRef={passwordField}
+              />
+            )}
+            {step === "report" && wizard.outcome && (
+              <ReportStep
+                result={wizard.outcome.result}
+                passwordsAsked={wizard.outcome.passwordsAsked}
+                onGoToItem={(item) => void report.goToItem(item)}
+                notice={report.notice}
+                actions={
+                  <ReportActions
+                    onExport={() => void report.exportJson()}
+                    exporting={report.exporting}
+                    onGoToTree={() => {
+                      if (wizard.outcome) onGoToNode(wizard.outcome.result.root);
+                      onClose();
+                    }}
+                  />
+                }
+              />
+            )}
+          </>
         )}
       </Dialog>
       {/* Outside the wizard in the React tree too: its keys must not reach the wizard. */}

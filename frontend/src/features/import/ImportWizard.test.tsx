@@ -1,13 +1,16 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { UNREADABLE_IMPORT_FILE } from "../../test/fakeBackendImport";
 import {
   chooseFile,
   importBackend,
+  interceptCommand,
   passwordField,
+  recordCommands,
   renderWizard,
   reportShown,
+  sent,
   toOptions,
   toPasswords,
 } from "./testWizard";
@@ -20,6 +23,9 @@ beforeAll(() => {
 });
 afterAll(() => {
   Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+});
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("ImportWizard", () => {
@@ -61,7 +67,7 @@ describe("ImportWizard", () => {
     expect(
       screen.getByText("3 campi password da reinserire nel passo successivo"),
     ).toBeInTheDocument();
-    expect(screen.getByText("2 elementi eliminati in Royal TSX")).toBeInTheDocument();
+    expect(screen.getByText("1 elemento eliminato in Royal TSX")).toBeInTheDocument();
     expect(screen.getByText("In prova: 7 nodi nuovi, 0 aggiornati.")).toBeInTheDocument();
   });
 
@@ -107,7 +113,7 @@ describe("ImportWizard", () => {
 
     expect(await screen.findByText("2 / 3")).toBeInTheDocument();
     expect(screen.getByText("1 inserita · 0 saltate")).toBeInTheDocument();
-    expect(screen.getByText("Ufficio/Produzione/db10")).toBeInTheDocument();
+    expect(screen.getByText("Ufficio / Produzione / db10")).toBeInTheDocument();
     expect(screen.getByText("dba")).toBeInTheDocument();
   });
 
@@ -181,5 +187,79 @@ describe("ImportWizard", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("il vault è bloccato");
     await waitFor(() => expect(screen.getByText(/^In prova:/)).toBeInTheDocument());
+  });
+
+  it("says after a failed import that the typed passwords were not saved", async () => {
+    const state = importBackend();
+    const { user } = renderWizard();
+    await toPasswords(user);
+    state.vault.locked = true;
+
+    await user.type(passwordField(), "prima-password-finta{Enter}");
+    await screen.findByText("2 / 3");
+    await user.click(screen.getByRole("button", { name: "Salta tutte le restanti" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Le password inserite non sono state salvate",
+    );
+  });
+
+  it("imports once when the last button is clicked twice", async () => {
+    importBackend();
+    const commands = recordCommands();
+    const { user } = renderWizard();
+    await toPasswords(user);
+    const skipAll = screen.getByRole("button", { name: "Salta tutte le restanti" });
+
+    // Two clicks in the same task, before the wizard renders "in corso".
+    fireEvent.click(skipAll);
+    fireEvent.click(skipAll);
+
+    await reportShown();
+    expect(sent(commands, "import_apply")).toHaveLength(1);
+  });
+
+  it("shows the import in progress instead of an empty step", async () => {
+    importBackend();
+    let finish = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    interceptCommand("import_apply", async (answer) => {
+      await held;
+      return answer();
+    });
+    const { user } = renderWizard();
+    await toPasswords(user);
+
+    await user.click(screen.getByRole("button", { name: "Salta tutte le restanti" }));
+
+    expect(await screen.findByText("Importazione in corso…")).toBeInTheDocument();
+    finish();
+    await reportShown();
+  });
+
+  it("shows the destination with the folder the import creates", async () => {
+    importBackend();
+    const { user } = renderWizard();
+
+    await toOptions(user);
+
+    expect(screen.getByText("Radice del documento / Ufficio")).toBeInTheDocument();
+  });
+
+  it("strikes the passwords step out when the file asks for none", async () => {
+    importBackend();
+    interceptCommand("import_preview", async (answer) => {
+      // The preview of the fake, as an object: only its requests change.
+      const preview = (await answer()) as object;
+      return { ...preview, requests: [] };
+    });
+    const { user } = renderWizard();
+
+    await toOptions(user);
+
+    const steps = screen.getByRole("list", { name: "Passi" });
+    expect(within(steps).getByText(/Password/)).toHaveTextContent("(saltato)");
   });
 });

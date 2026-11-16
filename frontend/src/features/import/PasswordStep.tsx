@@ -7,6 +7,7 @@ import { ProgressBar } from "../../components/ProgressBar";
 import { TextField } from "../../components/TextField";
 import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
+import { readableImportPath } from "./importPath";
 import styles from "./ImportWizard.module.css";
 
 interface PasswordStepProps {
@@ -47,7 +48,12 @@ export function PasswordStep({
   const { passwords } = texts.importWizard;
   const counter = interpolate(passwords.position, { position: position + 1, total });
   const rows: KeyValueRow[] = [
-    { key: "node", label: passwords.node, value: request.nodePath, mono: true },
+    {
+      key: "node",
+      label: passwords.node,
+      value: readableImportPath(request.nodePath),
+      mono: true,
+    },
     ...(request.username === null
       ? []
       : [{ key: "user", label: passwords.user, value: request.username, mono: true }]),

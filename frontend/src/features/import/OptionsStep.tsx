@@ -25,12 +25,16 @@ interface OptionsStepProps {
   onChange: (change: Partial<ImportSettings>) => void;
   /** The readable path of the destination, "Radice del documento" for the root. */
   destination: string;
+  /** The folder the import creates there: the name of the imported document. */
+  importedFolder: string | null;
   onChooseDestination: () => void;
   /** The dry run of the current settings, none while it runs or when it failed. */
   preview: ImportPreviewView_Serialize | null;
   previewing: boolean;
   /** Why the dry run or the import failed, in the words of the backend. */
   error: string | null;
+  /** A failed import dropped the passwords typed for it: they have to be typed again. */
+  passwordsDropped: boolean;
   /** The items in the trash of the file, skipped unless included. */
   trashSize: number;
   /** The passwords cannot be written until the file vault is unlocked. */
@@ -52,10 +56,12 @@ export function OptionsStep({
   settings,
   onChange,
   destination,
+  importedFolder,
   onChooseDestination,
   preview,
   previewing,
   error,
+  passwordsDropped,
   trashSize,
   vaultLocked,
   onUnlockVault,
@@ -68,7 +74,11 @@ export function OptionsStep({
       <FormField label={options.destination} controlId={destinationId}>
         <div className={styles.destination}>
           <output id={destinationId} className={styles.destinationPath}>
-            {visibleText(destination)}
+            {visibleText(
+              importedFolder === null
+                ? destination
+                : `${destination}${texts.validation.separator}${importedFolder}`,
+            )}
           </output>
           <Button variant="small" onClick={onChooseDestination}>
             {options.chooseDestination}
@@ -120,9 +130,10 @@ export function OptionsStep({
         </div>
       )}
       {error && (
-        <p role="alert" className={styles.error}>
-          {visibleText(error)}
-        </p>
+        <div role="alert" className={styles.failure}>
+          <p className={styles.error}>{visibleText(error)}</p>
+          {passwordsDropped && <p className={styles.error}>{options.passwordsDropped}</p>}
+        </div>
       )}
     </div>
   );

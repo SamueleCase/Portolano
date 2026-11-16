@@ -7,6 +7,7 @@ import { GroupHeader } from "../../components/GroupHeader";
 import { ReportRow } from "../../components/ReportRow";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
+import { readableImportPath } from "./importPath";
 import styles from "./ImportWizard.module.css";
 
 type Filter = "all" | "partial" | "unsupported";
@@ -64,7 +65,7 @@ export function ReportItems({ items, onGoToItem }: ReportItemsProps) {
                   key={`${item.source_id}-${item.path}`}
                   outcome={item.status}
                   outcomeLabel={report.outcome[item.status]}
-                  path={item.path}
+                  path={readableImportPath(item.path)}
                   reason={item.reasons.join(report.reasonSeparator)}
                   onGoToNode={item.status === "skipped" ? undefined : () => onGoToItem(item)}
                 />

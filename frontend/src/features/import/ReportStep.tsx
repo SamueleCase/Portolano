@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 
 import type { ImportResult, ReportItem } from "../../bindings";
 import { GroupHeader } from "../../components/GroupHeader";
@@ -19,6 +19,8 @@ interface ReportStepProps {
   onGoToItem: (item: ReportItem) => void;
   /** What "Esporta JSON" or a click on a row has to tell, if anything. */
   notice: string | null;
+  /** "Esporta JSON" and "Vai all'albero", at the right of the heading (inventario §5.13). */
+  actions: ReactNode;
 }
 
 /**
@@ -27,7 +29,13 @@ interface ReportStepProps {
  * an item "Parziale"; "Saltati" are only the items of the trash (DEC-016.8).
  * Every text from the file is shown with its control characters visible.
  */
-export function ReportStep({ result, passwordsAsked, onGoToItem, notice }: ReportStepProps) {
+export function ReportStep({
+  result,
+  passwordsAsked,
+  onGoToItem,
+  notice,
+  actions,
+}: ReportStepProps) {
   const warningsId = useId();
   const { report } = texts.importWizard;
   const totals = outcomeTotals(result);
@@ -44,12 +52,16 @@ export function ReportStep({ result, passwordsAsked, onGoToItem, notice }: Repor
   return (
     <div className={styles.report}>
       <header className={styles.reportHeader}>
-        <p className={styles.muted}>
-          {interpolate(report.completed, { file: visibleText(result.report.source_file) })}
-        </p>
-        <p className={styles.hero}>
-          <span className={styles.heroValue}>{totals.read}</span> {plural(totals.read, report.read)}
-        </p>
+        <div className={styles.reportTitle}>
+          <p className={styles.muted}>
+            {interpolate(report.completed, { file: visibleText(result.report.source_file) })}
+          </p>
+          <p className={styles.hero}>
+            <span className={styles.heroValue}>{totals.read}</span>
+            <span>{plural(totals.read, report.read)}</span>
+          </p>
+        </div>
+        <div className={styles.reportActions}>{actions}</div>
       </header>
       <StackedBar label={interpolate(report.bar, { summary })} segments={segments} />
       <div className={styles.tiles}>
@@ -62,8 +74,8 @@ export function ReportStep({ result, passwordsAsked, onGoToItem, notice }: Repor
           <GroupHeader>{report.byType}</GroupHeader>
           {groups.map((group) => (
             <MiniBar
-              key={group.kind}
-              label={report.types[group.kind]}
+              key={group.key}
+              label={group.label}
               value={group.count}
               max={largest}
               kind={group.kind}
@@ -76,8 +88,9 @@ export function ReportStep({ result, passwordsAsked, onGoToItem, notice }: Repor
             <p className={styles.muted}>{report.noWarnings}</p>
           ) : (
             <ul className={styles.warnings} aria-labelledby={warningsId}>
-              {warnings.map((warning) => (
-                <li key={warning}>{visibleText(warning)}</li>
+              {warnings.map((warning, index) => (
+                // Two warnings can read the same: the index tells them apart.
+                <li key={`${index}-${warning}`}>{visibleText(warning)}</li>
               ))}
             </ul>
           )}

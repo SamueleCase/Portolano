@@ -36,10 +36,27 @@ describe("import report", () => {
   it("makes an item with a skipped password partial and the trash skipped", async () => {
     await importSkippingAll();
 
-    const web10 = screen.getByRole("button", { name: /Ufficio\/Produzione\/web10/ });
+    const web10 = screen.getByRole("button", { name: /Ufficio \/ Produzione \/ web10/ });
     expect(web10).toHaveTextContent("Parziale");
     expect(web10).toHaveTextContent("password Royal cifrata non importata");
-    expect(screen.getByText("Ufficio/Cestino").closest("li")).toHaveTextContent("Saltato");
+    expect(screen.getByText("Ufficio / Cestino").closest("li")).toHaveTextContent("Saltato");
+  });
+
+  it("shows the objects per kind of node as the importer counts them", async () => {
+    await importSkippingAll();
+
+    const byType = screen.getByText("Per tipo").closest("div");
+    expect(byType).toHaveTextContent(
+      /SSH\s*3\s*RDP\s*1\s*Cartelle\s*3\s*Credenziali\s*1\s*Altri tipi\s*1/,
+    );
+  });
+
+  it("counts the items of the trash left out without the trash itself", async () => {
+    await importSkippingAll();
+
+    expect(
+      screen.getByText("Il cestino di Royal TSX (1 elemento) non è stato incluso."),
+    ).toBeInTheDocument();
   });
 
   it("lists an icon over 4 MiB as the reason of a partial item", async () => {
@@ -53,7 +70,7 @@ describe("import report", () => {
   it("leads from a row to its node through the source id", async () => {
     const { user, onGoToNode } = await importSkippingAll();
 
-    await user.click(screen.getByRole("button", { name: /Ufficio\/Produzione\/web10/ }));
+    await user.click(screen.getByRole("button", { name: /Ufficio \/ Produzione \/ web10/ }));
 
     expect(onGoToNode).toHaveBeenCalledWith(await idOf("web10"));
   });
@@ -61,7 +78,7 @@ describe("import report", () => {
   it("does not lead anywhere from an item of the trash", async () => {
     await importSkippingAll();
 
-    const trash = screen.getByText("Ufficio/Cestino").closest("li");
+    const trash = screen.getByText("Ufficio / Cestino").closest("li");
     expect(trash && within(trash).queryByRole("button")).toBeNull();
   });
 
