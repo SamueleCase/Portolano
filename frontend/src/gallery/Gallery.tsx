@@ -15,6 +15,7 @@ import { ButtonsSection } from "./sections/ButtonsSection";
 import { ChoicesSection } from "./sections/ChoicesSection";
 import { FieldsSection } from "./sections/FieldsSection";
 import { FoundationsSection } from "./sections/FoundationsSection";
+import { ImportValidationSection } from "./sections/ImportValidationSection";
 import { ListsSection } from "./sections/ListsSection";
 import { NavigationSection } from "./sections/NavigationSection";
 import { OverlaysSection } from "./sections/OverlaysSection";
@@ -40,6 +41,7 @@ const sections = [
   ["terminal", TerminalSection],
   ["untrusted", UntrustedSection],
   ["sessions", SessionsSection],
+  ["importValidation", ImportValidationSection],
 ] as const;
 
 /**
