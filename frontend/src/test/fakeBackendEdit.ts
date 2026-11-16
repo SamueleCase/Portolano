@@ -18,6 +18,7 @@ import {
 import {
   applyDetails,
   checkConnection,
+  checkSettings,
   checkKeyFile,
   setInlinePassword,
   specOf,
@@ -104,6 +105,7 @@ function editTarget(node: FakeNode, edit: NodeEditInput_Deserialize): void {
   if (edit.defaultPort) node.port = null;
   if (edit.settings != null) node.settings = structuredClone(edit.settings);
   checkConnection(node.protocol ?? "", node.host ?? "", node.port);
+  if (edit.settings != null) checkSettings(node.protocol ?? "", node.settings);
 }
 
 /** The credential, or user and domain: fields of a credential, inline login of the others. */

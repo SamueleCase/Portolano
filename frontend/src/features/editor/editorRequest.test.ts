@@ -143,10 +143,20 @@ describe("routeError", () => {
   const invalid = (field: string, message: string) =>
     routeError({ presentation: "field", title: "", message, field }, "ssh");
 
-  it("puts a refused ssh option under the free options", () => {
-    expect(
-      invalid("settings", "campo 'options': l'opzione 'ProxyCommand' non è ammessa").target,
-    ).toBe("options");
+  it("puts a refused ssh option on its row of the free options", () => {
+    expect(invalid("settings.options.ProxyCommand", "non ammessa")).toEqual({
+      target: "options",
+      message: "non ammessa",
+      option: "ProxyCommand",
+    });
+  });
+
+  it("puts an invalid jump host under the jump hosts", () => {
+    expect(invalid("settings.jump_hosts", "non valido").target).toBe("jumpHosts");
+  });
+
+  it("keeps the settings as a whole for the bottom of the panel", () => {
+    expect(invalid("settings", "non valide").target).toBe("form");
   });
 
   it("puts a name already taken under the name", () => {

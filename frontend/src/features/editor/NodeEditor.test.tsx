@@ -1,5 +1,5 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { describe, expect, it, vi } from "vitest";
@@ -216,6 +216,60 @@ describe("NodeEditor", () => {
 
     const row = screen.getByRole("group", { name: t.credential.password });
     expect(within(row).getByText(texts.components.secretBadge.locked)).toBeInTheDocument();
+  });
+
+  it("does not save the editor with Fatto in the credential selector", async () => {
+    unlocked();
+    const { onSaved } = renderEditor({ mode: "edit", id: await idOf("web01") });
+    await type(t.general.name, "web01-nuovo");
+    await userEvent.click(screen.getByRole("button", { name: t.next }));
+
+    await userEvent.click(
+      screen.getByRole("button", { name: texts.components.credentialField.change }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: texts.components.credentialSelector.done }),
+    );
+
+    expect(
+      screen.queryByRole("radiogroup", { name: texts.components.credentialSelector.modes }),
+    ).not.toBeInTheDocument();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: /web01/ })).toBeInTheDocument();
+  });
+
+  it("saves once when a second submit comes while saving", async () => {
+    unlocked();
+    const { onSaved } = renderEditor({ mode: "edit", id: await idOf("web01") });
+    await type(t.general.name, "web01-nuovo");
+
+    const form = screen.getByLabelText(t.general.name).closest("form");
+    if (!form) throw new Error("editor senza form");
+
+    // The second arrives while the first save runs.
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(onSaved).toHaveBeenCalledOnce();
+  });
+
+  it("shows a refused ssh option on its row", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+
+    await userEvent.click(screen.getByRole("button", { name: t.ssh.addOption }));
+    const table = screen.getByRole("table", { name: t.ssh.options });
+    await userEvent.type(
+      within(table).getByLabelText(texts.components.keyValue.name),
+      "ProxyCommand",
+    );
+    await save();
+
+    const row = (await within(table).findByDisplayValue("ProxyCommand")).closest("[role='row']");
+    expect(row).toHaveTextContent("l'opzione 'ProxyCommand' non è ammessa");
   });
 
   it("adds a jump host from the tree", async () => {

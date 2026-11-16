@@ -13,6 +13,8 @@ export interface EditorFields {
   set: <K extends keyof EditorValues>(field: K, value: EditorValues[K]) => void;
   /** The message under `target`: the check of form, or else the backend's. */
   errorOf: (target: ErrorTarget) => string | undefined;
+  /** The free ssh option the backend refused on the last "Salva", if any. */
+  refusedOption: string | undefined;
   secrets: SecretSlots;
   /** Opens the dialog of the secret in `key` ("Imposta…", "Sostituisci…"). */
   askSecret: (key: SlotKey) => void;

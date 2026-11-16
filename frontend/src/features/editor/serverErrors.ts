@@ -10,9 +10,15 @@ export type ErrorTarget = EditableField | "password" | "passphrase" | "privateKe
 export interface RoutedError {
   target: ErrorTarget;
   message: string;
+  /** The free ssh option refused, for the row of the options that has it. */
+  option?: string;
 }
 
-/** The fields of the settings of a connection, as the messages of the connectors name them. */
+/**
+ * The settings of a connection as the backend names them in the field of
+ * the error (`settings.<key>`, DEC-040.3). The settings chosen from a fixed
+ * list (scale, color depth, client) have no field of their own.
+ */
 const SETTINGS_TARGETS: Readonly<Record<string, ErrorTarget>> = {
   options: "options",
   jump_hosts: "jumpHosts",
@@ -22,17 +28,18 @@ const SETTINGS_TARGETS: Readonly<Record<string, ErrorTarget>> = {
   wol_mac: "wolMac",
 };
 
-/**
- * The backend names only `settings` for a refused setting; its message
- * starts with the setting, as `campo 'options': …`. The settings chosen
- * from a fixed list (scale, color depth, client) have no field of their own.
- */
-function settingsTarget(message: string): ErrorTarget {
-  const setting = /campo '([a-z_]+)'/.exec(message)?.[1];
-  return (setting === undefined ? undefined : SETTINGS_TARGETS[setting]) ?? "form";
+const SETTINGS = "settings.";
+const OPTIONS = "settings.options.";
+
+/** `settings.<key>`, or `settings.options.<option>` for a refused ssh option. */
+function settingsError(field: string, message: string): RoutedError {
+  if (field.startsWith(OPTIONS)) {
+    return { target: "options", message, option: field.slice(OPTIONS.length) };
+  }
+  return { target: SETTINGS_TARGETS[field.slice(SETTINGS.length)] ?? "form", message };
 }
 
-function fieldTarget(field: string, message: string, kind: EditorKind): ErrorTarget {
+function fieldTarget(field: string, kind: EditorKind): ErrorTarget {
   switch (field) {
     case "name":
     case "color":
@@ -45,8 +52,6 @@ function fieldTarget(field: string, message: string, kind: EditorKind): ErrorTar
       return kind === "credential" ? "domain" : "credential";
     case "protocol":
       return "host";
-    case "settings":
-      return settingsTarget(message);
     case "user":
     case "username":
       return kind === "credential" ? "username" : "credential";
@@ -59,16 +64,16 @@ function fieldTarget(field: string, message: string, kind: EditorKind): ErrorTar
     case "passphrase":
       return "passphrase";
     default:
+      // `settings` alone: the settings as a whole.
       return "form";
   }
 }
 
 export function routeError(error: PresentedError, kind: EditorKind): RoutedError {
-  const target =
-    error.presentation === "field" && error.field
-      ? fieldTarget(error.field, error.message, kind)
-      : "form";
-  return { target, message: error.message };
+  const field = error.presentation === "field" ? error.field : undefined;
+  if (field === undefined) return { target: "form", message: error.message };
+  if (field.startsWith(SETTINGS)) return settingsError(field, error.message);
+  return { target: fieldTarget(field, kind), message: error.message };
 }
 
 const GENERAL: readonly ErrorTarget[] = [
@@ -86,9 +91,4 @@ const GENERAL: readonly ErrorTarget[] = [
 /** The step that shows `target`: 0 Generale, 1 the step of the kind. */
 export function stepOf(target: ErrorTarget): 0 | 1 {
   return GENERAL.includes(target) ? 0 : 1;
-}
-
-/** The option of the free ssh options a message names (`l'opzione 'ProxyCommand'`). */
-export function optionNamed(message: string, keys: readonly string[]): string | undefined {
-  return keys.find((key) => key !== "" && message.includes(`'${key}'`));
 }

@@ -10,19 +10,16 @@ import { CredentialSetting } from "./CredentialSetting";
 import { errorMessage, useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import { JumpHostList } from "./JumpHostList";
-import { optionNamed } from "./serverErrors";
 
 /** Step 2 · Connessione of an SSH connection (inventario §5.5). */
 export function SshStep() {
   const t = texts.editor.ssh;
-  const { values, set, errorOf, backend } = useEditorFields();
+  const { values, set, errorOf, refusedOption, backend } = useEditorFields();
   const next = useRef(0);
   const optionsError = errorOf("options");
-  const refused = optionsError
-    ? optionNamed(
-        optionsError,
-        values.options.map((option) => option.key),
-      )
+  // The row of the option the backend named, if it is still there.
+  const refused = values.options.some((option) => option.key === refusedOption)
+    ? refusedOption
     : undefined;
   const entries: KeyValueEntry[] = values.options.map((option) => ({
     id: option.id,

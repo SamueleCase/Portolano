@@ -20,7 +20,7 @@ import styles from "./Editor.module.css";
 import { secondStepLabel } from "./editorKinds";
 import { EditorNotices } from "./EditorNotices";
 import { editorSchema, missingVaultKey } from "./editorSchema";
-import type { EditorValues } from "./editorValues";
+import { EDITABLE_FIELDS, type EditableField, type EditorValues } from "./editorValues";
 import { FolderStep } from "./FolderStep";
 import { GeneralStep } from "./GeneralStep";
 import { RdpStep } from "./RdpStep";
@@ -40,6 +40,11 @@ interface EditorFormProps {
 }
 
 const STEP_BODIES = { ssh: SshStep, rdp: RdpStep, folder: FolderStep, credential: CredentialStep };
+
+/** Whether `target` is a field of the form, which the schema can check. */
+function isFormField(target: ErrorTarget): target is EditableField {
+  return (EDITABLE_FIELDS as readonly string[]).includes(target);
+}
 
 /** The first field with an error of the schema, to show its step. */
 function firstError(errors: FieldErrors<EditorValues>): ErrorTarget | undefined {
@@ -71,7 +76,10 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
   const [step, setStep] = useState<0 | 1>(0);
   const [serverErrors, setServerErrors] = useState<Partial<Record<ErrorTarget, string>>>({});
   const [secretsLost, setSecretsLost] = useState(false);
+  const [refusedOption, setRefusedOption] = useState<string>();
   const [asking, setAsking] = useState<SlotKey>();
+  // Read synchronously: a second Enter before the next render must not save twice.
+  const submitting = useRef(false);
 
   // Leaving the editor in any way drops what is staged.
   useEffect(() => () => holder.clear(), [holder]);
@@ -86,12 +94,13 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
         shouldValidate: form.formState.isSubmitted,
       });
       setServerErrors((current) => ({ ...current, [field]: undefined }));
+      if (field === "options") setRefusedOption(undefined);
     },
     errorOf: (target) => {
-      const checked =
-        target === "form" ? undefined : form.formState.errors[target as keyof EditorValues];
+      const checked = isFormField(target) ? form.formState.errors[target] : undefined;
       return typeof checked?.message === "string" ? checked.message : serverErrors[target];
     },
+    refusedOption,
     secrets,
     askSecret: setAsking,
     clearSecret: (key) => {
@@ -120,6 +129,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
       }
       setServerErrors({});
       setSecretsLost(false);
+      setRefusedOption(undefined);
       const result = await save({ values: valid, base, details });
       if (result.status === "saved") {
         onSaved(result.node);
@@ -127,6 +137,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
       }
       if (result.status === "cancelled") return;
       setServerErrors({ [result.error.target]: result.error.message });
+      setRefusedOption(result.error.option);
       if (result.error.target !== "form") setStep(stepOf(result.error.target));
       if (result.secretsLost) {
         setSecretsLost(true);
@@ -171,8 +182,16 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          // Enter in a field submits too: nothing to save while nothing changed.
-          if (form.formState.isDirty) void submit();
+          // Only the submit of this form: React brings here also the submit of
+          // a dialog opened from the editor, through its portal (DEC-040.1).
+          if (event.target !== event.currentTarget) return;
+          // Enter in a field submits too: nothing to save while nothing
+          // changed, and only one save at a time.
+          if (!form.formState.isDirty || submitting.current) return;
+          submitting.current = true;
+          void submit().finally(() => {
+            submitting.current = false;
+          });
         }}
       >
         <Body />
