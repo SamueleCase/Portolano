@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { commands } from "../bindings";
 import { TEST_MASTER_PASSWORD, initialFakeState, installFakeBackend } from "./fakeBackend";
@@ -160,5 +160,44 @@ describe("fake backend", () => {
     );
 
     expect(JSON.stringify(state)).not.toContain("sentinel-import");
+  });
+});
+
+describe("fake backend seeded by an end-to-end test", () => {
+  afterEach(() => {
+    delete window.__portolanoFakeSeed;
+  });
+
+  it("starts without a document and without recent ones for the first run", async () => {
+    window.__portolanoFakeSeed = { document: "none" };
+    installFakeBackend();
+
+    const status = ok(await commands.appStatus());
+
+    expect(status.document).toBeNull();
+    expect(status.lastDocument).toBeNull();
+  });
+
+  it("answers the native dialogs with the paths of the seed", async () => {
+    window.__portolanoFakeSeed = {
+      document: "none",
+      dialogs: { newDocument: "/Users/utente-di-prova/infra/nuovo.json" },
+    };
+    installFakeBackend();
+
+    expect(ok(await commands.chooseNewDocument())).toEqual({ fileName: "nuovo.json" });
+  });
+
+  it("starts with the vault unlocked when the seed asks", async () => {
+    window.__portolanoFakeSeed = { vaultLocked: false };
+    installFakeBackend();
+
+    expect(ok(await commands.vaultStatus()).locked).toBe(false);
+  });
+
+  it("starts from the sample document without a seed", async () => {
+    installFakeBackend();
+
+    expect(ok(await commands.appStatus()).document?.name).toBe("Infrastruttura");
   });
 });

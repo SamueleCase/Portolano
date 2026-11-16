@@ -64,6 +64,46 @@ export function initialFakeState(): FakeBackendState {
 }
 
 /**
+ * How an end-to-end test wants the fake to start, set before the page loads
+ * (`page.addInitScript`) as `window.__portolanoFakeSeed`: the e2e build
+ * installs the fake from `main.tsx`, where a test cannot pass a state.
+ */
+export interface FakeSeed {
+  /** `none`: no document open, none recent (the first run). Default: the sample. */
+  document?: "sample" | "none";
+  /** What the native dialogs answer, as `FakeBackendState.dialogs`. */
+  dialogs?: Partial<Omit<FakeBackendState["dialogs"], "configFiles">>;
+  /** Whether the file vault starts locked; default: locked. */
+  vaultLocked?: boolean;
+}
+
+declare global {
+  interface Window {
+    __portolanoFakeSeed?: FakeSeed;
+  }
+}
+
+/** The initial state changed as `seed` asks. */
+export function seededFakeState(seed: FakeSeed): FakeBackendState {
+  const state = initialFakeState();
+  if (seed.document === "none") {
+    state.document = null;
+    state.recent = [];
+  }
+  state.dialogs = { ...state.dialogs, ...seed.dialogs };
+  if (seed.vaultLocked !== undefined) {
+    state.vault.locked = seed.vaultLocked;
+  }
+  return state;
+}
+
+/** The state of the seed of an end-to-end test, if any, else the initial one. */
+function defaultFakeState(): FakeBackendState {
+  const seed = typeof window === "undefined" ? undefined : window.__portolanoFakeSeed;
+  return seed === undefined ? initialFakeState() : seededFakeState(seed);
+}
+
+/**
  * An argument of a command. The generated bindings send each command its
  * arguments with the types of `bindings.ts`, which the dispatcher names
  * through `T`: this cast is that contract, the only one of the fake.
@@ -230,8 +270,10 @@ function eventsAfter(state: FakeBackendState, command: string): void {
  * `lock_vault`. Deletions expire by `state.clock`. Not simulated: the
  * watcher of the file (`document-modified-externally`, `document-missing`:
  * a test emits them itself) and the menu (`menu-action`, likewise).
+ *
+ * Without a state, an end-to-end test starts from its seed (`FakeSeed`).
  */
-export function installFakeBackend(state: FakeBackendState = initialFakeState()): FakeBackendState {
+export function installFakeBackend(state: FakeBackendState = defaultFakeState()): FakeBackendState {
   mockIPC(
     (command, args) => {
       try {

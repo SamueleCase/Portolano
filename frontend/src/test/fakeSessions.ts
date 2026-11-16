@@ -55,6 +55,13 @@ export const fakeScenarios: Record<string, FakeScenario> = {
   "node-windows-app": { kind: "external" },
 };
 
+/**
+ * A connection that works, as a terminal: the scenario of the nodes of the
+ * fake document in the end-to-end tests of the app, whose ids are not those
+ * of `fakeScenarios`.
+ */
+export const workingConnection: FakeScenario = { kind: "terminal", banner: LOGIN_BANNER };
+
 interface FakeSession {
   kind: SessionKind;
   handlers: SessionHandlers;
@@ -80,10 +87,17 @@ export class FakeSessionTransport implements SessionTransport {
   private readonly attempts = new Map<string, number>();
   private nextId = 1;
 
-  constructor(private readonly scenarios: Record<string, FakeScenario> = fakeScenarios) {}
+  /**
+   * `fallback` is the scenario of the nodes `scenarios` does not name;
+   * without it, opening them fails as for a node that does not exist.
+   */
+  constructor(
+    private readonly scenarios: Record<string, FakeScenario> = fakeScenarios,
+    private readonly fallback?: FakeScenario,
+  ) {}
 
   open(request: OpenSessionRequest, handlers: SessionHandlers): Promise<SessionOpened> {
-    const scenario = this.scenarios[request.nodeId];
+    const scenario = this.scenarios[request.nodeId] ?? this.fallback;
     if (scenario === undefined) {
       return Promise.reject(
         new IpcFailure({ code: "notFound", message: `nodo ${request.nodeId} inesistente` }),
