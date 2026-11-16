@@ -79,3 +79,4 @@ pub(super) fn spec_of(stored: &Stored, path: &str) -> CredentialSpec {
 mod add;
 mod edit;
 mod staged;
+mod staged_move;

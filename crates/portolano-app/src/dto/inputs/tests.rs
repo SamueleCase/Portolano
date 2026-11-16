@@ -92,6 +92,19 @@ fn staged_secrets_become_editor_changes() {
 }
 
 #[test]
+fn parent_moves_to_a_folder_or_to_the_root_and_its_absence_stays() {
+    let folder = uuid::Uuid::new_v4();
+    let parent_of = |json| edit_of(json).into_edit(&web01()).unwrap().1.parent;
+
+    assert_eq!(
+        parent_of(json!({ "parent": { "id": folder } })),
+        Some(Some(folder))
+    );
+    assert_eq!(parent_of(json!({ "parent": { "id": null } })), Some(None));
+    assert_eq!(parent_of(json!({})), None);
+}
+
+#[test]
 fn inline_choice_on_a_credential_that_is_not_inline_replaces_it() {
     let (edit, _) =
         edit_of(json!({ "credential": { "mode": "inline", "username": "ops", "domain": null } }))
