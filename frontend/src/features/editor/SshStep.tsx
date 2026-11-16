@@ -62,9 +62,12 @@ export function SshStep() {
           onChange={(on) => set("x11Trusted", on)}
         />
       </div>
+      {/* "Keepalive ogni [30] secondi (vuoto = disattivato)", as a sentence (inventario §5.5). */}
       <div className={styles.keepalive}>
+        <span aria-hidden="true">{t.keepaliveBefore}</span>
         <TextField
           label={t.keepalive}
+          hideLabel
           mono
           variant="numeric"
           inputMode="numeric"
@@ -72,7 +75,7 @@ export function SshStep() {
           message={errorMessage(errorOf("keepalive"))}
           onChange={(event) => set("keepalive", event.target.value)}
         />
-        <span className={styles.hint}>{t.keepaliveHint}</span>
+        <span aria-hidden="true">{t.keepaliveAfter}</span>
       </div>
       <div className={styles.group}>
         <span className={styles.fieldLabel}>{t.options}</span>

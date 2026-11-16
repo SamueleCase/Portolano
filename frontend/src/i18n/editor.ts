@@ -59,8 +59,9 @@ export const editor = {
     x11: "X11 forwarding",
     x11Trusted: "X11 trusted",
     x11TrustedHint: "Attivabile solo con X11 acceso",
-    keepalive: "Keepalive (secondi)",
-    keepaliveHint: "Vuoto = disattivato.",
+    keepalive: "Keepalive ogni quanti secondi (vuoto = disattivato)",
+    keepaliveBefore: "Keepalive ogni",
+    keepaliveAfter: "secondi (vuoto = disattivato)",
     options: "Opzioni libere (chiave = valore)",
     addOption: "+ Opzione",
     missingJump: "nodo non trovato",
@@ -94,7 +95,7 @@ export const editor = {
   },
   folder: {
     credential: "Credenziale predefinita",
-    note: "Gli elementi senza una credenziale propria usano questa; senza, quella della cartella superiore, se esiste.",
+    note: "Gli elementi senza una credenziale propria usano quella della cartella superiore, se esiste.",
   },
   credential: {
     user: "Utente",
