@@ -8,6 +8,9 @@ import { idOf } from "../../test/fakeBackendFixtures";
 import { renderWithQueries } from "../../test/render";
 import { IconChooser } from "./IconChooser";
 import { TreeNodePicker } from "./TreeNodePicker";
+import { stubScrollIntoView } from "./scrollStub";
+
+stubScrollIntoView();
 
 const icons = texts.components.iconPicker;
 
