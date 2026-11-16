@@ -145,7 +145,7 @@ describe("fake backend", () => {
       ),
     );
 
-    expect(result.secrets_written).toBe(1);
+    expect(result.secrets_written).toBe(preview.requests.length);
   });
 
   it("keeps no typed import password", async () => {
