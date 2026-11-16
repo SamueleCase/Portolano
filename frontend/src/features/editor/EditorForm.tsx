@@ -72,7 +72,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
   const staged = useRef<StagedSecrets>(null);
   staged.current ??= new StagedSecrets();
   const holder = staged.current;
-  const { save, saving, dialog } = useEditorSave(holder);
+  const { save, saving } = useEditorSave(holder);
   const [step, setStep] = useState<0 | 1>(0);
   const [serverErrors, setServerErrors] = useState<Partial<Record<ErrorTarget, string>>>({});
   const [secretsLost, setSecretsLost] = useState(false);
@@ -226,7 +226,6 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
           setAsking(undefined);
         }}
       />
-      {dialog}
     </EditorFieldsContext.Provider>
   );
 }

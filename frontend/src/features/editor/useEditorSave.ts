@@ -1,9 +1,9 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import type { NodeDetailsView_Serialize } from "../../bindings";
 import { presentFailure } from "../../ipc/errors";
 import { useAddNode, useEditNode } from "../../ipc/mutations";
-import { useVaultUnlock } from "../dialogs/useVaultUnlock";
+import { requestVault } from "../../state/requests";
 import { editInput, newNodeInput } from "./editorRequest";
 import type { EditorValues } from "./editorValues";
 import type { SlotKey } from "./secretSlots";
@@ -53,12 +53,9 @@ function touchesSecrets({ values, base }: SaveRequest): boolean {
 export function useEditorSave(staged: StagedSecrets): {
   save: (request: SaveRequest) => Promise<SaveResult>;
   saving: boolean;
-  /** The dialogs of the vault, while "Salva" asks for the master password. */
-  dialog: ReactNode;
 } {
   const addNode = useAddNode();
   const editNode = useEditNode();
-  const vault = useVaultUnlock();
   const [saving, setSaving] = useState(false);
 
   const send = async ({ values, base, details, stored }: SaveRequest): Promise<SavedNode> => {
@@ -83,7 +80,8 @@ export function useEditorSave(staged: StagedSecrets): {
     setSaving(true);
     try {
       try {
-        if (touchesSecrets(request) && !(await vault.ensureUnlocked())) {
+        // The unlock of the window, on top of the editor (DEC-041.1).
+        if (touchesSecrets(request) && !(await requestVault())) {
           return { status: "cancelled" };
         }
       } catch (failure) {
@@ -101,5 +99,5 @@ export function useEditorSave(staged: StagedSecrets): {
     }
   };
 
-  return { save, saving, dialog: vault.dialog };
+  return { save, saving };
 }

@@ -1,55 +1,59 @@
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { FeatureHost } from "../../app/FeatureHost";
+import { featureRegistry } from "../../app/featureRegistry";
+import { FeatureRegistryContext } from "../../app/features";
 import { Button } from "../../components/Button";
 import type { CredentialChoice_Deserialize } from "../../bindings";
-import { CreateVaultDialog } from "../../features/dialogs/CreateVaultDialog";
 import { CredentialChooser } from "../../features/dialogs/CredentialChooser";
 import { IconChooser } from "../../features/dialogs/IconChooser";
-import { SetSecretDialog } from "../../features/dialogs/SetSecretDialog";
 import { TreeNodePicker } from "../../features/dialogs/TreeNodePicker";
 import { indexTree } from "../../features/dialogs/treeIndex";
-import { UnlockVaultDialog } from "../../features/dialogs/UnlockVaultDialog";
-import { useLoginPrompt } from "../../features/dialogs/useLoginPrompt";
 import { type EditorRequest, NodeEditor } from "../../features/editor/NodeEditor";
-import { PreferencesDialog } from "../../features/preferences/PreferencesDialog";
 import { interpolate } from "../../i18n/format";
 import { editorGallery } from "../../i18n/editor";
 import { gallery } from "../../i18n/gallery";
 import { createQueryClient } from "../../ipc/queryClient";
-import { treeQuery } from "../../ipc/queries";
+import { loginRequestQuery, treeQuery } from "../../ipc/queries";
+import { type HostRequest, openRequest, requestLogin } from "../../state/requests";
 import styles from "../Gallery.module.css";
 import { GallerySection, Specimen } from "../GallerySection";
 
-type Dialog = "password" | "unlock" | "create" | "credential" | "icon" | "jumpHost" | "preferences";
+type LocalDialog = "credential" | "icon" | "jumpHost";
 
 // The section has its own cache: in the e2e build the fake backend answers it.
 const queryClient = createQueryClient();
 
 /**
  * The editor, the dialogs and the preferences of UI-WP5 on the fake backend
- * (`npm run e2e`), with the sample document: nodes are found by name.
+ * (`npm run e2e`), with the sample document: nodes are found by name. The
+ * dialogs of the hook points open as in the window, through its requests
+ * and its host (`app/FeatureHost`).
  */
 export function EditorSection() {
   return (
     <QueryClientProvider client={queryClient}>
-      <GallerySection id="editor" title={gallery.section.editor}>
-        <EditorSpecimens />
-      </GallerySection>
+      <FeatureRegistryContext value={featureRegistry}>
+        <GallerySection id="editor" title={gallery.section.editor}>
+          <EditorSpecimens />
+        </GallerySection>
+        <FeatureHost />
+      </FeatureRegistryContext>
     </QueryClientProvider>
   );
 }
 
 function EditorSpecimens() {
   const t = editorGallery.open;
+  const client = useQueryClient();
   const { data: tree } = useQuery(treeQuery);
   const entries = tree ? indexTree(tree) : [];
   const idOf = (name: string) => entries.find((entry) => entry.node.name === name)?.node.id;
   const [request, setRequest] = useState<EditorRequest | null>(null);
-  const [dialog, setDialog] = useState<Dialog>();
+  const [dialog, setDialog] = useState<LocalDialog>();
   const [credential, setCredential] = useState<CredentialChoice_Deserialize>({ mode: "inherit" });
   const [result, setResult] = useState("");
-  const login = useLoginPrompt();
   const close = () => setDialog(undefined);
 
   const edit = (name: string) => {
@@ -58,8 +62,23 @@ function EditorSpecimens() {
   };
   const add = (kind: "ssh" | "rdp" | "folder" | "credential", parent: string | null) =>
     setRequest({ mode: "add", kind, parent: parent === null ? null : (idOf(parent) ?? null) });
+  const ask = (hostRequest: HostRequest) => void openRequest(hostRequest);
+  const askLogin = async () => {
+    const id = idOf("kiosk");
+    if (!id) return;
+    const asked = await client.fetchQuery({ ...loginRequestQuery(id), staleTime: 0 });
+    if (asked === null) {
+      setResult(editorGallery.noLogin);
+      return;
+    }
+    const login = await requestLogin(asked);
+    setResult(
+      login === null
+        ? editorGallery.cancelled
+        : interpolate(editorGallery.login, { user: login.username ?? "" }),
+    );
+  };
   const admin = idOf("Admin ACME");
-  const web01 = idOf("web01");
 
   return (
     <>
@@ -78,32 +97,26 @@ function EditorSpecimens() {
         </Specimen>
         <Specimen label={editorGallery.dialogs}>
           <div className={styles.column}>
-            <Button onClick={() => setDialog("password")}>{t.password}</Button>
-            <Button onClick={() => setDialog("unlock")}>{t.unlock}</Button>
-            <Button onClick={() => setDialog("create")}>{t.create}</Button>
             <Button
               onClick={() => {
-                const id = idOf("kiosk");
-                if (!id) return;
-                void login
-                  .askLogin(id)
-                  .then((answer) =>
-                    setResult(
-                      answer === null
-                        ? editorGallery.cancelled
-                        : answer.login
-                          ? interpolate(editorGallery.login, { user: answer.login.username ?? "" })
-                          : editorGallery.noLogin,
-                    ),
-                  );
+                if (admin) {
+                  ask({
+                    kind: "password",
+                    node: { id: admin, path: "/Clienti/Admin ACME" },
+                    field: { kind: "password" },
+                  });
+                }
               }}
             >
-              {t.login}
+              {t.password}
             </Button>
+            <Button onClick={() => ask({ kind: "unlockVault" })}>{t.unlock}</Button>
+            <Button onClick={() => ask({ kind: "createFileVault" })}>{t.create}</Button>
+            <Button onClick={() => void askLogin()}>{t.login}</Button>
             <Button onClick={() => setDialog("credential")}>{t.credential}</Button>
             <Button onClick={() => setDialog("icon")}>{t.icon}</Button>
             <Button onClick={() => setDialog("jumpHost")}>{t.jumpHost}</Button>
-            <Button onClick={() => setDialog("preferences")}>{t.preferences}</Button>
+            <Button onClick={() => ask({ kind: "preferences" })}>{t.preferences}</Button>
           </div>
         </Specimen>
       </div>
@@ -116,22 +129,6 @@ function EditorSpecimens() {
           setResult(interpolate(editorGallery.saved, { path: node.path }));
         }}
       />
-      <SetSecretDialog
-        request={
-          dialog === "password" && admin
-            ? {
-                nodeId: admin,
-                nodePath: "/Clienti/Admin ACME",
-                slot: { kind: "password" },
-                replacing: true,
-              }
-            : null
-        }
-        onClose={close}
-      />
-      <UnlockVaultDialog open={dialog === "unlock"} onClose={close} onUnlocked={close} />
-      <CreateVaultDialog open={dialog === "create"} onClose={close} onCreated={close} />
-      {login.dialog}
       <CredentialChooser
         open={dialog === "credential"}
         nodeName="web01"
@@ -150,11 +147,10 @@ function EditorSpecimens() {
       <TreeNodePicker
         open={dialog === "jumpHost"}
         purpose="jumpHost"
-        exclude={web01}
+        exclude={idOf("web01")}
         onClose={close}
         onChoose={close}
       />
-      <PreferencesDialog open={dialog === "preferences"} onClose={close} />
     </>
   );
 }

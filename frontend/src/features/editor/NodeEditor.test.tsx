@@ -1,11 +1,10 @@
-import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { describe, expect, it, vi } from "vitest";
 
 import { texts } from "../../i18n/it";
-import { createQueryClient } from "../../ipc/queryClient";
 import {
   type FakeBackendState,
   TEST_MASTER_PASSWORD,
@@ -14,6 +13,7 @@ import {
 } from "../../test/fakeBackend";
 import { idOf, unlocked } from "../../test/fakeBackendFixtures";
 import { type FakeNode, blankNode, walk } from "../../test/fakeBackendModel";
+import { renderInWindow } from "../dialogs/renderInWindow";
 import { type EditorRequest, NodeEditor } from "./NodeEditor";
 
 const t = texts.editor;
@@ -27,16 +27,14 @@ function nodeNamed(state: FakeBackendState, name: string): FakeNode {
   return found.node;
 }
 
+/** The editor as the window mounts it, with the dialogs of the vault on top of it. */
 function renderEditor(request: EditorRequest) {
-  const client = createQueryClient();
   const onSaved = vi.fn();
   const onClose = vi.fn();
   const editor = (shown: EditorRequest | null) => (
-    <QueryClientProvider client={client}>
-      <NodeEditor request={shown} onClose={onClose} onSaved={onSaved} />
-    </QueryClientProvider>
+    <NodeEditor request={shown} onClose={onClose} onSaved={onSaved} />
   );
-  const { rerender } = render(editor(request));
+  const { client, rerender } = renderInWindow(editor(request));
   /** Closes the editor, as the host does: it is unmounted. */
   const unmountEditor = () => rerender(editor(null));
   return { client, onSaved, onClose, unmountEditor };

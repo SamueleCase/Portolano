@@ -1,6 +1,5 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { texts } from "../../i18n/it";
@@ -10,7 +9,7 @@ import { renderWithQueries } from "../../test/render";
 import { CreateVaultDialog } from "./CreateVaultDialog";
 import { SetSecretDialog } from "./SetSecretDialog";
 import { UnlockVaultDialog } from "./UnlockVaultDialog";
-import { useVaultUnlock } from "./useVaultUnlock";
+import { renderInWindow } from "./renderInWindow";
 
 const t = texts.dialogs;
 
@@ -85,101 +84,57 @@ describe("CreateVaultDialog", () => {
   });
 });
 
-function VaultGate({ onResult }: { onResult: (unlocked: boolean) => void }) {
-  const { ensureUnlocked, dialog } = useVaultUnlock();
-  return (
-    <>
-      <button type="button" onClick={() => void ensureUnlocked().then(onResult)}>
-        prova
-      </button>
-      {dialog}
-    </>
-  );
-}
-
-describe("useVaultUnlock", () => {
-  it("answers at once when the vault is open", async () => {
-    unlocked();
-    const onResult = vi.fn();
-    renderWithQueries(<VaultGate onResult={onResult} />);
-
-    await userEvent.click(screen.getByRole("button", { name: "prova" }));
-
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("asks for the master password of a locked vault", async () => {
-    installFakeBackend();
-    const onResult = vi.fn();
-    renderWithQueries(<VaultGate onResult={onResult} />);
-
-    await userEvent.click(screen.getByRole("button", { name: "prova" }));
-    await userEvent.type(await screen.findByLabelText(t.unlock.field), TEST_MASTER_PASSWORD);
-    await userEvent.click(screen.getByRole("button", { name: t.unlock.unlock }));
-
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
-  });
-
-  it("answers false when it is unmounted while asking", async () => {
-    installFakeBackend();
-    const onResult = vi.fn();
-    const { unmount } = renderWithQueries(<VaultGate onResult={onResult} />);
-    await userEvent.click(screen.getByRole("button", { name: "prova" }));
-    await screen.findByLabelText(t.unlock.field);
-
-    unmount();
-
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith(false));
-  });
-
-  it("answers false when the user gives up", async () => {
-    installFakeBackend();
-    const onResult = vi.fn();
-    renderWithQueries(<VaultGate onResult={onResult} />);
-
-    await userEvent.click(screen.getByRole("button", { name: "prova" }));
-    await userEvent.click(await screen.findByRole("button", { name: t.unlock.withoutSecrets }));
-
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith(false));
-  });
-});
-
-function SecretHost({ id, onSaved }: { id: string; onSaved: () => void }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <SetSecretDialog
-      request={
-        open
-          ? {
-              nodeId: id,
-              nodePath: "/Clienti/Admin ACME",
-              slot: { kind: "password" },
-              replacing: true,
-            }
-          : null
-      }
-      onClose={() => setOpen(false)}
-      onSaved={onSaved}
-    />
-  );
-}
-
 describe("SetSecretDialog", () => {
-  it("asks to unlock first, then saves the password", async () => {
+  async function openFor(name: string, onClose = vi.fn()) {
+    const id = await idOf(name);
+    renderInWindow(
+      <SetSecretDialog
+        node={{ id, path: `/Clienti/${name}` }}
+        field={{ kind: "password" }}
+        onClose={onClose}
+      />,
+    );
+    return onClose;
+  }
+
+  it("asks the window to unlock the vault first, then saves the password", async () => {
     const state = installFakeBackend();
-    const id = await idOf("Admin ACME");
-    const onSaved = vi.fn();
-    renderWithQueries(<SecretHost id={id} onSaved={onSaved} />);
+    const onClose = await openFor("Admin ACME");
 
     await userEvent.type(await screen.findByLabelText(t.unlock.field), TEST_MASTER_PASSWORD);
     await userEvent.click(screen.getByRole("button", { name: t.unlock.unlock }));
-    await userEvent.type(await screen.findByLabelText(t.secret.fields.password), "nuova");
-    await userEvent.type(screen.getByLabelText(t.secret.confirm), "nuova");
+    const dialog = await screen.findByRole("dialog", { name: t.secret.replaceTitles.password });
+    await userEvent.type(within(dialog).getByLabelText(t.secret.fields.password), "nuova");
+    await userEvent.type(within(dialog).getByLabelText(t.secret.confirm), "nuova");
     await act(() => userEvent.click(screen.getByRole("button", { name: t.secret.save.file })));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(state.vault.locked).toBe(false);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes without asking the password when the vault stays locked", async () => {
+    installFakeBackend();
+    const onClose = await openFor("Admin ACME");
+
+    await userEvent.click(await screen.findByRole("button", { name: t.unlock.withoutSecrets }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(screen.queryByLabelText(t.secret.fields.password)).not.toBeInTheDocument();
+  });
+
+  it("says Imposta for a secret the node does not have yet", async () => {
+    unlocked();
+    const id = await idOf("deploy");
+    renderInWindow(
+      <SetSecretDialog
+        node={{ id, path: "/Rete/deploy" }}
+        field={{ kind: "password" }}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: t.secret.titles.password }),
+    ).toBeInTheDocument();
   });
 });
