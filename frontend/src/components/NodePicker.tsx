@@ -69,7 +69,7 @@ export function NodePicker(props: NodePickerProps) {
   const rows =
     props.choose === "folders"
       ? folderRows(nodes, search, t.root, props.exclude)
-      : nodeRows(nodes, search);
+      : nodeRows(nodes, search, t.root);
   const choosable = rows.filter((row) => !row.heading && !row.disabled);
   // The folders that lead to a result stay reachable, but the result comes first.
   const active =
@@ -79,6 +79,10 @@ export function NodePicker(props: NodePickerProps) {
   const results = choosable.filter((row) => row.match).length;
   const onlyExcluded = rows.some((row) => row.match && row.disabled);
   const optionId = (row: PickerRow) => `${id}-${row.key}`;
+  // The path tells apart folders with the same name and says where each row is.
+  const pathId = (row: PickerRow | undefined) =>
+    row && row.path.length > 0 ? `${optionId(row)}-path` : undefined;
+  const described = rows.filter((row) => !row.heading && row.path.length > 0);
 
   const choose = (row: PickerRow) => {
     if (props.choose === "folders") {
@@ -123,7 +127,12 @@ export function NodePicker(props: NodePickerProps) {
       footer={
         <>
           <Button onClick={onClose}>{t.cancel}</Button>
-          <Button variant="primary" disabled={!active} onClick={() => active && choose(active)}>
+          <Button
+            variant="primary"
+            disabled={!active}
+            aria-describedby={pathId(active)}
+            onClick={() => active && choose(active)}
+          >
             {confirmLabel(active)}
           </Button>
         </>
@@ -157,6 +166,7 @@ export function NodePicker(props: NodePickerProps) {
               role="option"
               aria-selected={row.key === active?.key}
               aria-disabled={row.disabled || undefined}
+              aria-describedby={pathId(row)}
               className={classNames(
                 styles.node,
                 folders && styles.nested,
@@ -176,6 +186,13 @@ export function NodePicker(props: NodePickerProps) {
           ),
         )}
       </ul>
+      <div hidden>
+        {described.map((row) => (
+          <span key={row.key} id={pathId(row)}>
+            {row.path.map((name) => visibleText(name)).join(" / ")}
+          </span>
+        ))}
+      </div>
       <p className={styles.summary} role="status">
         {summary()}
         {note && ` ${note}`}

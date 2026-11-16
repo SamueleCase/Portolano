@@ -73,6 +73,14 @@ describe("NodePicker", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Nessun nodo corrisponde alla ricerca.");
   });
+
+  it("describes each node with the folders that contain it", () => {
+    renderPicker();
+
+    expect(screen.getByRole("option", { name: /^bastion/ })).toHaveAccessibleDescription(
+      "Radice del documento / Produzione",
+    );
+  });
 });
 
 const tree: PickerNode[] = [
@@ -223,6 +231,32 @@ describe("NodePicker choosing folders", () => {
     await userEvent.keyboard("radice");
 
     expect(optionNames()).toEqual(["Radice del documento"]);
+  });
+
+  it("describes each folder with the folders that contain it", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Vecchi" })).toHaveAccessibleDescription(
+      "Radice del documento / Archivio",
+    );
+  });
+
+  it("describes the folder on the confirm button with its path", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+
+    expect(screen.getByRole("button", { name: "Scegli Database" })).toHaveAccessibleDescription(
+      "Radice del documento / Produzione",
+    );
+  });
+
+  it("gives the root no path", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Radice del documento" })).not.toHaveAttribute(
+      "aria-describedby",
+    );
   });
 
   it("says when no folder matches", async () => {
