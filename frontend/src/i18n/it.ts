@@ -2,6 +2,7 @@ import { components } from "./components";
 import { dialogs } from "./dialogs";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
+import { preferences } from "./preferences";
 import { sessions } from "./sessions";
 import { status } from "./status";
 
@@ -17,4 +18,5 @@ export const texts = {
   ipc,
   sessions,
   dialogs,
+  preferences,
 } as const;
