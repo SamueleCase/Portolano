@@ -152,14 +152,18 @@ export function NodeTree({
     if (expandedState === null) setExpanded(rootFolders);
   }, [expandedState, rootFolders, setExpanded]);
 
-  const items = tree.getItems();
   const focusItem = (item: ItemInstance<string> | undefined) => {
     if (!item) return;
     item.setFocused();
-    tree.updateDomFocus();
+    // At once, not with `updateDomFocus` (a timer): a late focus of an older
+    // row would take the focus of the tree back to it (`onFocus` below).
+    item.getElement()?.focus();
   };
 
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // The rows as the tree has them now: a key right after another (→ then ↓)
+    // comes before React has drawn the rows the first one opened.
+    const items = tree.getItems();
     const focused = tree.getFocusedItem();
     const position = items.findIndex((item) => item.getId() === focused.getId());
     const command = event.metaKey || event.ctrlKey;
@@ -218,6 +222,7 @@ export function NodeTree({
   };
 
   const typeahead = (letter: string, position: number, now: number): boolean => {
+    const items = tree.getItems();
     const text = now - typed.current.at > TYPEAHEAD_RESET_MS ? letter : typed.current.text + letter;
     typed.current = { text, at: now };
     const match = typeaheadMatch(
@@ -240,7 +245,7 @@ export function NodeTree({
 
   return (
     <div {...tree.getContainerProps(texts.tree.label)} className={styles.tree} onKeyDown={keyDown}>
-      {items.map((item) => {
+      {tree.getItems().map((item) => {
         const id = item.getId();
         const entry = index.entries.get(id);
         if (!entry) return null;
