@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 
 import type { NodeDetailsView_Serialize } from "../../bindings";
 import { presentFailure } from "../../ipc/errors";
-import { useAddNode, useEditNode, useMoveNode } from "../../ipc/mutations";
+import { useAddNode, useEditNode } from "../../ipc/mutations";
 import { useVaultUnlock } from "../dialogs/useVaultUnlock";
 import { editInput, newNodeInput } from "./editorRequest";
 import type { EditorValues } from "./editorValues";
@@ -44,8 +44,8 @@ function touchesSecrets({ values, base }: SaveRequest): boolean {
 /**
  * "Salva" of the editor: the vault is opened first if the secrets need it,
  * then the staged secrets leave the editor in the one command that saves
- * them (`add_node`, or `move_node` then `edit_node`), whatever its outcome
- * (DEC-038.2).
+ * them (`add_node` or `edit_node`, a move included), whatever its outcome
+ * (DEC-038.2, DEC-040.2).
  */
 export function useEditorSave(staged: StagedSecrets): {
   save: (request: SaveRequest) => Promise<SaveResult>;
@@ -55,7 +55,6 @@ export function useEditorSave(staged: StagedSecrets): {
 } {
   const addNode = useAddNode();
   const editNode = useEditNode();
-  const moveNode = useMoveNode();
   const vault = useVaultUnlock();
   const [saving, setSaving] = useState(false);
 
@@ -64,13 +63,6 @@ export function useEditorSave(staged: StagedSecrets): {
     if (details === undefined) {
       const added = await addNode.mutateAsync(newNodeInput(values, secrets));
       return { id: added.id, path: added.path };
-    }
-    if (values.parent !== base.parent) {
-      await moveNode.mutateAsync({
-        id: details.id,
-        destination: values.parent,
-        placement: { kind: "end" },
-      });
     }
     const edited = await editNode.mutateAsync({
       id: details.id,

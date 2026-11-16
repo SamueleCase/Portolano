@@ -9,10 +9,11 @@ import { createQueryClient } from "../../ipc/queryClient";
 import {
   type FakeBackendState,
   TEST_MASTER_PASSWORD,
+  initialFakeState,
   installFakeBackend,
 } from "../../test/fakeBackend";
 import { idOf, unlocked } from "../../test/fakeBackendFixtures";
-import { type FakeNode, walk } from "../../test/fakeBackendModel";
+import { type FakeNode, blankNode, walk } from "../../test/fakeBackendModel";
 import { stubScrollIntoView } from "../dialogs/scrollStub";
 import { type EditorRequest, NodeEditor } from "./NodeEditor";
 
@@ -59,6 +60,26 @@ async function type(label: string, text: string) {
   const field = await screen.findByLabelText(label);
   await userEvent.clear(field);
   if (text !== "") await userEvent.type(field, text);
+}
+
+/** The sample document with a second "dc01" in "Rete", and the id of the first one. */
+function withCopyInRete(): { state: FakeBackendState; id: string } {
+  const state = initialFakeState();
+  state.vault.locked = false;
+  const { id } = nodeNamed(state, "dc01");
+  nodeNamed(state, "Rete").children.push(blankNode(state, "connection", "dc01"));
+  installFakeBackend(state);
+  return { state, id };
+}
+
+/** Chooses `name` as the folder of the node with "Cambia…". */
+async function chooseFolder(name: string) {
+  await userEvent.click(await screen.findByRole("button", { name: t.general.change }));
+  const picker = await screen.findByRole("dialog", { name: texts.dialogs.picker.folder.title });
+  await userEvent.click(within(picker).getByRole("option", { name: new RegExp(name) }));
+  await userEvent.click(
+    within(picker).getByRole("button", { name: new RegExp(`^Scegli ${name}`) }),
+  );
 }
 
 async function save() {
@@ -214,18 +235,36 @@ describe("NodeEditor", () => {
     });
   });
 
-  it("moves an existing node to the folder chosen at step 1", async () => {
-    const state = unlocked();
-    const { onSaved } = renderEditor({ mode: "edit", id: await idOf("dc01") });
+  it("renames and moves a node in one save, into a folder with its old name", async () => {
+    const { state, id } = withCopyInRete();
+    const { onSaved } = renderEditor({ mode: "edit", id });
 
-    await userEvent.click(await screen.findByRole("button", { name: t.general.change }));
-    const picker = await screen.findByRole("dialog", { name: texts.dialogs.picker.folder.title });
-    await userEvent.click(within(picker).getByRole("option", { name: /Rete/ }));
-    await userEvent.click(within(picker).getByRole("button", { name: /^Scegli Rete/ }));
+    await type(t.general.name, "dc02");
+    await chooseFolder("Rete");
     await save();
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
-    expect(nodeNamed(state, "Rete").children.map((child) => child.name)).toContain("dc01");
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ path: "/Rete/dc02" })),
+    );
+    expect(nodeNamed(state, "Rete").children.map((child) => child.name)).toEqual([
+      "bastion",
+      "deploy",
+      "dc01",
+      "dc02",
+    ]);
+  });
+
+  it("moves nothing when the save is refused", async () => {
+    const { state, id } = withCopyInRete();
+    renderEditor({ mode: "edit", id });
+
+    await chooseFolder("Rete");
+    await save();
+
+    expect(await screen.findByLabelText(t.general.name)).toHaveAccessibleDescription(
+      /esiste già un nodo chiamato 'dc01'/,
+    );
+    expect(nodeNamed(state, "ACME").children.map((child) => child.name)).toContain("dc01");
   });
 
   it("keeps its changes over a document reloaded after a change from outside", async () => {

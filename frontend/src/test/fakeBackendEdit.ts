@@ -4,6 +4,7 @@ import {
   type FakeNode,
   type SlotKey,
   checkName,
+  childrenOf,
   fail,
   failField,
   findNode,
@@ -12,6 +13,7 @@ import {
   requireVaultFor,
   siblingsOf,
   slotField,
+  subtreeIds,
 } from "./fakeBackendModel";
 import {
   applyDetails,
@@ -35,10 +37,15 @@ export function editNode(
   const { node: original, parent } = findNode(doc, id);
   const node = structuredClone(original);
   checkKeyFile(edit.keyFile);
-  if (edit.name != null) {
-    checkName(siblingsOf(doc, parent), edit.name, id);
-    node.name = edit.name;
+  const destination = edit.parent == null ? undefined : (edit.parent.id ?? null);
+  const moves = destination !== undefined && destination !== (parent?.id ?? null);
+  if (moves && destination !== null && subtreeIds(original).has(destination)) {
+    fail("invalid", `impossibile spostare il nodo ${id} dentro sé stesso o un suo discendente`);
   }
+  // The final name among the children of the final folder (DEC-040.2).
+  const finalSiblings = moves ? childrenOf(doc, destination) : siblingsOf(doc, parent);
+  if (edit.name != null || moves) checkName(finalSiblings, edit.name ?? node.name, id);
+  if (edit.name != null) node.name = edit.name;
   applyDetails(state, node, edit.details);
   editTarget(node, edit);
   editLogin(state, node, edit);
@@ -65,6 +72,11 @@ export function editNode(
   const removed = Object.keys(original.secrets).filter((key) => !(key in node.secrets)).length;
   requireVaultFor(state, written > 0 || removed > 0);
   Object.assign(original, node);
+  if (moves) {
+    const source = siblingsOf(doc, parent);
+    source.splice(source.indexOf(original), 1);
+    finalSiblings.push(original);
+  }
   return {
     path: pathOf(doc, id),
     secrets_written: written,

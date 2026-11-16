@@ -185,6 +185,8 @@ export function editInput(
   const changed = (field: EditableField) => !same(values[field], base[field]);
   const edit: NodeEditInput_Deserialize = {
     ...(changed("name") ? { name: values.name.trim() } : {}),
+    // The move goes in the same save as the rest (DEC-040.2).
+    ...(changed("parent") ? { parent: { id: values.parent } } : {}),
     details: detailsChanges(values, base),
   };
   if (values.kind === "credential")
