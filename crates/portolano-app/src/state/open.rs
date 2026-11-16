@@ -43,6 +43,11 @@ impl OpenDocument {
         (&self.store, &mut self.document)
     }
 
+    /// Writes the content where the file was, after it went missing.
+    pub fn recreate(&mut self) -> portolano_core::Result<()> {
+        self.store.recreate(&mut self.document)
+    }
+
     /// Replaces the content with the one read from the file again.
     pub fn reload(&mut self) -> portolano_core::Result<()> {
         self.document = self.store.load()?;

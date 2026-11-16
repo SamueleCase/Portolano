@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-recreate-document"
+description = "Enables the recreate_document command without any pre-configured scope."
+commands.allow = ["recreate_document"]
+
+[[permission]]
+identifier = "deny-recreate-document"
+description = "Denies the recreate_document command without any pre-configured scope."
+commands.deny = ["recreate_document"]

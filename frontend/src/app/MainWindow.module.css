@@ -1,0 +1,20 @@
+/* The grid of inventario §2.16: toolbar, banner, then sidebar and work area. */
+.window {
+  position: relative;
+  z-index: var(--z-app);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100vh;
+  padding: var(--space-fine-14);
+  overflow: hidden;
+}
+
+.body {
+  display: grid;
+  flex: 1;
+  /* The sidebar between 220 and 320 px (inventario §2.16). */
+  grid-template-columns: minmax(var(--size-sidebar-min), var(--size-sidebar-max)) minmax(0, 1fr);
+  gap: var(--space-3);
+  min-height: 0;
+}

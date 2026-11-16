@@ -27,6 +27,7 @@
     "allow-create-document",
     "allow-recent-documents",
     "allow-reload-document",
+    "allow-recreate-document",
     "allow-close-document",
     "allow-tree",
     "allow-node-details",

@@ -127,6 +127,58 @@ describe("ToastViewport", () => {
     ]);
   });
 
+  it("shows both of two confirmations", () => {
+    const copied: ToastMessage = { id: "c", kind: "success", text: "Copia creata" };
+    render(<ToastViewport toasts={[saved, copied]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      saved.text,
+      "Copia creata",
+    ]);
+  });
+
+  it("shows both of two errors", () => {
+    const failed: ToastMessage = { id: "f", kind: "error", text: "db03: connessione rifiutata" };
+    render(<ToastViewport toasts={[refused, failed]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("keeps a toast with «Annulla» among those shown when newer ones come", () => {
+    const undo: ToastMessage = {
+      id: "u",
+      kind: "undo",
+      text: "web02 eliminato",
+      action: { label: "Annulla", onAction: vi.fn() },
+    };
+    const newer = ["a", "b", "c"].map((id) => ({ ...saved, id, text: `Toast ${id}` }));
+    render(<ToastViewport toasts={[undo, ...newer]} onDismiss={vi.fn()} />);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "web02 eliminatoAnnulla",
+      "Toast b",
+      "Toast c",
+    ]);
+  });
+
+  it("ends the time of «Annulla» even under the pointer", () => {
+    const onDismiss = vi.fn();
+    const undo: ToastMessage = {
+      id: "u",
+      kind: "undo",
+      text: "web02 eliminato",
+      action: { label: "Annulla", onAction: vi.fn() },
+    };
+    render(<ToastViewport toasts={[undo]} onDismiss={onDismiss} />);
+
+    fireEvent.pointerEnter(screen.getByRole("listitem"));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(onDismiss).toHaveBeenCalledWith("u");
+  });
+
   it("keeps the order in which the toasts came, errors included", () => {
     const info: ToastMessage = { id: "5", kind: "info", text: "Documento ricaricato" };
     render(<ToastViewport toasts={[saved, refused, info]} onDismiss={vi.fn()} />);

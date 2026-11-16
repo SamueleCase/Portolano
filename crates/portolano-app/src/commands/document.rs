@@ -127,6 +127,35 @@ pub async fn reload_document<R: Runtime>(app: AppHandle<R>) -> Result<DocumentIn
     .await
 }
 
+/// Writes the open document again where its file was, after the file was
+/// moved or deleted ("Ricrea", SPEC-UI §5.4): the content in memory, nothing
+/// lost, and the file is watched again. A file that is back meanwhile is not
+/// replaced: if it holds what the app last read or wrote the document is
+/// simply there again, otherwise it was changed by another program
+/// (`ModifiedExternally`, "Ricarica").
+///
+/// Known limit: the custom icons live next to the document
+/// (`<name>.icons/`); if their directory was deleted with the file, they are
+/// not written again and the nodes show the icon of their kind.
+#[tauri::command]
+#[specta::specta]
+pub async fn recreate_document<R: Runtime>(app: AppHandle<R>) -> Result<DocumentInfo, IpcError> {
+    blocking(app, |app, state| {
+        let info = recreate(state)?;
+        if let Some(path) = state.document_path() {
+            after_open(app, state, &path);
+        }
+        emit(
+            app,
+            DocumentChanged {
+                file_name: info.file_name.clone(),
+            },
+        );
+        Ok(info)
+    })
+    .await
+}
+
 /// Closes the open document; the deletions that could still be undone are
 /// finished.
 #[tauri::command]
@@ -208,6 +237,30 @@ fn replace(state: &AppState, open: OpenDocument) -> Result<DocumentInfo, IpcErro
 pub(crate) fn reload(state: &AppState) -> Result<DocumentInfo, IpcError> {
     state.with_document(|open| {
         open.reload().map_err(portolano_ops::OpsError::from)?;
+        Ok(DocumentInfo::new(&open.document().name, open.path()))
+    })
+}
+
+/// Writes the open document where its missing file was; a file back with the
+/// same content is accepted as it is.
+pub(crate) fn recreate(state: &AppState) -> Result<DocumentInfo, IpcError> {
+    state.with_document(|open| {
+        match open.recreate() {
+            Ok(()) => {}
+            Err(portolano_core::Error::AlreadyExists { path }) => {
+                let changed = open
+                    .store()
+                    .changed_on_disk()
+                    .map_err(portolano_ops::OpsError::from)?;
+                if changed {
+                    return Err(portolano_ops::OpsError::from(
+                        portolano_core::Error::ModifiedExternally { path },
+                    )
+                    .into());
+                }
+            }
+            Err(error) => return Err(portolano_ops::OpsError::from(error).into()),
+        }
         Ok(DocumentInfo::new(&open.document().name, open.path()))
     })
 }

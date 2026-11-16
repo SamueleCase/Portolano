@@ -177,3 +177,50 @@ fn save_after_the_directory_was_deleted_reports_the_missing_document() {
 
     assert!(matches!(error, Error::DocumentMissing { .. }), "{error:?}");
 }
+
+#[test]
+fn recreate_writes_the_document_where_the_deleted_file_was() {
+    let dir = TempDir::new().unwrap();
+    let (store, mut doc) = saved_sample(&dir);
+    fs::remove_file(document_path(&dir)).unwrap();
+
+    store.recreate(&mut doc).unwrap();
+
+    assert_eq!(store.load().unwrap(), doc);
+}
+
+#[test]
+fn recreate_makes_the_deleted_directory_again() {
+    let dir = TempDir::new().unwrap();
+    let folder = dir.path().join("documenti");
+    let (store, mut doc) = Store::create(folder.join("portolano.json"), "Portolano").unwrap();
+    fs::remove_dir_all(&folder).unwrap();
+
+    store.recreate(&mut doc).unwrap();
+
+    assert!(folder.join("portolano.json").is_file());
+}
+
+#[test]
+fn save_after_recreate_succeeds() {
+    let dir = TempDir::new().unwrap();
+    let (store, mut doc) = saved_sample(&dir);
+    fs::remove_file(document_path(&dir)).unwrap();
+    store.recreate(&mut doc).unwrap();
+
+    let saved = store.save(&mut doc);
+
+    assert!(saved.is_ok(), "{saved:?}");
+}
+
+#[test]
+fn recreate_refuses_to_replace_a_file_written_meanwhile() {
+    let dir = TempDir::new().unwrap();
+    let (store, mut doc) = saved_sample(&dir);
+    fs::write(document_path(&dir), "{}").unwrap();
+
+    let error = store.recreate(&mut doc).unwrap_err();
+
+    assert!(matches!(error, Error::AlreadyExists { .. }));
+    assert_eq!(fs::read_to_string(document_path(&dir)).unwrap(), "{}");
+}
