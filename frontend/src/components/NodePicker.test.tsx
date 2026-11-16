@@ -1,8 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { NodePicker, type PickerNode } from "./NodePicker";
+
+// jsdom does not lay out, so it has no `scrollIntoView`.
+const scrollIntoView = vi.fn();
+beforeAll(() => {
+  Element.prototype.scrollIntoView = scrollIntoView;
+});
+afterAll(() => {
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+});
 
 const nodes: PickerNode[] = [
   { id: "prod", name: "Produzione", kind: "folder", depth: 0 },
@@ -72,5 +81,238 @@ describe("NodePicker", () => {
     await userEvent.keyboard("zzz");
 
     expect(screen.getByRole("status")).toHaveTextContent("Nessun nodo corrisponde alla ricerca.");
+  });
+
+  it("describes each node with the folders that contain it", () => {
+    renderPicker();
+
+    expect(screen.getByRole("option", { name: /^bastion/ })).toHaveAccessibleDescription(
+      "Radice del documento / Produzione",
+    );
+  });
+});
+
+const tree: PickerNode[] = [
+  { id: "prod", name: "Produzione", kind: "folder", depth: 0 },
+  { id: "bastion", name: "bastion", kind: "ssh", depth: 1, host: "bastion.example.com" },
+  { id: "db", name: "Database", kind: "folder", depth: 1 },
+  { id: "archive", name: "Archivio", kind: "folder", depth: 0 },
+  { id: "old", name: "Vecchi", kind: "folder", depth: 1 },
+  { id: "old-gw", name: "old-gw", kind: "ssh", depth: 2, host: "198.51.100.7" },
+  { id: "stg", name: "Staging", kind: "folder", depth: 0 },
+];
+
+function renderFolderPicker(exclude?: string, folders: readonly PickerNode[] = tree) {
+  const onChoose = vi.fn();
+  render(
+    <NodePicker
+      open
+      onClose={vi.fn()}
+      onChoose={onChoose}
+      choose="folders"
+      exclude={exclude}
+      title="Sposta in…"
+      filterLabel="Solo cartelle"
+      nodes={folders}
+    />,
+  );
+  return onChoose;
+}
+
+/** The options, in order, by their accessible names. */
+function expectOptions(names: readonly string[]) {
+  const options = screen.getAllByRole("option");
+  expect(options).toHaveLength(names.length);
+  names.forEach((name, index) => expect(options[index]).toHaveAccessibleName(name));
+}
+
+describe("NodePicker choosing folders", () => {
+  it("offers the root of the document and every folder, empty ones included", () => {
+    renderFolderPicker();
+
+    expectOptions([
+      "Radice del documento",
+      "Produzione",
+      "Database",
+      "Archivio",
+      "Vecchi",
+      "Staging",
+    ]);
+  });
+
+  it("leaves out the connections", () => {
+    renderFolderPicker();
+
+    expect(screen.queryByText("bastion")).not.toBeInTheDocument();
+  });
+
+  it("starts on the root", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Radice del documento" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("chooses the root as null with Enter", async () => {
+    const onChoose = renderFolderPicker();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(onChoose).toHaveBeenCalledWith(null);
+  });
+
+  it("names the root on the confirm button", () => {
+    renderFolderPicker();
+
+    expect(
+      screen.getByRole("button", { name: "Scegli la radice del documento" }),
+    ).toBeInTheDocument();
+  });
+
+  it("chooses an empty folder with the arrows", async () => {
+    const onChoose = renderFolderPicker();
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+
+    expect(onChoose).toHaveBeenCalledWith("db");
+  });
+
+  it("disables the excluded folder and its descendants", () => {
+    renderFolderPicker("archive");
+
+    const disabled = screen
+      .getAllByRole("option")
+      .filter((option) => option.getAttribute("aria-disabled") === "true");
+    expect(disabled).toEqual([
+      screen.getByRole("option", { name: "Archivio" }),
+      screen.getByRole("option", { name: "Vecchi" }),
+    ]);
+  });
+
+  it("disables a folder marked as excluded", () => {
+    renderFolderPicker(
+      undefined,
+      tree.map((node) => (node.id === "archive" ? { ...node, excluded: true } : node)),
+    );
+
+    expect(screen.getByRole("option", { name: "Archivio" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("skips the excluded subtree with the arrows", async () => {
+    const onChoose = renderFolderPicker("archive");
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
+
+    expect(onChoose).toHaveBeenCalledWith("stg");
+  });
+
+  it("does not choose an excluded folder on double click", async () => {
+    const onChoose = renderFolderPicker("archive");
+
+    await userEvent.dblClick(screen.getByRole("option", { name: "Vecchi" }));
+
+    expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it("filters the folders while typing and keeps the folders that lead to them", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("data");
+
+    expectOptions(["Produzione", "Database"]);
+  });
+
+  it("starts on the folder found, not on the folder that leads to it", async () => {
+    const onChoose = renderFolderPicker();
+
+    await userEvent.keyboard("data{Enter}");
+
+    expect(onChoose).toHaveBeenCalledWith("db");
+  });
+
+  it("reaches the folder that leads to a result with the arrows", async () => {
+    const onChoose = renderFolderPicker();
+
+    await userEvent.keyboard("data{ArrowUp}{Enter}");
+
+    expect(onChoose).toHaveBeenCalledWith("prod");
+  });
+
+  it("counts only the folders found", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("data");
+
+    expect(screen.getByRole("status")).toHaveTextContent("1 risultato.");
+  });
+
+  it("says when only excluded folders match", async () => {
+    renderFolderPicker("archive");
+
+    await userEvent.keyboard("vecchi");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Alla ricerca corrispondono solo voci escluse.",
+    );
+  });
+
+  it("finds the root by its name", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("radice");
+
+    expectOptions(["Radice del documento"]);
+  });
+
+  it("describes each folder with the folders that contain it", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Vecchi" })).toHaveAccessibleDescription(
+      "Radice del documento / Archivio",
+    );
+  });
+
+  it("describes the folder on the confirm button with its path", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+
+    expect(screen.getByRole("button", { name: "Scegli Database" })).toHaveAccessibleDescription(
+      "Radice del documento / Produzione",
+    );
+  });
+
+  it("gives the root no path", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Radice del documento" })).not.toHaveAttribute(
+      "aria-describedby",
+    );
+  });
+
+  it("scrolls the active folder into view", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(
+      screen.getByRole("option", { name: "Produzione" }),
+    );
+  });
+
+  it("says when no folder matches", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("zzz");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Nessuna cartella corrisponde alla ricerca.",
+    );
   });
 });

@@ -61,6 +61,11 @@
   cursor: pointer;
 }
 
+/* Choosing folders: 18 px per level, so the folders at the top sit at 28 px like the connections. */
+.nested {
+  padding-left: calc(var(--space-fine-10) + var(--picker-depth, 0) * var(--size-indent));
+}
+
 .node:hover {
   background: var(--color-hover);
 }

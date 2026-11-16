@@ -83,6 +83,9 @@ export const sample = {
   pickerTitle: "Scegli un jump host",
   pickerFilter: "Solo SSH",
   pickerNote: "web01 è escluso perché non può fare da salto a se stesso.",
+  folderPickerTitle: "Sposta in…",
+  folderPickerFilter: "Solo cartelle",
+  folderPickerNote: "Archivio è escluso perché non può stare dentro se stesso.",
   terminalTitle: "deploy@web01: ~",
   link: "https://www.example.com/runbook",
 } as const;
@@ -272,6 +275,16 @@ export const pickerNodes: PickerNode[] = [
   { id: "web01", name: "web01", kind: "ssh", depth: 1, host: "web01.example.com", excluded: true },
   { id: "stg", name: "Staging", kind: "folder", depth: 0 },
   { id: "stg-bastion", name: "stg-bastion", kind: "ssh", depth: 1, host: "192.0.2.30" },
+];
+
+/** The destinations of "Sposta in…" for the folder Archivio: an empty folder, a nested one. */
+export const folderPickerNodes: PickerNode[] = [
+  { id: "prod", name: "Produzione", kind: "folder", depth: 0 },
+  { id: "bastion", name: "bastion", kind: "ssh", depth: 1, host: "bastion.example.com" },
+  { id: "db", name: "Database", kind: "folder", depth: 1 },
+  { id: "archive", name: "Archivio", kind: "folder", depth: 0 },
+  { id: "old", name: "Vecchi", kind: "folder", depth: 1 },
+  { id: "stg", name: "Staging", kind: "folder", depth: 0 },
 ];
 
 const deploy = {
