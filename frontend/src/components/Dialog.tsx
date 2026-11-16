@@ -94,6 +94,10 @@ export function Dialog({
             onSubmit={(event) => {
               // The form is only the keyboard of the default action: nothing is sent.
               event.preventDefault();
+              // React bubbles a submit up the tree of components, through the
+              // portal too: a dialog opened from a form (the editor) would
+              // submit that form as well (DEC-040.1).
+              event.stopPropagation();
               onSubmit();
             }}
             onKeyDown={(event) => {

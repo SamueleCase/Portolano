@@ -212,4 +212,34 @@ describe("Dialog", () => {
 
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("keeps its submit from reaching a form that contains it in the tree", async () => {
+    const outer = vi.fn();
+    const onSubmit = vi.fn();
+    render(
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          outer();
+        }}
+      >
+        <Dialog
+          open
+          onClose={vi.fn()}
+          title="Credenziale"
+          onSubmit={onSubmit}
+          footer={
+            <Button variant="primary" type="submit">
+              Fatto
+            </Button>
+          }
+        />
+      </form>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Fatto" }));
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(outer).not.toHaveBeenCalled();
+  });
 });
