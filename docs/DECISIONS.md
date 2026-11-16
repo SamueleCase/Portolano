@@ -640,6 +640,11 @@ mock in `docs/ui/NOTE.md`.
 4. Se l'utente annulla lo sblocco del vault al Salva, non parte nessun comando e i segreti restano in staging
    (precisazione di DEC-038.2: il contenitore si svuota a ogni Salva **inviato**).
 5. Lo stub di `scrollIntoView` per jsdom va in `test/setup.ts` (eccezione); `e2e/editorPage.ts` è approvato.
+- Attuazione (approvata dal PM): la cartella di destinazione sta in `EditorChanges` di ops (non in `NodeEdit`, che la
+  CLI costruisce per letterale) e in `NodeEditInput.parent?: { id: string | null }` dell'app; `validate_settings` del
+  trait `Protocol` restituisce `SettingsError { setting, option, message }` con lo stesso testo di prima, e
+  `IpcErrorDetails::Invalid.field` vale `settings.options.<opzione>`, `settings.jump_hosts`, `settings.<chiave>` o
+  `settings`.
 
 ### DEC-041 – Revisione di UI-WP4 (decise dal PM, 2026-11-16)
 1. **Richieste annidate**: una funzione aperta dalla cornice può chiederne un'altra (es. l'editor o l'import che
