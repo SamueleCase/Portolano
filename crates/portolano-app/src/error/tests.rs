@@ -120,6 +120,50 @@ fn message_includes_the_cause_of_an_io_error() {
     );
 }
 
+/// The error of `settings` refused by the ssh protocol of the registry.
+fn refused_ssh_settings(settings: serde_json::Value) -> IpcError {
+    let registry = portolano_connectors::Registry::with_defaults();
+    let ssh = registry.get("ssh").unwrap();
+    let reason = ssh
+        .validate_settings(settings.as_object().unwrap())
+        .unwrap_err();
+    IpcError::from(OpsError::InvalidSettings {
+        path: "/web01".to_owned(),
+        reason,
+    })
+}
+
+#[test]
+fn refused_ssh_option_names_the_setting_and_the_option() {
+    let error = refused_ssh_settings(json!({ "options": { "ProxyCommand": "nc %h %p" } }));
+
+    assert_eq!(
+        error.details,
+        Some(IpcErrorDetails::Invalid {
+            field: "settings.options.ProxyCommand".to_owned()
+        })
+    );
+    assert!(
+        error
+            .message
+            .starts_with("impostazioni non valide per '/web01': campo 'options'"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn refused_jump_host_names_its_setting() {
+    let error = refused_ssh_settings(json!({ "jump_hosts": [{ "host": "b" }] }));
+
+    assert_eq!(
+        error.details,
+        Some(IpcErrorDetails::Invalid {
+            field: "settings.jump_hosts".to_owned()
+        })
+    );
+}
+
 #[test]
 fn image_missing_from_the_icon_store_is_refused_on_the_icon_field() {
     let error = IpcError::from(OpsError::IconNotStored);

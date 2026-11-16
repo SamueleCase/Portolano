@@ -945,7 +945,10 @@ candidates: Candidate[] } |
 { kind: "invalid"; 
 /**
  *  The field, as named by the operation (`name`, `host`, `port`,
- *  `color`, `settings`, a configuration key, …).
+ *  `color`, a configuration key, …). A setting of a protocol is
+ *  `settings.<key>` (`settings.jump_hosts`), a refused ssh option
+ *  `settings.options.<option>`, and `settings` alone the settings as a
+ *  whole (DEC-040.3).
  */
 field: string } | 
 /**  The references that prevent a deletion. */
