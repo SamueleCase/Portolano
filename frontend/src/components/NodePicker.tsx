@@ -1,4 +1,4 @@
-import { type CSSProperties, type KeyboardEvent, useId, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useId, useState } from "react";
 
 import { interpolate, plural } from "../i18n/format";
 import { texts } from "../i18n/it";
@@ -79,6 +79,12 @@ export function NodePicker(props: NodePickerProps) {
   const results = choosable.filter((row) => row.match).length;
   const onlyExcluded = rows.some((row) => row.match && row.disabled);
   const optionId = (row: PickerRow) => `${id}-${row.key}`;
+  const activeId = active && optionId(active);
+
+  // The arrows move the active option out of the scrolled list: bring it back.
+  useEffect(() => {
+    if (activeId) document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
+  }, [activeId]);
   // The path tells apart folders with the same name and says where each row is.
   const pathId = (row: PickerRow | undefined) =>
     row && row.path.length > 0 ? `${optionId(row)}-path` : undefined;
@@ -144,7 +150,7 @@ export function NodePicker(props: NodePickerProps) {
           aria-label={t.search}
           aria-expanded="true"
           aria-controls={`${id}-list`}
-          aria-activedescendant={active ? optionId(active) : undefined}
+          aria-activedescendant={activeId}
           className={styles.search}
           placeholder={t.search}
           value={search}

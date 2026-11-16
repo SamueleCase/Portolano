@@ -1,8 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { NodePicker, type PickerNode } from "./NodePicker";
+
+// jsdom does not lay out, so it has no `scrollIntoView`.
+const scrollIntoView = vi.fn();
+beforeAll(() => {
+  Element.prototype.scrollIntoView = scrollIntoView;
+});
+afterAll(() => {
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+});
 
 const nodes: PickerNode[] = [
   { id: "prod", name: "Produzione", kind: "folder", depth: 0 },
@@ -256,6 +265,17 @@ describe("NodePicker choosing folders", () => {
 
     expect(screen.getByRole("option", { name: "Radice del documento" })).not.toHaveAttribute(
       "aria-describedby",
+    );
+  });
+
+  it("scrolls the active folder into view", async () => {
+    renderFolderPicker();
+
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(
+      screen.getByRole("option", { name: "Produzione" }),
     );
   });
 
