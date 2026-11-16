@@ -29,6 +29,8 @@ interface CommonProps {
 interface NodeChoice {
   choose?: "nodes";
   onChoose: (id: string) => void;
+  /** Only for `choose="folders"`: here it would be ignored. */
+  exclude?: never;
 }
 
 /**
