@@ -30,6 +30,19 @@ export const commands = {
 	 */
 	reloadDocument: () => typedError<DocumentInfo, IpcError_Serialize>(__TAURI_INVOKE("reload_document")),
 	/**
+	 *  Writes the open document again where its file was, after the file was
+	 *  moved or deleted ("Ricrea", SPEC-UI §5.4): the content in memory, nothing
+	 *  lost, and the file is watched again. A file that is back meanwhile is not
+	 *  replaced: if it holds what the app last read or wrote the document is
+	 *  simply there again, otherwise it was changed by another program
+	 *  (`ModifiedExternally`, "Ricarica").
+	 * 
+	 *  Known limit: the custom icons live next to the document
+	 *  (`<name>.icons/`); if their directory was deleted with the file, they are
+	 *  not written again and the nodes show the icon of their kind.
+	 */
+	recreateDocument: () => typedError<DocumentInfo, IpcError_Serialize>(__TAURI_INVOKE("recreate_document")),
+	/**
 	 *  Closes the open document; the deletions that could still be undone are
 	 *  finished.
 	 */
@@ -316,6 +329,12 @@ export type ConnectionView_Deserialize = {
 	defaultPort?: number | null,
 	/**  The settings of the protocol, as stored. */
 	settings: { [key in string]: JsonValue },
+	/**
+	 *  The hosts of the jump hosts of an SSH connection, in order, for its
+	 *  route: the host of a connection of the document or of an address;
+	 *  none for a reference to a node that is gone.
+	 */
+	jumps: (string | null)[],
 };
 
 /**  Where a connection points. */
@@ -330,6 +349,12 @@ export type ConnectionView_Serialize = {
 	defaultPort: number | null,
 	/**  The settings of the protocol, as stored. */
 	settings: { [key in string]: JsonValue },
+	/**
+	 *  The hosts of the jump hosts of an SSH connection, in order, for its
+	 *  route: the host of a connection of the document or of an address;
+	 *  none for a reference to a node that is gone.
+	 */
+	jumps: (string | null)[],
 };
 
 /**  The credential chosen in the editor. */

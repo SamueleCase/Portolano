@@ -47,6 +47,7 @@ pub fn builder<R: Runtime>() -> Builder<R> {
             document::create_document::<Wry>,
             document::recent_documents::<Wry>,
             document::reload_document::<Wry>,
+            document::recreate_document::<Wry>,
             document::close_document::<Wry>,
             tree::tree::<Wry>,
             tree::node_details::<Wry>,

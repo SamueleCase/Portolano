@@ -2,6 +2,7 @@ import {
   type KeyboardEvent,
   useEffect,
   useEffectEvent,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -21,6 +22,8 @@ export interface MenuItem {
   /** "Elimina…" in red. */
   destructive?: boolean;
   disabled?: boolean;
+  /** Why the entry is disabled, shown under it and read with it. */
+  reason?: string | undefined;
 }
 
 /** An entry of a context menu, or a separator. */
@@ -49,6 +52,7 @@ export function ContextMenu({ label, entries, position, onSelect, onClose }: Con
   const menu = useRef<HTMLDivElement>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const [place, setPlace] = useState({ left: position.x, top: position.y });
+  const menuId = useId();
 
   const enabledButtons = () =>
     entries
@@ -124,17 +128,27 @@ export function ContextMenu({ label, entries, position, onSelect, onClose }: Con
             role="menuitem"
             tabIndex={-1}
             disabled={entry.disabled}
+            // The reason describes the entry, it is not part of its name.
+            aria-labelledby={`${menuId}-${entry.id}-label`}
+            aria-describedby={
+              entry.disabled && entry.reason ? `${menuId}-${entry.id}-reason` : undefined
+            }
             className={classNames(styles.item, entry.destructive && styles.destructive)}
             onClick={() => {
               onSelect(entry.id);
               onClose();
             }}
           >
-            <span>{visibleText(entry.label)}</span>
+            <span id={`${menuId}-${entry.id}-label`}>{visibleText(entry.label)}</span>
             {/* The symbols of the shortcut read poorly: the name is the label. */}
             {entry.shortcut && (
               <span className={styles.shortcut} aria-hidden="true">
                 {entry.shortcut}
+              </span>
+            )}
+            {entry.disabled && entry.reason && (
+              <span id={`${menuId}-${entry.id}-reason`} className={styles.reason}>
+                {visibleText(entry.reason)}
               </span>
             )}
           </button>

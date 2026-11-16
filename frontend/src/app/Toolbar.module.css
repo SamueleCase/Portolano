@@ -1,0 +1,42 @@
+/* The toolbar of inventario §5.1: glass of the panels, wrapping when narrow. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-fine-10);
+  padding: var(--space-fine-10) var(--space-fine-14);
+}
+
+/* The native traffic lights sit here (`titleBarStyle: Overlay`, x 16, y 18):
+   three buttons of 12 px with gaps of 8 px, past the padding of the bar. */
+.trafficLights {
+  flex: none;
+  width: calc(var(--space-8) + var(--space-fine-14));
+  align-self: stretch;
+}
+
+.document {
+  min-width: 0;
+  margin-left: var(--space-fine-6);
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.separator {
+  align-self: stretch;
+  width: var(--border-width);
+  margin: var(--space-1) var(--space-fine-2);
+  background: var(--color-border);
+}

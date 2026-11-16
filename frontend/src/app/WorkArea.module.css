@@ -1,0 +1,27 @@
+/* The central area of inventario §5.1: the tab bar and the tab in front. */
+.area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-10);
+  min-width: 0;
+  min-height: 0;
+}
+
+.panelSlot {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-fine-26) var(--space-fine-28);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}

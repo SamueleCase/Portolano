@@ -640,6 +640,33 @@ mock in `docs/ui/NOTE.md`.
 4. Se l'utente annulla lo sblocco del vault al Salva, non parte nessun comando e i segreti restano in staging
    (precisazione di DEC-038.2: il contenitore si svuota a ogni Salva **inviato**).
 5. Lo stub di `scrollIntoView` per jsdom va in `test/setup.ts` (eccezione); `e2e/editorPage.ts` è approvato.
+- Attuazione (approvata dal PM): la cartella di destinazione sta in `EditorChanges` di ops (non in `NodeEdit`, che la
+  CLI costruisce per letterale) e in `NodeEditInput.parent?: { id: string | null }` dell'app; `validate_settings` del
+  trait `Protocol` restituisce `SettingsError { setting, option, message }` con lo stesso testo di prima, e
+  `IpcErrorDetails::Invalid.field` vale `settings.options.<opzione>`, `settings.jump_hosts`, `settings.<chiave>` o
+  `settings`.
+
+### DEC-041 – Revisione di UI-WP4 (decise dal PM, 2026-11-16)
+1. **Richieste annidate**: una funzione aperta dalla cornice può chiederne un'altra (es. l'editor o l'import che
+   chiedono lo sblocco del vault) senza chiudersi: le richieste del codice si impilano sopra quella corrente e quelle a
+   risposta (`requestUnlock(): Promise<boolean>`, `requestLogin`) si risolvono al chiamante; una richiesta diretta
+   dell'utente con un dialogo già aperto si rifiuta invece di sostituirlo. Le funzioni montate hanno accesso alle
+   azioni della finestra.
+2. **Vault bloccato**: un comando fallito con `vaultLocked` apre lo sblocco (se registrato) e, a sblocco riuscito,
+   ripete il comando; senza registrazione resta il toast.
+3. **"Ricrea"** del documento mancante (SPEC-UI §5.4) riscrive nel suo percorso il documento ancora aperto in memoria,
+   con un comando nuovo del backend (scrittura atomica sotto lock, come `save`), senza perdere contenuto né lasciare
+   segreti orfani. Eccezione di proprietà per UI-WP4 su `crates/portolano-app` (comando, permesso, bindings) e, se
+   serve, su `portolano-core::store`.
+4. **Nodo non supportato**: niente "Duplica" da nessun punto (inventario §5.3: resta solo "Elimina", più "Sposta in…").
+5. **Rotta della sessione e jump host**: il dettaglio del nodo porta dal backend le tappe dei jump (etichette), così il
+   frontend non legge la struttura dei `settings` ssh; eccezione sul DTO del dettaglio, sul finto e sui bindings.
+6. **Componenti di UI-WP1 toccati da UI-WP4** (eccezioni): `TreeRow` (si accorcia l'host prima del nome), `Toast`
+   (il conto alla rovescia di "Annulla" non si ferma oltre la scadenza del backend e quel toast non esce per il limite
+   di tre), `ContextMenu` (motivo delle voci disattivate), token nuovi in `design/tokens.ts` per le misure della
+   barra laterale e del dettaglio. `e2e/mainWindowPage.ts` per le funzioni di supporto comuni degli e2e.
+7. **Tab di sessione dopo un cambio di documento o l'eliminazione del nodo**: restano (i processi girano) con il
+   riepilogo della sessione come titolo. Se l'ultimo documento non si apre all'avvio si ripiega sul predefinito.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.

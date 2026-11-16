@@ -734,7 +734,7 @@ Il formato è descritto in [`royal-format.md`](royal-format.md), da leggere per 
      se presenti) genera un `SecretRequest`.
      - Se il prompter restituisce un valore, si crea un `SecretRef` e lo si aggiunge a `secrets`.
      - Se restituisce `None`, il campo resta vuoto e l'elemento passa a `Partial` con il motivo
-       "password Royal cifrata non importata: impostala con `portolano secret set`".
+       "password Royal cifrata non importata: impostala dal nodo" (testo neutro fra CLI e app, DEC-039.2).
    - `RoyalCredential`: `UserName` va in `username`.
      - Il dominio viene dal campo `Domain` se esiste, altrimenti da `DOMINIO\utente`.
      - I nomi nella forma `utente@dominio` restano come sono.
