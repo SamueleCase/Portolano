@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
+import { Button } from "../../components/Button";
+import { Dialog } from "../../components/Dialog";
 import { type CustomIconOption, IconPicker } from "../../components/IconPicker";
 import type { IconChoice, IconView } from "../../bindings";
+import { texts } from "../../i18n/it";
 import { presentFailure } from "../../ipc/errors";
 import { useAddIcon, useChooseIconFile } from "../../ipc/mutations";
 import { customIconsQuery } from "../../ipc/queries";
+import styles from "./Dialogs.module.css";
 import { drawnIcon, iconFileName, savedIcon } from "./iconChoice";
 
 interface IconChooserProps {
@@ -13,8 +18,6 @@ interface IconChooserProps {
   value: IconChoice | null;
   onUse: (choice: IconChoice) => void;
   onClose: () => void;
-  /** A new image could not be chosen or stored: the message to show (the picker stays open). */
-  onError: (message: string) => void;
 }
 
 /** The length of the hash that names an imported image, which has no name of its own. */
@@ -32,12 +35,15 @@ function options(stored: readonly IconView[]): CustomIconOption[] {
  * The icon picker over the open document (inventario §5.7): the builtin set,
  * the images stored with the document (`custom_icons`), or a new image
  * chosen with the native dialog of Rust (`choose_icon_file` → `add_icon`),
- * which is used at once.
+ * which is used at once. An image that cannot be stored is said over the
+ * picker, which stays open to choose again.
  */
-export function IconChooser({ open, value, onUse, onClose, onError }: IconChooserProps) {
+export function IconChooser({ open, value, onUse, onClose }: IconChooserProps) {
+  const t = texts.dialogs.iconError;
   const { data: stored = [] } = useQuery({ ...customIconsQuery, enabled: open });
   const chooseFile = useChooseIconFile();
   const addIcon = useAddIcon();
+  const [error, setError] = useState<string>();
 
   const chooseImage = async () => {
     const chosen = await chooseFile.mutateAsync();
@@ -47,18 +53,35 @@ export function IconChooser({ open, value, onUse, onClose, onError }: IconChoose
   };
 
   return (
-    <IconPicker
-      open={open}
-      onClose={onClose}
-      value={drawnIcon(value, stored)}
-      customIcons={options(stored)}
-      onUse={(choice) => {
-        const icon = savedIcon(choice, stored);
-        if (icon) onUse(icon);
-      }}
-      onChooseImage={() =>
-        void chooseImage().catch((failure: unknown) => onError(presentFailure(failure).message))
-      }
-    />
+    <>
+      <IconPicker
+        open={open}
+        onClose={onClose}
+        value={drawnIcon(value, stored)}
+        customIcons={options(stored)}
+        onUse={(choice) => {
+          const icon = savedIcon(choice, stored);
+          if (icon) onUse(icon);
+        }}
+        onChooseImage={() =>
+          void chooseImage().catch((failure: unknown) => setError(presentFailure(failure).message))
+        }
+      />
+      <Dialog
+        open={open && error !== undefined}
+        onClose={() => setError(undefined)}
+        title={t.title}
+        width="small"
+        footer={
+          <Button variant="primary" onClick={() => setError(undefined)}>
+            {t.close}
+          </Button>
+        }
+      >
+        <p className={styles.hint} role="alert">
+          {error}
+        </p>
+      </Dialog>
+    </>
   );
 }

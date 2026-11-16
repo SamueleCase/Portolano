@@ -146,13 +146,7 @@ function EditorSpecimens() {
           close();
         }}
       />
-      <IconChooser
-        open={dialog === "icon"}
-        value={null}
-        onClose={close}
-        onError={setResult}
-        onUse={close}
-      />
+      <IconChooser open={dialog === "icon"} value={null} onClose={close} onUse={close} />
       <TreeNodePicker
         open={dialog === "jumpHost"}
         purpose="jumpHost"

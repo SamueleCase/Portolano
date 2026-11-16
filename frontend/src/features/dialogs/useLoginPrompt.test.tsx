@@ -27,9 +27,9 @@ function Connect({ id, onAnswer }: { id: string; onAnswer: (answer: LoginAnswer)
 async function ask(name: string) {
   installFakeBackend();
   const onAnswer = vi.fn<(answer: LoginAnswer) => void>();
-  renderWithQueries(<Connect id={await idOf(name)} onAnswer={onAnswer} />);
+  const { unmount } = renderWithQueries(<Connect id={await idOf(name)} onAnswer={onAnswer} />);
   await userEvent.click(screen.getByRole("button", { name: "connetti" }));
-  return onAnswer;
+  return Object.assign(onAnswer, { unmount });
 }
 
 describe("useLoginPrompt", () => {
@@ -68,6 +68,15 @@ describe("useLoginPrompt", () => {
 
     expect(await screen.findByLabelText(t.user)).toBeInTheDocument();
     expect(screen.queryByLabelText(t.domain)).not.toBeInTheDocument();
+  });
+
+  it("answers null when it is unmounted while asking", async () => {
+    const onAnswer = await ask("kiosk");
+    await screen.findByRole("dialog", { name: t.title });
+
+    onAnswer.unmount();
+
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith(null));
   });
 
   it("answers null when the user gives up", async () => {

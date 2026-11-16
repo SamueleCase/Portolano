@@ -121,6 +121,18 @@ describe("useVaultUnlock", () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
   });
 
+  it("answers false when it is unmounted while asking", async () => {
+    installFakeBackend();
+    const onResult = vi.fn();
+    const { unmount } = renderWithQueries(<VaultGate onResult={onResult} />);
+    await userEvent.click(screen.getByRole("button", { name: "prova" }));
+    await screen.findByLabelText(t.unlock.field);
+
+    unmount();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(false));
+  });
+
   it("answers false when the user gives up", async () => {
     installFakeBackend();
     const onResult = vi.fn();

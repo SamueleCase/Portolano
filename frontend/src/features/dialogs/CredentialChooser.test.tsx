@@ -41,6 +41,8 @@ async function chooseMode(title: string) {
   await userEvent.click(screen.getByRole("radio", { name: new RegExp(`^${title}`) }));
 }
 
+const onDone = vi.fn();
+
 describe("CredentialChooser", () => {
   it("shows the chain an inherited credential comes from", async () => {
     unlocked();
@@ -80,6 +82,28 @@ describe("CredentialChooser", () => {
     expect(await preview().findByText(t.credentialPreview.byNameAmbiguous)).toBeInTheDocument();
     expect(preview().getByText("Rete / deploy")).toBeInTheDocument();
     expect(preview().getByText("deploy")).toBeInTheDocument();
+  });
+
+  it("changes nothing with Fatto when nothing was touched", async () => {
+    unlocked();
+    const onClose = vi.fn();
+    renderWithQueries(
+      <CredentialChooser
+        open
+        nodeName="gw"
+        parent={null}
+        value={{ mode: "inherit" }}
+        passwordState="absent"
+        onSetPassword={() => undefined}
+        onDone={onDone}
+        onClose={onClose}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: t.credentialSelector.done }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onDone).not.toHaveBeenCalled();
   });
 
   it("returns the inline user and domain typed", async () => {

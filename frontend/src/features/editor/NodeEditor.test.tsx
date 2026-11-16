@@ -332,6 +332,32 @@ describe("NodeEditor", () => {
     expect(row).toHaveTextContent("l'opzione 'ProxyCommand' non è ammessa");
   });
 
+  it("keeps an imported credential of the gateway through an untouched selector", async () => {
+    const state = initialFakeState();
+    state.vault.locked = false;
+    const stored = { mode: "inline", username: "gw-utente", domain: null };
+    nodeNamed(state, "ts01").settings = { gateway: { host: "gw.example.com", credential: stored } };
+    installFakeBackend(state);
+    const { onSaved } = renderEditor({ mode: "edit", id: nodeNamed(state, "ts01").id });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+
+    const gateway = screen.getByRole("group", { name: t.rdp.gatewayCredential });
+    await userEvent.click(
+      within(gateway).getByRole("button", { name: texts.components.credentialField.change }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: texts.components.credentialSelector.done }),
+    );
+    await type(t.rdp.wolMac, "00:00:5E:00:53:01");
+    await save();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(nodeNamed(state, "ts01").settings["gateway"]).toEqual({
+      host: "gw.example.com",
+      credential: stored,
+    });
+  });
+
   it("adds a jump host from the tree", async () => {
     const state = unlocked();
     const { onSaved } = renderEditor({ mode: "edit", id: await idOf("db01") });

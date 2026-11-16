@@ -31,7 +31,7 @@ interface CredentialChooserProps {
   onSetPassword: () => void;
   /** "Fatto" with a complete choice. */
   onDone: (choice: CredentialChoice_Deserialize) => void;
-  /** Esc, the veil, or "Fatto" with an incomplete choice: nothing changes. */
+  /** Esc, the veil, or "Fatto" with nothing changed or a choice incomplete: nothing changes. */
   onClose: () => void;
 }
 
@@ -95,7 +95,13 @@ function OpenCredentialChooser({
   const { backend } = useVaultState();
   const [draft, setDraft] = useState(() => draftOf(value));
   const [picking, setPicking] = useState(false);
-  const change = (part: Partial<Draft>) => setDraft((current) => ({ ...current, ...part }));
+  // Whether the user changed anything: "Fatto" on an untouched selector
+  // keeps the credential as it is, also a spec it cannot show (DEC-038.4).
+  const [touched, setTouched] = useState(false);
+  const change = (part: Partial<Draft>) => {
+    setTouched(true);
+    setDraft((current) => ({ ...current, ...part }));
+  };
 
   const { data: tree } = useQuery(treeQuery);
   const entries = tree ? indexTree(tree) : [];
@@ -136,7 +142,7 @@ function OpenCredentialChooser({
         open
         onClose={onClose}
         onDone={() => {
-          const choice = choiceOf(draft);
+          const choice = touched ? choiceOf(draft) : null;
           if (choice) onDone(choice);
           else onClose();
         }}

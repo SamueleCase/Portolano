@@ -18,15 +18,7 @@ describe("IconChooser", () => {
   it("uses a builtin icon by its name", async () => {
     installFakeBackend();
     const onUse = vi.fn();
-    renderWithQueries(
-      <IconChooser
-        open
-        value={null}
-        onUse={onUse}
-        onClose={() => undefined}
-        onError={() => undefined}
-      />,
-    );
+    renderWithQueries(<IconChooser open value={null} onUse={onUse} onClose={() => undefined} />);
 
     await userEvent.click(screen.getByRole("radio", { name: texts.icons.database }));
     await userEvent.click(screen.getByRole("button", { name: icons.use }));
@@ -39,15 +31,7 @@ describe("IconChooser", () => {
     state.dialogs.icon = "/Users/utente-di-prova/icone/server.png";
     installFakeBackend(state);
     const onUse = vi.fn();
-    renderWithQueries(
-      <IconChooser
-        open
-        value={null}
-        onUse={onUse}
-        onClose={() => undefined}
-        onError={() => undefined}
-      />,
-    );
+    renderWithQueries(<IconChooser open value={null} onUse={onUse} onClose={() => undefined} />);
 
     await userEvent.click(screen.getByRole("radio", { name: icons.sources.image }));
     await userEvent.click(screen.getByRole("button", { name: icons.chooseImage }));
@@ -58,20 +42,35 @@ describe("IconChooser", () => {
     expect(state.customIcons).toHaveLength(1);
   });
 
+  it("says over the picker why an image could not be stored", async () => {
+    const state = initialFakeState();
+    state.dialogs.icon = "/Users/utente-di-prova/icone/server.png";
+    installFakeBackend(state);
+    renderWithQueries(
+      <IconChooser open value={null} onUse={() => undefined} onClose={() => undefined} />,
+    );
+    await userEvent.click(screen.getByRole("radio", { name: icons.sources.image }));
+    // The document closes in the meantime: the image has nowhere to go.
+    state.document = null;
+
+    await userEvent.click(screen.getByRole("button", { name: icons.chooseImage }));
+
+    const alert = await screen.findByRole("dialog", { name: texts.dialogs.iconError.title });
+    expect(alert).toHaveTextContent("nessun documento aperto");
+    expect(screen.getByRole("dialog", { name: icons.title })).toBeInTheDocument();
+  });
+
   it("uses nothing when the native dialog is cancelled", async () => {
     installFakeBackend();
     const onUse = vi.fn();
-    const onError = vi.fn();
-    renderWithQueries(
-      <IconChooser open value={null} onUse={onUse} onClose={() => undefined} onError={onError} />,
-    );
+    renderWithQueries(<IconChooser open value={null} onUse={onUse} onClose={() => undefined} />);
     await userEvent.click(screen.getByRole("radio", { name: icons.sources.image }));
 
     await userEvent.click(screen.getByRole("button", { name: icons.chooseImage }));
 
     expect(screen.getByRole("dialog", { name: icons.title })).toBeInTheDocument();
     expect(onUse).not.toHaveBeenCalled();
-    expect(onError).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

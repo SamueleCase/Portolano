@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import type { LoginInput_Deserialize, LoginRequest } from "../../bindings";
 import { loginRequestQuery } from "../../ipc/queries";
@@ -39,6 +39,9 @@ export function useLoginPrompt(): LoginPrompt {
     resolve.current?.(answer);
     resolve.current = undefined;
   };
+
+  // Unmounted while asking: the caller gives up, as with "Annulla".
+  useEffect(() => () => resolve.current?.(null), []);
 
   const askLogin = useCallback(
     async (nodeId: string): Promise<LoginAnswer> => {

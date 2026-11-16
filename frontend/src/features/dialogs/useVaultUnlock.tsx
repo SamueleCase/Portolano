@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { vaultStatusQuery } from "../../ipc/queries";
 import { CreateVaultDialog } from "./CreateVaultDialog";
@@ -32,6 +32,9 @@ export function useVaultUnlock(): VaultUnlock {
     resolve.current?.(unlocked);
     resolve.current = undefined;
   };
+
+  // Unmounted while asking: the vault stays locked, as with "Apri senza segreti".
+  useEffect(() => () => resolve.current?.(false), []);
 
   const ensureUnlocked = useCallback(async () => {
     const vault = await queryClient.fetchQuery({ ...vaultStatusQuery, staleTime: 0 });

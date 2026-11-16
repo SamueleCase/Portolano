@@ -31,11 +31,22 @@ function typed(field: HTMLInputElement | null): string | null {
  * password. The fields are uncontrolled and never become React state.
  */
 export function LoginDialog({ request, onLogin, onClose }: LoginDialogProps) {
+  // A new dialog for each request: nothing typed for one connection stays
+  // in the fields of the next.
+  return request === null ? null : (
+    <OpenLoginDialog key={request.node} request={request} onLogin={onLogin} onClose={onClose} />
+  );
+}
+
+function OpenLoginDialog({
+  request,
+  onLogin,
+  onClose,
+}: LoginDialogProps & { request: LoginRequest }) {
   const t = texts.dialogs.login;
   const user = useRef<HTMLInputElement>(null);
   const domain = useRef<HTMLInputElement>(null);
   const password = useRef<HTMLInputElement>(null);
-  if (request === null) return null;
 
   const submit = () => {
     const login = {

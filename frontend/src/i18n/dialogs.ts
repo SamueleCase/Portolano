@@ -82,6 +82,7 @@ export const dialogs = {
       withPassphrase: "{key}, con passphrase",
     },
   },
+  iconError: { title: "Immagine non aggiunta", close: "Chiudi" },
   picker: {
     jumpHost: { title: "Scegli un jump host", filter: "Solo SSH" },
     credential: { title: "Scegli una credenziale", filter: "Solo credenziali" },

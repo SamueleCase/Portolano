@@ -23,7 +23,6 @@ export function GeneralStep() {
   const t = texts.editor.general;
   const { values, set, errorOf } = useEditorFields();
   const [choosingIcon, setChoosingIcon] = useState(false);
-  const [iconError, setIconError] = useState<string>();
   const { data: stored = [] } = useQuery(customIconsQuery);
 
   return (
@@ -64,9 +63,9 @@ export function GeneralStep() {
               </Button>
             )}
           </div>
-          {(iconError ?? errorOf("icon")) && (
+          {errorOf("icon") && (
             <span className={styles.error} role="alert">
-              {iconError ?? errorOf("icon")}
+              {errorOf("icon")}
             </span>
           )}
         </div>
@@ -89,9 +88,7 @@ export function GeneralStep() {
         open={choosingIcon}
         value={values.icon}
         onClose={() => setChoosingIcon(false)}
-        onError={setIconError}
         onUse={(icon) => {
-          setIconError(undefined);
           set("icon", icon);
           setChoosingIcon(false);
         }}
