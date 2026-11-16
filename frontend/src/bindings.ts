@@ -2048,6 +2048,11 @@ export type TreeNode_Deserialize = {
 	secrets: SecretsBadge,
 	/**  All its descendants (the count of a closed folder, ambiguity 21). */
 	descendants: number,
+	/**
+	 *  The id of an imported node in its source, to reach it from a line of
+	 *  the import report even when the import gave it a new id (`new-ids`).
+	 */
+	sourceId?: string | null,
 	/**  Its children, in order. */
 	children: TreeNode_Deserialize[],
 };
@@ -2076,6 +2081,11 @@ export type TreeNode_Serialize = {
 	secrets: SecretsBadge,
 	/**  All its descendants (the count of a closed folder, ambiguity 21). */
 	descendants: number,
+	/**
+	 *  The id of an imported node in its source, to reach it from a line of
+	 *  the import report even when the import gave it a new id (`new-ids`).
+	 */
+	sourceId: string | null,
 	/**  Its children, in order. */
 	children: TreeNode_Serialize[],
 };
