@@ -1,4 +1,5 @@
 import { components } from "./components";
+import { dialogs } from "./dialogs";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
 import { sessions } from "./sessions";
@@ -15,4 +16,5 @@ export const texts = {
   icons,
   ipc,
   sessions,
+  dialogs,
 } as const;
