@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { Button } from "../../components/Button";
+import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import { presentFailure } from "../../ipc/errors";
 import { treeQuery, validationQuery } from "../../ipc/queries";
@@ -33,7 +34,7 @@ export function ValidationPanel({ onGoToNode }: ValidationPanelProps) {
       {validation.isError ? (
         <>
           <p role="alert" className={styles.failure}>
-            {presentFailure(validation.error).message}
+            {visibleText(presentFailure(validation.error).message)}
           </p>
           <Button
             className={styles.retry}
