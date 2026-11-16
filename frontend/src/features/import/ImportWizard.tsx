@@ -14,29 +14,24 @@ import { useReportActions } from "./useReportActions";
 import { ReportActions, WizardFooter } from "./WizardActions";
 import { wizardSteps } from "./wizardSteps";
 
-/** The props of the import wizard, the API its host uses (SPEC-UI §5.4). */
+/** The props of the import wizard, its hook point `import` (`app/features.ts`). */
 export interface ImportWizardProps {
-  open: boolean;
-  /** Esc, "Annulla", "Vai all'albero": the host closes the wizard. */
+  /** Esc, "Annulla", "Vai all'albero": the window closes the wizard. */
   onClose: () => void;
   /**
-   * A row of the report or "Vai all'albero": the host selects the node and
-   * shows it. The wizard stays open, except after "Vai all'albero".
+   * A row of the report or "Vai all'albero": the window selects the node.
+   * The wizard stays open, except after "Vai all'albero".
    */
   onGoToNode: (id: string) => void;
-  /** "Sblocca il vault…" of step 2, when the passwords cannot be written yet. */
-  onUnlockVault?: (() => void) | undefined;
 }
 
 /**
  * The import wizard of Royal TSX documents (inventario §5.13), four steps in
- * a dialog. Closed, it keeps nothing: the next opening starts from the file.
+ * a dialog, mounted while its request is open: closed, it keeps nothing, and
+ * the next opening starts from the file. With the file vault locked it asks
+ * the window for it (`requestVault`) before the passwords.
  */
-export function ImportWizard({ open, ...props }: ImportWizardProps) {
-  return open ? <OpenImportWizard {...props} /> : null;
-}
-
-function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWizardProps, "open">) {
+export function ImportWizard({ onClose, onGoToNode }: ImportWizardProps) {
   const wizard = useImportWizard();
   const report = useReportActions(wizard.outcome?.result ?? null, onGoToNode);
   const destination = useDestination(wizard.settings.into, (into) =>
@@ -60,8 +55,7 @@ function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWiz
   };
 
   const request = wizard.requests[wizard.progress.position];
-  const canLeaveOptions =
-    wizard.preview !== null && !wizard.previewing && !(wizard.asking && wizard.vaultLocked);
+  const canLeaveOptions = wizard.preview !== null && !wizard.previewing;
   const footer =
     step === "file" ? (
       <WizardFooter
@@ -125,7 +119,6 @@ function OpenImportWizard({ onClose, onGoToNode, onUnlockVault }: Omit<ImportWiz
                 passwordsDropped={wizard.passwordsDropped}
                 trashSize={wizard.trashSize}
                 vaultLocked={wizard.vaultLocked}
-                onUnlockVault={onUnlockVault}
               />
             )}
             {step === "passwords" && request && (

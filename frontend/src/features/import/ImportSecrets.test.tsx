@@ -6,7 +6,6 @@ import {
   importBackend,
   passwordField,
   recordCommands,
-  renderReopenableWizard,
   renderWizard,
   reportShown,
   sent,
@@ -132,7 +131,7 @@ describe("passwords of the import", () => {
   it("never leave when the wizard closes on step 3 and a new import follows", async () => {
     importBackend();
     const commands = recordCommands();
-    const { client, user, onClose, setOpen } = renderReopenableWizard();
+    const { client, user, onClose, setOpen } = renderWizard();
     await toPasswords(user);
     await user.type(passwordField(), `${SENTINEL}{Enter}`);
     await screen.findByText("2 / 3");

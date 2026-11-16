@@ -11,7 +11,6 @@ export const importWizard = {
     saveAndContinue: "Salva e continua",
     exportJson: "Esporta JSON",
     goToTree: "Vai all'albero",
-    unlockVault: "Sblocca il vault…",
   },
   file: {
     title: "Scegli il documento di Royal TSX",
@@ -54,7 +53,7 @@ export const importWizard = {
     inserted: { one: "{n} nodo nuovo", other: "{n} nodi nuovi" },
     updated: { one: "{n} aggiornato", other: "{n} aggiornati" },
     vaultLocked:
-      "Il vault è bloccato: sbloccalo per salvare le password, oppure spegni «Chiedi le password».",
+      "Il vault è bloccato: con «Avanti» ti chiediamo di aprirlo per salvare le password, oppure spegni «Chiedi le password».",
     failed: "L'importazione non è riuscita: {message}",
     passwordsDropped:
       "Le password inserite non sono state salvate: inseriscile di nuovo al passo successivo.",

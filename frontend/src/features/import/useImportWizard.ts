@@ -1,12 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 import type { ChosenFile, ImportPreviewView_Serialize, ImportResult } from "../../bindings";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { presentFailure } from "../../ipc/errors";
+import { queryKeys } from "../../ipc/keys";
 import { useChooseImportFile, useImportApply } from "../../ipc/mutations";
 import { vaultStatusQuery } from "../../ipc/queries";
+import { requestVault } from "../../state/requests";
 import type { FileReading } from "./FileStep";
 import { useImportAnswers } from "./importAnswers";
 import type { ImportSettings } from "./OptionsStep";
@@ -62,6 +64,7 @@ export function useImportWizard() {
   const choose = useChooseImportFile();
   const apply = useImportApply();
   const vault = useQuery(vaultStatusQuery);
+  const queryClient = useQueryClient();
 
   const requests = preview?.requests ?? [];
   const asking = settings.askPasswords && requests.length > 0;
@@ -129,19 +132,33 @@ export function useImportWizard() {
     }
   };
 
+  const startPasswords = () => {
+    setPasswordsDropped(false);
+    answers.current.start(requests);
+    setProgress({ position: 0, entered: 0, skipped: 0 });
+    setStep("passwords");
+  };
+
+  /**
+   * The passwords go to the vault: with the file vault locked the window asks
+   * for it on top of the wizard, which stays as it is (DEC-041.1); the
+   * passwords start once it is open, never before.
+   */
+  const readyVaultThenStart = async () => {
+    if (await requestVault()) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vault });
+      startPasswords();
+    }
+  };
+
   const next = () => {
     if (step === "file" && reading?.state === "readable") {
       setStep("options");
       void refresh(settings);
     } else if (step === "options" && preview !== null && !dryRun.previewing) {
-      if (!asking) {
-        void finish();
-      } else if (!vaultLocked) {
-        setPasswordsDropped(false);
-        answers.current.start(requests);
-        setProgress({ position: 0, entered: 0, skipped: 0 });
-        setStep("passwords");
-      }
+      if (!asking) void finish();
+      else if (vaultLocked) void readyVaultThenStart();
+      else startPasswords();
     }
   };
 

@@ -164,15 +164,27 @@ describe("ImportWizard", () => {
     expect(within(steps).getByText(/Password/)).toHaveTextContent("(saltato)");
   });
 
-  it("asks to unlock the vault before typing passwords it cannot write", async () => {
+  it("asks for the vault before the passwords and goes on once it is open", async () => {
     importBackend({ vaultLocked: true });
-    const { user, onUnlockVault } = renderWizard();
+    const { user } = renderWizard();
     await toOptions(user);
 
-    await user.click(screen.getByRole("button", { name: "Sblocca il vault…" }));
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+    await user.click(await screen.findByRole("button", { name: "Sblocca" }));
 
-    expect(onUnlockVault).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Avanti" })).toHaveAttribute("aria-disabled", "true");
+    expect(await screen.findByText("1 / 3")).toBeInTheDocument();
+  });
+
+  it("stays on the options when the vault is not opened", async () => {
+    importBackend({ vaultLocked: true });
+    const { user } = renderWizard();
+    await toOptions(user);
+
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+    await user.click(await screen.findByRole("button", { name: "Annulla" }));
+
+    expect(screen.getByText(/^Il vault è bloccato/)).toBeInTheDocument();
+    expect(screen.queryByText("1 / 3")).toBeNull();
   });
 
   it("goes back to the options with the error when the import fails", async () => {

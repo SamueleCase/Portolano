@@ -3,7 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 
+import { FeatureHost } from "../../app/FeatureHost";
+import { FeatureRegistryContext } from "../../app/features";
 import { createQueryClient } from "../../ipc/queryClient";
+import { useRequests } from "../../state/requests";
 import {
   type FakeBackendState,
   initialFakeState,
@@ -11,6 +14,7 @@ import {
 } from "../../test/fakeBackend";
 import { IMPORT_FILE } from "../../test/fakeBackendImport";
 import { ImportWizard } from "./ImportWizard";
+import { TestUnlockVault } from "./TestUnlockVault";
 
 /** Helpers of the tests of the wizard, on the fake backend with the fake Royal document. */
 
@@ -25,33 +29,30 @@ export function importBackend(
   return installFakeBackend(state);
 }
 
-/** The wizard, open, with spies for its callbacks and the query client it uses. */
+/**
+ * The wizard, mounted as the window mounts it, with the requests it makes on
+ * top (`FeatureHost`): the unlock of the vault is the stand-in of the dialog
+ * of UI-WP5. Spies for its callbacks and the query client it uses.
+ */
 export function renderWizard() {
   const client: QueryClient = createQueryClient();
   const onClose = vi.fn();
   const onGoToNode = vi.fn();
-  const onUnlockVault = vi.fn();
   const user = userEvent.setup();
-  render(
-    <QueryClientProvider client={client}>
-      <ImportWizard open onClose={onClose} onGoToNode={onGoToNode} onUnlockVault={onUnlockVault} />
-    </QueryClientProvider>,
-  );
-  return { client, onClose, onGoToNode, onUnlockVault, user };
-}
-
-/** The wizard, open, with `setOpen` to close it and open it again as its host would. */
-export function renderReopenableWizard() {
-  const client: QueryClient = createQueryClient();
-  const user = userEvent.setup();
-  const onClose = vi.fn();
   const wizard = (open: boolean) => (
     <QueryClientProvider client={client}>
-      <ImportWizard open={open} onClose={onClose} onGoToNode={() => undefined} />
+      <FeatureRegistryContext value={{ unlockVault: TestUnlockVault }}>
+        {open && <ImportWizard onClose={onClose} onGoToNode={onGoToNode} />}
+        <FeatureHost />
+      </FeatureRegistryContext>
     </QueryClientProvider>
   );
+  // The requests of the window are a store of the page: each test starts without any.
+  useRequests.setState({ stack: [] });
   const { rerender } = render(wizard(true));
-  return { client, user, onClose, setOpen: (open: boolean) => rerender(wizard(open)) };
+  /** Closes the wizard and opens it again, as the window would. */
+  const setOpen = (open: boolean) => rerender(wizard(open));
+  return { client, onClose, onGoToNode, user, setOpen };
 }
 
 /** The IPC of the page, which the fake backend installs with `mockIPC`. */

@@ -24,8 +24,3 @@ export function validationTitle(issues: readonly Issue_Serialize[]): string {
     ? texts.validation.none
     : plural(issues.length, texts.validation.title);
 }
-
-/** The kind of the validation tab in the tab bar: "1 problema", "4 problemi" (inventario §4.8). */
-export function validationTabLabel(issues: readonly Issue_Serialize[]): string {
-  return plural(issues.length, texts.components.tabs.problems);
-}

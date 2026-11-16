@@ -102,12 +102,6 @@
   font-size: var(--font-size-label);
 }
 
-.vaultLocked {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 /* Step 3 */
 .progressHead {
   display: flex;

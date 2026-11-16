@@ -1,3 +1,5 @@
+import { ImportWizard } from "../features/import/ImportWizard";
+import { ValidationPanel } from "../features/validation/ValidationPanel";
 import type { FeatureRegistry } from "./features";
 
 /**
@@ -5,4 +7,7 @@ import type { FeatureRegistry } from "./features";
  * UI-WP5 (editor, password, vault, login, preferences) and UI-WP6 (import,
  * validation) add their line here when they integrate (DEC-035).
  */
-export const featureRegistry: FeatureRegistry = {};
+export const featureRegistry: FeatureRegistry = {
+  import: ImportWizard,
+  validation: ValidationPanel,
+};

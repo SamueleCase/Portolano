@@ -37,9 +37,8 @@ interface OptionsStepProps {
   passwordsDropped: boolean;
   /** The items in the trash of the file, skipped unless included. */
   trashSize: number;
-  /** The passwords cannot be written until the file vault is unlocked. */
+  /** The passwords cannot be written until the file vault is open: "Avanti" asks for it. */
   vaultLocked: boolean;
-  onUnlockVault?: (() => void) | undefined;
 }
 
 const CONFLICTS: readonly ConflictChoice[] = ["fail", "update", "newIds"];
@@ -64,10 +63,9 @@ export function OptionsStep({
   passwordsDropped,
   trashSize,
   vaultLocked,
-  onUnlockVault,
 }: OptionsStepProps) {
   const destinationId = useId();
-  const { options, actions } = texts.importWizard;
+  const { options } = texts.importWizard;
   const requests = preview?.requests.length ?? 0;
   return (
     <div className={styles.step}>
@@ -120,14 +118,7 @@ export function OptionsStep({
             })}
       </p>
       {vaultLocked && settings.askPasswords && requests > 0 && (
-        <div className={styles.vaultLocked}>
-          <p className={styles.muted}>{options.vaultLocked}</p>
-          {onUnlockVault && (
-            <Button variant="small" onClick={onUnlockVault}>
-              {actions.unlockVault}
-            </Button>
-          )}
-        </div>
+        <p className={styles.muted}>{options.vaultLocked}</p>
       )}
       {error && (
         <div role="alert" className={styles.failure}>
