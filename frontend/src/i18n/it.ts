@@ -1,8 +1,10 @@
 import { components } from "./components";
 import { icons } from "./icons";
+import { importWizard } from "./import";
 import { ipc } from "./ipc";
 import { sessions } from "./sessions";
 import { status } from "./status";
+import { validation } from "./validation";
 
 /**
  * The texts of the interface, in Italian (SPEC-UI: no text outside i18n/).
@@ -15,4 +17,6 @@ export const texts = {
   icons,
   ipc,
   sessions,
+  importWizard,
+  validation,
 } as const;

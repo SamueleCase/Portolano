@@ -1,0 +1,75 @@
+/* The validation tab (inventario §5.14): heading with the counters and
+   "Ricontrolla", then the rows on two lines. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-14);
+  min-height: 0;
+  padding: var(--space-6);
+  overflow: auto;
+}
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-14);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-panel-title);
+  font-weight: var(--font-weight-strong);
+}
+
+.counts {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recheck {
+  margin-left: auto;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A problem without a node: the same grid as a row, without "Vai al nodo". */
+.note {
+  display: grid;
+  grid-template-columns: var(--size-severity-column) minmax(0, 1fr);
+  gap: var(--space-fine-3) var(--space-fine-14);
+  padding: var(--space-3) var(--space-2);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.noteMessage {
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-message);
+}
+
+.none {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.failure {
+  margin: 0;
+  color: var(--color-error-text);
+}
+
+.retry {
+  align-self: flex-start;
+}
