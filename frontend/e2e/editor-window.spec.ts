@@ -143,8 +143,11 @@ test.describe("the dialogs in the main window", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("ask the credentials at launch and open the session", async ({ page }) => {
-    await openApp(page, { vaultLocked: false });
+  test("ask the credentials at launch and open the session, without secrets no unlock", async ({
+    page,
+  }) => {
+    // The vault locked: kiosk has no secret, so it opens without the unlock (DEC-042).
+    await openApp(page);
     const tree = await documentTree(page);
     await row(tree, "ACME").click();
     await page.keyboard.press("ArrowRight");
@@ -158,10 +161,28 @@ test.describe("the dialogs in the main window", () => {
     await login.getByRole("button", { name: d.login.connect }).click();
 
     await expect(login).toBeHidden();
+    await expect(page.getByRole("dialog", { name: d.unlock.title })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: /kiosk.*(SSH|RDP)/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+  });
+
+  test("unlock the vault after a connection that needs its secrets, then open it", async ({
+    page,
+  }) => {
+    await openApp(page);
+
+    await row(await documentTree(page), "bastion").dblclick();
+    const unlock = page.getByRole("dialog", { name: d.unlock.title });
+    await unlock.getByLabel(d.unlock.field).fill(TEST_MASTER_PASSWORD);
+    await shoot(page, "connect-unlock");
+    await unlock.getByRole("button", { name: d.unlock.unlock }).click();
+
+    await expect(unlock).toBeHidden();
+    const tab = page.getByRole("tab", { name: /bastion.*SSH/ });
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel")).toContainText("Last login");
   });
 
   test("apply the density of the preferences to the window", async ({ page }) => {
