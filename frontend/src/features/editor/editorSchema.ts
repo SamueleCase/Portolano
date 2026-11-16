@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { texts } from "../../i18n/it";
 import type { EditorValues } from "./editorValues";
-import { PRIVATE_KEY } from "./secretSlots";
+import { PRIVATE_KEY, propertySlot } from "./secretSlots";
 
 /**
  * The checks of form only (SPEC-UI §5.4): what can be said without the
@@ -36,6 +36,14 @@ export const editorSchema = z.custom<EditorValues>().superRefine((values, contex
   }
   if (values.properties.some((row) => row.saved !== null && row.name.trim() !== row.saved)) {
     issue("properties", t.renamedSecret);
+  }
+  // A new secret property gets its value from the password dialog.
+  if (
+    values.properties.some(
+      (row) => row.secret && row.saved === null && values.secrets[propertySlot(row)] !== "set",
+    )
+  ) {
+    issue("properties", t.secretValue);
   }
   if (connection && values.host.trim() === "") issue("host", t.host);
   if (connection && !isPort(values.port)) issue("port", t.port);

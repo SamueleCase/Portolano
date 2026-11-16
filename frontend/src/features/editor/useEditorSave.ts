@@ -6,6 +6,7 @@ import { useAddNode, useEditNode } from "../../ipc/mutations";
 import { useVaultUnlock } from "../dialogs/useVaultUnlock";
 import { editInput, newNodeInput } from "./editorRequest";
 import type { EditorValues } from "./editorValues";
+import type { SlotKey } from "./secretSlots";
 import { type RoutedError, routeError } from "./serverErrors";
 import type { StagedSecrets } from "./stagedSecrets";
 
@@ -29,6 +30,8 @@ export interface SaveRequest {
   base: EditorValues;
   /** The detail of the node being edited; `undefined` for a new one. */
   details: NodeDetailsView_Serialize | undefined;
+  /** Whether the saved node has a secret in a slot. */
+  stored: (key: SlotKey) => boolean;
 }
 
 /** Whether saving writes or removes secrets, and so needs the file vault open. */
@@ -58,7 +61,7 @@ export function useEditorSave(staged: StagedSecrets): {
   const vault = useVaultUnlock();
   const [saving, setSaving] = useState(false);
 
-  const send = async ({ values, base, details }: SaveRequest): Promise<SavedNode> => {
+  const send = async ({ values, base, details, stored }: SaveRequest): Promise<SavedNode> => {
     const secrets = staged.take();
     if (details === undefined) {
       const added = await addNode.mutateAsync(newNodeInput(values, secrets));
@@ -66,7 +69,7 @@ export function useEditorSave(staged: StagedSecrets): {
     }
     const edited = await editNode.mutateAsync({
       id: details.id,
-      edit: editInput(values, base, details.connection?.settings, secrets),
+      edit: editInput(values, base, details.connection?.settings, secrets, stored),
     });
     return { id: details.id, path: edited.path };
   };

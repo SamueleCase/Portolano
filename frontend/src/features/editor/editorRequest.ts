@@ -157,10 +157,17 @@ function credentialNodeChanges(
   values: EditorValues,
   base: EditorValues,
   staged: Staged,
+  stored: (key: SlotKey) => boolean,
 ): Partial<NodeEditInput_Deserialize> {
   const changed = (field: EditableField) => !same(values[field], base[field]);
   const keyFile = values.keyMode === "file" ? values.keyFile.trim() : "";
-  const passphrase = values.keyMode === "none" ? null : stagedChange(values, staged, PASSPHRASE);
+  // Without a key its passphrase has no use: a saved one goes too.
+  const passphrase =
+    values.keyMode === "none"
+      ? stored(PASSPHRASE)
+        ? ({ action: "clear" } as const)
+        : null
+      : stagedChange(values, staged, PASSPHRASE);
   return {
     ...(changed("username") ? { username: values.username.trim() } : {}),
     ...(changed("domain") ? { domain: values.domain.trim() } : {}),
@@ -181,6 +188,8 @@ export function editInput(
   /** The settings stored in the connection, kept where the editor does not write. */
   storedSettings: JsonObject | undefined,
   staged: Staged,
+  /** Whether the saved node has a secret in a slot. */
+  stored: (key: SlotKey) => boolean,
 ): NodeEditInput_Deserialize {
   const changed = (field: EditableField) => !same(values[field], base[field]);
   const edit: NodeEditInput_Deserialize = {
@@ -189,8 +198,9 @@ export function editInput(
     ...(changed("parent") ? { parent: { id: values.parent } } : {}),
     details: detailsChanges(values, base),
   };
-  if (values.kind === "credential")
-    return { ...edit, ...credentialNodeChanges(values, base, staged) };
+  if (values.kind === "credential") {
+    return { ...edit, ...credentialNodeChanges(values, base, staged, stored) };
+  }
   const secrets: StagedSecretsInput_Deserialize = {
     password: passwordChange(values, staged),
     properties: secretProperties(values, staged),

@@ -34,12 +34,25 @@ function renderEditor(request: EditorRequest) {
   const client = createQueryClient();
   const onSaved = vi.fn();
   const onClose = vi.fn();
-  render(
+  const editor = (shown: EditorRequest | null) => (
     <QueryClientProvider client={client}>
-      <NodeEditor request={request} onClose={onClose} onSaved={onSaved} />
-    </QueryClientProvider>,
+      <NodeEditor request={shown} onClose={onClose} onSaved={onSaved} />
+    </QueryClientProvider>
   );
-  return { client, onSaved, onClose };
+  const { rerender } = render(editor(request));
+  /** Closes the editor, as the host does: it is unmounted. */
+  const unmountEditor = () => rerender(editor(null));
+  return { client, onSaved, onClose, unmountEditor };
+}
+
+/** The sentinel is nowhere: page, values of the fields, cache of Query. */
+function expectNoSentinel(client: QueryClient) {
+  expect(document.body.innerHTML).not.toContain(SENTINEL);
+  const fields = [
+    ...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"),
+  ];
+  expect(fields.map((field) => field.value)).not.toContain(SENTINEL);
+  expect(cacheText(client)).not.toContain(SENTINEL);
 }
 
 /** Everything the cache of Query holds, as text. */
@@ -169,8 +182,7 @@ describe("NodeEditor", () => {
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
     expect(nodeNamed(state, "deploy").secrets["password"]).toBe(true);
-    expect(document.body.innerHTML).not.toContain(SENTINEL);
-    expect(cacheText(client)).not.toContain(SENTINEL);
+    expectNoSentinel(client);
   });
 
   it("drops the staged secrets when Salva fails, and says so", async () => {
@@ -185,12 +197,60 @@ describe("NodeEditor", () => {
     await save();
 
     expect(await screen.findByText(t.errors.secretsLost)).toBeInTheDocument();
-    expect(document.body.innerHTML).not.toContain(SENTINEL);
-    expect(cacheText(client)).not.toContain(SENTINEL);
+    expectNoSentinel(client);
     await type(t.general.name, "deploy-2");
     await save();
     await waitFor(() => expect(nodeNamed(state, "deploy-2")).toBeDefined());
     expect(nodeNamed(state, "deploy-2").secrets["password"]).toBeUndefined();
+  });
+
+  it("drops the staged secrets with Annulla, and keeps none once unmounted", async () => {
+    const state = unlocked();
+    const { client, onClose, unmountEditor } = renderEditor({
+      mode: "edit",
+      id: await idOf("deploy"),
+    });
+    await screen.findByLabelText(t.general.name);
+    await stagePassword(SENTINEL);
+
+    await userEvent.click(screen.getByRole("button", { name: t.cancel }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expectNoSentinel(client);
+    unmountEditor();
+
+    expectNoSentinel(client);
+    expect(nodeNamed(state, "deploy").secrets["password"]).toBeUndefined();
+  });
+
+  it("sends nothing when the vault is not unlocked at Salva", async () => {
+    const state = installFakeBackend();
+    const { client, onSaved } = renderEditor({ mode: "edit", id: await idOf("deploy") });
+    await screen.findByLabelText(t.general.name);
+    await stagePassword(SENTINEL);
+
+    await save();
+    await userEvent.click(
+      await screen.findByRole("button", { name: texts.dialogs.unlock.withoutSecrets }),
+    );
+
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(nodeNamed(state, "deploy").secrets["password"]).toBeUndefined();
+    // Still staged: nothing left the editor (DEC-040.4).
+    const row = screen.getByRole("group", { name: t.credential.password });
+    expect(within(row).getByText(texts.components.secretBadge.staged)).toBeInTheDocument();
+    expectNoSentinel(client);
+  });
+
+  it("refuses a new secret property without its value", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+
+    await userEvent.click(await screen.findByRole("button", { name: t.general.addSecretProperty }));
+    const table = screen.getByRole("table", { name: t.general.properties });
+    await userEvent.type(within(table).getByLabelText(texts.components.keyValue.name), "Token API");
+    await save();
+
+    expect(await screen.findByText(t.errors.secretValue)).toBeInTheDocument();
   });
 
   it("applies Cancella only on Salva", async () => {

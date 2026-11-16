@@ -130,7 +130,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
       setServerErrors({});
       setSecretsLost(false);
       setRefusedOption(undefined);
-      const result = await save({ values: valid, base, details });
+      const result = await save({ values: valid, base, details, stored: secrets.stored });
       if (result.status === "saved") {
         onSaved(result.node);
         return;

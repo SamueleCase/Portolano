@@ -121,6 +121,7 @@ export const editor = {
     renamedSecret:
       "Una proprietà segreta salvata non si rinomina: toglila e creane un'altra con il nuovo nome.",
     optionKey: "Scrivi il nome dell'opzione.",
+    secretValue: "Imposta il valore di ogni proprietà segreta nuova con «Sostituisci».",
     vaultKey: "Imposta la chiave privata o scegli un'altra modalità.",
     keyFile: "Scegli il file della chiave o scrivine il percorso.",
     secretsLost: "Le password impostate non sono state salvate: impostale di nuovo.",

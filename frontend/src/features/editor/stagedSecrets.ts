@@ -4,8 +4,10 @@ import type { SlotKey } from "./secretSlots";
  * The secrets typed in the editor and confirmed with "Imposta", until
  * "Salva" (SPEC-UI §1.2, DEC-038.2). A private container of the editor, never
  * React state, never rendered, never in the form, a store or Query: the form
- * holds only the mark "Da salvare". Every "Salva" takes all of it out, even
- * if the save then fails; "Annulla", closing and unmounting empty it.
+ * holds only the mark "Da salvare". Every "Salva" sent takes all of it out,
+ * even if the save then fails; "Annulla", closing and unmounting empty it. A
+ * "Salva" stopped before sending (the user does not unlock the vault) keeps
+ * it: no value left the editor (DEC-040.4).
  */
 export class StagedSecrets {
   private readonly values = new Map<SlotKey, string>();

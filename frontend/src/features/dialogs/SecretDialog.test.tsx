@@ -83,4 +83,26 @@ describe("SecretDialog", () => {
     expect(screen.queryByLabelText(t.confirm)).not.toBeInTheDocument();
     expect(onConfirm).toHaveBeenCalledExactlyOnceWith("riga 1\nriga 2");
   });
+
+  it("lets nothing be copied out of the private key", async () => {
+    renderDialog({ kind: "privateKey" });
+    const area = screen.getByLabelText(t.fields.privateKey);
+    await userEvent.type(area, "chiave");
+
+    const copy = new Event("copy", { bubbles: true, cancelable: true });
+    area.dispatchEvent(copy);
+
+    expect(copy.defaultPrevented).toBe(true);
+  });
+
+  it("puts new fields in place of those whose value was sent", async () => {
+    renderDialog();
+    const first = screen.getByLabelText(t.fields.password);
+    await userEvent.type(first, "uno");
+    await userEvent.type(screen.getByLabelText(t.confirm), "uno");
+
+    await userEvent.click(screen.getByRole("button", { name: t.stage }));
+
+    expect(screen.getByLabelText(t.fields.password)).not.toBe(first);
+  });
 });

@@ -74,6 +74,8 @@ function OpenSecretDialog({
   const confirmation = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<Problem>();
   const [matching, setMatching] = useState(false);
+  // Each value sent gets new fields: the undo of the old ones would give it back.
+  const [generation, setGeneration] = useState(0);
   const isKey = slot.kind === "privateKey";
 
   const compare = () => {
@@ -99,6 +101,7 @@ function OpenSecretDialog({
     field.value = "";
     if (confirmation.current) confirmation.current.value = "";
     setMatching(false);
+    setGeneration((current) => current + 1);
     onConfirm(typed);
   };
 
@@ -138,19 +141,27 @@ function OpenSecretDialog({
     >
       {isKey ? (
         <TextArea
+          key={generation}
           ref={value}
           label={label}
           mono
           rows={6}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
           spellCheck={false}
           className={styles.maskedKey}
           message={fieldMessage}
           onInput={compare}
+          // Dots on screen, and no way to copy the key out of the area, as
+          // a password field.
+          onCopy={(event) => event.preventDefault()}
+          onCut={(event) => event.preventDefault()}
         />
       ) : (
         <>
           <TextField
+            key={`value-${generation}`}
             ref={value}
             label={label}
             type="password"
@@ -159,6 +170,7 @@ function OpenSecretDialog({
             onInput={compare}
           />
           <TextField
+            key={`confirmation-${generation}`}
             ref={confirmation}
             label={t.confirm}
             type="password"

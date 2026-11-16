@@ -7,6 +7,7 @@ import { routeError } from "./serverErrors";
 import { settingsOf } from "./settingsOf";
 
 const NO_SECRETS = new Map<string, string>();
+const NONE_STORED = () => false;
 
 function ssh(changes: Partial<EditorValues> = {}): EditorValues {
   return { ...blankValues("ssh", null), name: "web09", host: "web09.example.com", ...changes };
@@ -44,7 +45,7 @@ describe("editInput", () => {
   it("sends only the name when only the name changed", () => {
     const base = ssh();
 
-    const edit = editInput({ ...base, name: "web10" }, base, {}, NO_SECRETS);
+    const edit = editInput({ ...base, name: "web10" }, base, {}, NO_SECRETS, NONE_STORED);
 
     expect(edit).toMatchObject({ name: "web10", secrets: { password: null } });
     expect(edit).not.toHaveProperty("host");
@@ -55,7 +56,7 @@ describe("editInput", () => {
   it("puts the port back to the default of the protocol when it is emptied", () => {
     const base = ssh({ port: "2222" });
 
-    expect(editInput({ ...base, port: "" }, base, {}, NO_SECRETS)).toMatchObject({
+    expect(editInput({ ...base, port: "" }, base, {}, NO_SECRETS, NONE_STORED)).toMatchObject({
       defaultPort: true,
     });
   });
@@ -63,9 +64,36 @@ describe("editInput", () => {
   it("sends a staged removal as a change of Salva", () => {
     const base = ssh({ credential: { mode: "inline", username: "ops", domain: null } });
 
-    const edit = editInput({ ...base, secrets: { password: "clear" } }, base, {}, NO_SECRETS);
+    const edit = editInput(
+      { ...base, secrets: { password: "clear" } },
+      base,
+      {},
+      NO_SECRETS,
+      NONE_STORED,
+    );
 
     expect(edit.secrets?.password).toEqual({ action: "clear" });
+  });
+});
+
+describe("editInput of a credential", () => {
+  it("removes the saved passphrase with the key", () => {
+    const base: EditorValues = {
+      ...blankValues("credential", null),
+      name: "deploy",
+      keyMode: "file",
+      keyFile: "~/.ssh/id_ed25519",
+    };
+
+    const edit = editInput(
+      { ...base, keyMode: "none" },
+      base,
+      undefined,
+      NO_SECRETS,
+      (key) => key === "passphrase",
+    );
+
+    expect(edit).toMatchObject({ keyFile: "", secrets: { passphrase: { action: "clear" } } });
   });
 });
 
