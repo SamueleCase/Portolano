@@ -8,10 +8,10 @@ import { Dialog } from "./Dialog";
 import { HighlightedText } from "./HighlightedText";
 import { NodeTypeIcon } from "./icons/NodeTypeIcon";
 import styles from "./NodePicker.module.css";
-import { folderRows, nodeRows, type PickerNode, type PickerRow } from "./NodePickerRows";
+import { folderRows, nodeRows, type PickerNode, type PickerRow } from "./nodePickerRows";
 import { visibleText } from "./visibleText";
 
-export type { PickerNode } from "./NodePickerRows";
+export type { PickerNode } from "./nodePickerRows";
 
 interface CommonProps {
   open: boolean;
