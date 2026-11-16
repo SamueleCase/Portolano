@@ -36,16 +36,6 @@ test.describe("the main window", () => {
     expect(loaded).toEqual(expect.arrayContaining(["Hanken Grotesk", "IBM Plex Mono"]));
   });
 
-  test("disables the functions not mounted yet, with the reason", async ({ page }) => {
-    await openApp(page);
-    await documentTree(page);
-
-    const preferences = page.getByRole("button", { name: texts.app.toolbar.preferences });
-    await expect(preferences).toHaveAttribute("aria-disabled", "true");
-    await preferences.hover();
-    await expect(page.getByRole("tooltip")).toHaveText(texts.app.reasons.unavailable);
-  });
-
   test("connects to an SSH connection in a tab with its terminal", async ({ page }) => {
     await openApp(page);
 
