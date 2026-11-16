@@ -1,7 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/** The preview server of `vite.config.ts`. */
-const baseURL = "http://localhost:4173";
+/**
+ * The port of the preview server: 4173 of `vite.config.ts`, or another one
+ * from `PORTOLANO_E2E_PORT`, so that the suites of several worktrees can run
+ * at the same time.
+ */
+const port = process.env["PORTOLANO_E2E_PORT"] ?? "4173";
+const baseURL = `http://localhost:${port}`;
 
 /** The glass measurement (`npm run perf:glass`) runs alone, never in the suite. */
 const glassMeasurement = "glass-performance*.spec.ts";
@@ -28,7 +33,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "vite build --mode e2e --outDir dist-e2e && vite preview --outDir dist-e2e",
+    command: `vite build --mode e2e --outDir dist-e2e && vite preview --outDir dist-e2e --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,
   },
