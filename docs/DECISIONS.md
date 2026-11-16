@@ -611,6 +611,58 @@ mock in `docs/ui/NOTE.md`.
    e controllo ortografico spenti) per conservare gli a capo, con lo stesso staging.
 6. La riga del titolo della sezione in `i18n/gallery.ts` fa parte della registrazione nella galleria.
 
+### DEC-039 – Revisione della fase 1 di UI-WP6 (decise dal PM, 2026-11-16)
+1. **Conteggi per tipo del report d'import**: il frontend non ricopia `classify` dell'importer (SPEC-UI §2). Il report
+   di `portolano-import` porta, per ogni tipo sorgente, il tipo di nodo in cui viene mappato (o i conteggi per tipo di
+   nodo), e il conteggio degli elementi del cestino senza il contenitore `RoyalTrash`. Eccezione di proprietà per
+   UI-WP6 sul report di `portolano-import` (con i test della CLI che ne dipendono), sui bindings e sul finto.
+2. **Motivi del report neutri**: il motivo di una password non importata non cita un comando della CLI ("impostala
+   dal nodo"), perché lo stesso report compare nella CLI e nell'app; eccezione sul testo in
+   `portolano-import/src/royal/map/context.rs`.
+3. "Errore" sui conflitti: il suggerimento non promette l'elenco dei nodi in conflitto (che l'errore non porta).
+4. Percorsi del report e delle richieste mostrati con il separatore del glossario (" / ") da un unico helper di
+   presentazione.
+5. Le uscite dal perimetro del finto (`fakeBackendMisc.ts` che riesporta l'import, una riga di
+   `fakeBackend.test.ts`) sono approvate.
+
+### DEC-040 – Revisione della fase 1 di UI-WP5 (decise dal PM, 2026-11-16)
+1. **Submit dei dialoghi annidati**: il `<form>` di `Dialog` (UI-WP1) ferma la propagazione dell'evento `submit`, che
+   in React risale l'albero dei componenti anche attraverso i portal (un "Fatto" nel selettore di credenziale salvava
+   l'editor); l'editor accetta solo il proprio submit. Eccezione di proprietà su `components/Dialog.tsx` per UI-WP5.
+2. **Spostamento atomico nell'editor**: `edit_node` riceve anche la cartella di destinazione (facoltativa) e la
+   applica nello stesso salvataggio, con il controllo del nome finale nella destinazione finale; il frontend invia un
+   solo comando. Eccezione su `portolano-ops/src/nodes`, sui DTO d'ingresso dell'app e sui bindings.
+3. **Errori strutturati sulle impostazioni dei protocolli**: la validazione dei `settings` restituisce la chiave
+   dell'impostazione (e il nome dell'opzione ssh rifiutata) come dati, e `IpcErrorDetails::Invalid` porta un campo come
+   `settings.options` / `settings.jump_hosts` con l'opzione; il frontend non legge più il testo del messaggio.
+   Eccezione su `portolano-connectors` (validazione dei settings), `portolano-ops` (errore) e `portolano-app`
+   (`error.rs`), con i test della CLI che ne dipendono (testi invariati).
+4. Se l'utente annulla lo sblocco del vault al Salva, non parte nessun comando e i segreti restano in staging
+   (precisazione di DEC-038.2: il contenitore si svuota a ogni Salva **inviato**).
+5. Lo stub di `scrollIntoView` per jsdom va in `test/setup.ts` (eccezione); `e2e/editorPage.ts` è approvato.
+
+### DEC-041 – Revisione di UI-WP4 (decise dal PM, 2026-11-16)
+1. **Richieste annidate**: una funzione aperta dalla cornice può chiederne un'altra (es. l'editor o l'import che
+   chiedono lo sblocco del vault) senza chiudersi: le richieste del codice si impilano sopra quella corrente e quelle a
+   risposta (`requestUnlock(): Promise<boolean>`, `requestLogin`) si risolvono al chiamante; una richiesta diretta
+   dell'utente con un dialogo già aperto si rifiuta invece di sostituirlo. Le funzioni montate hanno accesso alle
+   azioni della finestra.
+2. **Vault bloccato**: un comando fallito con `vaultLocked` apre lo sblocco (se registrato) e, a sblocco riuscito,
+   ripete il comando; senza registrazione resta il toast.
+3. **"Ricrea"** del documento mancante (SPEC-UI §5.4) riscrive nel suo percorso il documento ancora aperto in memoria,
+   con un comando nuovo del backend (scrittura atomica sotto lock, come `save`), senza perdere contenuto né lasciare
+   segreti orfani. Eccezione di proprietà per UI-WP4 su `crates/portolano-app` (comando, permesso, bindings) e, se
+   serve, su `portolano-core::store`.
+4. **Nodo non supportato**: niente "Duplica" da nessun punto (inventario §5.3: resta solo "Elimina", più "Sposta in…").
+5. **Rotta della sessione e jump host**: il dettaglio del nodo porta dal backend le tappe dei jump (etichette), così il
+   frontend non legge la struttura dei `settings` ssh; eccezione sul DTO del dettaglio, sul finto e sui bindings.
+6. **Componenti di UI-WP1 toccati da UI-WP4** (eccezioni): `TreeRow` (si accorcia l'host prima del nome), `Toast`
+   (il conto alla rovescia di "Annulla" non si ferma oltre la scadenza del backend e quel toast non esce per il limite
+   di tre), `ContextMenu` (motivo delle voci disattivate), token nuovi in `design/tokens.ts` per le misure della
+   barra laterale e del dettaglio. `e2e/mainWindowPage.ts` per le funzioni di supporto comuni degli e2e.
+7. **Tab di sessione dopo un cambio di documento o l'eliminazione del nodo**: restano (i processi girano) con il
+   riepilogo della sessione come titolo. Se l'ultimo documento non si apre all'avvio si ripiega sul predefinito.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
