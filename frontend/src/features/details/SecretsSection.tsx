@@ -34,7 +34,8 @@ export function SecretsSection({ details, backend }: SecretsSectionProps) {
   const node = { id: details.id, path: details.path };
   // With the vault locked a secret can be set or cleared once it is unlocked:
   // the actions ask for it first when the unlock dialog is there (DEC-041.2).
-  const locked = details.vaultLocked && !actions.offers("unlockVault");
+  const locked =
+    details.vaultLocked && !actions.offers("unlockVault") && !actions.offers("createFileVault");
   const lockedReason = locked ? texts.components.secretBadge.locked : undefined;
   const setReason = actions.offers("password") ? lockedReason : texts.app.reasons.unavailable;
 

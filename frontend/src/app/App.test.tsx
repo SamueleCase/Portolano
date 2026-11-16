@@ -9,7 +9,7 @@ import { useSessionsStore } from "../features/sessions/store";
 import { texts } from "../i18n/it";
 import { createQueryClient } from "../ipc/queryClient";
 import type { OpenSessionRequest, SessionTransport } from "../ipc/sessions";
-import { requestUnlock, useRequests } from "../state/requests";
+import { requestVault, useRequests } from "../state/requests";
 import { useToasts } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
 import {
@@ -183,7 +183,7 @@ describe("the window", () => {
 
   it("keeps the editor mounted under the unlock it asks for", async () => {
     const Editor = () => (
-      <button type="button" onClick={() => void requestUnlock()}>
+      <button type="button" onClick={() => void requestVault()}>
         salva
       </button>
     );
@@ -237,6 +237,48 @@ describe("the window", () => {
     await userEvent.click(await screen.findByRole("button", { name: "sblocca" }));
 
     expect(await row("Admin ACME \\(copia\\)")).toBeInTheDocument();
+  });
+
+  it("creates the file vault, not unlocks it, when its file does not exist yet", async () => {
+    const Create = ({ onDone }: VaultDialogProps) => (
+      <button
+        type="button"
+        onClick={() =>
+          void commands.createFileVault(TEST_MASTER_PASSWORD).then(() => onDone(true))
+        }
+      >
+        crea vault
+      </button>
+    );
+    const Password = ({ field }: PasswordProps) => <p>password {field.kind}</p>;
+    const state = initialFakeState();
+    state.vault.exists = false;
+    renderApp(state, { password: Password, unlockVault: Unlock, createFileVault: Create });
+    await userEvent.click(await row("Admin ACME"));
+    const secrets = await screen.findByRole("region", { name: texts.details.secrets.heading });
+
+    await userEvent.click(within(secrets).getAllByRole("button", { name: /Imposta|Sostituisci/ })[0]!);
+    await userEvent.click(await screen.findByRole("button", { name: "crea vault" }));
+
+    expect(await screen.findByText("password password")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "sblocca" })).not.toBeInTheDocument();
+  });
+
+  it("answers «no» at once to a request of the code whose function is not mounted", async () => {
+    const answers: boolean[] = [];
+    const Editor = () => (
+      <button type="button" onClick={() => void requestVault().then((done) => answers.push(done))}>
+        salva
+      </button>
+    );
+    renderApp(initialFakeState(), { editor: Editor });
+    await userEvent.click(await row("Rete"));
+    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "salva" }));
+
+    await waitFor(() => expect(answers).toEqual([false]));
+    expect(useRequests.getState().stack.map((open) => open.request.kind)).toEqual(["editor"]);
   });
 
   describe("with a credential «ask at launch»", () => {

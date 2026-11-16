@@ -7,11 +7,10 @@ import { createSessionController } from "../features/sessions/controller";
 import { createOutputBus } from "../features/sessions/outputBus";
 import type { SessionServices } from "../features/sessions/sessionServices";
 import { useSessionsStore } from "../features/sessions/store";
-import { vaultStatusQuery } from "../ipc/queries";
 import type { SessionTransport } from "../ipc/sessions";
-import { requestUnlock } from "../state/requests";
 import { useWorkspace } from "../state/workspace";
 import { type Connections, createConnections } from "./connections";
+import { type CanReadyVault, vaultReady } from "./failures";
 
 /** The services the window shares: the sessions and the connections. */
 export interface WindowServices {
@@ -28,7 +27,7 @@ export interface WindowServices {
 export function createWindowServices(
   transport: SessionTransport,
   queryClient: QueryClient,
-  features: { hasLoginDialog: () => boolean; hasUnlockDialog: () => boolean },
+  features: { hasLoginDialog: () => boolean; canReadyVault: CanReadyVault },
 ): WindowServices {
   const output = createOutputBus();
   const controller = createSessionController({
@@ -45,10 +44,9 @@ export function createWindowServices(
       openLink: (url) => void openUrl(url).catch(() => undefined),
       onActivity: () => backgroundControl.noteSessionActivity(),
       // "Riprova" of a session: the vault first, if locked and it can be
-      // unlocked (DEC-041.2), then the login of "ask at launch".
+      // readied (DEC-041.2), then the login of "ask at launch".
       onRetry: async (session) => {
-        const vault = await queryClient.fetchQuery({ ...vaultStatusQuery, staleTime: 0 });
-        if (vault.locked && features.hasUnlockDialog() && !(await requestUnlock())) return null;
+        if (!(await vaultReady(queryClient, features.canReadyVault))) return null;
         return connections.askLogin(session.nodeId);
       },
       onReplaced: (previous, next) => useWorkspace.getState().tabReplaced(previous, next),

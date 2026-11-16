@@ -29,7 +29,7 @@ async function connectionsFor(scenario: FakeScenario) {
     queryClient,
     controller,
     hasLoginDialog: () => false,
-    hasUnlockDialog: () => false,
+    canReadyVault: () => false,
   });
   return { connections, bastion };
 }

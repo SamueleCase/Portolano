@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
-import type { LoginRequest, NodeRef, SecretSlotInput } from "../bindings";
+import { commands, type LoginRequest, type NodeRef, type SecretSlotInput } from "../bindings";
+import { unwrap } from "../ipc/result";
 import type { SessionLogin } from "../ipc/sessions";
 
 /** The kinds of node "+ Connessione", "+ Cartella" and "+ Credenziale" create. */
@@ -99,33 +100,29 @@ export function requestLogin(request: LoginRequest): Promise<SessionLogin | null
   });
 }
 
-/** The login dialog on top is done: `login` goes to its connection, `null` cancels it. */
-export function answerLogin(login: SessionLogin | null): void {
-  const top = topRequest();
-  if (top?.request.kind === "login") settle(top.id, login);
+/**
+ * Request `id` is answered by its dialog: a login (or `null`), or whether the
+ * vault is now open. Its caller gets the answer and the request closes; a
+ * request already closed is left alone.
+ */
+export function answerRequest(id: number, answer: SessionLogin | boolean | null): void {
+  if (useRequests.getState().stack.some((open) => open.id === id)) settle(id, answer);
 }
 
 /**
- * Asks to unlock the file vault with the dialog of the hook point
- * `unlockVault`, on top of what is open (DEC-041.1); resolves to whether it
- * was unlocked.
+ * Asks for the file vault to be ready, on top of what is open (DEC-041.1):
+ * nothing if it is open already, the creation (hook point `createFileVault`)
+ * if its file does not exist yet, else the unlock (`unlockVault`). Resolves
+ * to whether the vault is now open; `false` also when the dialog it needs is
+ * not mounted.
  */
-export function requestUnlock(): Promise<boolean> {
-  const id = push({ kind: "unlockVault" });
+export async function requestVault(): Promise<boolean> {
+  const vault = unwrap(await commands.vaultStatus());
+  if (!vault.locked) return true;
+  const id = push({ kind: vault.exists ? "unlockVault" : "createFileVault" });
   return new Promise((resolve) => {
     waiting.set(id, (answer) => resolve(answer === true));
   });
-}
-
-/**
- * The vault dialog on top (unlock or creation) is done: `done` tells whether
- * the vault is now open.
- */
-export function answerVault(done: boolean): void {
-  const top = topRequest();
-  if (top?.request.kind === "unlockVault" || top?.request.kind === "createFileVault") {
-    settle(top.id, done);
-  }
 }
 
 /** Closes every request: the document changed under them. */

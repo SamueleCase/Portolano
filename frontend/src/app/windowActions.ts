@@ -31,10 +31,10 @@ import {
 } from "../ipc/mutations";
 import { treeQuery, uiPreferencesQuery, vaultStatusQuery } from "../ipc/queries";
 import { unwrap } from "../ipc/result";
-import { type HostRequest, type NewNodeKind, openRequest, requestUnlock } from "../state/requests";
+import { type HostRequest, type NewNodeKind, openRequest } from "../state/requests";
 import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
-import { runReported } from "./failures";
+import { reportFailure, runReported, vaultReady } from "./failures";
 import { type Feature, useFeatures } from "./features";
 import { useWindowServices } from "./windowServices";
 
@@ -111,7 +111,7 @@ export function useWindowActionsValue(): WindowActions {
   const actions = useMemo(() => {
     const offers = (feature: Feature) => features[feature] !== undefined;
     const attempt = (command: () => Promise<unknown>) =>
-      void runReported(command, queryClient, () => offers("unlockVault"));
+      void runReported(command, queryClient, offers);
     const tree = (): TreeIndex | undefined => {
       const view = queryClient.getQueryData(treeQuery.queryKey);
       return view === undefined ? undefined : indexTree(view);
@@ -190,9 +190,15 @@ export function useWindowActionsValue(): WindowActions {
         }
         void (async () => {
           const vault = await queryClient.fetchQuery({ ...vaultStatusQuery, staleTime: 0 });
-          if (vault.locked && !(offers("unlockVault") && (await requestUnlock()))) return;
-          openRequest({ kind: "password", node, field });
-        })();
+          if (vault.locked && !offers(vault.exists ? "unlockVault" : "createFileVault")) {
+            // Without the dialog the secret could not be written: say why.
+            showToast({ kind: "info", text: texts.app.reasons.vaultLocked });
+            return;
+          }
+          if (await vaultReady(queryClient, offers)) {
+            openRequest({ kind: "password", node, field });
+          }
+        })().catch((failure: unknown) => reportFailure(failure, queryClient));
       },
       clearSecret: (id, slot) =>
         attempt(async () => {

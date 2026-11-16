@@ -25,11 +25,13 @@
  * ## The requests of the code (`state/requests.ts`)
  * A function already open asks for another one on top of itself, and stays
  * mounted below with its state (a stack):
- * - `requestUnlock() → Promise<boolean>`: the unlock dialog; resolves to
- *   whether the vault is now open (the editor before saving secrets, the
- *   import before writing them). The window does the same when a command
- *   fails with `vaultLocked`, and repeats the command once unlocked
- *   (DEC-041.2);
+ * - `requestVault() → Promise<boolean>`: the file vault ready for secrets
+ *   (the editor before saving them, the import before writing them): nothing
+ *   if it is open, the creation (`createFileVault`) if its file does not
+ *   exist yet, else the unlock (`unlockVault`); resolves to whether it is now
+ *   open, `false` also when that dialog is not mounted. The window does the
+ *   same when a command fails with `vaultLocked`, and repeats the command
+ *   once the vault is open (DEC-041.2);
  * - `requestLogin(request) → Promise<SessionLogin | null>`: the login of a
  *   credential "ask at launch" (DEC-016.3), before a connection and before
  *   "Riprova" (DEC-033.8); the login goes from `onDone` to the caller and is
@@ -41,7 +43,9 @@
  * the integration lines of UI-WP5 and UI-WP6). `FeatureHost` mounts the
  * component of every open request, the last on top, inside the providers of
  * the window (queries, sessions, actions). A component closes with `onClose`;
- * those that answer (login, vault) with `onDone`, which also closes them. A
+ * those that answer (login, vault) with `onDone`, which also closes them and
+ * answers their own request even when another is on top. A request whose
+ * function is not mounted closes at once with "no" (`null`, `false`). A
  * request without a registration is not offered: its buttons and menu
  * entries are disabled with the reason, and a request that still arrives (a
  * native menu) is answered with that reason in a toast.

@@ -39,7 +39,7 @@ export function App({
   const [services] = useState(() =>
     createWindowServices(transport, queryClient, {
       hasLoginDialog: () => features.login !== undefined,
-      hasUnlockDialog: () => features.unlockVault !== undefined,
+      canReadyVault: (dialog) => features[dialog] !== undefined,
     }),
   );
   return (

@@ -17,6 +17,7 @@ export const app = {
   reasons: {
     unavailable: "Non ancora disponibile in questa versione",
     notConnection: "Seleziona una connessione",
+    vaultLocked: "Il vault è bloccato: sbloccalo per impostare un segreto",
   },
   shortcuts: {
     connect: "⌘↩",

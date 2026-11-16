@@ -10,7 +10,7 @@ import type { SessionLogin } from "../ipc/sessions";
 import { requestLogin } from "../state/requests";
 import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
-import { runReported } from "./failures";
+import { type CanReadyVault, reportFailure, runReported, vaultReady } from "./failures";
 
 /** The size a terminal starts with; it fits its tab as soon as it shows. */
 export const INITIAL_TERMINAL_SIZE = { cols: 80, rows: 24 };
@@ -24,8 +24,8 @@ export interface ConnectionsDeps {
   controller: SessionController;
   /** Whether the login dialog is mounted (hook point `login`). */
   hasLoginDialog: () => boolean;
-  /** Whether the unlock dialog is mounted (hook point `unlockVault`). */
-  hasUnlockDialog: () => boolean;
+  /** Whether the dialog that readies the vault is mounted (unlock or creation). */
+  canReadyVault: CanReadyVault;
 }
 
 /** Opening sessions from the tree, the toolbar, the detail and the menus. */
@@ -49,7 +49,7 @@ export function createConnections({
   queryClient,
   controller,
   hasLoginDialog,
-  hasUnlockDialog,
+  canReadyVault,
 }: ConnectionsDeps): Connections {
   // A double click or a repeated shortcut must not open two sessions.
   const opening = new Set<string>();
@@ -73,30 +73,39 @@ export function createConnections({
     return login === null ? null : { login };
   };
 
-  const reopen = async (session: Session) => {
-    const again = await askLogin(session.nodeId);
-    if (again === null) return;
-    await controller.retry(session.id, {
-      size: INITIAL_TERMINAL_SIZE,
-      login: again.login,
-      onReplaced: (next) => {
-        const workspace = useWorkspace.getState();
-        workspace.tabReplaced(session.id, next);
-        workspace.showTab(next);
-      },
-    });
-  };
-
-  const open = async (nodeId: string) => {
+  /** Opens `nodeId` in a new tab, or in the place of `session` ("Riprova"). */
+  const start = async (nodeId: string, session: Session | undefined) => {
+    // The vault first, then the login: a command repeated after the unlock
+    // does not ask the login again.
+    if (!(await vaultReady(queryClient, canReadyVault))) return;
     const again = await askLogin(nodeId);
     if (again === null) return;
-    const id = await controller.open({
-      nodeId,
-      size: INITIAL_TERMINAL_SIZE,
-      ...(again.login !== undefined && { login: again.login }),
-    });
-    remember(id, nodeId);
-    useWorkspace.getState().showTab(id);
+    const login = again.login;
+    await runReported(
+      async () => {
+        if (session === undefined) {
+          const id = await controller.open({
+            nodeId,
+            size: INITIAL_TERMINAL_SIZE,
+            ...(login !== undefined && { login }),
+          });
+          remember(id, nodeId);
+          useWorkspace.getState().showTab(id);
+          return;
+        }
+        await controller.retry(session.id, {
+          size: INITIAL_TERMINAL_SIZE,
+          login,
+          onReplaced: (next) => {
+            const workspace = useWorkspace.getState();
+            workspace.tabReplaced(session.id, next);
+            workspace.showTab(next);
+          },
+        });
+      },
+      queryClient,
+      canReadyVault,
+    );
   };
 
   return {
@@ -112,11 +121,10 @@ export function createConnections({
       }
       opening.add(nodeId);
       try {
-        await runReported(
-          () => (existing === undefined ? open(nodeId) : reopen(existing)),
-          queryClient,
-          hasUnlockDialog,
-        );
+        await start(nodeId, existing);
+      } catch (failure) {
+        // The vault or the login could not be asked (the backend did not answer).
+        reportFailure(failure, queryClient);
       } finally {
         opening.delete(nodeId);
       }

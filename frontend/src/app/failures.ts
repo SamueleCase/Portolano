@@ -5,8 +5,8 @@ import { interpolate } from "../i18n/format";
 import { texts } from "../i18n/it";
 import { presentFailure, type PresentedError } from "../ipc/errors";
 import { queryKeys } from "../ipc/keys";
-import { appStatusQuery } from "../ipc/queries";
-import { requestUnlock } from "../state/requests";
+import { appStatusQuery, vaultStatusQuery } from "../ipc/queries";
+import { requestVault } from "../state/requests";
 import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
 
@@ -56,21 +56,45 @@ export function isVaultLocked(failure: unknown): boolean {
 }
 
 /**
- * Runs `command`; if it fails because the vault is locked and the unlock
- * dialog is mounted (`canUnlock`), asks to unlock it and, once unlocked, runs
- * the command again (DEC-041.2). Any other failure, or a second one, goes to
- * `reportFailure`.
+ * Whether the dialog that readies the vault is mounted: the creation when its
+ * file does not exist yet, else the unlock.
+ */
+export type CanReadyVault = (dialog: "unlockVault" | "createFileVault") => boolean;
+
+/**
+ * Makes sure the file vault is open before a command that needs it: with the
+ * vault locked and the dialog it needs mounted, asks for it (`requestVault`).
+ * Resolves to whether to go on: `false` only when the user gave up. Without
+ * the dialog the command goes on, and says itself that the vault is locked.
+ */
+export async function vaultReady(queryClient: QueryClient, canAsk: CanReadyVault): Promise<boolean> {
+  const vault = await queryClient.fetchQuery({ ...vaultStatusQuery, staleTime: 0 });
+  if (!vault.locked || !canAsk(vault.exists ? "unlockVault" : "createFileVault")) return true;
+  return requestVault();
+}
+
+/**
+ * Runs `command`; if it fails because the vault is locked and the dialog
+ * that readies it is mounted, asks for it and, once the vault is open, runs
+ * the command once more (DEC-041.2). Any other failure, a second one, or a
+ * vault left locked goes to `reportFailure`.
  */
 export async function runReported(
   command: () => Promise<unknown>,
   queryClient: QueryClient,
-  canUnlock: () => boolean,
+  canAsk: CanReadyVault,
 ): Promise<void> {
   try {
     await command();
   } catch (failure) {
-    if (isVaultLocked(failure) && canUnlock() && (await requestUnlock())) {
-      return runReported(command, queryClient, () => false);
+    if (isVaultLocked(failure)) {
+      const vault = await queryClient
+        .fetchQuery({ ...vaultStatusQuery, staleTime: 0 })
+        .catch(() => undefined);
+      const dialog = vault?.exists === false ? "createFileVault" : "unlockVault";
+      if (vault?.locked && canAsk(dialog) && (await requestVault())) {
+        return runReported(command, queryClient, () => false);
+      }
     }
     reportFailure(failure, queryClient);
   }
