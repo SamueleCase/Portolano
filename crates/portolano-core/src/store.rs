@@ -160,6 +160,36 @@ impl Store {
         .map_err(|error| self.missing_if_not_found(error))
     }
 
+    /// Writes `doc` where this store's file was, after the file was moved or
+    /// deleted (SPEC-UI §5.4 "Ricrea"): the directory is created again if it
+    /// is gone, and the write is atomic under the exclusive lock, as in
+    /// [`Store::save`]. There is no previous content to keep in `<file>.bak`.
+    /// `doc.modified` is updated and the store remembers the new bytes.
+    ///
+    /// # Errors
+    /// [`Error::AlreadyExists`](crate::Error::AlreadyExists) if a file is at
+    /// the path again (someone else recreated it: load it instead),
+    /// [`Error::Serialize`](crate::Error::Serialize),
+    /// [`Error::Io`](crate::Error::Io).
+    pub fn recreate(&self, doc: &mut Document) -> Result<()> {
+        let dir = parent_dir(&self.path);
+        fs::create_dir_all(dir).map_err(io_error(dir))?;
+        with_lock(&self.path, Access::Exclusive, || {
+            let mut known = self.fingerprint();
+            // Checked under the lock: a file written meanwhile is never replaced.
+            if self.path.try_exists().map_err(io_error(&self.path))? {
+                return Err(Error::AlreadyExists {
+                    path: self.path.clone(),
+                });
+            }
+            doc.modified = Utc::now();
+            let bytes = to_json(doc)?;
+            write_atomically(&self.path, &bytes)?;
+            *known = fingerprint_of(&bytes);
+            Ok(())
+        })
+    }
+
     /// Whether the file now differs from the bytes this store last read or
     /// wrote, that is whether [`Store::save`] would refuse with
     /// [`Error::ModifiedExternally`](crate::Error::ModifiedExternally). A

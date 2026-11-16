@@ -7,10 +7,38 @@ import {
   findNode,
   isLocked,
   pathOf,
+  walk,
 } from "./fakeBackendModel";
 import { DEFAULT_PORTS, iconView, specView, summaryOf, traceOf, usageOf } from "./fakeBackendViews";
 
 /** The detail of a node, as `node_details`: without secrets, with their states. */
+
+/** The host of an address `[user@]host[:port]`, as `address_host` of the app. */
+function addressHost(address: string): string {
+  const host = address.slice(address.lastIndexOf("@") + 1);
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    return end === -1 ? host.slice(1) : host.slice(1, end);
+  }
+  const colon = host.indexOf(":");
+  return colon === -1 ? host : host.slice(0, colon);
+}
+
+/** The hosts of the jump hosts of a connection, as `jump_hosts` of the app. */
+function jumpHosts(doc: FakeDocument, node: FakeNode): (string | null)[] {
+  const jumps = node.settings["jump_hosts"];
+  if (!Array.isArray(jumps)) return [];
+  return jumps.map((jump) => {
+    if (jump === null || typeof jump !== "object" || Array.isArray(jump)) return null;
+    const ref = jump["$ref"];
+    if (typeof ref === "string") {
+      const target = [...walk(doc.nodes)].find((entry) => entry.node.id === ref)?.node;
+      return target ? (target.host ?? target.name) : null;
+    }
+    const address = jump["address"];
+    return typeof address === "string" ? addressHost(address) : null;
+  });
+}
 
 export function slotOf(key: SlotKey): SecretSlot {
   switch (key) {
@@ -68,6 +96,7 @@ export function detailsView(
             port: node.port,
             defaultPort: DEFAULT_PORTS[node.protocol ?? ""] ?? null,
             settings: structuredClone(node.settings),
+            jumps: jumpHosts(doc, node),
           }
         : null,
     credentialSpec:

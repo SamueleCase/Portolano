@@ -40,6 +40,27 @@ fn folder_created_with_a_credential_passes_it_to_its_children() {
 }
 
 #[test]
+fn detail_of_a_connection_lists_the_hosts_of_its_jumps_in_order() {
+    let app = TestApp::with_document();
+    let bastion = app.add(ssh("bastion", None));
+    let mut web01 = ssh("web01", None);
+    web01["kind"]["settings"] = json!({
+        "jump_hosts": [{ "$ref": bastion }, { "address": "deploy@[2001:db8::1]:2222" }],
+    });
+    let web01 = app.add(web01);
+
+    let connection = details(&app.state, web01).unwrap().connection.unwrap();
+
+    assert_eq!(
+        connection.jumps,
+        vec![
+            Some("bastion.example.com".to_owned()),
+            Some("2001:db8::1".to_owned())
+        ]
+    );
+}
+
+#[test]
 fn name_taken_is_reported_on_the_name_field() {
     let app = TestApp::with_document();
     app.add(ssh("web01", None));

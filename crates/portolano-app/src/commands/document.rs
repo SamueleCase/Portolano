@@ -127,6 +127,28 @@ pub async fn reload_document<R: Runtime>(app: AppHandle<R>) -> Result<DocumentIn
     .await
 }
 
+/// Writes the open document again where its file was, after the file was
+/// moved or deleted ("Ricrea", SPEC-UI §5.4): the content in memory, nothing
+/// lost, and the file is watched again.
+#[tauri::command]
+#[specta::specta]
+pub async fn recreate_document<R: Runtime>(app: AppHandle<R>) -> Result<DocumentInfo, IpcError> {
+    blocking(app, |app, state| {
+        let info = recreate(state)?;
+        if let Some(path) = state.document_path() {
+            after_open(app, state, &path);
+        }
+        emit(
+            app,
+            DocumentChanged {
+                file_name: info.file_name.clone(),
+            },
+        );
+        Ok(info)
+    })
+    .await
+}
+
 /// Closes the open document; the deletions that could still be undone are
 /// finished.
 #[tauri::command]
@@ -208,6 +230,14 @@ fn replace(state: &AppState, open: OpenDocument) -> Result<DocumentInfo, IpcErro
 pub(crate) fn reload(state: &AppState) -> Result<DocumentInfo, IpcError> {
     state.with_document(|open| {
         open.reload().map_err(portolano_ops::OpsError::from)?;
+        Ok(DocumentInfo::new(&open.document().name, open.path()))
+    })
+}
+
+/// Writes the open document where its missing file was.
+pub(crate) fn recreate(state: &AppState) -> Result<DocumentInfo, IpcError> {
+    state.with_document(|open| {
+        open.recreate().map_err(portolano_ops::OpsError::from)?;
         Ok(DocumentInfo::new(&open.document().name, open.path()))
     })
 }

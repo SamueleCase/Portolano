@@ -151,3 +151,30 @@ fn recent_documents_say_whether_they_still_exist() {
     assert_eq!(recents.len(), 1);
     assert!(!recents[0].exists);
 }
+
+#[test]
+fn recreate_writes_the_open_document_where_its_file_was() {
+    let app = TestApp::new();
+    app.create_default();
+    fs::remove_file(app.document_path()).unwrap();
+
+    let info = recreate(&app.state).unwrap();
+
+    assert_eq!(info.name, "Test");
+    let on_disk = portolano_core::Store::open(app.document_path())
+        .unwrap()
+        .load()
+        .unwrap();
+    assert_eq!(on_disk.name, "Test");
+}
+
+#[test]
+fn recreate_refuses_a_file_that_is_back() {
+    let app = TestApp::new();
+    app.create_default();
+
+    let error = recreate(&app.state).unwrap_err();
+
+    assert_ne!(error.code, ErrorCode::Internal);
+    assert!(app.document_path().is_file());
+}

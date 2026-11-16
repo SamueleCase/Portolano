@@ -12,6 +12,7 @@ const COMMANDS: &[&str] = &[
     "create_document",
     "recent_documents",
     "reload_document",
+    "recreate_document",
     "close_document",
     "tree",
     "node_details",

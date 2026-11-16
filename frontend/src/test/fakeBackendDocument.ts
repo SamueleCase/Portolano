@@ -100,6 +100,20 @@ export function reloadDocument(state: FakeBackendState): DocumentInfo {
   return info(openDocument(state));
 }
 
+/**
+ * Writes the open document back where its file was (`recreate_document`):
+ * refused if another document is at the path now.
+ */
+export function recreateDocument(state: FakeBackendState): DocumentInfo {
+  const doc = openDocument(state);
+  const there = state.files[doc.path];
+  if (there !== undefined && there !== doc) {
+    fail("invalid", `il file '${doc.path}' esiste già`);
+  }
+  state.files[doc.path] = doc;
+  return info(doc);
+}
+
 export function closeDocument(state: FakeBackendState): null {
   state.pendingDeletes = {};
   state.document = null;

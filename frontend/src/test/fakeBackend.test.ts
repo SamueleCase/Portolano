@@ -163,6 +163,27 @@ describe("fake backend", () => {
   });
 });
 
+describe("fake backend for the main window", () => {
+  it("writes the open document back where its missing file was", async () => {
+    const state = initialFakeState();
+    const path = state.document?.path ?? "";
+    delete state.files[path];
+    installFakeBackend(state);
+
+    ok(await commands.recreateDocument());
+
+    expect(state.files[path]).toBe(state.document);
+  });
+
+  it("gives the hosts of the jump hosts of a connection", async () => {
+    installFakeBackend();
+
+    const detail = ok(await commands.nodeDetails(await idOf("web01")));
+
+    expect(detail.connection?.jumps).toEqual(["bastion.example.com"]);
+  });
+});
+
 describe("fake backend seeded by an end-to-end test", () => {
   afterEach(() => {
     delete window.__portolanoFakeSeed;
@@ -193,6 +214,27 @@ describe("fake backend seeded by an end-to-end test", () => {
     installFakeBackend();
 
     expect(ok(await commands.vaultStatus()).locked).toBe(false);
+  });
+
+  it("adds a connection whose credential does not resolve when the seed asks", async () => {
+    window.__portolanoFakeSeed = { unresolvedCredential: true };
+    installFakeBackend();
+
+    const detail = ok(await commands.nodeDetails(await idOf("web03")));
+
+    expect(detail.effective?.kind).toBe("unresolved");
+  });
+
+  it("leaves unanswered the commands the seed names", async () => {
+    window.__portolanoFakeSeed = { unanswered: ["tree"] };
+    installFakeBackend();
+
+    const answer = await Promise.race([
+      commands.tree().then(() => "answered"),
+      new Promise((resolve) => setTimeout(() => resolve("waiting"), 20)),
+    ]);
+
+    expect(answer).toBe("waiting");
   });
 
   it("starts from the sample document without a seed", async () => {

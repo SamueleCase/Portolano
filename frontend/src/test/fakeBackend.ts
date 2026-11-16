@@ -9,6 +9,7 @@ import { duplicateNode } from "./fakeBackendDuplicate";
 import { editNode } from "./fakeBackendEdit";
 import * as misc from "./fakeBackendMisc";
 import {
+  blankNode,
   type FakeBackendState,
   FakeFailure,
   fileName,
@@ -75,6 +76,13 @@ export interface FakeSeed {
   dialogs?: Partial<Omit<FakeBackendState["dialogs"], "configFiles">>;
   /** Whether the file vault starts locked; default: locked. */
   vaultLocked?: boolean;
+  /**
+   * Adds to the sample, in `ACME`, the connection `web03` whose credential is
+   * looked up by a name no credential has: a credential that does not resolve.
+   */
+  unresolvedCredential?: boolean;
+  /** Commands that never answer, to show what the window draws while it waits. */
+  unanswered?: string[];
 }
 
 declare global {
@@ -93,6 +101,16 @@ export function seededFakeState(seed: FakeSeed): FakeBackendState {
   state.dialogs = { ...state.dialogs, ...seed.dialogs };
   if (seed.vaultLocked !== undefined) {
     state.vault.locked = seed.vaultLocked;
+  }
+  const acme = state.document?.nodes[0]?.children.find((node) => node.name === "ACME");
+  if (seed.unresolvedCredential && acme) {
+    acme.children.push(
+      Object.assign(blankNode(state, "connection", "web03"), {
+        protocol: "ssh",
+        host: "web03.example.com",
+        credential: { mode: "byName", name: "Credenziale assente" },
+      }),
+    );
   }
   return state;
 }
@@ -141,6 +159,8 @@ function answer(state: FakeBackendState, command: string, args: InvokeArgs | und
       return documents.recentDocuments(state);
     case "reload_document":
       return documents.reloadDocument(state);
+    case "recreate_document":
+      return documents.recreateDocument(state);
     case "close_document":
       return documents.closeDocument(state);
     case "tree":
@@ -248,6 +268,7 @@ const SAVING = new Set([
   "clear_secret",
   "import_apply",
   "reload_document",
+  "recreate_document",
 ]);
 
 /** The events the backend sends after `command` succeeded. */
@@ -274,8 +295,13 @@ function eventsAfter(state: FakeBackendState, command: string): void {
  * Without a state, an end-to-end test starts from its seed (`FakeSeed`).
  */
 export function installFakeBackend(state: FakeBackendState = defaultFakeState()): FakeBackendState {
+  // Read apart from the state: it is how the fake answers, not what it holds.
+  const unanswered = new Set(
+    typeof window === "undefined" ? [] : (window.__portolanoFakeSeed?.unanswered ?? []),
+  );
   mockIPC(
     (command, args) => {
+      if (unanswered.has(command)) return new Promise(() => undefined);
       try {
         deletes.expireDeletions(state);
         const result = answer(state, command, args);
