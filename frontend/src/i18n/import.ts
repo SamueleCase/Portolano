@@ -54,6 +54,8 @@ export const importWizard = {
     updated: { one: "{n} aggiornato", other: "{n} aggiornati" },
     vaultLocked:
       "Il vault è bloccato: con «Avanti» ti chiediamo di aprirlo per salvare le password, oppure spegni «Chiedi le password».",
+    vaultUnavailable:
+      "Lo sblocco del vault non è ancora disponibile in questa versione: spegni «Chiedi le password» per importare senza.",
     failed: "L'importazione non è riuscita: {message}",
     passwordsDropped:
       "Le password inserite non sono state salvate: inseriscile di nuovo al passo successivo.",

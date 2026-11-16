@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
+import { useFeatures } from "../../app/features";
 import type { ChosenFile, ImportPreviewView_Serialize, ImportResult } from "../../bindings";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
@@ -58,6 +59,10 @@ export function useImportWizard() {
   /** A failed import dropped the passwords typed for it (DEC-037.4): they go again. */
   const [passwordsDropped, setPasswordsDropped] = useState(false);
   const applying = useRef(false);
+  const readying = useRef(false);
+  /** The window is asked for the vault (`requestVault`): "Avanti" waits for it. */
+  const [readyingVault, setReadyingVault] = useState(false);
+  const features = useFeatures();
   const answers = useImportAnswers();
   const { options } = texts.importWizard;
   const dryRun = useWizardPreview();
@@ -145,9 +150,25 @@ export function useImportWizard() {
    * passwords start once it is open, never before.
    */
   const readyVaultThenStart = async () => {
-    if (await requestVault()) {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vault });
-      startPasswords();
+    // One request at a time: a second "Avanti" while the vault is asked does nothing.
+    if (readying.current) return;
+    readying.current = true;
+    setReadyingVault(true);
+    setError(null);
+    try {
+      const dialog = vault.data?.exists === false ? "createFileVault" : "unlockVault";
+      if (features[dialog] === undefined) {
+        // Without its dialog the request would answer "no" in silence.
+        setError(options.vaultUnavailable);
+      } else if (await requestVault()) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.vault });
+        startPasswords();
+      }
+    } catch (failure) {
+      setError(presentFailure(failure).message);
+    } finally {
+      readying.current = false;
+      setReadyingVault(false);
     }
   };
 
@@ -198,6 +219,7 @@ export function useImportWizard() {
     previewing: dryRun.previewing,
     choosing: choose.isPending,
     applying: apply.isPending,
+    readyingVault,
     chooseFile,
     changeSettings,
     next,

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 
+import type { ImportProps } from "../../app/features";
 import { Dialog } from "../../components/Dialog";
 import { Stepper } from "../../components/Stepper";
 import { texts } from "../../i18n/it";
@@ -14,24 +15,15 @@ import { useReportActions } from "./useReportActions";
 import { ReportActions, WizardFooter } from "./WizardActions";
 import { wizardSteps } from "./wizardSteps";
 
-/** The props of the import wizard, its hook point `import` (`app/features.ts`). */
-export interface ImportWizardProps {
-  /** Esc, "Annulla", "Vai all'albero": the window closes the wizard. */
-  onClose: () => void;
-  /**
-   * A row of the report or "Vai all'albero": the window selects the node.
-   * The wizard stays open, except after "Vai all'albero".
-   */
-  onGoToNode: (id: string) => void;
-}
-
 /**
  * The import wizard of Royal TSX documents (inventario §5.13), four steps in
- * a dialog, mounted while its request is open: closed, it keeps nothing, and
- * the next opening starts from the file. With the file vault locked it asks
- * the window for it (`requestVault`) before the passwords.
+ * a dialog, at the hook point `import`: mounted while its request is open, so
+ * that closed it keeps nothing and the next opening starts from the file.
+ * After a row of the report the wizard stays open; "Vai all'albero" closes it.
+ * With the file vault locked it asks the window for it (`requestVault`)
+ * before the passwords.
  */
-export function ImportWizard({ onClose, onGoToNode }: ImportWizardProps) {
+export function ImportWizard({ onClose, onGoToNode }: ImportProps) {
   const wizard = useImportWizard();
   const report = useReportActions(wizard.outcome?.result ?? null, onGoToNode);
   const destination = useDestination(wizard.settings.into, (into) =>
@@ -67,7 +59,7 @@ export function ImportWizard({ onClose, onGoToNode }: ImportWizardProps) {
     ) : step === "options" ? (
       <WizardFooter
         step="options"
-        applying={wizard.applying}
+        applying={wizard.applying || wizard.readyingVault}
         canGoOn={canLeaveOptions}
         onBack={wizard.back}
       />

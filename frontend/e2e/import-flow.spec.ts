@@ -164,9 +164,11 @@ test.describe("the import wizard in the main window", () => {
     await shoot(page, "window-2-vault-locked");
     await wizard.getByRole("button", { name: actions.next }).click();
 
-    // The unlock dialog is of UI-WP5: until it is mounted the request answers
-    // "no" and the wizard stays on the options, without asking the passwords.
-    await expect(wizard.getByText(/^Il vault è bloccato/)).toBeVisible();
+    // The unlock dialog is of UI-WP5: until it is mounted the wizard says so
+    // and stays on the options, without asking the passwords.
+    await expect(wizard.getByRole("alert")).toContainText(
+      texts.importWizard.options.vaultUnavailable,
+    );
     await expect(wizard.getByText("1 / 3")).toBeHidden();
   });
 

@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { rejectWith } from "../../test/fakeBackend";
 import { UNREADABLE_IMPORT_FILE } from "../../test/fakeBackendImport";
 import {
   chooseFile,
@@ -185,6 +186,55 @@ describe("ImportWizard", () => {
 
     expect(screen.getByText(/^Il vault è bloccato/)).toBeInTheDocument();
     expect(screen.queryByText("1 / 3")).toBeNull();
+  });
+
+  it("asks for the vault once when Avanti is clicked twice", async () => {
+    importBackend({ vaultLocked: true });
+    const { user } = renderWizard();
+    await toOptions(user);
+    let release = () => undefined as void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    interceptCommand("vault_status", async (answer) => {
+      await held;
+      return answer();
+    });
+    const next = screen.getByRole("button", { name: "Avanti" });
+
+    // Two clicks in one render: the second comes before "Avanti" shows it waits.
+    act(() => {
+      next.click();
+      next.click();
+    });
+    release();
+
+    expect(await screen.findAllByRole("dialog", { name: "Sblocca il vault" })).toHaveLength(1);
+  });
+
+  it("says when the vault cannot be opened in this version", async () => {
+    importBackend({ vaultLocked: true });
+    const { user } = renderWizard({});
+    await toOptions(user);
+
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Lo sblocco del vault non è ancora disponibile",
+    );
+  });
+
+  it("shows on the options why the vault could not be asked for", async () => {
+    importBackend({ vaultLocked: true });
+    const { user } = renderWizard();
+    await toOptions(user);
+    interceptCommand("vault_status", () =>
+      rejectWith({ code: "vault", message: "vault illeggibile" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Avanti" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("vault illeggibile");
   });
 
   it("goes back to the options with the error when the import fails", async () => {

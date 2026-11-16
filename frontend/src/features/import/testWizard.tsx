@@ -1,12 +1,12 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 
 import { FeatureHost } from "../../app/FeatureHost";
-import { FeatureRegistryContext } from "../../app/features";
+import { type FeatureRegistry, FeatureRegistryContext, type ImportProps } from "../../app/features";
 import { createQueryClient } from "../../ipc/queryClient";
-import { useRequests } from "../../state/requests";
+import { closeRequest, openRequest, topRequest, useRequests } from "../../state/requests";
 import {
   type FakeBackendState,
   initialFakeState,
@@ -30,28 +30,45 @@ export function importBackend(
 }
 
 /**
- * The wizard, mounted as the window mounts it, with the requests it makes on
- * top (`FeatureHost`): the unlock of the vault is the stand-in of the dialog
- * of UI-WP5. Spies for its callbacks and the query client it uses.
+ * The wizard opened as the window opens it: a request of the stack, mounted
+ * by `FeatureHost` with the requests it makes on top (the unlock of the vault
+ * is the stand-in of the dialog of UI-WP5). Spies for its callbacks, the
+ * query client it uses and `setOpen` to close it and open it again.
  */
-export function renderWizard() {
+export function renderWizard(features: FeatureRegistry = { unlockVault: TestUnlockVault }) {
   const client: QueryClient = createQueryClient();
   const onClose = vi.fn();
   const onGoToNode = vi.fn();
   const user = userEvent.setup();
-  const wizard = (open: boolean) => (
-    <QueryClientProvider client={client}>
-      <FeatureRegistryContext value={{ unlockVault: TestUnlockVault }}>
-        {open && <ImportWizard onClose={onClose} onGoToNode={onGoToNode} />}
-        <FeatureHost />
-      </FeatureRegistryContext>
-    </QueryClientProvider>
+  // The wizard at the hook point, with spies in front of the callbacks of the window.
+  const SpiedImport = (props: ImportProps) => (
+    <ImportWizard
+      onClose={() => {
+        onClose();
+        props.onClose();
+      }}
+      onGoToNode={(id) => {
+        onGoToNode(id);
+        props.onGoToNode(id);
+      }}
+    />
   );
   // The requests of the window are a store of the page: each test starts without any.
   useRequests.setState({ stack: [] });
-  const { rerender } = render(wizard(true));
-  /** Closes the wizard and opens it again, as the window would. */
-  const setOpen = (open: boolean) => rerender(wizard(open));
+  render(
+    <QueryClientProvider client={client}>
+      <FeatureRegistryContext value={{ ...features, import: SpiedImport }}>
+        <FeatureHost />
+      </FeatureRegistryContext>
+    </QueryClientProvider>,
+  );
+  const setOpen = (open: boolean) =>
+    act(() => {
+      const top = topRequest();
+      if (open) openRequest({ kind: "import" });
+      else if (top) closeRequest(top.id);
+    });
+  setOpen(true);
   return { client, onClose, onGoToNode, user, setOpen };
 }
 
