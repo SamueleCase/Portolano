@@ -39,7 +39,7 @@ export function UsageSection({ details }: { details: NodeDetailsView_Serialize }
         {rows.map(([node, relation]) => (
           <li key={`${node.id}-${relation}`}>
             <button type="button" className={styles.usageRow} onClick={() => goTo(node.id)}>
-              <span className={styles.mono}>{visibleText(readablePath(node.path))}</span>
+              <span>{visibleText(readablePath(node.path))}</span>
               <span className={styles.relation}>{relation}</span>
             </button>
           </li>

@@ -65,7 +65,6 @@ export const app = {
       one: "La credenziale copiata è stata rinominata: {paths}",
       other: "Le credenziali copiate sono state rinominate: {paths}",
     },
-    moved: "Spostato in {path}",
     secretCleared: "Segreto cancellato",
     openedInTerminal: "Aperta in una nuova finestra del terminale",
   },

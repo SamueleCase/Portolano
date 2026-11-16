@@ -9,6 +9,7 @@ import { TextField } from "../../components/TextField";
 import { texts } from "../../i18n/it";
 import { searchQuery } from "../../ipc/queries";
 import { type TreeFilter, useWorkspace } from "../../state/workspace";
+import { MoveToDialog } from "./MoveToDialog";
 import { NodeContextMenu } from "./NodeContextMenu";
 import { NodeTree } from "./NodeTree";
 import styles from "./Sidebar.module.css";
@@ -35,6 +36,7 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
   const searchRequests = useWorkspace((state) => state.searchRequests);
   const searchField = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState<{ id: string; position: { x: number; y: number } }>();
+  const [moving, setMoving] = useState<string>();
 
   const searching = query.trim() !== "";
   const search = useQuery({
@@ -110,10 +112,11 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
         <NodeContextMenu
           entry={menuEntry}
           position={menu.position}
-          onMoveTo={() => undefined}
+          onMoveTo={setMoving}
           onClose={() => setMenu(undefined)}
         />
       )}
+      {index && <MoveToDialog index={index} id={moving} onClose={() => setMoving(undefined)} />}
     </GlassPanel>
   );
 }

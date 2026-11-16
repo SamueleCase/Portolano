@@ -15,6 +15,7 @@ import { type TreeRowMeta, TreeRow } from "../../components/TreeRow";
 import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import { useWorkspace } from "../../state/workspace";
+import { addressHost } from "../details/route";
 import { sessionDot } from "../sessions/sessionState";
 import { useSessionsStore } from "../sessions/store";
 import { dropPlacement } from "./dropPlacement";
@@ -53,7 +54,8 @@ const secretStates: Record<SecretsBadge, SecretState | undefined> = {
 function metaOf(entry: TreeEntry, backend: VaultBackend): TreeRowMeta | undefined {
   const { node } = entry;
   if (entry.kind === "folder") return { kind: "descendants", count: node.descendants };
-  if (isConnection(entry.kind)) return { kind: "host", host: node.summary };
+  // The summary is `user@host:port`: the row shows the host (inventario §4.19).
+  if (isConnection(entry.kind)) return { kind: "host", host: addressHost(node.summary) };
   const state = secretStates[node.secrets];
   return entry.kind === "credential" && state !== undefined
     ? { kind: "secret", state, backend }
@@ -267,6 +269,10 @@ export function NodeTree({
                   : undefined
             }
             dragging={dragged.some((other) => other.getId() === id)}
+            // Focus from outside (Tab, a click elsewhere) is the focus of the tree too.
+            onFocus={() => {
+              if (!item.isFocused()) item.setFocused();
+            }}
             onDoubleClick={() => {
               if (isConnection(entry.kind)) onConnect(id);
             }}
