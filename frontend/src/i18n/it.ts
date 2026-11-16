@@ -1,5 +1,6 @@
 import { components } from "./components";
 import { dialogs } from "./dialogs";
+import { editor } from "./editor";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
 import { preferences } from "./preferences";
@@ -18,5 +19,6 @@ export const texts = {
   ipc,
   sessions,
   dialogs,
+  editor,
   preferences,
 } as const;

@@ -24,7 +24,7 @@ interface CredentialChooserProps {
   /** The credential chosen now. */
   value: CredentialChoice_Deserialize;
   /** The modes offered, for instance without "Inline" for an RDP gateway. */
-  modes?: readonly CredentialMode[];
+  modes?: readonly CredentialMode[] | undefined;
   /** The inline password of the node, as the editor holds it ("Da salvare" once staged). */
   passwordState: SecretState;
   /** "Imposta…" of the inline password: the editor asks it and stages it. */
