@@ -40,9 +40,9 @@ test.describe("the main window", () => {
     await openApp(page);
     await documentTree(page);
 
-    const importButton = page.getByRole("button", { name: texts.app.toolbar.import });
-    await expect(importButton).toHaveAttribute("aria-disabled", "true");
-    await importButton.hover();
+    const preferences = page.getByRole("button", { name: texts.app.toolbar.preferences });
+    await expect(preferences).toHaveAttribute("aria-disabled", "true");
+    await preferences.hover();
     await expect(page.getByRole("tooltip")).toHaveText(texts.app.reasons.unavailable);
   });
 
