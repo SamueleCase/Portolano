@@ -19,18 +19,27 @@ interface PreferencesDialogProps {
   onClose: () => void;
 }
 
-/** The segments of `labels`, in their order. */
-function segments<T extends string>(labels: Readonly<Record<T, string>>): Segment<T>[] {
-  return (Object.keys(labels) as T[]).map((value) => ({ value, label: labels[value] }));
+/** The values of the choices of `config.toml` (SPEC §9), in the order shown. */
+const BACKENDS = ["keychain", "file"] as const;
+const TERMINALS = ["terminal", "iterm", "ghostty", "custom"] as const;
+const CLIENTS = ["auto", "freerdp", "windows-app"] as const;
+const CERTS = ["tofu", "ignore", "deny"] as const;
+
+/** The segments of `values`, labelled by `labels`. */
+function segments<T extends string>(
+  values: readonly T[],
+  labels: Readonly<Record<T, string>>,
+): Segment<T>[] {
+  return values.map((value) => ({ value, label: labels[value] }));
 }
 
-/** `value` if it is one of `labels`, else `fallback` (the default of SPEC §9). */
+/** `value` if it is one of `values`, else `fallback` (the default of SPEC §9). */
 function oneOf<T extends string>(
   value: string | undefined,
-  labels: Readonly<Record<T, string>>,
+  values: readonly T[],
   fallback: NoInfer<T>,
 ): T {
-  return (Object.keys(labels) as T[]).find((option) => option === value) ?? fallback;
+  return values.find((option) => option === value) ?? fallback;
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
@@ -54,8 +63,8 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
   const t = texts.preferences;
   const settings = useConfigSettings();
   const { data: status } = useQuery({ ...appStatusQuery, enabled: open });
-  const backend = oneOf(settings.value("vault.backend"), t.vault.backends, "keychain");
-  const terminal = oneOf(settings.value("terminal.app"), t.terminal.apps, "terminal");
+  const backend = oneOf(settings.value("vault.backend"), BACKENDS, "keychain");
+  const terminal = oneOf(settings.value("terminal.app"), TERMINALS, "terminal");
 
   return (
     <Dialog
@@ -82,7 +91,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
         <Group title={t.groups.vault}>
           <ChoiceSetting
             label={t.vault.label}
-            options={segments(t.vault.backends)}
+            options={segments(BACKENDS, t.vault.backends)}
             value={backend}
             onChange={(value) => settings.set("vault.backend", value)}
             error={settings.error("vault.backend")}
@@ -99,7 +108,7 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
         <Group title={t.groups.terminal}>
           <ChoiceSetting
             label={t.terminal.label}
-            options={segments(t.terminal.apps)}
+            options={segments(TERMINALS, t.terminal.apps)}
             value={terminal}
             onChange={(value) => settings.set("terminal.app", value)}
             error={settings.error("terminal.app")}
@@ -118,8 +127,8 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
         <Group title={t.groups.rdp}>
           <ChoiceSetting
             label={t.rdp.client}
-            options={segments(t.rdp.clients)}
-            value={oneOf(settings.value("rdp.client"), t.rdp.clients, "auto")}
+            options={segments(CLIENTS, t.rdp.clients)}
+            value={oneOf(settings.value("rdp.client"), CLIENTS, "auto")}
             onChange={(value) => settings.set("rdp.client", value)}
             error={settings.error("rdp.client")}
           />
@@ -132,8 +141,8 @@ export function PreferencesDialog({ open, onClose }: PreferencesDialogProps) {
           />
           <ChoiceSetting
             label={t.rdp.cert}
-            options={segments(t.rdp.certs)}
-            value={oneOf(settings.value("rdp.cert"), t.rdp.certs, "tofu")}
+            options={segments(CERTS, t.rdp.certs)}
+            value={oneOf(settings.value("rdp.cert"), CERTS, "tofu")}
             onChange={(value) => settings.set("rdp.cert", value)}
             error={settings.error("rdp.cert")}
           />

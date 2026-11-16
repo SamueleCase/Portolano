@@ -2,7 +2,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { commands } from "../../bindings";
 
 import { texts } from "../../i18n/it";
 import { createQueryClient } from "../../ipc/queryClient";
@@ -77,6 +79,23 @@ describe("PreferencesDialog", () => {
     await userEvent.tab();
 
     await waitFor(() => expect(state.config["terminal.command"]).toBe("kitty -e {cmd}"));
+  });
+
+  it("sends the command once with Enter and then leaving the field", async () => {
+    const state = initialFakeState();
+    state.config["terminal.app"] = "custom";
+    open(state);
+    const configSet = vi.spyOn(commands, "configSet");
+
+    await userEvent.type(
+      await screen.findByLabelText(t.terminal.command),
+      "kitty -e {{cmd}{Enter}",
+    );
+    await userEvent.tab();
+
+    await waitFor(() => expect(state.config["terminal.command"]).toBe("kitty -e {cmd}"));
+    expect(configSet).toHaveBeenCalledOnce();
+    configSet.mockRestore();
   });
 
   it("saves the appearance in the preferences of the interface", async () => {

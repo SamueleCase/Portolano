@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { TextField } from "../../components/TextField";
 import { texts } from "../../i18n/it";
@@ -13,9 +13,13 @@ export function TerminalCommandSetting({ settings }: { settings: ConfigSettings 
   const t = texts.preferences.terminal;
   const saved = settings.value("terminal.command") ?? "";
   const [draft, setDraft] = useState(saved);
+  // The value sent last: Enter and then leaving the field send it once.
+  const sent = useRef(saved);
   const error = settings.error("terminal.command");
   const commit = () => {
-    if (draft !== saved) settings.set("terminal.command", draft);
+    if (draft === sent.current) return;
+    sent.current = draft;
+    settings.set("terminal.command", draft);
   };
   return (
     <div className={styles.control}>

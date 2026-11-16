@@ -2,7 +2,7 @@
 export const preferences = {
   title: "Preferenze",
   close: "Chiudi",
-  hint: "Le modifiche si applicano subito.",
+  hint: "Le modifiche si applicano subito, senza «Salva».",
   browse: "Sfoglia…",
   reset: "Ripristina",
   groups: {
