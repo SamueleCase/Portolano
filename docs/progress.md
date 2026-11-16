@@ -240,7 +240,7 @@ worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: 
 l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
 chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
 esterno".
-| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 al secondo giro di correzioni; UI-WP5 e UI-WP6 con la fase 1 rivista e corretta, in attesa della fase 2 | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
+| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 **integrato** (merge `9a02da3`, due giri di revisione doppia, DEC-041; gate su `main` verdi dopo la correzione d'integrazione `70e4f17` del lint: Rust 1300 + 2 ignorati, Vitest 630, e2e 61/61, smoke OK); UI-WP5 e UI-WP6 in fase 2 | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
 
 ### Limiti e migliorie annotati nell'ondata C

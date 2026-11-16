@@ -13,9 +13,13 @@ describe("useDebounced", () => {
     });
 
     rerender({ value: "web" });
-    act(() => vi.advanceTimersByTime(149));
+    act(() => {
+      vi.advanceTimersByTime(149);
+    });
     expect(result.current).toBe("w");
-    act(() => vi.advanceTimersByTime(1));
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
 
     expect(result.current).toBe("web");
   });
