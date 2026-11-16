@@ -102,7 +102,8 @@ const tree: PickerNode[] = [
   { id: "stg", name: "Staging", kind: "folder", depth: 0 },
 ];
 
-function renderFolderPicker(exclude?: string, onChoose = vi.fn()) {
+function renderFolderPicker(exclude?: string, folders: readonly PickerNode[] = tree) {
+  const onChoose = vi.fn();
   render(
     <NodePicker
       open
@@ -112,21 +113,24 @@ function renderFolderPicker(exclude?: string, onChoose = vi.fn()) {
       exclude={exclude}
       title="Sposta in…"
       filterLabel="Solo cartelle"
-      nodes={tree}
+      nodes={folders}
     />,
   );
   return onChoose;
 }
 
-function optionNames() {
-  return screen.getAllByRole("option").map((option) => option.textContent);
+/** The options, in order, by their accessible names. */
+function expectOptions(names: readonly string[]) {
+  const options = screen.getAllByRole("option");
+  expect(options).toHaveLength(names.length);
+  names.forEach((name, index) => expect(options[index]).toHaveAccessibleName(name));
 }
 
 describe("NodePicker choosing folders", () => {
   it("offers the root of the document and every folder, empty ones included", () => {
     renderFolderPicker();
 
-    expect(optionNames()).toEqual([
+    expectOptions([
       "Radice del documento",
       "Produzione",
       "Database",
@@ -142,7 +146,16 @@ describe("NodePicker choosing folders", () => {
     expect(screen.queryByText("bastion")).not.toBeInTheDocument();
   });
 
-  it("starts on the root and chooses it as null with Enter", async () => {
+  it("starts on the root", () => {
+    renderFolderPicker();
+
+    expect(screen.getByRole("option", { name: "Radice del documento" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("chooses the root as null with Enter", async () => {
     const onChoose = renderFolderPicker();
 
     await userEvent.keyboard("{Enter}");
@@ -171,9 +184,23 @@ describe("NodePicker choosing folders", () => {
 
     const disabled = screen
       .getAllByRole("option")
-      .filter((option) => option.getAttribute("aria-disabled") === "true")
-      .map((option) => option.textContent);
-    expect(disabled).toEqual(["Archivio", "Vecchi"]);
+      .filter((option) => option.getAttribute("aria-disabled") === "true");
+    expect(disabled).toEqual([
+      screen.getByRole("option", { name: "Archivio" }),
+      screen.getByRole("option", { name: "Vecchi" }),
+    ]);
+  });
+
+  it("disables a folder marked as excluded", () => {
+    renderFolderPicker(
+      undefined,
+      tree.map((node) => (node.id === "archive" ? { ...node, excluded: true } : node)),
+    );
+
+    expect(screen.getByRole("option", { name: "Archivio" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("skips the excluded subtree with the arrows", async () => {
@@ -197,7 +224,7 @@ describe("NodePicker choosing folders", () => {
 
     await userEvent.keyboard("data");
 
-    expect(optionNames()).toEqual(["Produzione", "Database"]);
+    expectOptions(["Produzione", "Database"]);
   });
 
   it("starts on the folder found, not on the folder that leads to it", async () => {
@@ -239,7 +266,7 @@ describe("NodePicker choosing folders", () => {
 
     await userEvent.keyboard("radice");
 
-    expect(optionNames()).toEqual(["Radice del documento"]);
+    expectOptions(["Radice del documento"]);
   });
 
   it("describes each folder with the folders that contain it", () => {
