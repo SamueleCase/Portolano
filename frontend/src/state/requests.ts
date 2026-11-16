@@ -48,9 +48,17 @@ let nextId = 0;
  */
 const waiting = new Map<number, (answer: SessionLogin | boolean | null) => void>();
 
-function push(request: HostRequest): number {
+/**
+ * Opens `request` on top; `wait` hears its answer. It listens before the
+ * request shows, so that even an answer given at once is not lost.
+ */
+function push(
+  request: HostRequest,
+  wait?: (answer: SessionLogin | boolean | null) => void,
+): number {
   nextId += 1;
   const id = nextId;
+  if (wait) waiting.set(id, wait);
   useRequests.setState(({ stack }) => ({ stack: [...stack, { id, request }] }));
   return id;
 }
@@ -94,9 +102,10 @@ export function closeRequest(id: number): void {
  * `null` if the user gives up. The login reaches the caller only.
  */
 export function requestLogin(request: LoginRequest): Promise<SessionLogin | null> {
-  const id = push({ kind: "login", request });
   return new Promise((resolve) => {
-    waiting.set(id, (answer) => resolve(typeof answer === "object" ? answer : null));
+    push({ kind: "login", request }, (answer) =>
+      resolve(typeof answer === "object" ? answer : null),
+    );
   });
 }
 
@@ -119,9 +128,10 @@ export function answerRequest(id: number, answer: SessionLogin | boolean | null)
 export async function requestVault(): Promise<boolean> {
   const vault = unwrap(await commands.vaultStatus());
   if (!vault.locked) return true;
-  const id = push({ kind: vault.exists ? "unlockVault" : "createFileVault" });
   return new Promise((resolve) => {
-    waiting.set(id, (answer) => resolve(answer === true));
+    push({ kind: vault.exists ? "unlockVault" : "createFileVault" }, (answer) =>
+      resolve(answer === true),
+    );
   });
 }
 

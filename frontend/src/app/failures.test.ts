@@ -1,13 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { AppStatus_Serialize } from "../bindings";
 import { createQueryClient } from "../ipc/queryClient";
 import { appStatusQuery } from "../ipc/queries";
 import { IpcFailure, type IpcError } from "../ipc/result";
+import { answerRequest, closeAllRequests, useRequests } from "../state/requests";
 import { useToasts } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
-import { initialFakeState } from "../test/fakeBackend";
-import { reportFailure } from "./failures";
+import { initialFakeState, installFakeBackend } from "../test/fakeBackend";
+import { reportFailure, runReported } from "./failures";
 
 /** A query client that knows the open document, as after startup. */
 function clientWithDocument() {
@@ -86,5 +87,74 @@ describe("the failures of the commands", () => {
     );
 
     expect(toasts()[0]).toContain("Clienti / deploy, Rete / deploy");
+  });
+});
+
+describe("a command refused with the vault locked", () => {
+  const locked = () => Promise.reject(failure({ code: "vaultLocked", message: "vault bloccato" }));
+  let stopAnswering: () => void = () => undefined;
+
+  /** The vault dialog answers `done` as soon as it opens. */
+  function vaultDialogAnswers(done: boolean) {
+    stopAnswering = useRequests.subscribe(({ stack }) => {
+      const open = stack.at(-1);
+      if (open) answerRequest(open.id, done);
+    });
+  }
+
+  beforeEach(() => {
+    useToasts.setState({ toasts: [] });
+    installFakeBackend();
+  });
+
+  afterEach(() => {
+    stopAnswering();
+    closeAllRequests();
+  });
+
+  it("runs once more after the unlock, and only once", async () => {
+    vaultDialogAnswers(true);
+    let runs = 0;
+
+    await runReported(
+      () => {
+        runs += 1;
+        return locked();
+      },
+      createQueryClient(),
+      () => true,
+    );
+
+    expect(runs).toBe(2);
+    expect(toasts()).toHaveLength(1);
+  });
+
+  it("does not run again when the unlock is cancelled", async () => {
+    vaultDialogAnswers(false);
+    let runs = 0;
+
+    await runReported(
+      () => {
+        runs += 1;
+        return locked();
+      },
+      createQueryClient(),
+      () => true,
+    );
+
+    expect(runs).toBe(1);
+    expect(toasts()).toHaveLength(1);
+  });
+
+  it("says so in a toast without the unlock dialog, asking nothing", async () => {
+    let asked = false;
+    stopAnswering = useRequests.subscribe(() => {
+      asked = true;
+    });
+
+    await runReported(locked, createQueryClient(), () => false);
+
+    expect(asked).toBe(false);
+    expect(toasts()).toHaveLength(1);
   });
 });
