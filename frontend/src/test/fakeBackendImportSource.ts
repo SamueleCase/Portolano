@@ -9,7 +9,10 @@ import type { FakeKind } from "./fakeBackendModel";
 export interface SourceObject {
   sourceId: string;
   sourceType: string;
+  /** The name of its node. */
   name: string;
+  /** Its name in Royal, when the node has another one: the trash, "Cestino (Royal)". */
+  royalName?: string;
   kind: FakeKind;
   /** The object that contains it; none for the document itself. */
   parent: string | null;
@@ -99,6 +102,7 @@ export const OBJECTS: readonly SourceObject[] = [
     sourceId: TRASH,
     sourceType: "RoyalTrash",
     name: "Cestino (Royal)",
+    royalName: "Cestino",
     kind: "folder",
     parent: DOCUMENT,
     inTrash: true,
@@ -115,8 +119,12 @@ export const OBJECTS: readonly SourceObject[] = [
   },
 ];
 
-/** The path of `object` in the imported tree, as the report and the requests show it. */
-export function pathOfObject(object: SourceObject): string {
+/**
+ * The path of `object` in the report and the requests. As in the importer, a
+ * skipped trash keeps its Royal name; an imported one is "Cestino (Royal)".
+ */
+export function pathOfObject(object: SourceObject, includeTrash = false): string {
   const parent = OBJECTS.find((candidate) => candidate.sourceId === object.parent);
-  return parent ? `${pathOfObject(parent)}/${object.name}` : object.name;
+  const name = object.inTrash && !includeTrash ? (object.royalName ?? object.name) : object.name;
+  return parent ? `${pathOfObject(parent, includeTrash)}/${name}` : name;
 }

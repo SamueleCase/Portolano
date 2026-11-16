@@ -2,8 +2,10 @@ import type {
   ImportAnswerInput_Deserialize,
   ImportOptionsInput_Deserialize,
   ImportPreviewView_Serialize,
+  ImportReport,
   ImportResult,
   ItemStatus,
+  KindCounts,
   ReportItem,
   SecretRequestView_Serialize,
   TypeCounts,
@@ -17,6 +19,7 @@ import {
   fileName,
   newId,
   openDocument,
+  pathOf,
   requireVaultFor,
   walk,
 } from "./fakeBackendModel";
@@ -24,11 +27,11 @@ import { DOCUMENT, OBJECTS, type SourceObject, pathOfObject } from "./fakeBacken
 
 /**
  * The import of the fake backend: one invented Royal TSX document, simplified
- * but with the shapes and the rules of `portolano-ops` (SPEC §8.3, §8.4):
- * three passwords to ask, a partial node whatever the answers (an icon over
- * 4 MiB, DEC-031.1), an unsupported node and the trash, skipped unless it is
- * included (DEC-016.8). As in the core, the id of a node is its Royal id,
- * except with `newIds`.
+ * but with the shapes, the texts and the rules of `portolano-ops` and of the
+ * importer (SPEC §8.3, §8.4): three passwords to ask, a partial node whatever
+ * the answers (an icon over 4 MiB, DEC-031.1), an unsupported node and the
+ * trash, skipped unless it is included (DEC-016.8). As in the core, the id of
+ * a node is its Royal id, except with `newIds`.
  */
 
 /** An answer of the import dialog for the tests: the fake Royal document. */
@@ -37,9 +40,9 @@ export const IMPORT_FILE = "/Users/utente-di-prova/Documenti/ufficio.rtsz";
 /** The answer of the import dialog that cannot be read: its preview fails with `io`. */
 export const UNREADABLE_IMPORT_FILE = "/Users/utente-di-prova/Documenti/illeggibile.rtsz";
 
-const SKIPPED_PASSWORD =
-  "password Royal cifrata non importata: impostala con `portolano secret set`";
-const IN_TRASH = "nel cestino di Royal TSX: non importato";
+const SKIPPED_PASSWORD = "password Royal cifrata non importata: impostala dal nodo";
+const TRASH_SKIPPED = "cestino di Royal non importato (usa l'opzione per includerlo)";
+const IN_TRASH = "nel cestino di Royal";
 
 function requests(): SecretRequestView_Serialize[] {
   return OBJECTS.filter((object) => object.asksPassword).map((object) => ({
@@ -49,26 +52,46 @@ function requests(): SecretRequestView_Serialize[] {
   }));
 }
 
-/** The objects that become nodes, with the outcome of each. */
-function outcomes(includeTrash: boolean, answered: ReadonlySet<string>) {
-  return OBJECTS.map((object) => {
-    const reasons = [...(object.reasons ?? [])];
-    let status: ItemStatus = object.kind === "unsupported" ? "unsupported" : "imported";
-    if (object.inTrash && !includeTrash) {
-      status = "skipped";
-      reasons.push(IN_TRASH);
-    } else if (object.asksPassword && !answered.has(pathOfObject(object))) {
-      reasons.push(SKIPPED_PASSWORD);
-    }
-    if (status === "imported" && reasons.length > 0) status = "partial";
-    return { object, status, reasons };
-  });
+/** The reasons of `object` when it is not imported or misses data. */
+function reasonsOf(object: SourceObject, includeTrash: boolean, answered: ReadonlySet<string>) {
+  if (object.inTrash && !includeTrash) {
+    return [object.sourceType === "RoyalTrash" ? TRASH_SKIPPED : IN_TRASH];
+  }
+  const reasons = [...(object.reasons ?? [])];
+  if (object.asksPassword && !answered.has(pathOfObject(object))) reasons.push(SKIPPED_PASSWORD);
+  return reasons;
 }
 
-function report(state: FakeBackendState, includeTrash: boolean, answered: ReadonlySet<string>) {
+function statusOf(object: SourceObject, includeTrash: boolean, reasons: string[]): ItemStatus {
+  if (object.inTrash && !includeTrash) return "skipped";
+  if (object.kind === "unsupported") return "unsupported";
+  return reasons.length > 0 ? "partial" : "imported";
+}
+
+function countKind(kinds: KindCounts, object: SourceObject): void {
+  if (object.kind === "connection") {
+    const protocol = object.protocol ?? "";
+    kinds.connections[protocol] = (kinds.connections[protocol] ?? 0) + 1;
+  } else if (object.kind === "folder") {
+    kinds.folders += 1;
+  } else if (object.kind === "credential") {
+    kinds.credentials += 1;
+  } else {
+    kinds.unsupported += 1;
+  }
+}
+
+function report(
+  state: FakeBackendState,
+  includeTrash: boolean,
+  answered: ReadonlySet<string>,
+): ImportReport {
   const counts: Record<string, TypeCounts> = {};
+  const kinds: KindCounts = { folders: 0, connections: {}, credentials: 0, unsupported: 0 };
   const items: ReportItem[] = [];
-  for (const { object, status, reasons } of outcomes(includeTrash, answered)) {
+  for (const object of OBJECTS) {
+    const reasons = reasonsOf(object, includeTrash, answered);
+    const status = statusOf(object, includeTrash, reasons);
     const count = (counts[object.sourceType] ??= {
       source: 0,
       imported: 0,
@@ -78,11 +101,12 @@ function report(state: FakeBackendState, includeTrash: boolean, answered: Readon
     });
     count.source += 1;
     count[status] += 1;
+    countKind(kinds, object);
     if (status !== "imported") {
       items.push({
         source_type: object.sourceType,
         source_id: object.sourceId,
-        path: pathOfObject(object),
+        path: pathOfObject(object, includeTrash),
         status,
         reasons,
       });
@@ -96,7 +120,9 @@ function report(state: FakeBackendState, includeTrash: boolean, answered: Readon
     counts,
     items,
     unmapped_fields: { RoyalRDSConnection: { CustomImage: 1 } },
-    warnings: ["documento protetto da password: la password del documento non è stata importata"],
+    warnings: ["documento protetto da password"],
+    kinds,
+    trash_items: OBJECTS.filter((o) => o.inTrash && o.sourceType !== "RoyalTrash").length,
   };
 }
 
@@ -109,7 +135,11 @@ function chosenFile(state: FakeBackendState): string {
   return path;
 }
 
-/** What the import does with the document: the ids it gives and the nodes it replaces. */
+/**
+ * What the import does with the document: the ids it gives and the nodes it
+ * replaces. "Aggiorna" refuses to change the kind of a node, as
+ * `ImportKindChanged` of `portolano-ops`.
+ */
 function plan(state: FakeBackendState, options: ImportOptionsInput_Deserialize) {
   const doc = openDocument(state);
   childrenOf(doc, options.into ?? null);
@@ -119,6 +149,13 @@ function plan(state: FakeBackendState, options: ImportOptionsInput_Deserialize) 
   const conflicts = policy === "newIds" ? [] : included.filter((o) => existing.has(o.sourceId));
   if (policy === "fail" && conflicts.length > 0) {
     fail("invalid", `${conflicts.length} nodi dell'import esistono già nel documento`);
+  }
+  const changed = conflicts.find((object) => existing.get(object.sourceId)?.kind !== object.kind);
+  if (changed) {
+    fail(
+      "invalid",
+      `l'import cambierebbe il tipo di '${pathOf(doc, changed.sourceId)}': usa un'altra strategia per i conflitti`,
+    );
   }
   const ids = new Map(
     included.map((object) => [
@@ -194,24 +231,33 @@ function insert(
   }
 }
 
+/**
+ * The first request without its answer, by node and whole field (the name of
+ * a property included), or the first answer left over, as `portolano-ops`.
+ */
+function mismatchOf(
+  expected: readonly SecretRequestView_Serialize[],
+  answers: readonly ImportAnswerInput_Deserialize[],
+): string | null {
+  const unanswered = expected.find(
+    (request, index) =>
+      answers[index]?.nodePath !== request.nodePath ||
+      JSON.stringify(answers[index]?.field) !== JSON.stringify(request.field),
+  );
+  return unanswered?.nodePath ?? answers[expected.length]?.nodePath ?? null;
+}
+
 export function importApply(
   state: FakeBackendState,
   options: ImportOptionsInput_Deserialize,
   answers: ImportAnswerInput_Deserialize[],
 ): ImportResult {
   chosenFile(state);
-  const expected = requests();
-  const mismatch =
-    answers.length !== expected.length ||
-    answers.some(
-      (answer, index) =>
-        answer.nodePath !== expected[index]?.nodePath ||
-        answer.field.kind !== expected[index]?.field.kind,
-    );
-  if (mismatch) {
+  const mismatch = mismatchOf(requests(), answers);
+  if (mismatch !== null) {
     fail(
       "invalid",
-      "le password inserite non corrispondono più alle richieste dell'import: ripeti l'anteprima",
+      `le password inserite non corrispondono più alle richieste dell'import ('${mismatch}'): ripeti l'anteprima`,
     );
   }
   const answered = new Set(

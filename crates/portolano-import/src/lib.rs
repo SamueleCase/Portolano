@@ -17,7 +17,7 @@ use portolano_core::{Node, Secret, SecretRef};
 
 pub use prompter::{NonInteractive, SecretField, SecretPrompter, SecretRequest};
 pub use registry::Registry;
-pub use report::{ImportReport, ItemStatus, ReportItem, TypeCounts};
+pub use report::{ImportReport, ItemStatus, KindCounts, ReportItem, TypeCounts};
 
 /// A foreign document format that can be imported.
 pub trait Importer: Send + Sync {

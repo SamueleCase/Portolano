@@ -26,10 +26,11 @@ pub(super) struct Tree {
     pub(super) root: TreeNode,
     /// The `ID` of each object, by index.
     pub(super) ids: Vec<Uuid>,
-    /// Whether each object, by index, is skipped: the trash is not imported
-    /// and the object is the trash or is in it according to its `ParentID`s,
-    /// wherever it ended up in the tree.
-    skipped_trash: Vec<bool>,
+    /// Whether each object, by index, is the trash or is in it according to
+    /// its `ParentID`s, wherever it ended up in the tree.
+    in_trash: Vec<bool>,
+    /// Whether the trash is imported.
+    include_trash: bool,
     /// Objects moved under the root because they were deeper than
     /// [`MAX_DEPTH`] (DEC-021).
     pub(super) too_deep: HashSet<usize>,
@@ -40,7 +41,12 @@ pub(super) struct Tree {
 impl Tree {
     /// Whether the object is skipped as part of the trash.
     pub(super) fn is_skipped_trash(&self, object: usize) -> bool {
-        self.skipped_trash[object]
+        self.in_trash[object] && !self.include_trash
+    }
+
+    /// Whether the object is the trash or is in it, imported or not.
+    pub(super) fn is_in_trash(&self, object: usize) -> bool {
+        self.in_trash[object]
     }
 }
 
@@ -79,9 +85,10 @@ pub(super) fn build(objects: &[RawObject], include_trash: bool) -> Result<Tree, 
         siblings.sort_by_key(|&object| (position_nr(&objects[object]), object));
     }
 
-    let skipped_trash: Vec<bool> = trash_membership(objects, &parents, root)
-        .into_iter()
-        .map(|in_trash| in_trash && !include_trash)
+    let in_trash = trash_membership(objects, &parents, root);
+    let skipped_trash: Vec<bool> = in_trash
+        .iter()
+        .map(|&in_trash| in_trash && !include_trash)
         .collect();
     let mut builder = Builder {
         objects,
@@ -110,7 +117,8 @@ pub(super) fn build(objects: &[RawObject], include_trash: bool) -> Result<Tree, 
         root: root_node,
         ids,
         too_deep: builder.too_deep,
-        skipped_trash,
+        in_trash,
+        include_trash,
         warnings,
     })
 }

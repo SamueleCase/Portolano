@@ -112,6 +112,31 @@ fn telnet_and_serial_connections_are_unsupported() {
 }
 
 #[test]
+fn telnet_and_serial_connections_count_as_unsupported_nodes() {
+    let xml = document(&[
+        object(
+            "RoyalSSHConnection",
+            2,
+            1,
+            &[("IsTelnetConnection", "True")],
+        ),
+        object(
+            "RoyalSSHConnection",
+            3,
+            1,
+            &[("IsSerialPortConnection", "True")],
+        ),
+        object("RoyalSSHConnection", 4, 1, &[("URI", "web01.example.com")]),
+    ]);
+
+    let outcome = import(&xml);
+
+    let kinds = &outcome.report.kinds;
+    assert_eq!(kinds.unsupported, 2);
+    assert_eq!(kinds.connections.get("ssh"), Some(&1));
+}
+
+#[test]
 fn a_connection_without_host_is_partial() {
     let xml = document(&[object("RoyalSSHConnection", 2, 1, &[("Name", "vuota")])]);
 

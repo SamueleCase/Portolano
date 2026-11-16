@@ -180,4 +180,47 @@ describe("fake import", () => {
 
     expect(error.code).toBe("vaultLocked");
   });
+
+  it("counts the objects per kind of node and the trash without the trash itself", async () => {
+    await chosen();
+
+    const { report } = ok(await commands.importPreview(DEFAULTS)).result;
+
+    expect(report.kinds).toEqual({
+      folders: 3,
+      connections: { ssh: 3, rdp: 1 },
+      credentials: 1,
+      unsupported: 1,
+    });
+    expect(report.trash_items).toBe(1);
+  });
+
+  it("names the answer that no longer matches its request", async () => {
+    await chosen();
+    const asked = await requests();
+    const given = answers(asked, () => null);
+    given[1] = { ...given[0]!, field: { kind: "property", name: "Token" } };
+
+    const error = refused(await commands.importApply(DEFAULTS, given));
+
+    expect(error.message).toContain("('Ufficio/Produzione/db10')");
+  });
+
+  it("refuses to change the kind of a node with the update policy", async () => {
+    const state = await chosen();
+    ok(
+      await commands.importApply(
+        DEFAULTS,
+        answers(await requests(), () => null),
+      ),
+    );
+    const web10 = state.document?.nodes
+      .flatMap((node) => [node, ...node.children, ...node.children.flatMap((c) => c.children)])
+      .find((node) => node.name === "web10");
+    if (web10) web10.kind = "credential";
+
+    const error = refused(await commands.importPreview({ ...DEFAULTS, onConflict: "update" }));
+
+    expect(error.message).toContain("cambierebbe il tipo");
+  });
 });

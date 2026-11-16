@@ -882,6 +882,16 @@ export type ImportReport = {
 	unmapped_fields: { [key in string]: { [key in string]: number } },
 	/**  Document-level warnings. */
 	warnings: string[],
+	/**
+	 *  Source objects per kind of node they become, or would become for the
+	 *  skipped ones: the "Per tipo" of the app (DEC-039.1).
+	 */
+	kinds: KindCounts,
+	/**
+	 *  Objects in the trash of the source, the trash itself excluded, whether
+	 *  the trash was imported or not.
+	 */
+	trash_items: number,
 };
 
 /**  The result of [`import`]. */
@@ -1041,6 +1051,18 @@ path: string } |
 { kind: "vault"; 
 /**  Whether the vault has it. */
 state: SecretState };
+
+/**  Source objects per kind of node. */
+export type KindCounts = {
+	/**  Folders. */
+	folders: number,
+	/**  Connections, by protocol id. */
+	connections: { [key in string]: number },
+	/**  Credentials. */
+	credentials: number,
+	/**  Nodes kept as unsupported. */
+	unsupported: number,
+};
 
 /**
  *  The login typed for a credential "ask at launch" (DEC-016.3). The

@@ -39,7 +39,7 @@ describe("import report", () => {
     const web10 = screen.getByRole("button", { name: /Ufficio\/Produzione\/web10/ });
     expect(web10).toHaveTextContent("Parziale");
     expect(web10).toHaveTextContent("password Royal cifrata non importata");
-    expect(screen.getByText("Ufficio/Cestino (Royal)").closest("li")).toHaveTextContent("Saltato");
+    expect(screen.getByText("Ufficio/Cestino").closest("li")).toHaveTextContent("Saltato");
   });
 
   it("lists an icon over 4 MiB as the reason of a partial item", async () => {
@@ -61,7 +61,7 @@ describe("import report", () => {
   it("does not lead anywhere from an item of the trash", async () => {
     await importSkippingAll();
 
-    const trash = screen.getByText("Ufficio/Cestino (Royal)").closest("li");
+    const trash = screen.getByText("Ufficio/Cestino").closest("li");
     expect(trash && within(trash).queryByRole("button")).toBeNull();
   });
 
