@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { type AppStatus_Serialize, commands, type DocumentSource } from "../bindings";
 import { appStatusQuery } from "../ipc/queries";
 import { IpcFailure, type IpcError, unwrap } from "../ipc/result";
+import { interpolate } from "../i18n/format";
+import { texts } from "../i18n/it";
+import { showToast } from "../state/toasts";
 import { reportFailure } from "./failures";
 
 /** What the window shows. */
@@ -31,21 +34,22 @@ export function startupSources(status: AppStatus_Serialize): DocumentSource[] {
 
 /**
  * The opening of the document at startup, once: the backend starts with none
- * open. The first source that opens wins; the failure of the last one tried
- * is kept as the result, to show it, and the window goes on to the first run.
+ * open. The first source that opens wins. The failure of an earlier one is
+ * kept, to say why another document opened (DEC-041.7); if none opens, the
+ * last failure is shown and the window goes on to the first run.
  */
 const startupQuery = queryOptions({
   queryKey: ["startup"],
-  queryFn: async (): Promise<{ failure: IpcError | null }> => {
+  queryFn: async (): Promise<{ failure: IpcError | null; opened: boolean }> => {
     const status = unwrap(await commands.appStatus());
-    if (status.document !== null) return { failure: null };
+    if (status.document !== null) return { failure: null, opened: true };
     let failure: IpcError | null = null;
     for (const source of startupSources(status)) {
-      const opened = await commands.openDocument(source);
-      if (opened.status === "ok") return { failure: null };
-      failure = opened.error;
+      const result = await commands.openDocument(source);
+      if (result.status === "ok") return { failure, opened: true };
+      failure = result.error;
     }
-    return { failure };
+    return { failure, opened: false };
   },
   staleTime: Infinity,
   gcTime: Infinity,
@@ -57,10 +61,20 @@ export function useStartup(): StartupView {
   const startup = useQuery(startupQuery);
   const status = useQuery({ ...appStatusQuery, enabled: startup.isSuccess });
   const failure = startup.data?.failure ?? null;
+  const opened = startup.data?.opened ?? false;
 
   useEffect(() => {
-    if (failure !== null) reportFailure(new IpcFailure(failure), queryClient);
-  }, [failure, queryClient]);
+    if (failure === null) return;
+    if (opened) {
+      // The last document did not open: the default one did instead.
+      showToast({
+        kind: "info",
+        text: interpolate(texts.app.toasts.fellBack, { message: failure.message }),
+      });
+    } else {
+      reportFailure(new IpcFailure(failure), queryClient);
+    }
+  }, [failure, opened, queryClient]);
 
   if (startup.isError) return { view: "failed", error: startup.error };
   // A refetch that fails later leaves the window as it is: only missing data fails it.

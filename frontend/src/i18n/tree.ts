@@ -18,7 +18,6 @@ export const tree = {
   noResults: "Nessun risultato per questa ricerca.",
   noFilterResults: "Nessun nodo per questo filtro.",
   searchFailed: "Ricerca non riuscita: {message}",
-  favorite: "preferito",
   menu: {
     connect: "Connetti",
     openInTerminal: "Apri in terminale esterno",

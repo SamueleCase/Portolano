@@ -379,6 +379,47 @@ describe("the window", () => {
     }
   });
 
+  it("moves among the buttons of the toolbar with the arrows, one of them taking Tab", async () => {
+    renderApp();
+    const toolbar = await screen.findByRole("toolbar", { name: texts.app.toolbar.label });
+    const buttons = within(toolbar).getAllByRole("button");
+    expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
+    buttons[0]?.focus();
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(buttons[1]).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+
+    expect(buttons.at(-1)).toHaveFocus();
+    expect(buttons.at(-1)).toHaveAttribute("tabindex", "0");
+  });
+
+  it("says that the search failed instead of finding nothing", async () => {
+    vi.spyOn(commands, "search").mockResolvedValue({
+      status: "error",
+      error: { code: "io", message: "indice illeggibile" },
+    });
+    renderApp();
+    await tree();
+
+    await userEvent.type(screen.getByRole("searchbox", { name: texts.tree.search }), "web");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("indice illeggibile");
+    expect(screen.queryByText(texts.tree.noResults)).not.toBeInTheDocument();
+  });
+
+  it("shows the whole tree at once when the search is emptied", async () => {
+    renderApp();
+    await tree();
+    const search = screen.getByRole("searchbox", { name: texts.tree.search });
+    await userEvent.type(search, "web");
+    await waitFor(() => expect(screen.queryByRole("treeitem", { name: /^Rete,/ })).toBeNull());
+
+    await userEvent.clear(search);
+
+    expect(screen.getByRole("treeitem", { name: /^Rete,/ })).toBeInTheDocument();
+  });
+
   it("names a row with what it shows, for the screen readers", async () => {
     renderApp();
 

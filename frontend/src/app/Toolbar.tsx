@@ -10,6 +10,7 @@ import { useWorkspace } from "../state/workspace";
 import { GuardedButton } from "./GuardedButton";
 import { NewConnectionMenu } from "./NewConnectionMenu";
 import styles from "./Toolbar.module.css";
+import { useRovingToolbar } from "./useRovingToolbar";
 import { useWindowActions } from "./windowActions";
 
 /**
@@ -29,6 +30,7 @@ export function Toolbar({ documentName }: { documentName: string }) {
   const offered = (feature: Parameters<typeof actions.offers>[0]) =>
     actions.offers(feature) ? undefined : reasons.unavailable;
   const connectable = selection !== undefined && isConnection(selection.kind);
+  const roving = useRovingToolbar();
 
   return (
     <GlassPanel as="header" className={styles.bar} data-tauri-drag-region="">
@@ -37,8 +39,16 @@ export function Toolbar({ documentName }: { documentName: string }) {
       <span className={styles.document} data-tauri-drag-region="">
         {visibleText(documentName)}
       </span>
-      <div role="toolbar" aria-label={t.label} className={styles.actions}>
+      <div
+        role="toolbar"
+        aria-label={t.label}
+        className={styles.actions}
+        onFocus={roving.onFocus}
+        onKeyDown={roving.onKeyDown}
+      >
         <GuardedButton
+          data-toolbar-item={0}
+          tabIndex={roving.tabIndex(0)}
           ref={setAnchor}
           variant="toolbar"
           aria-haspopup="menu"
@@ -51,6 +61,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.newConnection}
         </GuardedButton>
         <GuardedButton
+          data-toolbar-item={1}
+          tabIndex={roving.tabIndex(1)}
           variant="toolbar"
           reason={offered("editor")}
           hint={t.newFolder}
@@ -60,6 +72,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.newFolder}
         </GuardedButton>
         <GuardedButton
+          data-toolbar-item={2}
+          tabIndex={roving.tabIndex(2)}
           variant="toolbar"
           reason={offered("editor")}
           onClick={() => actions.create("credential")}
@@ -68,6 +82,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
         </GuardedButton>
         <span className={styles.separator} aria-hidden="true" />
         <GuardedButton
+          data-toolbar-item={3}
+          tabIndex={roving.tabIndex(3)}
           variant="ghost"
           reason={offered("import")}
           hint={t.import}
@@ -77,6 +93,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.import}
         </GuardedButton>
         <GuardedButton
+          data-toolbar-item={4}
+          tabIndex={roving.tabIndex(4)}
           variant="ghost"
           reason={offered("validation")}
           hint={t.validate}
@@ -86,6 +104,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.validate}
         </GuardedButton>
         <GuardedButton
+          data-toolbar-item={5}
+          tabIndex={roving.tabIndex(5)}
           variant="ghost"
           reason={offered("preferences")}
           hint={t.preferences}
@@ -95,6 +115,8 @@ export function Toolbar({ documentName }: { documentName: string }) {
           {t.preferences}
         </GuardedButton>
         <GuardedButton
+          data-toolbar-item={6}
+          tabIndex={roving.tabIndex(6)}
           variant="primary"
           size="wide"
           reason={connectable ? undefined : reasons.notConnection}

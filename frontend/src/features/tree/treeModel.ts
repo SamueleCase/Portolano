@@ -179,15 +179,19 @@ export function siblingsOf(index: TreeIndex, id: string): readonly string[] {
 }
 
 /**
- * Where node `id` goes one place up (`-1`) or down (`1`) among its siblings,
- * as `move_node` takes it; `undefined` at the edge.
+ * Where node `id` goes one place up (`-1`) or down (`1`) among its siblings
+ * shown (`visible`, `null` for all: a search or a filter hides some), as
+ * `move_node` takes it; `undefined` at the edge.
  */
 export function siblingPlacement(
   index: TreeIndex,
   id: string,
   step: -1 | 1,
+  visible: ReadonlySet<string> | null = null,
 ): PlacementInput | undefined {
-  const siblings = siblingsOf(index, id);
+  const siblings = siblingsOf(index, id).filter(
+    (sibling) => visible === null || visible.has(sibling),
+  );
   const neighbor = siblings[siblings.indexOf(id) + step];
   if (neighbor === undefined) return undefined;
   return step < 0 ? { kind: "before", id: neighbor } : { kind: "after", id: neighbor };

@@ -46,7 +46,9 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
   const [moving, setMoving] = useState<string>();
 
   // The backend searches once the user pauses typing.
-  const searched = useDebounced(query.trim(), SEARCH_DELAY_MS);
+  const typed = useDebounced(query.trim(), SEARCH_DELAY_MS);
+  // An empty search shows the whole tree at once.
+  const searched = query.trim() === "" ? "" : typed;
   const searching = searched !== "";
   const search = useQuery({
     ...searchQuery(searched),
@@ -119,16 +121,17 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
             backend={backend}
             onConnect={actions.connect}
             onMove={actions.move}
-            onMoveBy={actions.moveBy}
+            onMoveBy={(id, step) => actions.moveBy(id, step, visible)}
             onContextMenu={(id, position) => setMenu({ id, position })}
           />
         )}
       </div>
-      <VaultFooter nodeCount={index ? nodeCount(index) : 0} />
+      <VaultFooter nodeCount={index ? nodeCount(index) : undefined} />
       {menu && index && menuEntry && (
         <NodeContextMenu
           entry={menuEntry}
           index={index}
+          visible={visible}
           position={menu.position}
           onMoveTo={setMoving}
           onClose={() => setMenu(undefined)}

@@ -93,6 +93,8 @@ describe("ContextMenu", () => {
       />,
     );
 
-    expect(screen.getByRole("menuitem", { name: /Modifica…\s*Non disponibile/ })).toBeDisabled();
+    const item = screen.getByRole("menuitem", { name: "Modifica…" });
+    expect(item).toBeDisabled();
+    expect(item).toHaveAccessibleDescription("Non disponibile");
   });
 });

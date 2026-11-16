@@ -68,5 +68,6 @@ export const app = {
     },
     secretCleared: "Segreto cancellato",
     openedInTerminal: "Aperta in una nuova finestra del terminale",
+    fellBack: "L'ultimo documento non si è aperto ({message}): è aperto quello predefinito.",
   },
 } as const;

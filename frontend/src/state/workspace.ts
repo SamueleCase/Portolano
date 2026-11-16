@@ -69,6 +69,8 @@ export interface WorkspaceState {
   reveal: (id: string, ancestors: readonly string[]) => void;
   /** Remembers the summary of the connection of session `id`. */
   sessionOpened: (id: string, summary: string) => void;
+  /** Forgets what was kept of the sessions no longer open. */
+  sessionsClosed: (open: readonly string[]) => void;
   /** Another document is open: nothing of the previous one stays selected. */
   documentSwitched: () => void;
 }
@@ -126,6 +128,12 @@ export const useWorkspace = create<WorkspaceState>()((set) => ({
     })),
   sessionOpened: (id, summary) =>
     set((state) => ({ sessionSummaries: { ...state.sessionSummaries, [id]: summary } })),
+  sessionsClosed: (open) =>
+    set((state) => ({
+      sessionSummaries: Object.fromEntries(
+        Object.entries(state.sessionSummaries).filter(([id]) => open.includes(id)),
+      ),
+    })),
   documentSwitched: () =>
     set({
       selectedId: null,

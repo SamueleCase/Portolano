@@ -70,4 +70,15 @@ describe("the workspace store", () => {
       expanded: null,
     });
   });
+
+  it("forgets the summary of a session that is no longer open", () => {
+    workspace().sessionOpened("fake-session-1", "deploy@bastion.example.com:22");
+    workspace().sessionOpened("fake-session-2", "admin@web01.example.com:2222");
+
+    workspace().sessionsClosed(["fake-session-2"]);
+
+    expect(workspace().sessionSummaries).toEqual({
+      "fake-session-2": "admin@web01.example.com:2222",
+    });
+  });
 });

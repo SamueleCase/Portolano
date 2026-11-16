@@ -22,11 +22,18 @@ function vaultBackend(kind: VaultKind): VaultBackend {
   return kind === "file" ? "file" : "keychain";
 }
 
-/** A session that connects is work in a session: the background calms down (inventario §3.1). */
+/**
+ * A session that connects is work in a session: the background calms down
+ * (inventario §3.1). A session closed (its tab, its "Chiudi") leaves nothing
+ * kept for it.
+ */
 function useSessionActivity(): void {
   useEffect(
     () =>
       useSessionsStore.subscribe((state, previous) => {
+        if (state.sessions.length < previous.sessions.length) {
+          useWorkspace.getState().sessionsClosed(state.sessions.map((session) => session.id));
+        }
         const connected = state.sessions.some(
           (session) =>
             session.state.state === "connected" &&

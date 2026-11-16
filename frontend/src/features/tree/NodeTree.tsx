@@ -141,10 +141,13 @@ export function NodeTree(props: NodeTreeProps) {
   const keyDown = useTreeKeyboard(tree, index, keys, ROOT);
 
   // The data comes from the backend: the tree is rebuilt when it changes.
-  // Then one row must keep the Tab key, and a node just revealed (a copy, a
-  // node created, "Vai al nodo") takes the focus of the tree and shows.
   useEffect(() => {
     tree.rebuildTree();
+  }, [tree, index, visible, expandedItems]);
+
+  // One row keeps the Tab key, and a node just revealed (a copy, a node
+  // created, "Vai al nodo") takes the focus of the tree and shows.
+  useEffect(() => {
     const items = tree.getItems();
     const selected = items.find((item) => item.getId() === selectedId);
     if (revealed.current !== revealRequests && selected) {

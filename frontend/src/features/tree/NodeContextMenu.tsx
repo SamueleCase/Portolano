@@ -8,8 +8,9 @@ import { siblingPlacement, type TreeEntry, type TreeIndex } from "./treeModel";
 
 interface NodeContextMenuProps {
   entry: TreeEntry;
-  /** The tree, for "Sposta su" / "Sposta giù" at the edges. */
+  /** The tree and the nodes shown, for "Sposta su" / "Sposta giù". */
   index: TreeIndex;
+  visible: ReadonlySet<string> | null;
   position: { x: number; y: number };
   /** "Sposta in…": the picker of the destination folder. */
   onMoveTo: (id: string) => void;
@@ -41,6 +42,7 @@ const SEPARATOR = { separator: true } as const;
 export function NodeContextMenu({
   entry,
   index,
+  visible,
   position,
   onMoveTo,
   onClose,
@@ -62,11 +64,11 @@ export function NodeContextMenu({
   // The keyboard alternative to dragging among the siblings (SPEC-UI §5.5).
   const up = item("up", m.moveUp, {
     shortcut: s.moveUp,
-    disabled: siblingPlacement(index, id, -1) === undefined,
+    disabled: siblingPlacement(index, id, -1, visible) === undefined,
   });
   const down = item("down", m.moveDown, {
     shortcut: s.moveDown,
-    disabled: siblingPlacement(index, id, 1) === undefined,
+    disabled: siblingPlacement(index, id, 1, visible) === undefined,
   });
   const remove = item("delete", m.delete, { shortcut: s.delete, destructive: true });
 
@@ -128,9 +130,9 @@ export function NodeContextMenu({
       case "move":
         return onMoveTo(id);
       case "up":
-        return actions.moveBy(id, -1);
+        return actions.moveBy(id, -1, visible);
       case "down":
-        return actions.moveBy(id, 1);
+        return actions.moveBy(id, 1, visible);
       case "delete":
         return actions.remove(id);
       case "new-ssh":

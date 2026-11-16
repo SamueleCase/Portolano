@@ -59,8 +59,11 @@ export interface WindowActions {
   remove: (id: string) => void;
   toggleFavorite: (id: string) => void;
   move: (id: string, destination: string | null, placement: PlacementInput) => void;
-  /** "Sposta su" / "Sposta giù", Alt+↑ / Alt+↓: one place among its siblings. */
-  moveBy: (id: string, step: -1 | 1) => void;
+  /**
+   * "Sposta su" / "Sposta giù", Alt+↑ / Alt+↓: one place among its siblings
+   * shown (`visible`, all of them by default).
+   */
+  moveBy: (id: string, step: -1 | 1, visible?: ReadonlySet<string> | null) => void;
   /**
    * "Imposta…" / "Sostituisci…" of a secret: the password dialog, after the
    * unlock of the vault if it is locked.
@@ -174,9 +177,9 @@ export function useWindowActionsValue(): WindowActions {
         attempt(async () => {
           await moveNode({ id, destination, placement });
         }),
-      moveBy: (id, step) => {
+      moveBy: (id, step, visible = null) => {
         const index = tree();
-        const placement = index && siblingPlacement(index, id, step);
+        const placement = index && siblingPlacement(index, id, step, visible);
         if (!index || !placement) return;
         const destination = index.entries.get(id)?.parentId ?? null;
         attempt(async () => {

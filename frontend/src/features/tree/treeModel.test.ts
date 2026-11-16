@@ -10,6 +10,7 @@ import {
   nodeKindOf,
   parentForNew,
   readablePath,
+  siblingPlacement,
   type TreeIndex,
   visibleIds,
 } from "./treeModel";
@@ -101,5 +102,15 @@ describe("the model of the tree", () => {
 
   it("writes a path as the interface does, keeping escaped slashes in the names", () => {
     expect(readablePath("/Clienti/ACME\\/Nord/web01")).toBe("Clienti / ACME/Nord / web01");
+  });
+
+  it("moves a node among the siblings shown only, while a filter hides some", async () => {
+    const index = await sampleTree();
+    const shown = new Set([await idOf("Clienti"), await idOf("ts01"), await idOf("ACME")]);
+
+    expect(siblingPlacement(index, await idOf("ts01"), -1, shown)).toEqual({
+      kind: "before",
+      id: await idOf("ACME"),
+    });
   });
 });

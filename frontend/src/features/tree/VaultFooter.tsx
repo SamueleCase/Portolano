@@ -21,7 +21,7 @@ function fileName(path: string | null): string {
  * Without that dialog mounted the state is shown but not clickable, with the
  * reason in its tooltip (DEC-041.6).
  */
-export function VaultFooter({ nodeCount }: { nodeCount: number }) {
+export function VaultFooter({ nodeCount }: { nodeCount: number | undefined }) {
   const actions = useWindowActions();
   const vault = useQuery(vaultStatusQuery).data;
   const missing = vault?.exists === false;
@@ -31,13 +31,15 @@ export function VaultFooter({ nodeCount }: { nodeCount: number }) {
     const t = texts.components.vault;
     return (
       <footer className={styles.vaultFooter}>
-        <Tooltip content={texts.app.reasons.unavailable}>
+        <Tooltip content={`${fileName(vault.path)} · ${texts.app.reasons.unavailable}`}>
           <span className={styles.vaultState} tabIndex={0}>
             <LockIcon size="vault" />
             <span>{t.fileLocked}</span>
           </span>
         </Tooltip>
-        <span className={styles.vaultCount}>{plural(nodeCount, t.nodes)}</span>
+        {nodeCount !== undefined && (
+          <span className={styles.vaultCount}>{plural(nodeCount, t.nodes)}</span>
+        )}
       </footer>
     );
   }

@@ -25,7 +25,7 @@ export function rowLabel(
       meta.state === "present" ? t.tree.meta.present[meta.backend] : t.tree.meta[meta.state],
     );
   }
-  if (entry.node.favorite) parts.push(texts.tree.favorite);
+  if (entry.node.favorite) parts.push(t.tree.favorite.toLowerCase());
   if (session !== "idle") parts.push(t.statusDot[session].toLowerCase());
   return parts.join(", ");
 }
