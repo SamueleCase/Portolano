@@ -1,4 +1,5 @@
 import type { DeletePreview } from "../../bindings";
+import { visibleText } from "../../components/visibleText";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { pathName, type TreeIndex } from "../tree/treeModel";
@@ -40,11 +41,17 @@ export function deleteUsage(preview: DeletePreview, index: TreeIndex | undefined
       (reference.target === preview.id && preview.node_type.type === "credential");
     credentialsUsed ||= credential;
     otherReferences ||= !credential;
+    // The name of a node is untrusted text (SPEC-UI §1.3).
+    const target = visibleText(pathName(reference.target_path));
+    const fromFolder = kindOf(reference.from) === "folder";
     const relation = !credential
-      ? interpolate(t.references, { target: pathName(reference.target_path) })
-      : kindOf(reference.from) === "folder"
-        ? t.folderDefault
-        : t.linked;
+      ? interpolate(t.references, { target })
+      : reference.target !== preview.id
+        ? // A credential inside the deleted folder: which one.
+          interpolate(fromFolder ? t.folderDefaultOf : t.linkedTo, { target })
+        : fromFolder
+          ? t.folderDefault
+          : t.linked;
     return {
       key: `${reference.from}-${reference.target}`,
       id: reference.from,

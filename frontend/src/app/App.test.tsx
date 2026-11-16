@@ -243,9 +243,7 @@ describe("the window", () => {
     const Create = ({ onDone }: VaultDialogProps) => (
       <button
         type="button"
-        onClick={() =>
-          void commands.createFileVault(TEST_MASTER_PASSWORD).then(() => onDone(true))
-        }
+        onClick={() => void commands.createFileVault(TEST_MASTER_PASSWORD).then(() => onDone(true))}
       >
         crea vault
       </button>
@@ -257,7 +255,9 @@ describe("the window", () => {
     await userEvent.click(await row("Admin ACME"));
     const secrets = await screen.findByRole("region", { name: texts.details.secrets.heading });
 
-    await userEvent.click(within(secrets).getAllByRole("button", { name: /Imposta|Sostituisci/ })[0]!);
+    await userEvent.click(
+      within(secrets).getAllByRole("button", { name: /Imposta|Sostituisci/ })[0]!,
+    );
     await userEvent.click(await screen.findByRole("button", { name: "crea vault" }));
 
     expect(await screen.findByText("password password")).toBeInTheDocument();

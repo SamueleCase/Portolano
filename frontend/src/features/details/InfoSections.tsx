@@ -4,6 +4,7 @@ import { GroupHeader } from "../../components/GroupHeader";
 import { KeyValueGrid, type KeyValueRow } from "../../components/KeyValueGrid";
 import type { VaultBackend } from "../../components/SecretBadge";
 import { visibleText } from "../../components/visibleText";
+import { VisuallyHidden } from "../../components/VisuallyHidden";
 import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { readablePath } from "../tree/treeModel";
@@ -45,6 +46,7 @@ export function UsageSection({ details }: { details: NodeDetailsView_Serialize }
           <li key={`${node.id}-${relation}`}>
             <button type="button" className={styles.usageRow} onClick={() => goTo(node.id)}>
               <span>{visibleText(readablePath(node.path))}</span>
+              <VisuallyHidden>, </VisuallyHidden>
               <span className={styles.relation}>{relation}</span>
             </button>
           </li>

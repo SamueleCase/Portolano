@@ -7,6 +7,7 @@ import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { Dialog } from "../../components/Dialog";
 import { visibleText } from "../../components/visibleText";
+import { VisuallyHidden } from "../../components/VisuallyHidden";
 import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { useDeleteNode, useUndoDelete } from "../../ipc/mutations";
@@ -134,6 +135,7 @@ export function DeleteConfirm() {
                       }}
                     >
                       <span>{visibleText(readablePath(row.path))}</span>
+                      <VisuallyHidden>, </VisuallyHidden>
                       <span className={styles.relation}>{row.relation}</span>
                     </button>
                   </li>

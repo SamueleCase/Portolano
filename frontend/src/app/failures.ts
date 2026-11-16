@@ -67,7 +67,10 @@ export type CanReadyVault = (dialog: "unlockVault" | "createFileVault") => boole
  * Resolves to whether to go on: `false` only when the user gave up. Without
  * the dialog the command goes on, and says itself that the vault is locked.
  */
-export async function vaultReady(queryClient: QueryClient, canAsk: CanReadyVault): Promise<boolean> {
+export async function vaultReady(
+  queryClient: QueryClient,
+  canAsk: CanReadyVault,
+): Promise<boolean> {
   const vault = await queryClient.fetchQuery({ ...vaultStatusQuery, staleTime: 0 });
   if (!vault.locked || !canAsk(vault.exists ? "unlockVault" : "createFileVault")) return true;
   return requestVault();

@@ -111,6 +111,8 @@ export const details = {
     usedBy: { one: "È usata da {n} nodo", other: "È usata da {n} nodi" },
     linked: "collegata",
     folderDefault: "credenziale predefinita",
+    linkedTo: "collegata a {target}",
+    folderDefaultOf: "credenziale predefinita: {target}",
     references: "fa riferimento a {target}",
     inheritedBy: {
       one: "La riceve per ereditarietà {n} nodo",
