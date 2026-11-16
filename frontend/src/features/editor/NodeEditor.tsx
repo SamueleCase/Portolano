@@ -8,7 +8,8 @@ import { presentFailure } from "../../ipc/errors";
 import { nodeDetailsQuery } from "../../ipc/queries";
 import styles from "./Editor.module.css";
 import { EditorForm } from "./EditorForm";
-import { blankValues, type EditorKind, editorKindOf, valuesOf } from "./editorValues";
+import { blankValues, type EditorKind } from "./editorValues";
+import { editorKindOf, valuesOf } from "./valuesOf";
 import type { SavedNode } from "./useEditorSave";
 
 /**

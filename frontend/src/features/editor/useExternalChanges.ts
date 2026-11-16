@@ -3,7 +3,8 @@ import type { UseFormReturn } from "react-hook-form";
 
 import { events, type NodeDetailsView_Serialize } from "../../bindings";
 import { reapply } from "./externalChanges";
-import { type EditableField, type EditorValues, valuesOf } from "./editorValues";
+import { type EditableField, type EditorValues } from "./editorValues";
+import { valuesOf } from "./valuesOf";
 
 /** What the editor tells about a document changed by another program. */
 export type ExternalNotice =

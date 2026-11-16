@@ -14,10 +14,7 @@ import {
 } from "../../test/fakeBackend";
 import { idOf, unlocked } from "../../test/fakeBackendFixtures";
 import { type FakeNode, blankNode, walk } from "../../test/fakeBackendModel";
-import { stubScrollIntoView } from "../dialogs/scrollStub";
 import { type EditorRequest, NodeEditor } from "./NodeEditor";
-
-stubScrollIntoView();
 
 const t = texts.editor;
 const secret = texts.dialogs.secret;

@@ -9,9 +9,6 @@ import { idOf, unlocked } from "../../test/fakeBackendFixtures";
 import { blankNode } from "../../test/fakeBackendModel";
 import { renderWithQueries } from "../../test/render";
 import { CredentialChooser } from "./CredentialChooser";
-import { stubScrollIntoView } from "./scrollStub";
-
-stubScrollIntoView();
 
 const t = texts.components;
 
