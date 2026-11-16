@@ -240,5 +240,12 @@ worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: 
 l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
 chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
 esterno".
-| UI-WP4…WP6 (ondata C) | in corso | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
+| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 al secondo giro di correzioni; UI-WP5 e UI-WP6 con la fase 1 rivista e corretta, in attesa della fase 2 | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
+
+### Limiti e migliorie annotati nell'ondata C
+- "Ricrea" del documento mancante riscrive il documento in memoria, ma non le icone personalizzate se è sparita anche
+  la loro cartella `<nome>.icons/` (DEC-041.3).
+- Trascinare un file Royal sul wizard d'import: miglioria futura con un gestore in Rust (DEC-037.3).
+- Le password dell'import vanno riscritte se `import_apply` fallisce (DEC-037.4).
+
