@@ -59,7 +59,10 @@ export function CredentialSection({ details, backend }: CredentialSectionProps) 
   const origin = credentialOrigin(details);
   if (origin === null) return null;
   const effective = details.effective;
-  const credential = effective?.kind === "resolved" ? effective.credential : null;
+  // Without a credential ("Nessuna", "Chiedi all'avvio") there are no data to show.
+  const end = details.trace?.end.kind;
+  const hasData = details.kind === "credential" || end === "credential" || end === "inline";
+  const credential = hasData && effective?.kind === "resolved" ? effective.credential : null;
   const locked = details.vaultLocked;
   const password = credential ? badgeState(credential.password, locked) : undefined;
 

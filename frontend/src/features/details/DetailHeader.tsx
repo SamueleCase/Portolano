@@ -79,8 +79,14 @@ export function DetailHeader({ details, kind, descendants }: DetailHeaderProps) 
             {commandShown ? t.actions.hideCommand : t.actions.showCommand}
           </Button>
         )}
-        <Button onClick={() => actions.duplicate(details.id)}>{t.actions.duplicate}</Button>
-        <Button variant="danger-text" onClick={() => actions.remove(details.id)}>
+        <Button loading={actions.busy.duplicate} onClick={() => actions.duplicate(details.id)}>
+          {t.actions.duplicate}
+        </Button>
+        <Button
+          variant="danger-text"
+          loading={actions.busy.remove}
+          onClick={() => actions.remove(details.id)}
+        >
           {t.actions.delete}
         </Button>
       </div>

@@ -65,6 +65,8 @@ export interface WindowActions {
   /** Closes tab `id`: a session ends with it. */
   closeTab: (id: string) => void;
   setDensity: (density: Density) => void;
+  /** The commands running now, for the spinners of their buttons. */
+  busy: { duplicate: boolean; remove: boolean };
 }
 
 /** The actions of the window; `MainWindow` provides them. */
@@ -86,15 +88,15 @@ export function useWindowActionsValue(): WindowActions {
   const features = useFeatures();
   const { connections, sessions } = useWindowServices();
   const documents = useDocumentActions();
-  const { mutateAsync: duplicateNode } = useDuplicateNode();
-  const { mutateAsync: previewDelete } = usePreviewDelete();
+  const { mutateAsync: duplicateNode, isPending: duplicating } = useDuplicateNode();
+  const { mutateAsync: previewDelete, isPending: previewing } = usePreviewDelete();
   const { mutateAsync: editNode } = useEditNode();
   const { mutateAsync: moveNode } = useMoveNode();
   const { mutateAsync: clearSecret } = useClearSecret();
   const { mutateAsync: setPreferences } = useUiPrefsSet();
   const { createNew, openChosen, openRecent, reload, recreate } = documents;
 
-  return useMemo(() => {
+  const actions = useMemo(() => {
     const report = (failure: unknown) => reportFailure(failure, queryClient);
     const attempt = (action: () => Promise<unknown>) => void action().catch(report);
     const tree = (): TreeIndex | undefined => {
@@ -189,7 +191,7 @@ export function useWindowActionsValue(): WindowActions {
           const current = queryClient.getQueryData(uiPreferencesQuery.queryKey);
           await setPreferences({ ...current, density });
         }),
-    } satisfies WindowActions;
+    } satisfies Omit<WindowActions, "busy">;
   }, [
     queryClient,
     features,
@@ -207,4 +209,8 @@ export function useWindowActionsValue(): WindowActions {
     reload,
     recreate,
   ]);
+  return useMemo(
+    () => ({ ...actions, busy: { duplicate: duplicating, remove: previewing } }),
+    [actions, duplicating, previewing],
+  );
 }
