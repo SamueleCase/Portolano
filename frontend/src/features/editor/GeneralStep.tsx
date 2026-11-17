@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { ColorPicker } from "../../components/ColorPicker";
@@ -15,6 +15,7 @@ import { drawnIcon } from "../dialogs/iconChoice";
 import { IconChooser } from "../dialogs/IconChooser";
 import { errorMessage, useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
+import { GroupError } from "./GroupError";
 import { PositionField } from "./PositionField";
 import { PropertiesEditor } from "./PropertiesEditor";
 
@@ -24,6 +25,11 @@ export function GeneralStep() {
   const { values, set, errorOf } = useEditorFields();
   const [choosingIcon, setChoosingIcon] = useState(false);
   const { data: stored = [] } = useQuery(customIconsQuery);
+  const iconLabelId = useId();
+  const iconErrorId = useId();
+  const colorErrorId = useId();
+  const iconError = errorOf("icon");
+  const colorError = errorOf("color");
 
   return (
     <section className={styles.step} aria-label={texts.editor.steps.general}>
@@ -47,8 +53,15 @@ export function GeneralStep() {
         onChange={(event) => set("notes", event.target.value)}
       />
       <div className={styles.looks}>
-        <div className={styles.group}>
-          <span className={styles.fieldLabel}>{t.icon}</span>
+        <div
+          className={styles.group}
+          role="group"
+          aria-labelledby={iconLabelId}
+          aria-describedby={iconError ? iconErrorId : undefined}
+        >
+          <span id={iconLabelId} className={styles.fieldLabel}>
+            {t.icon}
+          </span>
           <div className={styles.iconRow}>
             <IconTile
               kind={values.kind}
@@ -56,26 +69,28 @@ export function GeneralStep() {
               color={values.color}
               size="editor"
             />
-            <Button onClick={() => setChoosingIcon(true)}>{t.chooseIcon}</Button>
+            <Button
+              aria-describedby={iconError ? iconErrorId : undefined}
+              onClick={() => setChoosingIcon(true)}
+            >
+              {t.chooseIcon}
+            </Button>
             {values.icon.kind !== "none" && (
               <Button variant="ghost" onClick={() => set("icon", { kind: "none" })}>
                 {t.removeIcon}
               </Button>
             )}
           </div>
-          {errorOf("icon") && (
-            <span className={styles.error} role="alert">
-              {errorOf("icon")}
-            </span>
-          )}
+          <GroupError id={iconErrorId} text={iconError} />
         </div>
-        <div className={styles.group}>
+        {/* The picker names itself: the group only carries its error. */}
+        <div
+          className={styles.group}
+          role="group"
+          aria-describedby={colorError ? colorErrorId : undefined}
+        >
           <ColorPicker value={values.color} onChange={(color) => set("color", color)} />
-          {errorOf("color") && (
-            <span className={styles.error} role="alert">
-              {errorOf("color")}
-            </span>
-          )}
+          <GroupError id={colorErrorId} text={colorError} />
         </div>
         <FavoriteToggle
           favorite={values.favorite}

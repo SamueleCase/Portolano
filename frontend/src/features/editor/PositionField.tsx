@@ -9,6 +9,7 @@ import { FolderPicker } from "../dialogs/FolderPicker";
 import { indexedNodes } from "../dialogs/treeIndex";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
+import { GroupError } from "./GroupError";
 
 /**
  * "Posizione": the folder the node goes in, with "Cambia…" (ambiguity 10:
@@ -17,6 +18,7 @@ import styles from "./Editor.module.css";
  */
 export function PositionField() {
   const id = useId();
+  const errorId = useId();
   const { values, set, errorOf, nodeId } = useEditorFields();
   const [choosing, setChoosing] = useState(false);
   const { data: tree } = useQuery(treeQuery);
@@ -25,22 +27,19 @@ export function PositionField() {
     : undefined;
   const shown = values.parent === null ? texts.dialogs.root : folder?.path;
   const error = errorOf("parent");
+  const describedBy = error ? errorId : undefined;
   return (
-    <div className={styles.group} role="group" aria-labelledby={id}>
+    <div className={styles.group} role="group" aria-labelledby={id} aria-describedby={describedBy}>
       <span id={id} className={styles.fieldLabel}>
         {texts.editor.general.position}
       </span>
       <div className={styles.position}>
         <span className={styles.positionPath}>{shown ? visibleText(shown) : ""}</span>
-        <Button variant="small" onClick={() => setChoosing(true)}>
+        <Button variant="small" aria-describedby={describedBy} onClick={() => setChoosing(true)}>
           {texts.editor.general.change}
         </Button>
       </div>
-      {error && (
-        <span className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
+      <GroupError id={errorId} text={error} />
       <FolderPicker
         open={choosing}
         exclude={nodeId}

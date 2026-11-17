@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { GroupHeader } from "../../components/GroupHeader";
 import { type KeyValueEntry, KeyValueEditor } from "../../components/KeyValueEditor";
 import { TextField } from "../../components/TextField";
@@ -7,6 +9,7 @@ import { ConnectionTarget } from "./ConnectionTarget";
 import { CredentialSetting } from "./CredentialSetting";
 import { errorMessage, useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
+import { GroupError } from "./GroupError";
 import { JumpHostList } from "./JumpHostList";
 
 /** Step 2 · Connessione of an SSH connection (inventario §5.5). */
@@ -14,6 +17,8 @@ export function SshStep() {
   const t = texts.editor.ssh;
   const { values, set, errorOf, refusedOption, backend, newRowId } = useEditorFields();
   const optionsError = errorOf("options");
+  const optionsLabelId = useId();
+  const optionsErrorId = useId();
   // The row of the option the backend named, if it is still there.
   const refused = values.options.some((option) => option.key === refusedOption)
     ? refusedOption
@@ -74,8 +79,15 @@ export function SshStep() {
         />
         <span aria-hidden="true">{t.keepaliveAfter}</span>
       </div>
-      <div className={styles.group}>
-        <span className={styles.fieldLabel}>{t.options}</span>
+      <div
+        className={styles.group}
+        role="group"
+        aria-labelledby={optionsLabelId}
+        aria-describedby={optionsError && refused === undefined ? optionsErrorId : undefined}
+      >
+        <span id={optionsLabelId} className={styles.fieldLabel}>
+          {t.options}
+        </span>
         <KeyValueEditor
           label={t.options}
           variant="options"
@@ -106,11 +118,7 @@ export function SshStep() {
             )
           }
         />
-        {optionsError && refused === undefined && (
-          <span className={styles.error} role="alert">
-            {optionsError}
-          </span>
-        )}
+        <GroupError id={optionsErrorId} text={refused === undefined ? optionsError : undefined} />
       </div>
     </section>
   );

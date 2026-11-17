@@ -1,9 +1,12 @@
+import { useId } from "react";
+
 import { Button } from "../../components/Button";
 import { type KeyValueEntry, KeyValueEditor } from "../../components/KeyValueEditor";
 import { texts } from "../../i18n/it";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import type { PropertyRow } from "./editorValues";
+import { GroupError } from "./GroupError";
 import { propertySlot } from "./secretSlots";
 
 /**
@@ -16,6 +19,8 @@ export function PropertiesEditor() {
   const { values, set, errorOf, secrets, askSecret, clearSecret, backend, newRowId } =
     useEditorFields();
   const rows = values.properties;
+  const labelId = useId();
+  const errorId = useId();
 
   const entries: KeyValueEntry[] = rows.map((row) => ({
     id: row.id,
@@ -31,8 +36,15 @@ export function PropertiesEditor() {
   const error = errorOf("properties");
 
   return (
-    <div className={styles.group}>
-      <span className={styles.fieldLabel}>{t.properties}</span>
+    <div
+      className={styles.group}
+      role="group"
+      aria-labelledby={labelId}
+      aria-describedby={error ? errorId : undefined}
+    >
+      <span id={labelId} className={styles.fieldLabel}>
+        {t.properties}
+      </span>
       <KeyValueEditor
         label={t.properties}
         variant="properties"
@@ -68,11 +80,7 @@ export function PropertiesEditor() {
       <Button variant="add" className={styles.addSecret} onClick={() => add(true)}>
         {t.addSecretProperty}
       </Button>
-      {error && (
-        <span className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
+      <GroupError id={errorId} text={error} />
     </div>
   );
 }

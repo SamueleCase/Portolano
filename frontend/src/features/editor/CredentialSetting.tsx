@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { CredentialField } from "../../components/CredentialField";
 import type { CredentialMode } from "../../components/credentialPreviewData";
@@ -14,6 +14,7 @@ import { indexedNodes } from "../dialogs/treeIndex";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import type { GatewayCredential } from "./editorValues";
+import { GroupError } from "./GroupError";
 import { PASSWORD } from "./secretSlots";
 
 interface CredentialSettingProps {
@@ -52,6 +53,7 @@ export function CredentialSetting({
   const t = texts.dialogs.credential.origin;
   const { values, secrets, askSecret, backend } = useEditorFields();
   const [choosing, setChoosing] = useState(false);
+  const errorId = useId();
   const { data: tree } = useQuery(treeQuery);
   const entries = tree ? indexedNodes(tree) : [];
 
@@ -89,7 +91,8 @@ export function CredentialSetting({
         : undefined;
 
   return (
-    <div className={styles.group}>
+    // The field names itself: the group only carries its error.
+    <div className={styles.group} role="group" aria-describedby={error ? errorId : undefined}>
       <CredentialField
         label={label}
         mode={texts.components.credentialModes[mode].title}
@@ -99,11 +102,7 @@ export function CredentialSetting({
         backend={backend}
         onChange={() => setChoosing(true)}
       />
-      {error && (
-        <span className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
+      <GroupError id={errorId} text={error} />
       <CredentialChooser
         open={choosing}
         nodeName={values.name || texts.editor.untitled}

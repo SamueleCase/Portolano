@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { NodeTypeIcon } from "../../components/icons/NodeTypeIcon";
@@ -16,6 +16,7 @@ import { summaryHost } from "../tree/treeModel";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import type { JumpRow } from "./editorValues";
+import { GroupError } from "./GroupError";
 
 /**
  * The jump hosts in the order they are crossed (inventario §5.5): SSH
@@ -28,6 +29,8 @@ export function JumpHostList() {
   const [picking, setPicking] = useState(false);
   const [typing, setTyping] = useState(false);
   const [address, setAddress] = useState("");
+  const labelId = useId();
+  const errorId = useId();
   const { data: tree } = useQuery(treeQuery);
   const entries = tree ? indexedNodes(tree) : [];
   const jumps = values.jumpHosts;
@@ -45,8 +48,15 @@ export function JumpHostList() {
   const error = errorOf("jumpHosts");
 
   return (
-    <div className={styles.group}>
-      <span className={styles.fieldLabel}>{t.jumps}</span>
+    <div
+      className={styles.group}
+      role="group"
+      aria-labelledby={labelId}
+      aria-describedby={error ? errorId : undefined}
+    >
+      <span id={labelId} className={styles.fieldLabel}>
+        {t.jumps}
+      </span>
       <SortableList
         label={t.jumps}
         items={jumps}
@@ -121,11 +131,7 @@ export function JumpHostList() {
           ]}
         />
       )}
-      {error && (
-        <span className={styles.error} role="alert">
-          {error}
-        </span>
-      )}
+      <GroupError id={errorId} text={error} />
       <TreeNodePicker
         open={picking}
         purpose="jumpHost"

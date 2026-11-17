@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
@@ -10,37 +10,43 @@ import { presentFailure } from "../../ipc/errors";
 import { useChooseKeyFile } from "../../ipc/mutations";
 import { errorMessage, useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
+import { GroupError } from "./GroupError";
 import { PASSPHRASE, PASSWORD, PRIVATE_KEY, type SlotKey } from "./secretSlots";
+
+interface SecretSettingProps {
+  slot: SlotKey;
+  label: string;
+}
+
+/** A secret of the credential, with the error of the backend on it. */
+function SecretSetting({ slot, label }: SecretSettingProps) {
+  const { errorOf, secrets, askSecret, clearSecret, backend } = useEditorFields();
+  const errorId = useId();
+  const error = errorOf(
+    slot === PRIVATE_KEY ? "privateKey" : slot === PASSWORD ? "password" : "passphrase",
+  );
+  // The row names itself: the group only carries its error.
+  return (
+    <div className={styles.group} role="group" aria-describedby={error ? errorId : undefined}>
+      <SecretRow
+        label={label}
+        state={secrets.state(slot)}
+        backend={backend}
+        onSet={() => askSecret(slot)}
+        onClear={() => clearSecret(slot)}
+        appliesOnSave
+      />
+      <GroupError id={errorId} text={error} />
+    </div>
+  );
+}
 
 /** Step 2 · Accesso of a credential (inventario §5.5). */
 export function CredentialStep() {
   const t = texts.editor.credential;
-  const { values, set, errorOf, secrets, askSecret, clearSecret, backend } = useEditorFields();
+  const { values, set, errorOf, backend } = useEditorFields();
   const chooseKeyFile = useChooseKeyFile();
   const [browseError, setBrowseError] = useState<string>();
-
-  const row = (key: SlotKey, label: string) => {
-    const error = errorOf(
-      key === PRIVATE_KEY ? "privateKey" : key === PASSWORD ? "password" : "passphrase",
-    );
-    return (
-      <div className={styles.group}>
-        <SecretRow
-          label={label}
-          state={secrets.state(key)}
-          backend={backend}
-          onSet={() => askSecret(key)}
-          onClear={() => clearSecret(key)}
-          appliesOnSave
-        />
-        {error && (
-          <span className={styles.error} role="alert">
-            {error}
-          </span>
-        )}
-      </div>
-    );
-  };
 
   const browse = () => {
     setBrowseError(undefined);
@@ -71,7 +77,7 @@ export function CredentialStep() {
           onChange={(event) => set("domain", event.target.value)}
         />
       </div>
-      {row(PASSWORD, t.password)}
+      <SecretSetting slot={PASSWORD} label={t.password} />
       <Card className={styles.keyBox}>
         <span className={styles.fieldLabel}>{t.key}</span>
         <SegmentedControl
@@ -99,9 +105,9 @@ export function CredentialStep() {
             </Button>
           </div>
         )}
-        {values.keyMode === "vault" && row(PRIVATE_KEY, t.key)}
+        {values.keyMode === "vault" && <SecretSetting slot={PRIVATE_KEY} label={t.key} />}
       </Card>
-      {values.keyMode !== "none" && row(PASSPHRASE, t.passphrase)}
+      {values.keyMode !== "none" && <SecretSetting slot={PASSPHRASE} label={t.passphrase} />}
     </section>
   );
 }

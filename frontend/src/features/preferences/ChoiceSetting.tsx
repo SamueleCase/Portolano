@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { type Segment, SegmentedControl } from "../../components/SegmentedControl";
 import styles from "./Preferences.module.css";
 
@@ -18,14 +20,16 @@ export function ChoiceSetting<T extends string>({
   onChange,
   error,
 }: ChoiceSettingProps<T>) {
+  const errorId = useId();
   return (
-    <div className={styles.control}>
+    // The control names itself: the group only carries its error.
+    <div className={styles.control} role="group" aria-describedby={error ? errorId : undefined}>
       <span className={styles.label} aria-hidden="true">
         {label}
       </span>
       <SegmentedControl label={label} options={options} value={value} onChange={onChange} />
       {error && (
-        <span className={styles.error} role="alert">
+        <span id={errorId} className={styles.error} role="alert">
           {error}
         </span>
       )}
