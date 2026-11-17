@@ -2,7 +2,7 @@
 //! (DEC-040.2).
 
 use portolano_core::vault::MemoryVault;
-use portolano_core::Node;
+use portolano_core::{Node, SecretRef};
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -227,4 +227,80 @@ fn the_current_folder_as_destination_keeps_the_order() {
         names(&stored.reloaded(), Some(acme)),
         ["web01", "web02", "web03"]
     );
+}
+
+fn password_of(stored: &Stored, path: &str) -> Option<SecretRef> {
+    node(stored, path).as_credential().unwrap().password.clone()
+}
+
+fn move_with_password(
+    stored: &mut Stored,
+    vault: &dyn Vault,
+    path: &str,
+    parent: Option<Uuid>,
+) -> Result<EditOutcome> {
+    let id = id_of(&stored.doc, path);
+    edit_node_staged(
+        &stored.store,
+        &mut stored.doc,
+        vault,
+        &Registry::with_defaults(),
+        id,
+        NodeEdit::default(),
+        EditorChanges {
+            password: Some(SecretChange::Set(secret(SENTINEL))),
+            parent: Some(parent),
+            ..EditorChanges::default()
+        },
+    )
+}
+
+#[test]
+fn a_move_with_a_staged_secret_saves_both() {
+    let (vault, old) = vault_with("sentinel-old");
+    let mut stored = stored(vec![
+        credential("Admin", "admin", Some(old.clone())),
+        folder("ACME", Vec::new()),
+    ]);
+    let acme = id_of(&stored.doc, "/ACME");
+
+    let outcome = move_with_password(&mut stored, &vault, "/Admin", Some(acme)).unwrap();
+
+    assert_eq!(outcome.path, "/ACME/Admin");
+    assert_eq!((outcome.secrets_written, outcome.secrets_deleted), (1, 1));
+    let new = password_of(&stored, "/ACME/Admin").unwrap();
+    assert_eq!(vault.get(&new).unwrap().unwrap().expose(), SENTINEL);
+    assert!(!vault.contains(&old).unwrap());
+    assert_eq!(names(&stored.reloaded(), Some(acme)), ["Admin"]);
+}
+
+#[test]
+fn a_failed_save_of_a_move_with_a_staged_secret_changes_nothing() {
+    let vault = RecordingVault::default();
+    let old = SecretRef::new();
+    vault.set(&old, &secret("sentinel-old")).unwrap();
+    let mut stored = stored(vec![
+        credential("Admin", "admin", Some(old.clone())),
+        folder("ACME", Vec::new()),
+    ]);
+    let acme = id_of(&stored.doc, "/ACME");
+    stored.modify_externally();
+
+    let result = move_with_password(&mut stored, &vault, "/Admin", Some(acme));
+
+    assert!(
+        matches!(
+            result,
+            Err(OpsError::Core(
+                portolano_core::Error::ModifiedExternally { .. }
+            ))
+        ),
+        "{result:?}"
+    );
+    assert_eq!(names(&stored.doc, None), ["Admin", "ACME"]);
+    assert_eq!(password_of(&stored, "/Admin"), Some(old.clone()));
+    assert_eq!(vault.get(&old).unwrap().unwrap().expose(), "sentinel-old");
+    let (written, deleted) = vault.history();
+    assert_eq!(written.len(), 2);
+    assert_eq!(written[1..], deleted[..]);
 }
