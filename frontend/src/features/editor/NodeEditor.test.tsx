@@ -144,6 +144,14 @@ describe("NodeEditor", () => {
     expect(nodeNamed(state, "web01-nuovo").host).toBe("web01.example.com");
   });
 
+  it("names the panel as the edit of a node while it loads, then by the node", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+
+    expect(screen.getByRole("dialog", { name: t.label.loading })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Modifica web01" })).toBeInTheDocument();
+  });
+
   it("asks for the host before saving a new connection", async () => {
     unlocked();
     renderEditor({ mode: "add", kind: "rdp", parent: null });

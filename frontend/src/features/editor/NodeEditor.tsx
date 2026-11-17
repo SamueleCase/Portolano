@@ -55,7 +55,7 @@ function ExistingNodeEditor({
   const t = texts.editor;
   const { data: details, error } = useQuery(nodeDetailsQuery(id));
   const kind = details ? editorKindOf(details) : null;
-  const label = details ? interpolate(t.label.edit, { name: details.name }) : t.label.add;
+  const label = details ? interpolate(t.label.edit, { name: details.name }) : t.label.loading;
   const problem = error
     ? presentFailure(error).message
     : details && kind === null

@@ -1,6 +1,6 @@
 /** The texts of the editor in two steps (inventario §5.5 with its corrections). */
 export const editor = {
-  label: { add: "Nuovo elemento", edit: "Modifica {name}" },
+  label: { loading: "Modifica nodo", edit: "Modifica {name}" },
   subtitles: {
     add: {
       ssh: "Nuova connessione SSH",
