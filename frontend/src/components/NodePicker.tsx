@@ -9,6 +9,7 @@ import { HighlightedText } from "./HighlightedText";
 import { NodeTypeIcon } from "./icons/NodeTypeIcon";
 import styles from "./NodePicker.module.css";
 import { folderRows, nodeRows, type PickerNode, type PickerRow } from "./nodePickerRows";
+import { readableNames } from "./readablePath";
 import { visibleText } from "./visibleText";
 
 export type { PickerNode } from "./nodePickerRows";
@@ -195,7 +196,7 @@ export function NodePicker(props: NodePickerProps) {
       <div hidden>
         {described.map((row) => (
           <span key={row.key} id={pathId(row)}>
-            {row.path.map((name) => visibleText(name)).join(" / ")}
+            {readableNames(row.path.map((name) => visibleText(name)))}
           </span>
         ))}
       </div>
