@@ -23,6 +23,11 @@ export interface EditorFields {
   backend: VaultBackend;
   /** The node being edited; `undefined` for a new one. */
   nodeId: string | undefined;
+  /**
+   * The id of a new row (property, ssh option, jump host), unique for the
+   * whole editor: the steps unmount, the editor does not.
+   */
+  newRowId: () => string;
 }
 
 export const EditorFieldsContext = createContext<EditorFields | null>(null);

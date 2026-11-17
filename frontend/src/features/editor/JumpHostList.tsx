@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { NodeTypeIcon } from "../../components/icons/NodeTypeIcon";
@@ -24,11 +24,10 @@ import type { JumpRow } from "./editorValues";
  */
 export function JumpHostList() {
   const t = texts.editor.ssh;
-  const { values, set, errorOf, nodeId } = useEditorFields();
+  const { values, set, errorOf, nodeId, newRowId } = useEditorFields();
   const [picking, setPicking] = useState(false);
   const [typing, setTyping] = useState(false);
   const [address, setAddress] = useState("");
-  const next = useRef(0);
   const { data: tree } = useQuery(treeQuery);
   const entries = tree ? indexedNodes(tree) : [];
   const jumps = values.jumpHosts;
@@ -37,13 +36,9 @@ export function JumpHostList() {
   const nameOf = (jump: JumpRow) =>
     "ref" in jump ? (nodeOf(jump)?.node.name ?? t.missingJump) : jump.address;
 
-  const newId = () => {
-    next.current += 1;
-    return `new:${next.current}`;
-  };
   const append = (jump: JumpRow) => set("jumpHosts", [...jumps, jump]);
   const addAddress = () => {
-    if (address.trim() !== "") append({ id: newId(), address: address.trim() });
+    if (address.trim() !== "") append({ id: newRowId(), address: address.trim() });
     setAddress("");
     setTyping(false);
   };
@@ -137,7 +132,7 @@ export function JumpHostList() {
         exclude={nodeId}
         onClose={() => setPicking(false)}
         onChoose={(id) => {
-          append({ id: newId(), ref: id });
+          append({ id: newRowId(), ref: id });
           setPicking(false);
         }}
       />

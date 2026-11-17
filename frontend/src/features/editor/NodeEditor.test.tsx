@@ -310,6 +310,76 @@ describe("NodeEditor", () => {
     expect(onSaved).toHaveBeenCalledOnce();
   });
 
+  it("keeps a new secret property apart from one added after going to the next step and back", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+    const table = await screen.findByRole("table", { name: t.general.properties });
+    await userEvent.click(screen.getByRole("button", { name: t.general.addSecretProperty }));
+    await userEvent.type(within(table).getByLabelText(texts.components.keyValue.name), "Token A");
+    await userEvent.click(screen.getByRole("button", { name: t.next }));
+    await userEvent.click(screen.getByRole("button", { name: t.back }));
+
+    await userEvent.click(screen.getByRole("button", { name: t.general.addSecretProperty }));
+    const [first, second] = within(
+      screen.getByRole("table", { name: t.general.properties }),
+    ).getAllByLabelText(texts.components.keyValue.name);
+    if (!first || !second) throw new Error("righe mancanti");
+    await userEvent.type(second, "Token B");
+
+    expect(first).toHaveValue("Token A");
+    expect(second).toHaveValue("Token B");
+  });
+
+  it("keeps a new ssh option apart from one added after going back and forth", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+    await userEvent.click(screen.getByRole("button", { name: t.ssh.addOption }));
+    await userEvent.type(
+      within(screen.getByRole("table", { name: t.ssh.options })).getByLabelText(
+        texts.components.keyValue.name,
+      ),
+      "ServerAliveCountMax",
+    );
+    await userEvent.click(screen.getByRole("button", { name: t.back }));
+    await userEvent.click(screen.getByRole("button", { name: t.next }));
+
+    await userEvent.click(screen.getByRole("button", { name: t.ssh.addOption }));
+    const keys = within(screen.getByRole("table", { name: t.ssh.options })).getAllByLabelText(
+      texts.components.keyValue.name,
+    );
+    const second = keys.at(-1);
+    if (!second) throw new Error("riga mancante");
+    await userEvent.type(second, "ConnectTimeout");
+
+    expect(keys.map((key) => (key as HTMLInputElement).value)).toEqual([
+      "ServerAliveCountMax",
+      "ConnectTimeout",
+    ]);
+  });
+
+  it("gives a jump host added after going back and forth a key of its own", async () => {
+    unlocked();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderEditor({ mode: "edit", id: await idOf("db01") });
+    const addAddress = async (address: string) => {
+      await userEvent.click(screen.getByRole("button", { name: t.ssh.freeAddress }));
+      await userEvent.type(screen.getByLabelText(t.ssh.address), `${address}{Enter}`);
+    };
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+    await addAddress("jump-a.example.com");
+    await userEvent.click(screen.getByRole("button", { name: t.back }));
+    await userEvent.click(screen.getByRole("button", { name: t.next }));
+
+    await addAddress("jump-b.example.com");
+
+    const list = screen.getByRole("list", { name: t.ssh.jumps });
+    expect(within(list).getByText("jump-a.example.com")).toBeInTheDocument();
+    expect(within(list).getByText("jump-b.example.com")).toBeInTheDocument();
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    errors.mockRestore();
+  });
+
   it("shows a refused ssh option on its row", async () => {
     unlocked();
     renderEditor({ mode: "edit", id: await idOf("web01") });

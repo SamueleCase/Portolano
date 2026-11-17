@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 import { Button } from "../../components/Button";
 import { type KeyValueEntry, KeyValueEditor } from "../../components/KeyValueEditor";
 import { texts } from "../../i18n/it";
@@ -15,8 +13,8 @@ import { propertySlot } from "./secretSlots";
  */
 export function PropertiesEditor() {
   const t = texts.editor.general;
-  const { values, set, errorOf, secrets, askSecret, clearSecret, backend } = useEditorFields();
-  const next = useRef(0);
+  const { values, set, errorOf, secrets, askSecret, clearSecret, backend, newRowId } =
+    useEditorFields();
   const rows = values.properties;
 
   const entries: KeyValueEntry[] = rows.map((row) => ({
@@ -27,8 +25,7 @@ export function PropertiesEditor() {
     secret: secrets.state(propertySlot(row)),
   }));
   const add = (secret: boolean) => {
-    next.current += 1;
-    const row: PropertyRow = { id: `new:${next.current}`, name: "", secret, text: "", saved: null };
+    const row: PropertyRow = { id: newRowId(), name: "", secret, text: "", saved: null };
     set("properties", [...rows, row]);
   };
   const error = errorOf("properties");

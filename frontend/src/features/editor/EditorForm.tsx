@@ -80,6 +80,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
   const [asking, setAsking] = useState<SlotKey>();
   // Read synchronously: a second Enter before the next render must not save twice.
   const submitting = useRef(false);
+  const lastRowId = useRef(0);
 
   // Leaving the editor in any way drops what is staged.
   useEffect(() => () => holder.clear(), [holder]);
@@ -112,6 +113,10 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
     },
     backend,
     nodeId: details?.id,
+    newRowId: () => {
+      lastRowId.current += 1;
+      return `new:${lastRowId.current}`;
+    },
   };
 
   const close = () => {

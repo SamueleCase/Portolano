@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 import { GroupHeader } from "../../components/GroupHeader";
 import { type KeyValueEntry, KeyValueEditor } from "../../components/KeyValueEditor";
 import { TextField } from "../../components/TextField";
@@ -14,8 +12,7 @@ import { JumpHostList } from "./JumpHostList";
 /** Step 2 · Connessione of an SSH connection (inventario §5.5). */
 export function SshStep() {
   const t = texts.editor.ssh;
-  const { values, set, errorOf, refusedOption, backend } = useEditorFields();
-  const next = useRef(0);
+  const { values, set, errorOf, refusedOption, backend, newRowId } = useEditorFields();
   const optionsError = errorOf("options");
   // The row of the option the backend named, if it is still there.
   const refused = values.options.some((option) => option.key === refusedOption)
@@ -85,10 +82,7 @@ export function SshStep() {
           entries={entries}
           backend={backend}
           addLabel={t.addOption}
-          onAdd={() => {
-            next.current += 1;
-            set("options", [...values.options, { id: `new:${next.current}`, key: "", value: "" }]);
-          }}
+          onAdd={() => set("options", [...values.options, { id: newRowId(), key: "", value: "" }])}
           onChange={(id, change) =>
             set(
               "options",
