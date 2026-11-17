@@ -14,6 +14,7 @@ import {
   sent,
   toOptions,
   toPasswords,
+  unlockVault,
 } from "./testWizard";
 
 /** Steps 1–3 of the import wizard on the fake backend (inventario §5.13). */
@@ -171,7 +172,7 @@ describe("ImportWizard", () => {
     await toOptions(user);
 
     await user.click(screen.getByRole("button", { name: "Avanti" }));
-    await user.click(await screen.findByRole("button", { name: "Sblocca" }));
+    await unlockVault(user);
 
     expect(await screen.findByText("1 / 3")).toBeInTheDocument();
   });
@@ -182,7 +183,7 @@ describe("ImportWizard", () => {
     await toOptions(user);
 
     await user.click(screen.getByRole("button", { name: "Avanti" }));
-    await user.click(await screen.findByRole("button", { name: "Annulla" }));
+    await user.click(await screen.findByRole("button", { name: "Apri senza segreti" }));
 
     expect(screen.getByText(/^Il vault è bloccato/)).toBeInTheDocument();
     expect(screen.queryByText("1 / 3")).toBeNull();

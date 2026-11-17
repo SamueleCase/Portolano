@@ -1,5 +1,5 @@
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 
@@ -11,10 +11,11 @@ import {
   type FakeBackendState,
   initialFakeState,
   installFakeBackend,
+  TEST_MASTER_PASSWORD,
 } from "../../test/fakeBackend";
 import { IMPORT_FILE } from "../../test/fakeBackendImport";
+import { UnlockVaultFeature } from "../dialogs/DialogFeatures";
 import { ImportWizard } from "./ImportWizard";
-import { TestUnlockVault } from "./TestUnlockVault";
 
 /** Helpers of the tests of the wizard, on the fake backend with the fake Royal document. */
 
@@ -31,11 +32,11 @@ export function importBackend(
 
 /**
  * The wizard opened as the window opens it: a request of the stack, mounted
- * by `FeatureHost` with the requests it makes on top (the unlock of the vault
- * is the stand-in of the dialog of UI-WP5). Spies for its callbacks, the
- * query client it uses and `setOpen` to close it and open it again.
+ * by `FeatureHost` with the requests it makes on top (the unlock dialog of
+ * the vault, as the window registers it). Spies for its callbacks, the query
+ * client it uses and `setOpen` to close it and open it again.
  */
-export function renderWizard(features: FeatureRegistry = { unlockVault: TestUnlockVault }) {
+export function renderWizard(features: FeatureRegistry = { unlockVault: UnlockVaultFeature }) {
   const client: QueryClient = createQueryClient();
   const onClose = vi.fn();
   const onGoToNode = vi.fn();
@@ -135,6 +136,13 @@ export function passwordField(): HTMLInputElement {
   const field = screen.getByLabelText("Password");
   if (!(field instanceof HTMLInputElement)) throw new Error("il campo password non è un input");
   return field;
+}
+
+/** Opens the locked vault with the unlock dialog, which the wizard asks for. */
+export async function unlockVault(user: User): Promise<void> {
+  const dialog = await screen.findByRole("dialog", { name: "Sblocca il vault" });
+  await user.type(within(dialog).getByLabelText("Master password"), TEST_MASTER_PASSWORD);
+  await user.click(within(dialog).getByRole("button", { name: "Sblocca" }));
 }
 
 /** Waits for the report of step 4. */
