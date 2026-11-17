@@ -30,6 +30,8 @@ const SETTINGS_TARGETS: Readonly<Record<string, ErrorTarget>> = {
 
 const SETTINGS = "settings.";
 const OPTIONS = "settings.options.";
+/** A secret property, by name (`property:<name>`). */
+const PROPERTY = "property:";
 
 /** `settings.<key>`, or `settings.options.<option>` for a refused ssh option. */
 function settingsError(field: string, message: string): RoutedError {
@@ -73,6 +75,7 @@ export function routeError(error: PresentedError, kind: EditorKind): RoutedError
   const field = error.presentation === "field" ? error.field : undefined;
   if (field === undefined) return { target: "form", message: error.message };
   if (field.startsWith(SETTINGS)) return settingsError(field, error.message);
+  if (field.startsWith(PROPERTY)) return { target: "properties", message: error.message };
   return { target: fieldTarget(field, kind), message: error.message };
 }
 
