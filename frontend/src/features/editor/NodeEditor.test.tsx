@@ -5,6 +5,9 @@ import { emit } from "@tauri-apps/api/event";
 import { describe, expect, it, vi } from "vitest";
 
 import { texts } from "../../i18n/it";
+import { useRequests } from "../../state/requests";
+import { useToasts } from "../../state/toasts";
+import { useWorkspace } from "../../state/workspace";
 import {
   type FakeBackendState,
   TEST_MASTER_PASSWORD,
@@ -14,6 +17,8 @@ import {
 import { idOf, unlocked } from "../../test/fakeBackendFixtures";
 import { type FakeNode, blankNode, walk } from "../../test/fakeBackendModel";
 import { renderInWindow } from "../../test/renderInWindow";
+import { useDeleteConfirm } from "../details/deleteStore";
+import { useSessionsStore } from "../sessions/store";
 import { type EditorRequest, NodeEditor } from "./NodeEditor";
 
 const t = texts.editor;
@@ -40,7 +45,7 @@ function renderEditor(request: EditorRequest) {
   return { client, onSaved, onClose, unmountEditor };
 }
 
-/** The sentinel is nowhere: page, values of the fields, cache of Query. */
+/** The sentinel is nowhere: page, values of the fields, cache of Query, stores of the window. */
 function expectNoSentinel(client: QueryClient) {
   expect(document.body.innerHTML).not.toContain(SENTINEL);
   const fields = [
@@ -48,6 +53,18 @@ function expectNoSentinel(client: QueryClient) {
   ];
   expect(fields.map((field) => field.value)).not.toContain(SENTINEL);
   expect(cacheText(client)).not.toContain(SENTINEL);
+  expect(storesText()).not.toContain(SENTINEL);
+}
+
+/** Everything the stores of the window hold, as text. */
+function storesText(): string {
+  return JSON.stringify([
+    useRequests.getState(),
+    useToasts.getState(),
+    useWorkspace.getState(),
+    useSessionsStore.getState(),
+    useDeleteConfirm.getState(),
+  ]);
 }
 
 /** Everything the cache of Query holds, as text. */
