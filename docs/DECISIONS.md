@@ -728,6 +728,34 @@ Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetr
      - il dialogo di sblocco annidato sopra il wizard, semitrasparente, lascia leggere il testo sotto di sé: è
        l'aspetto dei dialoghi annidati della cornice (UI-WP1), da valutare al checkpoint 2.
 
+### DEC-045 – Checkpoint visivo 2 approvato; piano dell'ondata D (2026-11-17)
+1. **Checkpoint 2**: l'utente ha risposto "vai". Approvati senza correzioni:
+   - le schermate di `frontend/e2e-screenshots/{main-window,editor,import,validation}/`;
+   - le scelte DEC-043.3 ("Avanti" secondario) e DEC-044.3 (maschera solo sull'area della chiave);
+   - i limiti annotati.
+
+   Le verifiche dal vivo in `tauri dev` (Tab in WKWebView, DEC-036.1; misura del vetro, DEC-035) non sono state
+   fornite. I valori di blur restano quelli dell'inventario. Entrambe le verifiche passano fra i test manuali del
+   rapporto finale.
+2. **Ondata D**: UI-WP7 (sviluppo) e la revisione di sicurezza (due revisori in sola lettura, backend e webview)
+   partono insieme da `main`.
+   - I finding di sicurezza li corregge UI-WP7 nel suo worktree, dopo i propri compiti. Le eccezioni di proprietà
+     le concede il PM finding per finding.
+   - Il PM aggiorna `progress.md` e `DECISIONS.md` (come nelle ondate precedenti); UI-WP7 scrive il README.
+3. **Pulizie affidate a UI-WP7**:
+   - l'helper dei percorsi leggibili passa in un modulo comune che `components/` e `features/` possono importare, e
+     `NodePicker` lo usa (chiude DEC-043.9);
+   - il ramo `vaultUnavailable` del wizard e il suo testo si tolgono: nell'app i dialoghi del vault sono sempre
+     registrati, e una richiesta senza registrazione non è offerta (DEC-035);
+   - `npm audit` di nuovo (progress.md, ondata B).
+4. **E2e mancanti alla DoD** (SPEC-UI §7, §9):
+   - un e2e complessivo con segreto sentinella sui flussi che ricevono segreti (password e chiave nell'editor in
+     staging, dialogo della password, credenziali all'avvio, sblocco e creazione del vault, password dell'import). Il
+     test controlla che il segreto non compaia in risposte IPC ed eventi del finto backend, DOM dopo l'invio,
+     `localStorage`/`sessionStorage`, console, cache di TanStack Query;
+   - la navigazione con Tab (Option+Tab in WebKit, come `gallery-keyboard.spec.ts`) nella finestra principale, con
+     il focus visibile e il focus contenuto nei dialoghi e nel pannello dell'editor.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
