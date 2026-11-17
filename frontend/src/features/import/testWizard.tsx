@@ -5,6 +5,7 @@ import { expect, vi } from "vitest";
 
 import { FeatureHost } from "../../app/FeatureHost";
 import { type FeatureRegistry, FeatureRegistryContext, type ImportProps } from "../../app/features";
+import type { ImportAnswerInput_Deserialize, ImportPreviewView_Serialize } from "../../bindings";
 import { createQueryClient } from "../../ipc/queryClient";
 import { closeRequest, openRequest, topRequest, useRequests } from "../../state/requests";
 import {
@@ -109,6 +110,35 @@ export function sent(commands: ReturnType<typeof recordCommands>, command: strin
   return commands.mock.calls.filter(([name]) => name === command).map(([, args]) => args);
 }
 
+/**
+ * Makes the first request of the fake Royal document ask for a private key,
+ * as a Royal credential with its key in the document does: the fake asks
+ * passwords only, so the request changes on its way to the page and its
+ * answer on its way back. Returns the answers the page sent to `import_apply`.
+ */
+export function askPrivateKeyFirst(): ImportAnswerInput_Deserialize[][] {
+  const internals = tauriInternals();
+  const original = internals.invoke.bind(internals);
+  const applied: ImportAnswerInput_Deserialize[][] = [];
+  const first = <T extends { field: unknown }>(entries: T[], field: T["field"]) =>
+    entries.map((entry, index) => (index === 0 ? { ...entry, field } : entry));
+  vi.spyOn(internals, "invoke").mockImplementation(async (name, args, options) => {
+    if (name === "import_preview") {
+      // The answer of the fake to this command, which the bindings type.
+      const preview = (await original(name, args, options)) as ImportPreviewView_Serialize;
+      return { ...preview, requests: first(preview.requests, { kind: "privateKey" }) };
+    }
+    if (name === "import_apply") {
+      // The arguments the bindings send to this command.
+      const { answers, ...rest } = args as { answers: ImportAnswerInput_Deserialize[] };
+      applied.push(answers);
+      return original(name, { ...rest, answers: first(answers, { kind: "password" }) }, options);
+    }
+    return original(name, args, options);
+  });
+  return applied;
+}
+
 type User = ReturnType<typeof userEvent.setup>;
 
 /** Chooses the file and waits for it to be read. */
@@ -135,6 +165,13 @@ export async function toPasswords(user: User): Promise<void> {
 export function passwordField(): HTMLInputElement {
   const field = screen.getByLabelText("Password");
   if (!(field instanceof HTMLInputElement)) throw new Error("il campo password non è un input");
+  return field;
+}
+
+/** The private key area of step 3. */
+export function keyField(): HTMLTextAreaElement {
+  const field = screen.getByLabelText("Chiave privata");
+  if (!(field instanceof HTMLTextAreaElement)) throw new Error("la chiave non è una textarea");
   return field;
 }
 

@@ -25,6 +25,13 @@ export const galleryRequest: SecretRequestView_Serialize = {
   field: { kind: "password" },
 };
 
+/** A request for the key of a Royal credential, which keeps it in the document. */
+export const galleryKeyRequest: SecretRequestView_Serialize = {
+  nodePath: "Sede/Chiave deploy",
+  username: "deploy",
+  field: { kind: "privateKey" },
+};
+
 export const galleryRequests: SecretRequestView_Serialize[] = [
   { nodePath: "Sede/Produzione/web20", username: "deploy", field: { kind: "password" } },
   galleryRequest,

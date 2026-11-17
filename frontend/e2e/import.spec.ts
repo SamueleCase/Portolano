@@ -65,6 +65,22 @@ test.describe("the import wizard", () => {
     await shoot(figure, "3-password");
   });
 
+  test("asks a private key in a masked area that keeps its lines", async ({ page }) => {
+    const figure = await specimen(page, importGallery.privateKey);
+    const label = texts.importWizard.passwords.fields.privateKey;
+    const area = figure.getByRole("textbox", { name: label });
+
+    await area.fill("riga 1\nriga 2");
+
+    await expect(area).toHaveValue("riga 1\nriga 2");
+    // Dots in the area only: its label stays readable (WebKit).
+    const masking = (element: Element) =>
+      getComputedStyle(element).getPropertyValue("-webkit-text-security");
+    expect(await area.evaluate(masking)).toBe("disc");
+    expect(await figure.locator("label", { hasText: label }).evaluate(masking)).toBe("none");
+    await shoot(figure, "3-private-key");
+  });
+
   test("leads from a row of the report to its node", async ({ page }) => {
     const figure = await specimen(page, importGallery.report);
 

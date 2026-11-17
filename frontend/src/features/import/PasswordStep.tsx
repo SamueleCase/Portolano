@@ -7,8 +7,16 @@ import { ProgressBar } from "../../components/ProgressBar";
 import { TextField } from "../../components/TextField";
 import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
+import { MaskedKeyField } from "../dialogs/MaskedKeyField";
 import { readableImportPath } from "./importPath";
 import styles from "./ImportWizard.module.css";
+
+/**
+ * The field of a request: an input for a password, a text area for a
+ * private key. Both are read through `value` only, so the wizard holds one
+ * ref for either (the same trick as the secret dialog).
+ */
+export type SecretFieldElement = HTMLInputElement & HTMLTextAreaElement;
 
 interface PasswordStepProps {
   request: SecretRequestView_Serialize;
@@ -18,10 +26,11 @@ interface PasswordStepProps {
   entered: number;
   skipped: number;
   /**
-   * The field of the password. It is uncontrolled: the value is read from
-   * the element when the user goes on, never kept in React state.
+   * The field of the password, or of the private key. It is uncontrolled:
+   * the value is read from the element when the user goes on, never kept in
+   * React state.
    */
-  fieldRef: Ref<HTMLInputElement>;
+  fieldRef: Ref<SecretFieldElement>;
 }
 
 function fieldLabel(field: SecretFieldView): string {
@@ -35,7 +44,9 @@ function fieldLabel(field: SecretFieldView): string {
  * Step 3 of the wizard (inventario §5.13): one request at a time, "N / M",
  * the node, its user and the field. The password goes to the answers of the
  * wizard when the user goes on, and the field is mounted again empty for the
- * next request (`key` of the caller).
+ * next request (`key` of the caller). A private key goes in the masked area
+ * of the secret dialog, which keeps its line breaks (DEC-044.1); Enter there
+ * starts a new line, and "Salva e continua" goes on.
  */
 export function PasswordStep({
   request,
@@ -76,13 +87,17 @@ export function PasswordStep({
       <Card className={styles.requestCard}>
         <KeyValueGrid rows={rows} width="import" />
       </Card>
-      <TextField
-        ref={fieldRef}
-        label={fieldLabel(request.field)}
-        type="password"
-        autoComplete="off"
-        autoFocus
-      />
+      {request.field.kind === "privateKey" ? (
+        <MaskedKeyField ref={fieldRef} label={fieldLabel(request.field)} autoFocus />
+      ) : (
+        <TextField
+          ref={fieldRef}
+          label={fieldLabel(request.field)}
+          type="password"
+          autoComplete="off"
+          autoFocus
+        />
+      )}
       <p className={styles.muted}>{passwords.explanation}</p>
     </div>
   );

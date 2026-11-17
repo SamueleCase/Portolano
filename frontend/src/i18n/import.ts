@@ -126,6 +126,7 @@ export const importGallery = {
   fileUnreadable: "Passo 1 · file illeggibile",
   options: "Passo 2 · opzioni",
   password: "Passo 3 · password",
+  privateKey: "Passo 3 · chiave privata",
   report: "Passo 4 · report",
   validation: "Validazione con problemi",
   validationLocked: "Validazione con il vault bloccato",

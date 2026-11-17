@@ -4,7 +4,7 @@ import { Stepper } from "../../components/Stepper";
 import { FileStep } from "../../features/import/FileStep";
 import { readableImportPath } from "../../features/import/importPath";
 import { type ImportSettings, OptionsStep } from "../../features/import/OptionsStep";
-import { PasswordStep } from "../../features/import/PasswordStep";
+import { PasswordStep, type SecretFieldElement } from "../../features/import/PasswordStep";
 import { ReportStep } from "../../features/import/ReportStep";
 import { ReportActions, WizardFooter } from "../../features/import/WizardActions";
 import { type WizardStep, wizardSteps } from "../../features/import/wizardSteps";
@@ -17,6 +17,7 @@ import styles from "../Gallery.module.css";
 import { GallerySection, Specimen } from "../GallerySection";
 import {
   galleryIssues,
+  galleryKeyRequest,
   galleryLockedIssues,
   galleryPaths,
   galleryPreview,
@@ -60,9 +61,13 @@ export function ImportValidationSection() {
     askPasswords: true,
   });
   const [wentTo, setWentTo] = useState<string | null>(null);
-  const passwordField = useRef<HTMLInputElement>(null);
+  const passwordField = useRef<SecretFieldElement>(null);
+  const keyField = useRef<SecretFieldElement>(null);
   const pathOf = (id: string) => galleryPaths[id] ?? id;
   const fileFooter = <WizardFooter step="file" applying={false} canGoOn onCancel={nothing} />;
+  const passwordFooter = (
+    <WizardFooter step="passwords" applying={false} onSkip={nothing} onSkipAll={nothing} />
+  );
 
   return (
     <GallerySection id="importValidation" title={gallery.section.importValidation}>
@@ -116,17 +121,7 @@ export function ImportValidationSection() {
           </WizardFrame>
         </Specimen>
         <Specimen label={importGallery.password}>
-          <WizardFrame
-            step="passwords"
-            footer={
-              <WizardFooter
-                step="passwords"
-                applying={false}
-                onSkip={nothing}
-                onSkipAll={nothing}
-              />
-            }
-          >
+          <WizardFrame step="passwords" footer={passwordFooter}>
             <PasswordStep
               request={galleryRequest}
               position={1}
@@ -134,6 +129,18 @@ export function ImportValidationSection() {
               entered={1}
               skipped={0}
               fieldRef={passwordField}
+            />
+          </WizardFrame>
+        </Specimen>
+        <Specimen label={importGallery.privateKey}>
+          <WizardFrame step="passwords" footer={passwordFooter}>
+            <PasswordStep
+              request={galleryKeyRequest}
+              position={0}
+              total={1}
+              entered={0}
+              skipped={0}
+              fieldRef={keyField}
             />
           </WizardFrame>
         </Specimen>

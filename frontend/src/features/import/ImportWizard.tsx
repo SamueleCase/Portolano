@@ -7,7 +7,7 @@ import { texts } from "../../i18n/it";
 import { FileStep } from "./FileStep";
 import styles from "./ImportWizard.module.css";
 import { OptionsStep } from "./OptionsStep";
-import { PasswordStep } from "./PasswordStep";
+import { PasswordStep, type SecretFieldElement } from "./PasswordStep";
 import { ReportStep } from "./ReportStep";
 import { useDestination } from "./useDestination";
 import { useImportWizard } from "./useImportWizard";
@@ -29,7 +29,7 @@ export function ImportWizard({ onClose, onGoToNode }: ImportProps) {
   const destination = useDestination(wizard.settings.into, (into) =>
     wizard.changeSettings({ into }),
   );
-  const passwordField = useRef<HTMLInputElement>(null);
+  const passwordField = useRef<SecretFieldElement>(null);
   const { step } = wizard;
   const passwordsSkipped =
     !wizard.settings.askPasswords || (wizard.preview !== null && wizard.requests.length === 0);
