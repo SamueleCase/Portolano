@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { editInput, newNodeInput } from "./editorRequest";
 import { blankValues, type EditorValues } from "./editorValues";
 import { reapply } from "./externalChanges";
-import { routeError } from "./serverErrors";
+import { routeError, stepOf } from "./serverErrors";
 import { settingsOf } from "./settingsOf";
 
 const NO_SECRETS = new Map<string, string>();
@@ -193,6 +193,13 @@ describe("routeError", () => {
 
   it("keeps the settings as a whole for the bottom of the panel", () => {
     expect(invalid("settings", "non valide").target).toBe("form");
+  });
+
+  it("puts an error of a secret property under the properties, on the first step", () => {
+    const { target } = invalid("property:Token API", "non valida");
+
+    expect(target).toBe("properties");
+    expect(stepOf(target)).toBe(0);
   });
 
   it("puts a name already taken under the name", () => {
