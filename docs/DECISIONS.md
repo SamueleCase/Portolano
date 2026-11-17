@@ -677,6 +677,23 @@ mock in `docs/ui/NOTE.md`.
   chiamata (mai in store), così il login di "Chiedi all'avvio" non si chiede due volte. Senza sblocco resta l'errore.
   Eccezione di proprietà su `frontend/src/app/connections.ts` per UI-WP5.
 
+### DEC-043 – Revisione completa di UI-WP5 (decise dal PM, 2026-11-17)
+Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetro e di presentazione:
+1. **Finto backend**: `checkSettings` in `test/fakeBackendNodes.ts` (errori `settings.*` come l'app, DEC-040.3) è
+   approvato come parte dell'eccezione sul finto di DEC-040.
+2. L'utilità di test `renderInWindow.tsx` si sposta da `features/dialogs/` a `frontend/src/test/` (eccezione).
+3. **"Avanti" dell'editor resta secondario** (deviazione dall'inventario §4.1, che lo elenca fra i primari): con
+   "Salva" disponibile in entrambi i passi (SPEC-UI §5.4) l'azione predefinita è Salva e un secondo bottone primario
+   nello stesso piede sarebbe ambiguo. Da mostrare all'utente al checkpoint visivo 2.
+4. **Helper di percorsi e albero**: l'editor e i dialoghi usano quelli della cornice in `features/tree/treeModel.ts`
+   (DEC-039.4: un solo helper di presentazione dei percorsi), senza copie. Se un helper non è esportato, l'esportazione
+   è un'eccezione concessa su quel file.
+5. **Spostamento impossibile nell'editor**: l'errore è quello dello spostamento (`InvalidMove`, `NotAFolder`,
+   `TooDeep`), non `NameTaken` sul campo nome, perché nessuna rinomina lo renderebbe possibile.
+6. Con il vault bloccato l'editor permette di sostituire e cancellare in staging anche un segreto già salvato (lo
+   sblocco arriva al Salva); se `components/SecretRow.tsx` richiede una prop per separare il badge dalle azioni, è
+   un'eccezione concessa.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.

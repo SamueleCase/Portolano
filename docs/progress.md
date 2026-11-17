@@ -254,11 +254,10 @@ esterno".
 Stato esatto alla chiusura della sessione del PM:
 - `main` = `bc5132f` più questo commit di documenti; gate verdi dopo UI-WP4.
 - **UI-WP5** (editor, dialoghi, preferenze) – worktree `.claude/worktrees/agent-aae11fcea64bbed01`, branch
-  `worktree-agent-aae11fcea64bbed01`, ultimo commit `a0d3a32`, pulito. Fase 1 rivista e corretta (DEC-038, DEC-040);
-  fase 2 fatta (registrazione nei punti d'aggancio, e2e nella finestra) più DEC-042 (sblocco solo quando la
-  connessione usa il vault), committata ma **senza report**: rieseguire i gate sul branch. Poi **revisione completa**
-  (due revisori: Rust – `SettingsError` nei connettori, `parent` in `edit_node_staged`, errori in `error.rs`; frontend –
-  fase 1 corretta + fase 2), correzioni, merge su `main`, gate.
+  `worktree-agent-aae11fcea64bbed01`. Gate del PM su `a0d3a32` verdi (Vitest 710, e2e 82/82 due volte, smoke OK).
+  **Revisione completa fatta** (2026-11-17, Rust e frontend): correzioni in `docs/pm/ui-wp5-correzioni.md`, decisioni
+  in DEC-043; **correzioni in corso** da un sottoagente nuovo nel worktree. Poi controllo del PM (secondo giro mirato
+  sui punti corretti), merge su `main`, gate.
 - **UI-WP6** (import e validazione) – worktree `.claude/worktrees/agent-ad70ce73101d6031f`, branch
   `worktree-agent-ad70ce73101d6031f`, ultimo commit `139aa35`, pulito. Fase 1 e fase 2 riviste e corrette (DEC-039).
   Dopo il merge di UI-WP5: `git merge main`, e2e "vault bloccato → sblocco → 1 / 3" con il dialogo vero di UI-WP5,
