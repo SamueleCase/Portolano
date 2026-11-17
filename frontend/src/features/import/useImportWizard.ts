@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
-import { useFeatures } from "../../app/features";
 import type { ChosenFile, ImportPreviewView_Serialize, ImportResult } from "../../bindings";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
@@ -62,7 +61,6 @@ export function useImportWizard() {
   const readying = useRef(false);
   /** The window is asked for the vault (`requestVault`): "Avanti" waits for it. */
   const [readyingVault, setReadyingVault] = useState(false);
-  const features = useFeatures();
   const answers = useImportAnswers();
   const { options } = texts.importWizard;
   const dryRun = useWizardPreview();
@@ -156,11 +154,7 @@ export function useImportWizard() {
     setReadyingVault(true);
     setError(null);
     try {
-      const dialog = vault.data?.exists === false ? "createFileVault" : "unlockVault";
-      if (features[dialog] === undefined) {
-        // Without its dialog the request would answer "no" in silence.
-        setError(options.vaultUnavailable);
-      } else if (await requestVault()) {
+      if (await requestVault()) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.vault });
         startPasswords();
       }
