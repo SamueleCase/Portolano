@@ -1,5 +1,11 @@
 import type { TreeView_Serialize } from "../../bindings";
-import { ancestorsOf, indexTree, type TreeEntry, type TreeIndex } from "../tree/treeModel";
+import {
+  ancestorsOf,
+  indexTree,
+  readableNames,
+  type TreeEntry,
+  type TreeIndex,
+} from "../tree/treeModel";
 
 /** A node of the tree with where it sits, for the pickers and the editor. */
 export interface IndexedNode extends TreeEntry {
@@ -8,14 +14,14 @@ export interface IndexedNode extends TreeEntry {
 }
 
 /**
- * Where `entry` sits, as the interface writes a path (inventario §6). The
- * names of the tree are plain text, not a path of the core to parse.
+ * Where `entry` sits, as the interface writes a path. The names of the tree
+ * are plain text, not a path of the core to parse.
  */
 function locationOf(index: TreeIndex, entry: TreeEntry): string {
   const folders = ancestorsOf(index, entry.node.id)
     .reverse()
     .map((id) => index.entries.get(id)?.node.name ?? "");
-  return [...folders, entry.node.name].join(" / ");
+  return readableNames([...folders, entry.node.name]);
 }
 
 /** Every node of `tree` in tree order (folders before their content), with its path. */

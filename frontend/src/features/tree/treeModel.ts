@@ -147,9 +147,14 @@ export function pathSegments(path: string): string[] {
   return segments;
 }
 
-/** A path as the interface writes it: "Clienti / ACME/Nord / web01" (inventario §6). */
+/** Names from the root, as the interface writes a path: "Clienti / ACME/Nord / web01" (inventario §6). */
+export function readableNames(names: readonly string[]): string {
+  return names.join(" / ");
+}
+
+/** A path of the core as the interface writes it (`readableNames`). */
 export function readablePath(path: string): string {
-  return pathSegments(path).join(" / ");
+  return readableNames(pathSegments(path));
 }
 
 /** The name at the end of a path of the core. */
