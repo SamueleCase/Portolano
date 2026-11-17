@@ -693,6 +693,16 @@ Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetr
 6. Con il vault bloccato l'editor permette di sostituire e cancellare in staging anche un segreto già salvato (lo
    sblocco arriva al Salva); se `components/SecretRow.tsx` richiede una prop per separare il badge dalle azioni, è
    un'eccezione concessa.
+7. **Secondo giro – avviso di modifica esterna nell'editor**: si chiude solo alla riuscita di "Ricarica" (non a una
+   qualunque rilettura del dettaglio, che il blocco del vault o il ritorno della finestra provocano), così i campi in
+   conflitto si segnalano sempre (SPEC-UI §4.4). Eccezione minima su `frontend/src/ipc/mutations.ts` (una
+   `mutationKey` sul ricaricamento del documento).
+8. **Errori di gruppo**: la descrizione dell'errore va sul controllo che riceve il focus, non su un gruppo senza nome:
+   `SegmentedControl`, `ColorPicker`, `CredentialField` e `SecretRow` ricevono, se non l'hanno già, una prop
+   facoltativa per `aria-describedby` (eccezione su `components/`, senza cambiare gli altri usi).
+9. **Percorsi leggibili**: `features/tree/treeModel.ts` espone un unico helper che unisce nomi con il separatore del
+   glossario (usato da `readablePath` e dall'indice dei dialoghi). La copia in `components/NodePicker.tsx` resta
+   (un componente non dipende da `features/`): da unificare in UI-WP7 spostando l'helper in un modulo comune.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
