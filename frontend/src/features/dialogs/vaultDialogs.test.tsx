@@ -9,7 +9,7 @@ import { renderWithQueries } from "../../test/render";
 import { CreateVaultDialog } from "./CreateVaultDialog";
 import { SetSecretDialog } from "./SetSecretDialog";
 import { UnlockVaultDialog } from "./UnlockVaultDialog";
-import { renderInWindow } from "./renderInWindow";
+import { renderInWindow } from "../../test/renderInWindow";
 
 const t = texts.dialogs;
 

@@ -13,7 +13,7 @@ import {
 } from "../../test/fakeBackend";
 import { idOf, unlocked } from "../../test/fakeBackendFixtures";
 import { type FakeNode, blankNode, walk } from "../../test/fakeBackendModel";
-import { renderInWindow } from "../dialogs/renderInWindow";
+import { renderInWindow } from "../../test/renderInWindow";
 import { type EditorRequest, NodeEditor } from "./NodeEditor";
 
 const t = texts.editor;
