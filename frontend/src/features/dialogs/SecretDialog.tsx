@@ -4,12 +4,12 @@ import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import type { FieldMessage } from "../../components/FormField";
 import type { VaultBackend } from "../../components/SecretBadge";
-import { TextArea } from "../../components/TextArea";
 import { TextField } from "../../components/TextField";
 import type { SecretSlotInput } from "../../bindings";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import styles from "./Dialogs.module.css";
+import { MaskedKeyField } from "./MaskedKeyField";
 
 interface SecretDialogProps {
   open: boolean;
@@ -140,23 +140,12 @@ function OpenSecretDialog({
       }
     >
       {isKey ? (
-        <TextArea
+        <MaskedKeyField
           key={generation}
           ref={value}
           label={label}
-          mono
-          rows={6}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          className={styles.maskedKey}
           message={fieldMessage}
           onInput={compare}
-          // Dots on screen, and no way to copy the key out of the area, as
-          // a password field.
-          onCopy={(event) => event.preventDefault()}
-          onCut={(event) => event.preventDefault()}
         />
       ) : (
         <>
