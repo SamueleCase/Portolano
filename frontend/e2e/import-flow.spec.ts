@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { texts } from "../src/i18n/it";
 import type { FakeSeed } from "../src/test/fakeBackend";
 import { IMPORT_FILE, UNREADABLE_IMPORT_FILE } from "../src/test/fakeBackendImport";
+import { TEST_MASTER_PASSWORD } from "../src/test/fakeBackendModel";
 import { expect, test } from "./fixtures";
 import { documentTree, openApp, row } from "./mainWindowPage";
 
@@ -156,19 +157,35 @@ test.describe("the import wizard in the main window", () => {
     await shoot(page, "window-1-file-unreadable");
   });
 
-  test("asks for the locked vault before the passwords", async ({ page }) => {
+  test("opens the locked vault on top of the wizard, then asks the passwords", async ({ page }) => {
     const wizard = await openWizard(page, withFile(IMPORT_FILE, { vaultLocked: true }));
     await toOptions(wizard);
-
     await expect(wizard.getByText(/^Il vault è bloccato/)).toBeVisible();
     await shoot(page, "window-2-vault-locked");
-    await wizard.getByRole("button", { name: actions.next }).click();
 
-    // The unlock dialog is of UI-WP5: until it is mounted the wizard says so
-    // and stays on the options, without asking the passwords.
-    await expect(wizard.getByRole("alert")).toContainText(
-      texts.importWizard.options.vaultUnavailable,
-    );
+    await wizard.getByRole("button", { name: actions.next }).click();
+    // The unlock dialog of the window, asked by the wizard, which stays open (DEC-041.1).
+    const unlock = page.getByRole("dialog", { name: texts.dialogs.unlock.title });
+    await expect(unlock).toBeVisible();
+    await shoot(page, "window-2-unlock");
+    await unlock.getByLabel(texts.dialogs.unlock.field).fill(TEST_MASTER_PASSWORD);
+    await unlock.getByRole("button", { name: texts.dialogs.unlock.unlock }).click();
+
+    await expect(unlock).toBeHidden();
+    await expect(wizard.getByText("1 / 3")).toBeVisible();
+    await expect(wizard.getByLabel("Password", { exact: true })).toBeFocused();
+  });
+
+  test("stays on the options when the vault is left locked", async ({ page }) => {
+    const wizard = await openWizard(page, withFile(IMPORT_FILE, { vaultLocked: true }));
+    await toOptions(wizard);
+    await wizard.getByRole("button", { name: actions.next }).click();
+    const unlock = page.getByRole("dialog", { name: texts.dialogs.unlock.title });
+
+    await unlock.getByRole("button", { name: texts.dialogs.unlock.withoutSecrets }).click();
+
+    await expect(unlock).toBeHidden();
+    await expect(wizard.getByText(/^Il vault è bloccato/)).toBeVisible();
     await expect(wizard.getByText("1 / 3")).toBeHidden();
   });
 
