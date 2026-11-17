@@ -240,7 +240,7 @@ worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: 
 l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
 chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
 esterno".
-| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 **integrato** (merge `9a02da3`, due giri di revisione doppia, DEC-041; gate su `main` verdi dopo la correzione d'integrazione `70e4f17` del lint: Rust 1300 + 2 ignorati, Vitest 630, e2e 61/61, smoke OK); UI-WP5 e UI-WP6 in fase 2 | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
+| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 **integrato** (merge `9a02da3`, due giri di revisione doppia, DEC-041; gate su `main` verdi dopo la correzione d'integrazione `70e4f17` del lint: Rust 1300 + 2 ignorati, Vitest 630, e2e 61/61, smoke OK); UI-WP5 **integrato** (merge `f4c4e3e`, DEC-043; Rust 1326 + 2 ignorati, Vitest 749, e2e 82/82); UI-WP6 in chiusura (DEC-044) | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
 | UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
 
 ### Limiti e migliorie annotati nell'ondata C
@@ -253,11 +253,9 @@ esterno".
 ### Punto di ripresa (2026-11-17)
 Stato esatto alla chiusura della sessione del PM:
 - `main` = `bc5132f` più questo commit di documenti; gate verdi dopo UI-WP4.
-- **UI-WP5** (editor, dialoghi, preferenze) – worktree `.claude/worktrees/agent-aae11fcea64bbed01`, branch
-  `worktree-agent-aae11fcea64bbed01`. Gate del PM su `a0d3a32` verdi (Vitest 710, e2e 82/82 due volte, smoke OK).
-  **Revisione completa fatta** (2026-11-17, Rust e frontend): correzioni in `docs/pm/ui-wp5-correzioni.md`, decisioni
-  in DEC-043; **correzioni in corso** da un sottoagente nuovo nel worktree. Poi controllo del PM (secondo giro mirato
-  sui punti corretti), merge su `main`, gate.
+- **UI-WP5** (editor, dialoghi, preferenze): **integrato** il 2026-11-17 (merge `f4c4e3e`); revisione completa
+  (Rust e frontend) più un secondo giro, correzioni in `docs/pm/ui-wp5-correzioni.md`, decisioni DEC-043; gate su
+  `main`: Rust 1326 + 2 ignorati, Vitest 749, e2e 82/82 due volte, smoke OK, nessun IP fuori da RFC 5737.
 - **UI-WP6** (import e validazione) – worktree `.claude/worktrees/agent-ad70ce73101d6031f`, branch
   `worktree-agent-ad70ce73101d6031f`, ultimo commit `139aa35`, pulito. Fase 1 e fase 2 riviste e corrette (DEC-039).
   Dopo il merge di UI-WP5: `git merge main`, e2e "vault bloccato → sblocco → 1 / 3" con il dialogo vero di UI-WP5,

@@ -704,6 +704,14 @@ Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetr
    glossario (usato da `readablePath` e dall'indice dei dialoghi). La copia in `components/NodePicker.tsx` resta
    (un componente non dipende da `features/`): da unificare in UI-WP7 spostando l'helper in un modulo comune.
 
+### DEC-044 – Chiusura di UI-WP6 dopo il merge di UI-WP5 (decise dal PM, 2026-11-17)
+1. **Chiave privata nell'import**: la richiesta di una chiave privata (`field.kind` della chiave) usa lo stesso campo
+   mascherato a più righe dell'editor (DEC-038.5), riusato e non ricopiato: se il campo vive dentro `SecretDialog`, UI-WP6
+   lo estrae in un componente esportato da `frontend/src/features/dialogs/` (eccezione di proprietà), senza cambiare
+   il comportamento del dialogo. Le altre richieste restano un campo password a una riga.
+2. **e2e "vault bloccato → sblocco → 1 / 3"**: con il dialogo di sblocco vero di UI-WP5 montato nella cornice; il
+   `TestUnlockVault` del solo test di fase 1, se non serve più, si toglie.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
