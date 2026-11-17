@@ -270,6 +270,14 @@ mod tests {
     }
 
     #[test]
+    fn an_unknown_key_names_itself_as_the_setting() {
+        let error = SshSettings::parse(&map(json!({ "agent_forwading": true }))).unwrap_err();
+
+        assert_eq!(error.setting.as_deref(), Some("agent_forwading"));
+        assert_eq!(error.option, None);
+    }
+
+    #[test]
     fn a_wrong_type_names_its_setting() {
         let error = SshSettings::parse(&map(json!({ "keepalive_s": "30" }))).unwrap_err();
 
