@@ -711,6 +711,22 @@ Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetr
    il comportamento del dialogo. Le altre richieste restano un campo password a una riga.
 2. **e2e "vault bloccato → sblocco → 1 / 3"**: con il dialogo di sblocco vero di UI-WP5 montato nella cornice; il
    `TestUnlockVault` del solo test di fase 1, se non serve più, si toglie.
+3. **Esito della chiusura** (controllo del PM sul diff `a23f04b..50aa192`):
+   - Campo estratto in `features/dialogs/MaskedKeyField.tsx`, usato da `SecretDialog` e da `PasswordStep`.
+     `TestUnlockVault.tsx` è tolto: i test del wizard montano lo sblocco vero.
+   - **Correzione della maschera approvata** (`a373731`, cambia l'aspetto del dialogo di UI-WP5 in meglio): prima la
+     classe con `-webkit-text-security` stava sul contenitore del campo. In WebKit la proprietà si eredita, quindi anche
+     l'etichetta e il messaggio d'errore comparivano a pallini. Ora la maschera vale solo per la `textarea`. Da
+     mostrare al checkpoint 2.
+   - **Riga fuori perimetro approvata**: `sourceId: null` nel nodo d'esempio di `features/dialogs/treeIndex.test.ts`
+     (UI-WP5). Serve solo a far compilare il merge, perché il DTO dell'albero ha `sourceId` da DEC-037.2.
+   - **Limiti accettati**:
+     - il finto backend non ha richieste di chiave privata: il flusso della chiave è coperto da Vitest e da un esempio
+       in galleria con il suo e2e WebKit, ma non da un e2e nella finestra principale;
+     - il testo `vaultUnavailable` ("sblocco non ancora disponibile") non si raggiunge più nell'app, resta come difesa:
+       si toglie o si riformula in UI-WP7;
+     - il dialogo di sblocco annidato sopra il wizard, semitrasparente, lascia leggere il testo sotto di sé: è
+       l'aspetto dei dialoghi annidati della cornice (UI-WP1), da valutare al checkpoint 2.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
