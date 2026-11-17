@@ -13,6 +13,8 @@ export interface Reapplied {
   kept: EditableField[];
   /** The fields changed by both, to warn about. */
   conflicts: EditableField[];
+  /** Whether the reloaded node differs from the loaded one in a field of the form. */
+  changed: boolean;
 }
 
 /** Puts the changes from `loaded` to `current` over `reloaded`. */
@@ -23,6 +25,7 @@ export function reapply(
 ): Reapplied {
   const kept: EditableField[] = [];
   const conflicts: EditableField[] = [];
+  const changed = EDITABLE_FIELDS.some((field) => !sameValue(reloaded[field], loaded[field]));
   for (const field of EDITABLE_FIELDS) {
     if (sameValue(current[field], loaded[field])) continue;
     kept.push(field);
@@ -30,5 +33,5 @@ export function reapply(
       conflicts.push(field);
     }
   }
-  return { base: reloaded, kept, conflicts };
+  return { base: reloaded, kept, conflicts, changed };
 }

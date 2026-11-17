@@ -38,7 +38,6 @@ export function NodeEditor({ request, onClose, onSaved }: NodeEditorProps) {
       <EditorForm
         initial={blankValues(request.kind, request.parent)}
         details={undefined}
-        detailsUpdatedAt={0}
         focusOnMount={false}
         onClose={onClose}
         onSaved={onSaved}
@@ -56,7 +55,7 @@ function ExistingNodeEditor({
   onSaved,
 }: { id: string } & Omit<NodeEditorProps, "request">) {
   const t = texts.editor;
-  const { data: details, dataUpdatedAt, error } = useQuery(nodeDetailsQuery(id));
+  const { data: details, error } = useQuery(nodeDetailsQuery(id));
   // The panel gives the focus when it opens; a form that comes after the
   // loading takes it itself.
   const [loadedInPanel] = useState(details === undefined);
@@ -75,7 +74,6 @@ function ExistingNodeEditor({
         <EditorForm
           initial={valuesOf(kind, details)}
           details={details}
-          detailsUpdatedAt={dataUpdatedAt}
           focusOnMount={loadedInPanel}
           onClose={onClose}
           onSaved={onSaved}

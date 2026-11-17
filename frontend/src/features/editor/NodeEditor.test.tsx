@@ -1,10 +1,12 @@
-import type { QueryClient } from "@tanstack/react-query";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { texts } from "../../i18n/it";
+import { useReloadDocument } from "../../ipc/mutations";
 import { useRequests } from "../../state/requests";
 import { useToasts } from "../../state/toasts";
 import { useWorkspace } from "../../state/workspace";
@@ -114,6 +116,22 @@ async function unlockVault() {
     TEST_MASTER_PASSWORD,
   );
   await userEvent.click(screen.getByRole("button", { name: texts.dialogs.unlock.unlock }));
+}
+
+/** Another program changes the document: the editor shows its notice. */
+async function announceChangeFromOutside() {
+  await act(() => emit("document-modified-externally", { fileName: "portolano.json" }));
+  expect(await screen.findByText(t.external.modified)).toBeInTheDocument();
+}
+
+/** "Ricarica" of the window, on the cache of the editor. */
+async function reloadDocument(client: QueryClient) {
+  const { result } = renderHook(() => useReloadDocument(), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+  await act(() => result.current.mutateAsync());
 }
 
 async function save() {
@@ -601,32 +619,43 @@ describe("NodeEditor", () => {
     expect(nodeNamed(state, "ACME").children.map((child) => child.name)).toContain("dc01");
   });
 
+  it("keeps the notice of a change from outside when the detail is only read again", async () => {
+    unlocked();
+    const { client } = renderEditor({ mode: "edit", id: await idOf("web01") });
+    await type(t.general.description, "mia descrizione");
+    await announceChangeFromOutside();
+
+    // A locked vault or the window coming back read the detail again.
+    await act(() => client.invalidateQueries());
+    await act(() => client.refetchQueries());
+
+    expect(screen.getByText(t.external.modified)).toBeInTheDocument();
+  });
+
   it("closes the notice of a change from outside once reloaded with the node unchanged", async () => {
     unlocked();
     const { client } = renderEditor({ mode: "edit", id: await idOf("web01") });
     await type(t.general.description, "mia descrizione");
-    await act(() => emit("document-modified-externally", { fileName: "portolano.json" }));
-    expect(await screen.findByText(t.external.modified)).toBeInTheDocument();
-    // The detail is read again later than the event.
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await announceChangeFromOutside();
 
-    await act(() => client.invalidateQueries());
+    await reloadDocument(client);
 
     await waitFor(() => expect(screen.queryByText(t.external.modified)).not.toBeInTheDocument());
+    expect(screen.queryByText(/Documento ricaricato/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(t.general.description)).toHaveValue("mia descrizione");
   });
 
-  it("keeps its changes over a document reloaded after a change from outside", async () => {
+  it("lists the fields changed on both sides once reloaded, after other readings", async () => {
     const state = unlocked();
     const { client } = renderEditor({ mode: "edit", id: await idOf("web01") });
     await type(t.general.description, "mia descrizione");
-    await act(() => emit("document-modified-externally", { fileName: "portolano.json" }));
-    expect(await screen.findByText(t.external.modified)).toBeInTheDocument();
+    await announceChangeFromOutside();
+    await act(() => client.invalidateQueries());
 
     const web01 = nodeNamed(state, "web01");
     web01.notes = "nota di un altro programma";
     web01.description = "descrizione di un altro programma";
-    await act(() => client.invalidateQueries());
+    await reloadDocument(client);
 
     expect(await screen.findByText(/Documento ricaricato/)).toHaveTextContent(
       t.general.description,

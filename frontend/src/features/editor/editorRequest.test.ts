@@ -165,6 +165,14 @@ describe("reapply", () => {
 
     expect(result.conflicts).toEqual(["host"]);
   });
+
+  it("says whether the reloaded node differs in a field of the form", () => {
+    const loaded = ssh();
+    const current = { ...loaded, description: "mia" };
+
+    expect(reapply(loaded, current, { ...loaded }).changed).toBe(false);
+    expect(reapply(loaded, current, { ...loaded, notes: "loro" }).changed).toBe(true);
+  });
 });
 
 describe("routeError", () => {
