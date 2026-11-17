@@ -668,6 +668,50 @@ mock in `docs/ui/NOTE.md`.
 7. **Tab di sessione dopo un cambio di documento o l'eliminazione del nodo**: restano (i processi girano) con il
    riepilogo della sessione come titolo. Se l'ultimo documento non si apre all'avvio si ripiega sul predefinito.
 
+### DEC-042 – Sblocco del vault solo quando la connessione lo usa (deciso dal PM, 2026-11-16)
+- **Problema** (fase 2 di UI-WP5): con il vault su file bloccato la cornice chiedeva lo sblocco prima di **ogni**
+  connessione (correzione m7 del secondo giro di UI-WP4), anche per credenziali senza segreti; con "Apri senza
+  segreti" la connessione non partiva.
+- **Decisione**: Connetti e "Riprova" provano subito; solo se il backend risponde `vaultLocked` la cornice chiede il
+  vault (`requestVault`) e ripete **lo stesso tentativo con lo stesso login**, tenuto solo nella chiusura di quella
+  chiamata (mai in store), così il login di "Chiedi all'avvio" non si chiede due volte. Senza sblocco resta l'errore.
+  Eccezione di proprietà su `frontend/src/app/connections.ts` per UI-WP5.
+
+### DEC-043 – Revisione completa di UI-WP5 (decise dal PM, 2026-11-17)
+Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetro e di presentazione:
+1. **Finto backend**: `checkSettings` in `test/fakeBackendNodes.ts` (errori `settings.*` come l'app, DEC-040.3) è
+   approvato come parte dell'eccezione sul finto di DEC-040.
+2. L'utilità di test `renderInWindow.tsx` si sposta da `features/dialogs/` a `frontend/src/test/` (eccezione).
+3. **"Avanti" dell'editor resta secondario** (deviazione dall'inventario §4.1, che lo elenca fra i primari): con
+   "Salva" disponibile in entrambi i passi (SPEC-UI §5.4) l'azione predefinita è Salva e un secondo bottone primario
+   nello stesso piede sarebbe ambiguo. Da mostrare all'utente al checkpoint visivo 2.
+4. **Helper di percorsi e albero**: l'editor e i dialoghi usano quelli della cornice in `features/tree/treeModel.ts`
+   (DEC-039.4: un solo helper di presentazione dei percorsi), senza copie. Se un helper non è esportato, l'esportazione
+   è un'eccezione concessa su quel file.
+5. **Spostamento impossibile nell'editor**: l'errore è quello dello spostamento (`InvalidMove`, `NotAFolder`,
+   `TooDeep`), non `NameTaken` sul campo nome, perché nessuna rinomina lo renderebbe possibile.
+6. Con il vault bloccato l'editor permette di sostituire e cancellare in staging anche un segreto già salvato (lo
+   sblocco arriva al Salva); se `components/SecretRow.tsx` richiede una prop per separare il badge dalle azioni, è
+   un'eccezione concessa.
+7. **Secondo giro – avviso di modifica esterna nell'editor**: si chiude solo alla riuscita di "Ricarica" (non a una
+   qualunque rilettura del dettaglio, che il blocco del vault o il ritorno della finestra provocano), così i campi in
+   conflitto si segnalano sempre (SPEC-UI §4.4). Eccezione minima su `frontend/src/ipc/mutations.ts` (una
+   `mutationKey` sul ricaricamento del documento).
+8. **Errori di gruppo**: la descrizione dell'errore va sul controllo che riceve il focus, non su un gruppo senza nome:
+   `SegmentedControl`, `ColorPicker`, `CredentialField` e `SecretRow` ricevono, se non l'hanno già, una prop
+   facoltativa per `aria-describedby` (eccezione su `components/`, senza cambiare gli altri usi).
+9. **Percorsi leggibili**: `features/tree/treeModel.ts` espone un unico helper che unisce nomi con il separatore del
+   glossario (usato da `readablePath` e dall'indice dei dialoghi). La copia in `components/NodePicker.tsx` resta
+   (un componente non dipende da `features/`): da unificare in UI-WP7 spostando l'helper in un modulo comune.
+
+### DEC-044 – Chiusura di UI-WP6 dopo il merge di UI-WP5 (decise dal PM, 2026-11-17)
+1. **Chiave privata nell'import**: la richiesta di una chiave privata (`field.kind` della chiave) usa lo stesso campo
+   mascherato a più righe dell'editor (DEC-038.5), riusato e non ricopiato: se il campo vive dentro `SecretDialog`, UI-WP6
+   lo estrae in un componente esportato da `frontend/src/features/dialogs/` (eccezione di proprietà), senza cambiare
+   il comportamento del dialogo. Le altre richieste restano un campo password a una riga.
+2. **e2e "vault bloccato → sblocco → 1 / 3"**: con il dialogo di sblocco vero di UI-WP5 montato nella cornice; il
+   `TestUnlockVault` del solo test di fase 1, se non serve più, si toglie.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.

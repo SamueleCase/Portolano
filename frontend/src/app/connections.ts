@@ -10,7 +10,13 @@ import type { SessionLogin } from "../ipc/sessions";
 import { requestLogin } from "../state/requests";
 import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
-import { type CanReadyVault, reportFailure, runReported, vaultReady } from "./failures";
+import {
+  type CanReadyVault,
+  isVaultLocked,
+  reportFailure,
+  runReported,
+  vaultReady,
+} from "./failures";
 
 /** The size a terminal starts with; it fits its tab as soon as it shows. */
 export const INITIAL_TERMINAL_SIZE = { cols: 80, rows: 24 };
@@ -33,8 +39,9 @@ export interface Connections {
   /**
    * Connects to `nodeId` (inventario §5.1): a session of the node still
    * running comes in front, one that is over opens again in its tab
-   * ("Riprova"), otherwise a new tab opens. A locked vault is unlocked first
-   * if it can be (DEC-041.2).
+   * ("Riprova"), otherwise a new tab opens. It tries at once: only if the
+   * backend answers that the vault is locked, the vault is asked for and the
+   * same attempt is made again, with the same login (DEC-042).
    */
   connect: (nodeId: string) => Promise<void>;
   /**
@@ -75,9 +82,9 @@ export function createConnections({
 
   /** Opens `nodeId` in a new tab, or in the place of `session` ("Riprova"). */
   const start = async (nodeId: string, session: Session | undefined) => {
-    // The vault first, then the login: a command repeated after the unlock
-    // does not ask the login again.
-    if (!(await vaultReady(queryClient, canReadyVault))) return;
+    // No unlock before trying (DEC-042): a connection without secrets opens
+    // with the vault locked. The login lives only in this call: the attempt
+    // repeated after an unlock (`runReported`) uses it again, not asked twice.
     const again = await askLogin(nodeId);
     if (again === null) return;
     const login = again.login;
@@ -127,6 +134,32 @@ export function createConnections({
         reportFailure(failure, queryClient);
       } finally {
         opening.delete(nodeId);
+      }
+    },
+  };
+}
+
+/**
+ * `controller` for the session views, whose "Riprova" behaves as Connetti
+ * (DEC-042): it tries at once; only if the backend answers that the vault
+ * is locked and the vault opens, it tries again with the same login, which
+ * lives only in this call. Otherwise the failure stays in the tab.
+ */
+export function retryingAfterUnlock(
+  controller: SessionController,
+  queryClient: QueryClient,
+  canReadyVault: CanReadyVault,
+): SessionController {
+  return {
+    ...controller,
+    async retry(id, again) {
+      try {
+        return await controller.retry(id, again);
+      } catch (failure) {
+        if (!isVaultLocked(failure) || !(await vaultReady(queryClient, canReadyVault))) {
+          throw failure;
+        }
+        return controller.retry(id, again);
       }
     },
   };

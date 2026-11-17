@@ -9,7 +9,7 @@ use std::error::Error;
 use std::io;
 use std::path::Path;
 
-use portolano_connectors::ConnectError;
+use portolano_connectors::{ConnectError, SettingsError};
 use portolano_ops::delete::ExternalReference;
 use portolano_ops::secrets::SecretSlot;
 use portolano_ops::{ErrorCategory, OpsError};
@@ -72,7 +72,10 @@ pub enum IpcErrorDetails {
     /// goes under it.
     Invalid {
         /// The field, as named by the operation (`name`, `host`, `port`,
-        /// `color`, `settings`, a configuration key, …).
+        /// `color`, a configuration key, …). A setting of a protocol is
+        /// `settings.<key>` (`settings.jump_hosts`), a refused ssh option
+        /// `settings.options.<option>`, and `settings` alone the settings as a
+        /// whole (DEC-040.3).
         field: String,
     },
     /// The references that prevent a deletion.
@@ -179,7 +182,8 @@ fn details_of(error: &OpsError) -> Option<IpcErrorDetails> {
         OpsError::EmptyHost { .. } => invalid("host"),
         OpsError::InvalidPort { .. } => invalid("port"),
         OpsError::InvalidColor { .. } => invalid("color"),
-        OpsError::InvalidSettings { .. } | OpsError::InvalidJumpHost { .. } => invalid("settings"),
+        OpsError::InvalidSettings { reason, .. } => invalid(&settings_field(reason)),
+        OpsError::InvalidJumpHost { .. } => invalid("settings.jump_hosts"),
         OpsError::UnknownProtocol { .. } => invalid("protocol"),
         OpsError::NotACredential { .. } | OpsError::CredentialWithLogin { .. } => {
             invalid("credential")
@@ -194,6 +198,16 @@ fn details_of(error: &OpsError) -> Option<IpcErrorDetails> {
             invalid(key)
         }
         _ => None,
+    }
+}
+
+/// The field of a setting refused by its protocol, from the data of the
+/// error: never from its message.
+fn settings_field(reason: &SettingsError) -> String {
+    match (&reason.setting, &reason.option) {
+        (Some(setting), Some(option)) => format!("settings.{setting}.{option}"),
+        (Some(setting), None) => format!("settings.{setting}"),
+        (None, _) => "settings".to_owned(),
     }
 }
 

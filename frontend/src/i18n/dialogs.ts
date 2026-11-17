@@ -1,0 +1,92 @@
+/** The texts of the dialogs of the editor and of the vault (inventario §5.6–§5.10, §5.17). */
+export const dialogs = {
+  cancel: "Annulla",
+  root: "Radice del documento",
+  vaultNames: { keychain: "portachiavi di sistema", file: "vault" },
+  secret: {
+    titles: {
+      password: "Imposta la password",
+      passphrase: "Imposta la passphrase",
+      privateKey: "Imposta la chiave privata",
+      property: "Imposta «{name}»",
+    },
+    replaceTitles: {
+      password: "Sostituisci la password",
+      passphrase: "Sostituisci la passphrase",
+      privateKey: "Sostituisci la chiave privata",
+      property: "Sostituisci «{name}»",
+    },
+    fields: {
+      password: "Password",
+      passphrase: "Passphrase",
+      privateKey: "Chiave privata",
+      property: "Valore",
+    },
+    confirm: "Conferma",
+    match: {
+      password: "Le due password coincidono",
+      passphrase: "Le due passphrase coincidono",
+      property: "I due valori coincidono",
+    },
+    mismatch: {
+      password: "Le due password non coincidono",
+      passphrase: "Le due passphrase non coincidono",
+      property: "I due valori non coincidono",
+    },
+    empty: "Scrivi un valore.",
+    keyHint: "Incolla il contenuto della chiave privata, in formato OpenSSH o PEM.",
+    staged:
+      "Verrà salvata nel {vault} quando salvi il nodo. Dopo il salvataggio non sarà più visibile, nemmeno qui.",
+    saved: "Viene salvata nel {vault}. Dopo il salvataggio non sarà più visibile, nemmeno qui.",
+    stage: "Imposta",
+    save: { keychain: "Salva nel portachiavi", file: "Salva nel vault" },
+  },
+  unlock: {
+    title: "Sblocca il vault",
+    field: "Master password",
+    withoutSecrets: "Apri senza segreti",
+    unlock: "Sblocca",
+    hint: "Senza sbloccarlo l'albero resta visibile, ma i segreti risultano «Vault bloccato».",
+  },
+  create: {
+    title: "Crea il vault su file",
+    text: "Il vault cifrato non esiste ancora: crealo con una master password. Senza di essa i segreti non si recuperano.",
+    field: "Nuova master password del vault (almeno 12 caratteri)",
+    confirm: "Conferma",
+    tooShort: "La master password deve avere almeno 12 caratteri.",
+    mismatch: "Le due master password non coincidono",
+    match: "Le due master password coincidono",
+    create: "Crea il vault",
+  },
+  login: {
+    title: "Credenziali per la connessione",
+    text: "Valgono solo per questa sessione e non vengono salvate.",
+    user: "Utente",
+    domain: "Dominio",
+    password: "Password",
+    connect: "Connetti",
+  },
+  credential: {
+    origin: {
+      inherit: "dalla cartella che contiene il nodo",
+      none: "decide il client",
+      prompt: "a ogni avvio",
+      inline: "su questo nodo",
+      byName: "per nome «{name}»",
+      missing: "credenziale non trovata",
+    },
+    chain: { none: "Nessuna", prompt: "Chiedi all'avvio" },
+    key: {
+      file: "File {path}",
+      vault: { keychain: "Nel portachiavi", file: "Nel vault" },
+      withPassphrase: "{key}, con passphrase",
+    },
+  },
+  iconError: { title: "Immagine non aggiunta", close: "Chiudi" },
+  picker: {
+    jumpHost: { title: "Scegli un jump host", filter: "Solo SSH" },
+    credential: { title: "Scegli una credenziale", filter: "Solo credenziali" },
+    folder: { title: "Scegli la cartella", filter: "Solo cartelle" },
+    selfExcluded: "{name} è escluso perché non può fare da salto a se stesso.",
+  },
+} as const;

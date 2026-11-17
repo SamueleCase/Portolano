@@ -57,7 +57,14 @@ pub fn edit_node(
 /// # Errors
 /// As [`edit_node`], plus [`OpsError::SecretNotApplicable`],
 /// [`OpsError::SecretNotSet`] and [`OpsError::KeyFileAndVaultKey`] for the
-/// staged changes. On error the document and the vault are unchanged.
+/// staged changes, and for a move: the errors of [`Document::move_node`]
+/// ([`portolano_core::Error::NodeNotFound`] for a folder that does not
+/// exist, [`portolano_core::Error::InvalidMove`] for a folder inside itself,
+/// [`portolano_core::Error::NotAFolder`] for a destination that is not a
+/// folder, [`portolano_core::Error::TooDeep`] past the maximum depth), which
+/// come before [`OpsError::NameTaken`] for the final name in the final
+/// folder: no rename would make an impossible move possible (DEC-043.5). On
+/// error the document and the vault are unchanged, and nothing moves.
 pub fn edit_node_staged(
     store: &Store,
     doc: &mut Document,
@@ -70,8 +77,17 @@ pub fn edit_node_staged(
     doc.find(id)
         .ok_or(portolano_core::Error::NodeNotFound { id })?;
     let path = node_path(doc, id);
-    check_edit(doc, id, &path, &edit)?;
+    let current_parent = doc.parent_of(id).flatten();
+    let parent = changes.parent.unwrap_or(current_parent);
     let mut change = Change::from(doc);
+    // On the copy of the change, like the rest: a later error moves nothing.
+    // The move comes first, so that an impossible one is refused for what it
+    // is rather than for the name.
+    let moved = parent != current_parent;
+    if moved {
+        change.doc.move_node(id, parent, None)?;
+    }
+    check_edit(&change.doc, id, &path, &edit, parent, moved)?;
     let edit = ResolvedEdit::new(edit, &mut change)?;
     let staged = StagedChanges::new(changes, &mut change);
     let icon_changed = edit.details.icon.is_some();
@@ -96,12 +112,26 @@ pub fn edit_node_staged(
     })
 }
 
-/// The checks that need the whole document: the new name among the
-/// siblings, and a credential given together with a user or a domain,
-/// which would leave one of the two ignored.
-fn check_edit(doc: &Document, id: Uuid, path: &str, edit: &NodeEdit) -> Result<()> {
-    if let Some(name) = &edit.name {
-        check_name(doc, doc.parent_of(id).flatten(), name, Some(id))?;
+/// The checks that need the whole document `doc`, where the node already is
+/// in its final folder `parent` (`moved` there by this edit): the final name
+/// among its siblings, and a credential given together with a user or a
+/// domain, which would leave one of the two ignored.
+fn check_edit(
+    doc: &Document,
+    id: Uuid,
+    path: &str,
+    edit: &NodeEdit,
+    parent: Option<Uuid>,
+    moved: bool,
+) -> Result<()> {
+    // A node that moves keeps its name only if no new sibling has it.
+    let name = match &edit.name {
+        Some(name) => Some(name.as_str()),
+        None if moved => doc.find(id).map(|node| node.name.as_str()),
+        None => None,
+    };
+    if let Some(name) = name {
+        check_name(doc, parent, name, Some(id))?;
     }
     if edit.credential.is_some() && (edit.username.is_some() || edit.domain.is_some()) {
         return Err(OpsError::CredentialWithLogin {

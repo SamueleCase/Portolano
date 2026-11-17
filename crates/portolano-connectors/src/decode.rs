@@ -9,25 +9,25 @@ use portolano_core::AppConfig;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
-use crate::ConnectError;
+use crate::{ConnectError, SettingsError};
 
 /// Decodes the `settings` of a connection into `T`, whose fields must all
 /// have defaults (`#[serde(default)]`).
 ///
 /// # Errors
-/// A description of the first invalid field, in Italian.
+/// The first invalid field, with a description in Italian.
 pub(crate) fn decode_settings<T: DeserializeOwned>(
     settings: &Map<String, Value>,
-) -> Result<T, String> {
+) -> Result<T, SettingsError> {
     // Decoding one field at a time pins the error to the field that caused it.
     for (key, value) in settings {
         let single = Map::from_iter([(key.clone(), value.clone())]);
         if let Err(error) = serde_json::from_value::<T>(Value::Object(single)) {
-            return Err(field_error(key, &error.to_string()));
+            return Err(SettingsError::at(key, field_error(key, &error.to_string())));
         }
     }
     serde_json::from_value(Value::Object(settings.clone()))
-        .map_err(|error| translate(&error.to_string()))
+        .map_err(|error| SettingsError::whole(translate(&error.to_string())))
 }
 
 /// Reads the section `name` of `config` into `T`; defaults if it is missing.
@@ -57,7 +57,7 @@ pub(crate) fn decode_section<T: DeserializeOwned>(section: &toml::Value) -> Resu
     // Going through JSON reuses the per-field error reporting of
     // `decode_settings`; the sections only hold strings and tables.
     match serde_json::to_value(section) {
-        Ok(Value::Object(map)) => decode_settings(&map),
+        Ok(Value::Object(map)) => decode_settings(&map).map_err(|error| error.message),
         Ok(_) => Err("la sezione deve essere una tabella".to_owned()),
         Err(error) => Err(translate(&error.to_string())),
     }

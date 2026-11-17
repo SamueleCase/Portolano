@@ -4,6 +4,7 @@
 use portolano_core::{CredentialSpec, Node, NodeKind};
 use portolano_ops::nodes::{CredentialInput, EditorChanges, NodeEdit, SecretChange};
 use serde::Deserialize;
+use uuid::Uuid;
 
 use super::{CredentialChoice, DetailsInput, SecretProperty, check_key_file};
 use crate::dto::json::JsonObject;
@@ -75,6 +76,19 @@ pub struct NodeEditInput {
     pub key_file: Option<String>,
     /// The staged secrets.
     pub secrets: StagedSecretsInput,
+    /// The folder to move the node into, in the same save (DEC-040.2).
+    pub parent: Option<ParentInput>,
+}
+
+/// Where the editor moves a node: a folder, or the root.
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ParentInput {
+    /// The folder; null is the root. The key is required: a missing one
+    /// would move the node to the root by mistake.
+    #[serde(deserialize_with = "Option::deserialize")]
+    #[specta(type = Option<Uuid>)]
+    pub id: Option<Uuid>,
 }
 
 impl NodeEditInput {
@@ -124,6 +138,7 @@ impl NodeEditInput {
             private_key: self.secrets.private_key.map(StagedSecret::into_change),
             key_file: self.key_file,
             default_port: self.default_port,
+            parent: self.parent.map(|parent| parent.id),
         };
         Ok((edit, changes))
     }

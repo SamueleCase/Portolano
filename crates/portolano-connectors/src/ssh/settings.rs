@@ -10,10 +10,10 @@ use serde_json::{Map, Value};
 use uuid::Uuid;
 
 use super::options::check_option;
-use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
 use crate::env::DEFAULT_SSH_PROGRAM;
 use crate::safe_path::check_program_path;
+use crate::{ConnectError, SettingsError};
 
 /// The `settings` of an `ssh` connection. Fields at their default are
 /// omitted when serialized.
@@ -47,23 +47,26 @@ impl SshSettings {
     /// Decodes the `settings` of an `ssh` connection.
     ///
     /// # Errors
-    /// A description of the first problem, in Italian.
-    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<SshSettings, String> {
+    /// The first problem, with the setting and the option at fault.
+    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<SshSettings, SettingsError> {
         // `JumpHost` is untagged, so serde can only say that "no variant
         // matched": point at the faulty entry and show the two accepted forms.
         if let Some(Value::Array(jumps)) = settings.get("jump_hosts") {
             for (index, jump) in jumps.iter().enumerate() {
                 if serde_json::from_value::<JumpHost>(jump.clone()).is_err() {
-                    return Err(format!(
-                        "campo 'jump_hosts', elemento {index}: atteso {{\"$ref\": \"<uuid>\"}} \
-                         oppure {{\"address\": \"[utente@]host[:porta]\"}}"
+                    return Err(SettingsError::at(
+                        "jump_hosts",
+                        format!(
+                            "campo 'jump_hosts', elemento {index}: atteso {{\"$ref\": \"<uuid>\"}} \
+                             oppure {{\"address\": \"[utente@]host[:porta]\"}}"
+                        ),
                     ));
                 }
             }
         }
         let parsed: SshSettings = decode_settings(settings)?;
         for (key, value) in &parsed.options {
-            check_option(key, value)?;
+            check_option(key, value).map_err(|message| SettingsError::option(key, message))?;
         }
         Ok(parsed)
     }
@@ -176,7 +179,9 @@ mod tests {
 
     #[test]
     fn unknown_field_is_rejected_in_italian() {
-        let error = SshSettings::parse(&map(json!({ "agent_forwading": true }))).unwrap_err();
+        let error = SshSettings::parse(&map(json!({ "agent_forwading": true })))
+            .unwrap_err()
+            .message;
 
         assert!(
             error.starts_with("campo sconosciuto 'agent_forwading'"),
@@ -186,7 +191,9 @@ mod tests {
 
     #[test]
     fn wrong_type_names_the_field() {
-        let error = SshSettings::parse(&map(json!({ "compression": "yes" }))).unwrap_err();
+        let error = SshSettings::parse(&map(json!({ "compression": "yes" })))
+            .unwrap_err()
+            .message;
 
         assert!(
             error.starts_with("campo 'compression': tipo non valido"),
@@ -199,7 +206,7 @@ mod tests {
         let settings =
             map(json!({ "jump_hosts": [{ "address": "a.example.com" }, { "host": "b" }] }));
 
-        let error = SshSettings::parse(&settings).unwrap_err();
+        let error = SshSettings::parse(&settings).unwrap_err().message;
 
         assert!(error.contains("elemento 1"), "{error}");
         assert!(error.contains("$ref"), "{error}");
@@ -223,7 +230,9 @@ mod tests {
 
     #[test]
     fn option_names_with_equals_are_rejected() {
-        let error = SshSettings::parse(&map(json!({ "options": { "A=B": "C" } }))).unwrap_err();
+        let error = SshSettings::parse(&map(json!({ "options": { "A=B": "C" } })))
+            .unwrap_err()
+            .message;
 
         assert!(error.contains("'A=B'"), "{error}");
     }
@@ -232,10 +241,47 @@ mod tests {
     fn options_outside_the_allowed_list_are_rejected() {
         let options = json!({ "options": { "RemoteForward": "8080 localhost:80" } });
 
-        let error = SshSettings::parse(&map(options)).unwrap_err();
+        let error = SshSettings::parse(&map(options)).unwrap_err().message;
 
         assert!(error.contains("'RemoteForward'"), "{error}");
         assert!(error.contains("~/.ssh/config"), "{error}");
+    }
+
+    #[test]
+    fn a_refused_option_names_the_setting_and_the_option() {
+        let options = json!({ "options": { "ProxyCommand": "nc %h %p" } });
+
+        let error = SshSettings::parse(&map(options)).unwrap_err();
+
+        assert_eq!(
+            (error.setting.as_deref(), error.option.as_deref()),
+            (Some("options"), Some("ProxyCommand"))
+        );
+    }
+
+    #[test]
+    fn an_invalid_jump_host_names_its_setting() {
+        let settings = map(json!({ "jump_hosts": [{ "host": "b" }] }));
+
+        let error = SshSettings::parse(&settings).unwrap_err();
+
+        assert_eq!(error.setting.as_deref(), Some("jump_hosts"));
+        assert_eq!(error.option, None);
+    }
+
+    #[test]
+    fn an_unknown_key_names_itself_as_the_setting() {
+        let error = SshSettings::parse(&map(json!({ "agent_forwading": true }))).unwrap_err();
+
+        assert_eq!(error.setting.as_deref(), Some("agent_forwading"));
+        assert_eq!(error.option, None);
+    }
+
+    #[test]
+    fn a_wrong_type_names_its_setting() {
+        let error = SshSettings::parse(&map(json!({ "keepalive_s": "30" }))).unwrap_err();
+
+        assert_eq!(error.setting.as_deref(), Some("keepalive_s"));
     }
 
     #[test]

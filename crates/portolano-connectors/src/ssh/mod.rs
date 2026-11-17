@@ -11,13 +11,13 @@ use serde_json::Value;
 pub use settings::{JumpHost, SshConfig, SshSettings};
 
 use self::plan::{Endpoint, Jump, JumpLink, SSH_PORT, SshLaunch};
-use crate::ConnectError;
 use crate::decode::decode_section;
 use crate::plan::LaunchPlan;
 use crate::protocol::{
     PlanContext, Protocol, apply_session_credential, connection_node, error_issue,
 };
 use crate::terminal::relaunch_step;
+use crate::{ConnectError, SettingsError};
 
 /// The `ssh` protocol.
 #[derive(Debug, Clone, Copy, Default)]
@@ -36,7 +36,10 @@ impl Protocol for SshProtocol {
         SSH_PORT
     }
 
-    fn validate_settings(&self, settings: &serde_json::Map<String, Value>) -> Result<(), String> {
+    fn validate_settings(
+        &self,
+        settings: &serde_json::Map<String, Value>,
+    ) -> Result<(), SettingsError> {
         SshSettings::parse(settings).map(drop)
     }
 
@@ -89,7 +92,7 @@ impl Protocol for SshProtocol {
         let settings = SshSettings::parse(&connection.settings).map_err(|reason| {
             ConnectError::InvalidSettings {
                 id: ctx.node_id,
-                reason,
+                reason: reason.message,
             }
         })?;
         let ssh = ctx

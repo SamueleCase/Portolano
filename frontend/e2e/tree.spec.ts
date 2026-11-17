@@ -107,7 +107,9 @@ test.describe("the tree", () => {
   });
 
   test("connects to the focused connection with ⌘↩", async ({ page }) => {
-    await openApp(page);
+    // Open vault: bastion's credential has a passphrase in the vault, so with
+    // the vault locked the backend refuses and the window asks to unlock (DEC-042).
+    await openApp(page, { vaultLocked: false });
     const tree = await documentTree(page);
     await row(tree, "bastion").focus();
 

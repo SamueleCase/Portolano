@@ -1,0 +1,221 @@
+/* The editor in the side panel (inventario §4.17, §5.5). */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-fine-2);
+  min-width: 0;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-panel-title);
+  font-weight: var(--font-weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-5);
+  min-width: 0;
+}
+
+.fieldLabel {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-message);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-body);
+}
+
+.position {
+  display: flex;
+  align-items: center;
+  gap: var(--space-fine-10);
+  min-height: var(--size-control);
+  padding: var(--space-2) var(--space-fine-10) var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+}
+
+.positionPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Icon, color and favorite on one row, aligned at the bottom. */
+.looks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-5);
+}
+
+.iconRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.addSecret {
+  align-self: flex-start;
+}
+
+.hostPort {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-fine-10) var(--space-6);
+}
+
+/* The field inside the sentence, the words on its middle line. */
+.keepalive {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-base);
+}
+
+.size {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.jump {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.jumpName {
+  font-weight: var(--font-weight-medium);
+}
+
+.jumpPath {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jumpAddress {
+  font-family: var(--font-mono);
+}
+
+.addressRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.keyBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-10);
+  padding: var(--space-3) var(--space-fine-14);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-fine-10) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-body);
+}
+
+.failure {
+  padding: var(--space-fine-10) var(--space-3);
+  border: var(--border-width) solid var(--color-error);
+  border-radius: var(--radius-control);
+  color: var(--color-error-text);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-body);
+}
+
+.failure p {
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}

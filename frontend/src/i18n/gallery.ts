@@ -28,6 +28,7 @@ export const gallery = {
     terminal: "Terminale",
     untrusted: "Stringhe non fidate",
     sessions: "Sessioni",
+    editor: "Editor e dialoghi",
     importValidation: "Import e validazione",
   },
   states: {

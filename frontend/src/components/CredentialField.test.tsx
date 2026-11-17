@@ -44,6 +44,25 @@ describe("CredentialField", () => {
 
     expect(onShowCredential).toHaveBeenCalledOnce();
   });
+
+  it("reads the message it is given with Cambia", () => {
+    render(
+      <>
+        <CredentialField
+          label="Credenziale"
+          mode="Eredita"
+          backend="file"
+          onChange={vi.fn()}
+          describedBy="credenziale-errore"
+        />
+        <span id="credenziale-errore">credenziale rifiutata</span>
+      </>,
+    );
+
+    expect(screen.getByRole("button", { name: "Cambia" })).toHaveAccessibleDescription(
+      "credenziale rifiutata",
+    );
+  });
 });
 
 describe("SecretRow", () => {
@@ -79,6 +98,29 @@ describe("SecretRow", () => {
     await userEvent.click(screen.getByRole("button", { name: "Imposta…" }));
 
     expect(onSet).not.toHaveBeenCalled();
+  });
+
+  it("reads the message it is given with its actions", () => {
+    render(
+      <>
+        <SecretRow
+          label="Password"
+          state="present"
+          backend="file"
+          onSet={vi.fn()}
+          onClear={vi.fn()}
+          describedBy="password-errore"
+        />
+        <span id="password-errore">password rifiutata</span>
+      </>,
+    );
+
+    expect(screen.getByRole("button", { name: "Sostituisci…" })).toHaveAccessibleDescription(
+      "password rifiutata",
+    );
+    expect(screen.getByRole("button", { name: "Cancella" })).toHaveAccessibleDescription(
+      "password rifiutata",
+    );
   });
 });
 

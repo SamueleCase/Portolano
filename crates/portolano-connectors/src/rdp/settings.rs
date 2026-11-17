@@ -7,9 +7,9 @@ use portolano_core::{AppConfig, CredentialSpec};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::ConnectError;
 use crate::decode::{decode_config_section, decode_settings};
 use crate::safe_path::check_program_path;
+use crate::{ConnectError, SettingsError};
 
 /// Scale factors accepted by FreeRDP (`/scale:`).
 const SCALES: [u32; 3] = [100, 140, 180];
@@ -73,35 +73,41 @@ impl RdpSettings {
     /// that RDP clients accept.
     ///
     /// # Errors
-    /// A description of the first problem, in Italian.
-    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<RdpSettings, String> {
+    /// The first problem, with the setting at fault.
+    pub(crate) fn parse(settings: &Map<String, Value>) -> Result<RdpSettings, SettingsError> {
         let parsed: RdpSettings = decode_settings(settings)?;
         if let Some(scale) = parsed.scale.filter(|scale| !SCALES.contains(scale)) {
-            return Err(format!(
-                "campo 'scale': {scale} non ammesso (ammessi: 100, 140, 180)"
+            return Err(SettingsError::at(
+                "scale",
+                format!("campo 'scale': {scale} non ammesso (ammessi: 100, 140, 180)"),
             ));
         }
         if let Some(depth) = parsed
             .color_depth
             .filter(|depth| !COLOR_DEPTHS.contains(depth))
         {
-            return Err(format!(
-                "campo 'color_depth': {depth} non ammesso (ammessi: 15, 16, 24, 32)"
+            return Err(SettingsError::at(
+                "color_depth",
+                format!("campo 'color_depth': {depth} non ammesso (ammessi: 15, 16, 24, 32)"),
             ));
         }
         if let Resolution::Fixed { width, height } = parsed.resolution
             && (width == 0 || height == 0)
         {
-            return Err(
+            return Err(SettingsError::at(
+                "resolution",
                 "campo 'resolution': larghezza e altezza devono essere positive".to_owned(),
-            );
+            ));
         }
         if parsed
             .gateway
             .as_ref()
             .is_some_and(|gateway| gateway.host.trim().is_empty())
         {
-            return Err("campo 'gateway': host vuoto".to_owned());
+            return Err(SettingsError::at(
+                "gateway",
+                "campo 'gateway': host vuoto".to_owned(),
+            ));
         }
         Ok(parsed)
     }
@@ -319,7 +325,8 @@ mod tests {
         let error = RdpSettings::parse(&map(
             json!({ "gateway": { "host": "gw.example.com", "prot": 1 } }),
         ))
-        .unwrap_err();
+        .unwrap_err()
+        .message;
 
         assert!(
             error.starts_with("campo 'gateway': campo sconosciuto 'prot'"),
@@ -329,22 +336,34 @@ mod tests {
 
     #[test]
     fn unknown_resolution_mode_is_rejected() {
-        let error =
-            RdpSettings::parse(&map(json!({ "resolution": { "mode": "huge" } }))).unwrap_err();
+        let error = RdpSettings::parse(&map(json!({ "resolution": { "mode": "huge" } })))
+            .unwrap_err()
+            .message;
 
         assert!(error.contains("'huge'"), "{error}");
     }
 
     #[test]
     fn unsupported_scale_is_rejected() {
-        let error = RdpSettings::parse(&map(json!({ "scale": 150 }))).unwrap_err();
+        let error = RdpSettings::parse(&map(json!({ "scale": 150 })))
+            .unwrap_err()
+            .message;
 
         assert!(error.contains("150"), "{error}");
     }
 
     #[test]
+    fn a_refused_value_names_its_setting() {
+        let error = RdpSettings::parse(&map(json!({ "scale": 150 }))).unwrap_err();
+
+        assert_eq!(error.setting.as_deref(), Some("scale"));
+    }
+
+    #[test]
     fn unsupported_color_depth_is_rejected() {
-        let error = RdpSettings::parse(&map(json!({ "color_depth": 8 }))).unwrap_err();
+        let error = RdpSettings::parse(&map(json!({ "color_depth": 8 })))
+            .unwrap_err()
+            .message;
 
         assert!(error.contains("color_depth"), "{error}");
     }

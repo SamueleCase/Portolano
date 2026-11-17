@@ -11,6 +11,7 @@ import {
   type FakeBackendState,
   type FakeNode,
   type FakeSpec,
+  type JsonObject,
   blankNode,
   checkName,
   childrenOf,
@@ -89,6 +90,41 @@ export function applyDetails(
   for (const name of removed) delete node.secrets[`property:${name}`];
 }
 
+/**
+ * Some of the ssh options the connectors refuse (DEC-026.1: the real list
+ * is of allowed options), named in the field of the error as the app does
+ * (DEC-040.3).
+ */
+const REFUSED_SSH_OPTIONS = ["proxycommand", "localcommand", "remoteforward"];
+
+/** The settings of a connection, as `validate_settings` of its protocol (simplified). */
+export function checkSettings(protocol: string, settings: JsonObject): void {
+  if (protocol !== "ssh") return;
+  const options = settings["options"];
+  if (typeof options === "object" && options !== null && !Array.isArray(options)) {
+    for (const key of Object.keys(options)) {
+      if (REFUSED_SSH_OPTIONS.includes(key.toLowerCase())) {
+        failField(
+          `settings.options.${key}`,
+          `campo 'options': l'opzione '${key}' non è ammessa nel documento; se ti serve, mettila nel tuo ~/.ssh/config`,
+        );
+      }
+    }
+  }
+  const jumps = settings["jump_hosts"];
+  if (Array.isArray(jumps)) {
+    jumps.forEach((jump, index) => {
+      const entry = typeof jump === "object" && jump !== null && !Array.isArray(jump) ? jump : {};
+      if (!("$ref" in entry) && !("address" in entry)) {
+        failField(
+          "settings.jump_hosts",
+          `campo 'jump_hosts', elemento ${index}: formato non riconosciuto`,
+        );
+      }
+    });
+  }
+}
+
 export function checkConnection(protocol: string, host: string, port: number | null): void {
   if (!PROTOCOLS.includes(protocol)) {
     failField(
@@ -147,6 +183,7 @@ export function addNode(state: FakeBackendState, input: NewNodeInput_Deserialize
       break;
     case "connection":
       checkConnection(kind.protocol, kind.host, kind.port ?? null);
+      checkSettings(kind.protocol, kind.settings);
       Object.assign(node, { protocol: kind.protocol, host: kind.host, port: kind.port ?? null });
       node.settings = structuredClone(kind.settings);
       node.credential = specOf(state, kind.credential);

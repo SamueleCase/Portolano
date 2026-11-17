@@ -82,14 +82,6 @@ mod tests {
     use super::*;
     use crate::testutil::*;
 
-    fn names(doc: &Document, parent: Option<Uuid>) -> Vec<String> {
-        doc.children(parent)
-            .unwrap()
-            .iter()
-            .map(|node| node.name.clone())
-            .collect()
-    }
-
     fn three() -> Stored {
         stored(vec![
             connection("a", "ssh"),

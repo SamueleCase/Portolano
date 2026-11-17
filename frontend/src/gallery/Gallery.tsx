@@ -13,6 +13,7 @@ import { GALLERY_SEED, type GalleryOptions } from "./galleryOptions";
 import { BadgesSection } from "./sections/BadgesSection";
 import { ButtonsSection } from "./sections/ButtonsSection";
 import { ChoicesSection } from "./sections/ChoicesSection";
+import { EditorSection } from "./sections/EditorSection";
 import { FieldsSection } from "./sections/FieldsSection";
 import { FoundationsSection } from "./sections/FoundationsSection";
 import { ImportValidationSection } from "./sections/ImportValidationSection";
@@ -41,6 +42,7 @@ const sections = [
   ["terminal", TerminalSection],
   ["untrusted", UntrustedSection],
   ["sessions", SessionsSection],
+  ["editor", EditorSection],
   ["importValidation", ImportValidationSection],
 ] as const;
 

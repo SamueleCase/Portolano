@@ -8,6 +8,7 @@
 //! then, so that cancelling the editor or a failed save never loses it.
 
 use portolano_core::{CredentialSpec, Node, NodeKind, PrivateKey, Secret, SecretRef};
+use uuid::Uuid;
 
 use super::credential::{credential_spec_mut, with_password};
 use super::non_empty;
@@ -39,6 +40,10 @@ pub struct EditorChanges {
     pub key_file: Option<String>,
     /// Port back to the default of the protocol (connections).
     pub default_port: bool,
+    /// The folder the node goes in, moved in the same save as the other
+    /// changes (DEC-040.2): `None` leaves it where it is, `Some(None)` is
+    /// the root. It goes last among its new siblings.
+    pub parent: Option<Option<Uuid>>,
 }
 
 /// [`EditorChanges`] whose new secrets are queued in the change: `Some(Some)`

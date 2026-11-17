@@ -1,4 +1,12 @@
+import {
+  CreateVaultFeature,
+  LoginFeature,
+  PasswordFeature,
+  UnlockVaultFeature,
+} from "../features/dialogs/DialogFeatures";
+import { EditorFeature } from "../features/editor/EditorFeature";
 import { ImportWizard } from "../features/import/ImportWizard";
+import { PreferencesFeature } from "../features/preferences/PreferencesFeature";
 import { ValidationPanel } from "../features/validation/ValidationPanel";
 import type { FeatureRegistry } from "./features";
 
@@ -8,6 +16,12 @@ import type { FeatureRegistry } from "./features";
  * validation) add their line here when they integrate (DEC-035).
  */
 export const featureRegistry: FeatureRegistry = {
+  editor: EditorFeature,
+  password: PasswordFeature,
+  unlockVault: UnlockVaultFeature,
+  createFileVault: CreateVaultFeature,
+  login: LoginFeature,
+  preferences: PreferencesFeature,
   import: ImportWizard,
   validation: ValidationPanel,
 };

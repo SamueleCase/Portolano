@@ -23,6 +23,8 @@ interface CredentialFieldProps {
   onChange: () => void;
   /** Goes to the credential whose password is missing. */
   onShowCredential?: (() => void) | undefined;
+  /** The id of a message about the credential (an error), read with "Cambia". */
+  describedBy?: string | undefined;
 }
 
 /** The field that shows a credential and opens its selector (inventario §4.23). */
@@ -35,6 +37,7 @@ export function CredentialField({
   backend,
   onChange,
   onShowCredential,
+  describedBy,
 }: CredentialFieldProps) {
   const labelId = useId();
   const absent = password === "absent";
@@ -64,7 +67,12 @@ export function CredentialField({
         {password && password !== "present" && !(absent && onShowCredential) && (
           <SecretBadge state={password} backend={backend} variant="compact" />
         )}
-        <button type="button" className={styles.change} onClick={onChange}>
+        <button
+          type="button"
+          className={styles.change}
+          aria-describedby={describedBy}
+          onClick={onChange}
+        >
           {texts.components.credentialField.change}
         </button>
       </div>
