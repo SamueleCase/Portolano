@@ -6,7 +6,7 @@ import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import { treeQuery } from "../../ipc/queries";
 import { FolderPicker } from "../dialogs/FolderPicker";
-import { indexTree } from "../dialogs/treeIndex";
+import { indexedNodes } from "../dialogs/treeIndex";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 
@@ -21,7 +21,7 @@ export function PositionField() {
   const [choosing, setChoosing] = useState(false);
   const { data: tree } = useQuery(treeQuery);
   const folder = tree
-    ? indexTree(tree).find((entry) => entry.node.id === values.parent)
+    ? indexedNodes(tree).find((entry) => entry.node.id === values.parent)
     : undefined;
   const shown = values.parent === null ? texts.dialogs.root : folder?.path;
   const error = errorOf("parent");

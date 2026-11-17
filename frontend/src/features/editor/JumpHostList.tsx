@@ -11,16 +11,11 @@ import { visibleText } from "../../components/visibleText";
 import { texts } from "../../i18n/it";
 import { treeQuery } from "../../ipc/queries";
 import { TreeNodePicker } from "../dialogs/TreeNodePicker";
-import { type IndexedNode, indexTree } from "../dialogs/treeIndex";
+import { type IndexedNode, indexedNodes } from "../dialogs/treeIndex";
+import { summaryHost } from "../tree/treeModel";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import type { JumpRow } from "./editorValues";
-
-/** The host of a free address (`[user@]host[:port]`), for the chain. */
-function hostOf(address: string): string {
-  const host = address.slice(address.lastIndexOf("@") + 1);
-  return host.replace(/:\d+$/, "");
-}
 
 /**
  * The jump hosts in the order they are crossed (inventario §5.5): SSH
@@ -35,7 +30,7 @@ export function JumpHostList() {
   const [address, setAddress] = useState("");
   const next = useRef(0);
   const { data: tree } = useQuery(treeQuery);
-  const entries = tree ? indexTree(tree) : [];
+  const entries = tree ? indexedNodes(tree) : [];
   const jumps = values.jumpHosts;
   const nodeOf = (jump: JumpRow): IndexedNode | undefined =>
     "ref" in jump ? entries.find((entry) => entry.node.id === jump.ref) : undefined;
@@ -125,7 +120,7 @@ export function JumpHostList() {
           variant="editor"
           stops={[
             ...jumps.map((jump) => ({
-              label: "ref" in jump ? nameOf(jump) : hostOf(jump.address),
+              label: "ref" in jump ? nameOf(jump) : summaryHost(jump.address),
             })),
             { label: values.name || texts.editor.untitled },
           ]}

@@ -10,7 +10,7 @@ import { texts } from "../../i18n/it";
 import { treeQuery } from "../../ipc/queries";
 import { CredentialChooser } from "../dialogs/CredentialChooser";
 import { modeOfChoice } from "../dialogs/credentialPreview";
-import { indexTree } from "../dialogs/treeIndex";
+import { indexedNodes } from "../dialogs/treeIndex";
 import { useEditorFields } from "./editorContext";
 import styles from "./Editor.module.css";
 import type { GatewayCredential } from "./editorValues";
@@ -53,7 +53,7 @@ export function CredentialSetting({
   const { values, secrets, askSecret, backend } = useEditorFields();
   const [choosing, setChoosing] = useState(false);
   const { data: tree } = useQuery(treeQuery);
-  const entries = tree ? indexTree(tree) : [];
+  const entries = tree ? indexedNodes(tree) : [];
 
   const mode =
     value.mode === "kept"

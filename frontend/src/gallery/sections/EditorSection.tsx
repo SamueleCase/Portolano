@@ -9,7 +9,7 @@ import type { CredentialChoice_Deserialize } from "../../bindings";
 import { CredentialChooser } from "../../features/dialogs/CredentialChooser";
 import { IconChooser } from "../../features/dialogs/IconChooser";
 import { TreeNodePicker } from "../../features/dialogs/TreeNodePicker";
-import { indexTree } from "../../features/dialogs/treeIndex";
+import { indexTree } from "../../features/tree/treeModel";
 import { type EditorRequest, NodeEditor } from "../../features/editor/NodeEditor";
 import { interpolate } from "../../i18n/format";
 import { editorGallery } from "../../i18n/editor";
@@ -48,7 +48,7 @@ function EditorSpecimens() {
   const t = editorGallery.open;
   const client = useQueryClient();
   const { data: tree } = useQuery(treeQuery);
-  const entries = tree ? indexTree(tree) : [];
+  const entries = tree ? [...indexTree(tree).entries.values()] : [];
   const idOf = (name: string) => entries.find((entry) => entry.node.name === name)?.node.id;
   const [request, setRequest] = useState<EditorRequest | null>(null);
   const [dialog, setDialog] = useState<LocalDialog>();

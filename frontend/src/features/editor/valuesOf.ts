@@ -12,14 +12,9 @@ import {
   type GatewayCredential,
   type JumpRow,
 } from "./editorValues";
+import { objectOf } from "./settingsOf";
 
 /** The form of the editor from the detail of an existing node. */
-
-type JsonObject = { [key: string]: JsonValue };
-
-function objectOf(value: JsonValue | undefined): JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
-}
 
 function textOf(value: JsonValue | undefined): string {
   return typeof value === "string" ? value : typeof value === "number" ? String(value) : "";

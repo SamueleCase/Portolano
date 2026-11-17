@@ -32,7 +32,8 @@ const RDP_KEYS = [
   "client",
 ];
 
-function objectOf(value: JsonValue | undefined): JsonObject {
+/** `value` if it is a JSON object, else an empty one. */
+export function objectOf(value: JsonValue | undefined): JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
 }
 

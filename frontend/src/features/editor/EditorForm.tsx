@@ -11,7 +11,7 @@ import type { NodeDetailsView_Serialize } from "../../bindings";
 import { texts } from "../../i18n/it";
 import { customIconsQuery } from "../../ipc/queries";
 import { drawnIcon } from "../dialogs/iconChoice";
-import { readablePath } from "../dialogs/nodePaths";
+import { readablePath } from "../tree/treeModel";
 import { SecretDialog } from "../dialogs/SecretDialog";
 import { useVaultState } from "../dialogs/vault";
 import { CredentialStep } from "./CredentialStep";

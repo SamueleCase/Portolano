@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { TreeNode_Serialize } from "../../bindings";
-import { readablePath } from "./nodePaths";
-import { credentialsNamed, indexTree } from "./treeIndex";
+import { credentialsNamed, indexedNodes } from "./treeIndex";
 
+let lastId = 0;
+
+/** A node of the tree with an id of its own: names may repeat. */
 function node(name: string, kind: TreeNode_Serialize["kind"], children: TreeNode_Serialize[] = []) {
+  lastId += 1;
   return {
-    id: name,
+    id: `nodo-${lastId}`,
     name,
     kind,
     protocol: null,
@@ -22,7 +25,7 @@ function node(name: string, kind: TreeNode_Serialize["kind"], children: TreeNode
 }
 
 function entries(...nodes: TreeNode_Serialize[]) {
-  return indexTree({ name: "Prova", nodes });
+  return indexedNodes({ name: "Prova", nodes });
 }
 
 describe("credentialsNamed", () => {
@@ -59,8 +62,16 @@ describe("credentialsNamed", () => {
   });
 });
 
-describe("readablePath", () => {
-  it("writes the names with their escaped slashes", () => {
-    expect(readablePath("/Clienti/A\\/B/web\\\\01")).toBe("Clienti / A/B / web\\01");
+describe("indexedNodes", () => {
+  it("gives each node the names from the root, in tree order", () => {
+    const tree = entries(
+      node("Clienti", "folder", [node("ACME", "folder", [node("web01", "connection")])]),
+    );
+
+    expect(tree.map((entry) => entry.path)).toEqual([
+      "Clienti",
+      "Clienti / ACME",
+      "Clienti / ACME / web01",
+    ]);
   });
 });

@@ -1,41 +1,30 @@
-import type { NodeKind } from "../../components/nodeKind";
-import type { TreeNode_Serialize, TreeView_Serialize } from "../../bindings";
+import type { TreeView_Serialize } from "../../bindings";
+import { ancestorsOf, indexTree, type TreeEntry, type TreeIndex } from "../tree/treeModel";
 
 /** A node of the tree with where it sits, for the pickers and the editor. */
-export interface IndexedNode {
-  node: TreeNode_Serialize;
-  kind: NodeKind;
-  depth: number;
-  /** The folder that contains it; `null` for the root. */
-  parent: string | null;
+export interface IndexedNode extends TreeEntry {
   /** "Clienti / ACME / web01". */
   path: string;
 }
 
-/** How the interface draws a node of `kind` and `protocol`. */
-export function nodeKindOf(node: Pick<TreeNode_Serialize, "kind" | "protocol">): NodeKind {
-  if (node.kind !== "connection") return node.kind;
-  return node.protocol === "rdp" ? "rdp" : "ssh";
+/**
+ * Where `entry` sits, as the interface writes a path (inventario §6). The
+ * names of the tree are plain text, not a path of the core to parse.
+ */
+function locationOf(index: TreeIndex, entry: TreeEntry): string {
+  const folders = ancestorsOf(index, entry.node.id)
+    .reverse()
+    .map((id) => index.entries.get(id)?.node.name ?? "");
+  return [...folders, entry.node.name].join(" / ");
 }
 
-/** Every node of `tree` in tree order (folders before their content). */
-export function indexTree(tree: TreeView_Serialize): IndexedNode[] {
-  const entries: IndexedNode[] = [];
-  const visit = (nodes: TreeNode_Serialize[], parent: IndexedNode | null) => {
-    for (const node of nodes) {
-      const entry: IndexedNode = {
-        node,
-        kind: nodeKindOf(node),
-        depth: parent ? parent.depth + 1 : 0,
-        parent: parent?.node.id ?? null,
-        path: parent ? `${parent.path} / ${node.name}` : node.name,
-      };
-      entries.push(entry);
-      visit(node.children, entry);
-    }
-  };
-  visit(tree.nodes, null);
-  return entries;
+/** Every node of `tree` in tree order (folders before their content), with its path. */
+export function indexedNodes(tree: TreeView_Serialize): IndexedNode[] {
+  const index = indexTree(tree);
+  return [...index.entries.values()].map((entry) => ({
+    ...entry,
+    path: locationOf(index, entry),
+  }));
 }
 
 /**

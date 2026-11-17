@@ -12,7 +12,7 @@ import type {
 } from "../../bindings";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
-import { lastName, readablePath } from "./nodePaths";
+import { pathName, readablePath } from "../tree/treeModel";
 import { type IndexedNode, credentialsNamed } from "./treeIndex";
 
 /**
@@ -83,9 +83,9 @@ export function inheritPreview(
   if (!parent || !parent.trace || !end || end.kind === "root") {
     return { mode: "inherit", node: nodeName, source: null };
   }
-  const chain = [nodeName, ...parent.trace.steps.map((step) => lastName(step.path))];
+  const chain = [nodeName, ...parent.trace.steps.map((step) => pathName(step.path))];
   const t = texts.dialogs.credential.chain;
-  if (end.kind === "credential") chain.push(lastName(end.node.path));
+  if (end.kind === "credential") chain.push(pathName(end.node.path));
   if (end.kind === "prompt") chain.push(t.prompt);
   if (end.kind === "none") chain.push(t.none);
   return {

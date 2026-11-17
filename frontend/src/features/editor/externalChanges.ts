@@ -1,4 +1,4 @@
-import { EDITABLE_FIELDS, type EditableField, type EditorValues } from "./editorValues";
+import { EDITABLE_FIELDS, type EditableField, type EditorValues, sameValue } from "./editorValues";
 
 /**
  * The changes of the editor kept as a patch over a document changed by
@@ -15,10 +15,6 @@ export interface Reapplied {
   conflicts: EditableField[];
 }
 
-function same(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
-
 /** Puts the changes from `loaded` to `current` over `reloaded`. */
 export function reapply(
   loaded: EditorValues,
@@ -28,9 +24,9 @@ export function reapply(
   const kept: EditableField[] = [];
   const conflicts: EditableField[] = [];
   for (const field of EDITABLE_FIELDS) {
-    if (same(current[field], loaded[field])) continue;
+    if (sameValue(current[field], loaded[field])) continue;
     kept.push(field);
-    if (!same(reloaded[field], loaded[field]) && !same(reloaded[field], current[field])) {
+    if (!sameValue(reloaded[field], loaded[field]) && !sameValue(reloaded[field], current[field])) {
       conflicts.push(field);
     }
   }

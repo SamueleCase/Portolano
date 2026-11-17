@@ -12,7 +12,7 @@ import type { CredentialChoice_Deserialize } from "../../bindings";
 import { nodeDetailsQuery, treeQuery } from "../../ipc/queries";
 import { byNamePreview, inheritPreview, linkedPreview, modeOfChoice } from "./credentialPreview";
 import { TreeNodePicker } from "./TreeNodePicker";
-import { credentialsNamed, indexTree } from "./treeIndex";
+import { credentialsNamed, indexedNodes } from "./treeIndex";
 import { useVaultState } from "./vault";
 
 interface CredentialChooserProps {
@@ -104,7 +104,7 @@ function OpenCredentialChooser({
   };
 
   const { data: tree } = useQuery(treeQuery);
-  const entries = tree ? indexTree(tree) : [];
+  const entries = tree ? indexedNodes(tree) : [];
   const [onlyMatch] = draft.mode === "byName" ? credentialsNamed(entries, draft.name) : [];
   const parentDetails = useQuery({
     ...nodeDetailsQuery(parent ?? ""),

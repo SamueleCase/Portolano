@@ -1,5 +1,6 @@
 import type { NodeIconChoice } from "../../components/icons/NodeIcon";
 import type { IconChoice, IconView } from "../../bindings";
+import { iconChoice } from "../tree/treeModel";
 
 /**
  * Between the icons as the backend names them (`IconChoice` to save,
@@ -7,9 +8,18 @@ import type { IconChoice, IconView } from "../../bindings";
  * with the file name the `portolano-icon://` scheme serves).
  */
 
-/** The file name of a custom icon: the last segment of its URL (`<sha256>.<ext>`). */
-export function iconFileName(icon: Extract<IconView, { kind: "custom" }>): string {
-  return icon.url.split("/").pop() ?? "";
+type CustomIcon = Extract<IconView, { kind: "custom" }>;
+
+/** The stored images of the document, with the file name the components draw each by. */
+export function customImages(
+  stored: readonly IconView[],
+): { icon: CustomIcon; fileName: string }[] {
+  return stored.flatMap((icon) => {
+    const drawn = iconChoice(icon);
+    return icon.kind === "custom" && drawn?.source === "custom"
+      ? [{ icon, fileName: drawn.fileName }]
+      : [];
+  });
 }
 
 /** How the components draw the icon `choice`, with the stored images of the document. */
@@ -19,11 +29,8 @@ export function drawnIcon(
 ): NodeIconChoice | undefined {
   if (choice === null || choice.kind === "none") return undefined;
   if (choice.kind === "builtin") return { source: "builtin", name: choice.name };
-  const image = stored.find(
-    (icon): icon is Extract<IconView, { kind: "custom" }> =>
-      icon.kind === "custom" && icon.sha256 === choice.sha256,
-  );
-  return image ? { source: "custom", fileName: iconFileName(image) } : undefined;
+  const image = stored.find((icon) => icon.kind === "custom" && icon.sha256 === choice.sha256);
+  return image ? iconChoice(image) : undefined;
 }
 
 /** The icon to save for what the picker chose. */
@@ -32,10 +39,7 @@ export function savedIcon(
   stored: readonly IconView[],
 ): IconChoice | undefined {
   if (choice.source === "builtin") return { kind: "builtin", name: choice.name };
-  const image = stored.find(
-    (icon): icon is Extract<IconView, { kind: "custom" }> =>
-      icon.kind === "custom" && iconFileName(icon) === choice.fileName,
-  );
+  const image = customImages(stored).find(({ fileName }) => fileName === choice.fileName)?.icon;
   return image ? { kind: "custom", sha256: image.sha256, mime: image.mime } : undefined;
 }
 

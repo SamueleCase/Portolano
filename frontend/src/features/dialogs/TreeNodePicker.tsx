@@ -5,7 +5,7 @@ import { visibleText } from "../../components/visibleText";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { treeQuery } from "../../ipc/queries";
-import { type IndexedNode, indexTree } from "./treeIndex";
+import { type IndexedNode, indexedNodes } from "./treeIndex";
 
 /** What the picker offers: SSH jump hosts or credentials (inventario §5.8). */
 export type PickerPurpose = "jumpHost" | "credential";
@@ -27,7 +27,7 @@ function offered(entry: IndexedNode, purpose: PickerPurpose): boolean {
 export function TreeNodePicker({ open, purpose, exclude, onChoose, onClose }: TreeNodePickerProps) {
   const t = texts.dialogs.picker;
   const { data: tree } = useQuery({ ...treeQuery, enabled: open });
-  const entries = tree ? indexTree(tree) : [];
+  const entries = tree ? indexedNodes(tree) : [];
   const nodes: PickerNode[] = entries
     .filter((entry) => entry.kind === "folder" || offered(entry, purpose))
     .map((entry) => ({

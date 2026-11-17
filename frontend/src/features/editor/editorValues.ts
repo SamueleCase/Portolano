@@ -121,6 +121,11 @@ export const EDITABLE_FIELDS = [
 
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
+/** Whether two values of the form are equal: they are plain data, as JSON. */
+export function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 /** A new node of `kind` in `parent`: nothing filled in (NOTE.md: no example values). */
 export function blankValues(kind: EditorKind, parent: string | null): EditorValues {
   return {

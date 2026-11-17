@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { NodePicker } from "../../components/NodePicker";
 import { texts } from "../../i18n/it";
 import { treeQuery } from "../../ipc/queries";
-import { indexTree } from "./treeIndex";
+import { indexTree } from "../tree/treeModel";
 
 interface FolderPickerProps {
   open: boolean;
@@ -21,7 +21,7 @@ interface FolderPickerProps {
 export function FolderPicker({ open, exclude, onChoose, onClose }: FolderPickerProps) {
   const t = texts.dialogs.picker.folder;
   const { data: tree } = useQuery({ ...treeQuery, enabled: open });
-  const nodes = (tree ? indexTree(tree) : [])
+  const nodes = (tree ? [...indexTree(tree).entries.values()] : [])
     .filter((entry) => entry.kind === "folder")
     .map((entry) => ({
       id: entry.node.id,

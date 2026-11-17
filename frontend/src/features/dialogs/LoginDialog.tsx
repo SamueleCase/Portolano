@@ -6,7 +6,7 @@ import { TextField } from "../../components/TextField";
 import type { LoginInput_Deserialize, LoginRequest } from "../../bindings";
 import { texts } from "../../i18n/it";
 import styles from "./Dialogs.module.css";
-import { readablePath } from "./nodePaths";
+import { readablePath } from "../tree/treeModel";
 
 interface LoginDialogProps {
   /** What `login_request` asked; `null` closes the dialog. */

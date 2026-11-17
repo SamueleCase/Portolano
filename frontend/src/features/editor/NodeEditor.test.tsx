@@ -370,6 +370,18 @@ describe("NodeEditor", () => {
     });
   });
 
+  it("shows the host of a free IPv6 address in the chain of the jump hosts", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("db01") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+
+    await userEvent.click(screen.getByRole("button", { name: t.ssh.freeAddress }));
+    await userEvent.type(screen.getByLabelText(t.ssh.address), "admin@[[2001:db8::1]:2222{Enter}");
+
+    const chain = screen.getByRole("list", { name: texts.components.route.label });
+    expect(within(chain).getByText("2001:db8::1")).toBeInTheDocument();
+  });
+
   it("renames and moves a node in one save, into a folder with its old name", async () => {
     const { state, id } = withCopyInRete();
     const { onSaved } = renderEditor({ mode: "edit", id });

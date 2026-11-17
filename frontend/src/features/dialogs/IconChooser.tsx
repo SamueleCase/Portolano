@@ -10,7 +10,7 @@ import { presentFailure } from "../../ipc/errors";
 import { useAddIcon, useChooseIconFile } from "../../ipc/mutations";
 import { customIconsQuery } from "../../ipc/queries";
 import styles from "./Dialogs.module.css";
-import { drawnIcon, iconFileName, savedIcon } from "./iconChoice";
+import { customImages, drawnIcon, savedIcon } from "./iconChoice";
 
 interface IconChooserProps {
   open: boolean;
@@ -24,11 +24,10 @@ interface IconChooserProps {
 const SHORT_HASH = 8;
 
 function options(stored: readonly IconView[]): CustomIconOption[] {
-  return stored.flatMap((icon) =>
-    icon.kind === "custom"
-      ? [{ fileName: iconFileName(icon), label: icon.sha256.slice(0, SHORT_HASH) }]
-      : [],
-  );
+  return customImages(stored).map(({ icon, fileName }) => ({
+    fileName,
+    label: icon.sha256.slice(0, SHORT_HASH),
+  }));
 }
 
 /**

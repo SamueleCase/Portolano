@@ -6,7 +6,7 @@ import { presentFailure } from "../../ipc/errors";
 import { useSetSecret } from "../../ipc/mutations";
 import { nodeDetailsQuery } from "../../ipc/queries";
 import { requestVault } from "../../state/requests";
-import { readablePath } from "./nodePaths";
+import { readablePath } from "../tree/treeModel";
 import { SecretDialog } from "./SecretDialog";
 import { useVaultState } from "./vault";
 

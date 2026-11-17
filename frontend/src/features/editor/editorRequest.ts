@@ -6,7 +6,7 @@ import type {
   StagedSecret,
   StagedSecretsInput_Deserialize,
 } from "../../bindings";
-import type { EditableField, EditorValues } from "./editorValues";
+import { type EditableField, type EditorValues, sameValue } from "./editorValues";
 import { PASSPHRASE, PASSWORD, PRIVATE_KEY, type SlotKey, propertySlot } from "./secretSlots";
 import { integerOf, type JsonObject, settingsOf } from "./settingsOf";
 
@@ -41,10 +41,6 @@ const SETTINGS_FIELDS: readonly EditableField[] = [
   "wolMac",
   "client",
 ];
-
-function same(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
 
 function isConnection(values: EditorValues): boolean {
   return values.kind === "ssh" || values.kind === "rdp";
@@ -135,7 +131,7 @@ export function newNodeInput(values: EditorValues, staged: Staged): NewNodeInput
 }
 
 function detailsChanges(values: EditorValues, base: EditorValues): DetailsInput_Deserialize {
-  const changed = (field: EditableField) => !same(values[field], base[field]);
+  const changed = (field: EditableField) => !sameValue(values[field], base[field]);
   const kept = new Set(values.properties.map((row) => row.saved));
   return {
     ...(changed("description") ? { description: values.description } : {}),
@@ -144,7 +140,7 @@ function detailsChanges(values: EditorValues, base: EditorValues): DetailsInput_
     ...(changed("color") ? { color: values.color ?? "" } : {}),
     ...(changed("favorite") ? { favorite: values.favorite } : {}),
     ...(changed("tags") ? { tags: values.tags } : {}),
-    ...(same(textProperties(values), textProperties(base))
+    ...(sameValue(textProperties(values), textProperties(base))
       ? {}
       : { properties: textProperties(values) }),
     removeSecretProperties: base.properties.flatMap((row) =>
@@ -159,7 +155,7 @@ function credentialNodeChanges(
   staged: Staged,
   stored: (key: SlotKey) => boolean,
 ): Partial<NodeEditInput_Deserialize> {
-  const changed = (field: EditableField) => !same(values[field], base[field]);
+  const changed = (field: EditableField) => !sameValue(values[field], base[field]);
   const keyFile = values.keyMode === "file" ? values.keyFile.trim() : "";
   // Without a key its passphrase has no use: a saved one goes too.
   const passphrase =
@@ -191,7 +187,7 @@ export function editInput(
   /** Whether the saved node has a secret in a slot. */
   stored: (key: SlotKey) => boolean,
 ): NodeEditInput_Deserialize {
-  const changed = (field: EditableField) => !same(values[field], base[field]);
+  const changed = (field: EditableField) => !sameValue(values[field], base[field]);
   const edit: NodeEditInput_Deserialize = {
     ...(changed("name") ? { name: values.name.trim() } : {}),
     // The move goes in the same save as the rest (DEC-040.2).
