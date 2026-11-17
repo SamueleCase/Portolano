@@ -249,3 +249,25 @@ esterno".
 - Trascinare un file Royal sul wizard d'import: miglioria futura con un gestore in Rust (DEC-037.3).
 - Le password dell'import vanno riscritte se `import_apply` fallisce (DEC-037.4).
 
+
+### Punto di ripresa (2026-11-17)
+Stato esatto alla chiusura della sessione del PM:
+- `main` = `bc5132f` più questo commit di documenti; gate verdi dopo UI-WP4.
+- **UI-WP5** (editor, dialoghi, preferenze) – worktree `.claude/worktrees/agent-aae11fcea64bbed01`, branch
+  `worktree-agent-aae11fcea64bbed01`, ultimo commit `a0d3a32`, pulito. Fase 1 rivista e corretta (DEC-038, DEC-040);
+  fase 2 fatta (registrazione nei punti d'aggancio, e2e nella finestra) più DEC-042 (sblocco solo quando la
+  connessione usa il vault), committata ma **senza report**: rieseguire i gate sul branch. Poi **revisione completa**
+  (due revisori: Rust – `SettingsError` nei connettori, `parent` in `edit_node_staged`, errori in `error.rs`; frontend –
+  fase 1 corretta + fase 2), correzioni, merge su `main`, gate.
+- **UI-WP6** (import e validazione) – worktree `.claude/worktrees/agent-ad70ce73101d6031f`, branch
+  `worktree-agent-ad70ce73101d6031f`, ultimo commit `139aa35`, pulito. Fase 1 e fase 2 riviste e corrette (DEC-039).
+  Dopo il merge di UI-WP5: `git merge main`, e2e "vault bloccato → sblocco → 1 / 3" con il dialogo vero di UI-WP5,
+  chiave privata dell'import nella textarea mascherata di UI-WP5 (DEC-038.5), controllo rapido del PM, merge, gate.
+- Poi **checkpoint visivo 2** con l'utente: screenshot in `frontend/e2e-screenshots/{main-window,editor,import,
+  validation}/`, `npm run tauri dev`, verifica dal vivo di Tab in WKWebView (DEC-036.1) e misura del vetro con Web
+  Inspector (DEC-035), riepilogo delle decisioni DEC-035…DEC-042; attendere l'approvazione.
+- Poi **ondata D**: UI-WP7 (bundle con sidecar e firma ad hoc, README dell'app, e2e completi della DoD di SPEC-UI §9,
+  `npm audit`) e revisione di sicurezza dell'app; verifica finale e rapporto all'utente (PM-PROMPT-UI.md).
+- Regole operative emerse: gli e2e dei worktree usano `PORTOLANO_E2E_PORT` diverse (4174–4181); non fidarsi dei report
+  sui gate (rieseguirli: il lint di UI-WP4 era rosso); i sottoagenti interrotti si riprendono con SendMessage nella
+  stessa sessione, altrimenti con un sottoagente nuovo nel worktree esistente a cui si passano brief, decisioni e stato.

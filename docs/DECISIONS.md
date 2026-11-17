@@ -668,6 +668,15 @@ mock in `docs/ui/NOTE.md`.
 7. **Tab di sessione dopo un cambio di documento o l'eliminazione del nodo**: restano (i processi girano) con il
    riepilogo della sessione come titolo. Se l'ultimo documento non si apre all'avvio si ripiega sul predefinito.
 
+### DEC-042 – Sblocco del vault solo quando la connessione lo usa (deciso dal PM, 2026-11-16)
+- **Problema** (fase 2 di UI-WP5): con il vault su file bloccato la cornice chiedeva lo sblocco prima di **ogni**
+  connessione (correzione m7 del secondo giro di UI-WP4), anche per credenziali senza segreti; con "Apri senza
+  segreti" la connessione non partiva.
+- **Decisione**: Connetti e "Riprova" provano subito; solo se il backend risponde `vaultLocked` la cornice chiede il
+  vault (`requestVault`) e ripete **lo stesso tentativo con lo stesso login**, tenuto solo nella chiusura di quella
+  chiamata (mai in store), così il login di "Chiedi all'avvio" non si chiede due volte. Senza sblocco resta l'errore.
+  Eccezione di proprietà su `frontend/src/app/connections.ts` per UI-WP5.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
