@@ -229,10 +229,6 @@ fn the_current_folder_as_destination_keeps_the_order() {
     );
 }
 
-fn password_of(stored: &Stored, path: &str) -> Option<SecretRef> {
-    node(stored, path).as_credential().unwrap().password.clone()
-}
-
 fn move_with_password(
     stored: &mut Stored,
     vault: &dyn Vault,

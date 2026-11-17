@@ -1,5 +1,5 @@
 use portolano_connectors::Registry;
-use portolano_core::{CredentialSpec, Node, Vault};
+use portolano_core::{CredentialSpec, Node, SecretRef, Vault};
 
 pub(super) use super::*;
 pub(super) use crate::testutil::*;
@@ -66,6 +66,11 @@ pub(super) fn edit(
 
 pub(super) fn node<'a>(stored: &'a Stored, path: &str) -> &'a Node {
     stored.doc.find(id_of(&stored.doc, path)).unwrap()
+}
+
+/// The password reference of the credential at `path`.
+pub(super) fn password_of(stored: &Stored, path: &str) -> Option<SecretRef> {
+    node(stored, path).as_credential().unwrap().password.clone()
 }
 
 pub(super) fn spec_of(stored: &Stored, path: &str) -> CredentialSpec {
