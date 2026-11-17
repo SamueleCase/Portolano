@@ -35,6 +35,8 @@ interface EditorFormProps {
   initial: EditorValues;
   /** The detail of the node being edited, kept fresh; `undefined` for a new node. */
   details: NodeDetailsView_Serialize | undefined;
+  /** When the detail was last read; 0 for a new node. */
+  detailsUpdatedAt: number;
   onClose: () => void;
   onSaved: (node: SavedNode) => void;
 }
@@ -55,7 +57,13 @@ function firstError(errors: FieldErrors<EditorValues>): ErrorTarget | undefined 
  * The editor of one node in two steps (inventario §5.5): "Salva" on both
  * steps, enabled once something changed; secrets staged until "Salva".
  */
-export function EditorForm({ initial, details, onClose, onSaved }: EditorFormProps) {
+export function EditorForm({
+  initial,
+  details,
+  detailsUpdatedAt,
+  onClose,
+  onSaved,
+}: EditorFormProps) {
   const t = texts.editor;
   const form = useForm<EditorValues>({
     defaultValues: initial,
@@ -68,7 +76,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
   const values = form.watch();
   const { backend } = useVaultState();
   const { data: storedIcons = [] } = useQuery(customIconsQuery);
-  const { base, notice } = useExternalChanges(form, initial, details);
+  const { base, notice } = useExternalChanges(form, initial, details, detailsUpdatedAt);
   const staged = useRef<StagedSecrets>(null);
   staged.current ??= new StagedSecrets();
   const holder = staged.current;

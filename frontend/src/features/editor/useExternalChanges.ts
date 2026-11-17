@@ -14,25 +14,30 @@ export type ExternalNotice =
  * Keeps the changes of the editor over a node that changes under it
  * (SPEC-UI §4.4). `document-modified-externally` shows a notice; when the
  * detail comes back reloaded, the changes of the user are put back over it
- * (`reapply`) and the fields changed on both sides are reported.
+ * (`reapply`) and the fields changed on both sides are reported. A detail
+ * read again after the event but equal to the one shown (Query keeps the
+ * same object) means a reload that did not touch the node: the notice goes.
  * Returns the node as loaded last, the base of "Salva".
  */
 export function useExternalChanges(
   form: UseFormReturn<EditorValues>,
   initial: EditorValues,
   details: NodeDetailsView_Serialize | undefined,
+  /** When the detail was last read (`dataUpdatedAt` of its query). */
+  detailsUpdatedAt: number,
 ): { base: EditorValues; notice: ExternalNotice } {
   const [base, setBase] = useState(initial);
   const [notice, setNotice] = useState<ExternalNotice>();
   const loaded = useRef(details);
-  const modified = useRef(false);
+  /** When the last change from outside was announced, until the detail is read again. */
+  const modifiedAt = useRef<number | null>(null);
 
   const existing = details !== undefined;
   useEffect(() => {
     if (!existing) return undefined;
     const subscription = events.documentModifiedExternally
       .listen(() => {
-        modified.current = true;
+        modifiedAt.current = Date.now();
         setNotice({ kind: "modified" });
       })
       // Without a backend to listen to (a test without IPC) there is no event.
@@ -57,11 +62,18 @@ export function useExternalChanges(
       form.setValue("secrets", current.secrets, { shouldDirty: true });
     }
     setBase(result.base);
-    if (modified.current) {
-      modified.current = false;
+    if (modifiedAt.current !== null) {
+      modifiedAt.current = null;
       setNotice({ kind: "reapplied", conflicts: result.conflicts });
     }
   }, [details, base, form]);
+
+  // After the effect above: a detail that changed has already ended the wait.
+  useEffect(() => {
+    if (modifiedAt.current === null || detailsUpdatedAt <= modifiedAt.current) return;
+    modifiedAt.current = null;
+    setNotice(undefined);
+  }, [detailsUpdatedAt]);
 
   return { base, notice };
 }

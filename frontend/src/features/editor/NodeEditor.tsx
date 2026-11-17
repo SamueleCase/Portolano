@@ -37,6 +37,7 @@ export function NodeEditor({ request, onClose, onSaved }: NodeEditorProps) {
       <EditorForm
         initial={blankValues(request.kind, request.parent)}
         details={undefined}
+        detailsUpdatedAt={0}
         onClose={onClose}
         onSaved={onSaved}
       />
@@ -53,7 +54,7 @@ function ExistingNodeEditor({
   onSaved,
 }: { id: string } & Omit<NodeEditorProps, "request">) {
   const t = texts.editor;
-  const { data: details, error } = useQuery(nodeDetailsQuery(id));
+  const { data: details, dataUpdatedAt, error } = useQuery(nodeDetailsQuery(id));
   const kind = details ? editorKindOf(details) : null;
   const label = details ? interpolate(t.label.edit, { name: details.name }) : t.label.loading;
   const problem = error
@@ -69,6 +70,7 @@ function ExistingNodeEditor({
         <EditorForm
           initial={valuesOf(kind, details)}
           details={details}
+          detailsUpdatedAt={dataUpdatedAt}
           onClose={onClose}
           onSaved={onSaved}
         />

@@ -536,6 +536,21 @@ describe("NodeEditor", () => {
     expect(nodeNamed(state, "ACME").children.map((child) => child.name)).toContain("dc01");
   });
 
+  it("closes the notice of a change from outside once reloaded with the node unchanged", async () => {
+    unlocked();
+    const { client } = renderEditor({ mode: "edit", id: await idOf("web01") });
+    await type(t.general.description, "mia descrizione");
+    await act(() => emit("document-modified-externally", { fileName: "portolano.json" }));
+    expect(await screen.findByText(t.external.modified)).toBeInTheDocument();
+    // The detail is read again later than the event.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    await act(() => client.invalidateQueries());
+
+    await waitFor(() => expect(screen.queryByText(t.external.modified)).not.toBeInTheDocument());
+    expect(screen.getByLabelText(t.general.description)).toHaveValue("mia descrizione");
+  });
+
   it("keeps its changes over a document reloaded after a change from outside", async () => {
     const state = unlocked();
     const { client } = renderEditor({ mode: "edit", id: await idOf("web01") });
