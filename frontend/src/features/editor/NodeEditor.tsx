@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { SidePanel } from "../../components/SidePanel";
@@ -38,6 +39,7 @@ export function NodeEditor({ request, onClose, onSaved }: NodeEditorProps) {
         initial={blankValues(request.kind, request.parent)}
         details={undefined}
         detailsUpdatedAt={0}
+        focusOnMount={false}
         onClose={onClose}
         onSaved={onSaved}
       />
@@ -55,6 +57,9 @@ function ExistingNodeEditor({
 }: { id: string } & Omit<NodeEditorProps, "request">) {
   const t = texts.editor;
   const { data: details, dataUpdatedAt, error } = useQuery(nodeDetailsQuery(id));
+  // The panel gives the focus when it opens; a form that comes after the
+  // loading takes it itself.
+  const [loadedInPanel] = useState(details === undefined);
   const kind = details ? editorKindOf(details) : null;
   const label = details ? interpolate(t.label.edit, { name: details.name }) : t.label.loading;
   const problem = error
@@ -71,6 +76,7 @@ function ExistingNodeEditor({
           initial={valuesOf(kind, details)}
           details={details}
           detailsUpdatedAt={dataUpdatedAt}
+          focusOnMount={loadedInPanel}
           onClose={onClose}
           onSaved={onSaved}
         />

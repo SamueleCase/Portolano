@@ -18,6 +18,7 @@ import { CredentialStep } from "./CredentialStep";
 import { type EditorFields, EditorFieldsContext } from "./editorContext";
 import styles from "./Editor.module.css";
 import { secondStepLabel } from "./editorKinds";
+import { controlWithError, firstFieldOfStep } from "./editorFocus";
 import { EditorNotices } from "./EditorNotices";
 import { editorSchema, missingVaultKey } from "./editorSchema";
 import { EDITABLE_FIELDS, type EditableField, type EditorValues } from "./editorValues";
@@ -37,6 +38,12 @@ interface EditorFormProps {
   details: NodeDetailsView_Serialize | undefined;
   /** When the detail was last read; 0 for a new node. */
   detailsUpdatedAt: number;
+  /**
+   * Whether the form appears in a panel already open (after the node
+   * loaded): it then takes the focus itself, on "Nome". Otherwise the panel
+   * gives it on opening.
+   */
+  focusOnMount: boolean;
   onClose: () => void;
   onSaved: (node: SavedNode) => void;
 }
@@ -61,6 +68,7 @@ export function EditorForm({
   initial,
   details,
   detailsUpdatedAt,
+  focusOnMount,
   onClose,
   onSaved,
 }: EditorFormProps) {
@@ -89,9 +97,33 @@ export function EditorForm({
   // Read synchronously: a second Enter before the next render must not save twice.
   const submitting = useRef(false);
   const lastRowId = useRef(0);
+  const formElement = useRef<HTMLFormElement>(null);
+  // Where the focus goes once the next render is on screen: the first field
+  // of the step shown, or the control of the first error.
+  const pendingFocus = useRef<"step" | "error" | null>(focusOnMount ? "step" : null);
 
   // Leaving the editor in any way drops what is staged.
   useEffect(() => () => holder.clear(), [holder]);
+
+  // After every render: only a pending move of the focus acts.
+  useEffect(() => {
+    const target = pendingFocus.current;
+    const container = formElement.current;
+    if (target === null || container === null) return;
+    pendingFocus.current = null;
+    (target === "step" ? firstFieldOfStep(container) : controlWithError(container))?.focus();
+  });
+
+  /** Shows step `next`, with the focus on its first field. */
+  const showStep = (next: 0 | 1) => {
+    if (next !== step) pendingFocus.current = "step";
+    setStep(next);
+  };
+  /** Shows step `next` if needed, with the focus on the first error. */
+  const showError = (next: 0 | 1) => {
+    pendingFocus.current = "error";
+    setStep(next);
+  };
 
   const secrets = secretSlots(details?.secrets ?? [], values.properties, values.secrets);
   const fields: EditorFields = {
@@ -137,7 +169,7 @@ export function EditorForm({
       const storedKey = secrets.stored("privateKey");
       if (missingVaultKey(valid, storedKey)) {
         setServerErrors({ privateKey: t.errors.vaultKey });
-        setStep(1);
+        showError(1);
         return;
       }
       setServerErrors({});
@@ -151,7 +183,7 @@ export function EditorForm({
       if (result.status === "cancelled") return;
       setServerErrors({ [result.error.target]: result.error.message });
       setRefusedOption(result.error.option);
-      if (result.error.target !== "form") setStep(stepOf(result.error.target));
+      if (result.error.target !== "form") showError(stepOf(result.error.target));
       if (result.secretsLost) {
         setSecretsLost(true);
         const marks = Object.entries(form.getValues("secrets")).filter(
@@ -162,7 +194,7 @@ export function EditorForm({
     },
     (errors) => {
       const field = firstError(errors);
-      if (field) setStep(stepOf(field));
+      if (field) showError(stepOf(field));
     },
   );
 
@@ -189,8 +221,9 @@ export function EditorForm({
         </div>
         <Button onClick={close}>{t.cancel}</Button>
       </header>
-      <Stepper variant="editor" steps={steps} onSelect={(index) => setStep(index === 0 ? 0 : 1)} />
+      <Stepper variant="editor" steps={steps} onSelect={(index) => showStep(index === 0 ? 0 : 1)} />
       <form
+        ref={formElement}
         className={styles.form}
         noValidate
         onSubmit={(event) => {
@@ -210,9 +243,9 @@ export function EditorForm({
         <Body />
         <EditorNotices external={notice} error={serverErrors.form} secretsLost={secretsLost} />
         <footer className={styles.footer}>
-          {step === 1 && <Button onClick={() => setStep(0)}>{t.back}</Button>}
+          {step === 1 && <Button onClick={() => showStep(0)}>{t.back}</Button>}
           <span className={styles.spacer} />
-          {step === 0 && <Button onClick={() => setStep(1)}>{t.next}</Button>}
+          {step === 0 && <Button onClick={() => showStep(1)}>{t.next}</Button>}
           <Button
             variant="primary"
             size="wide"

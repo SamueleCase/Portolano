@@ -152,6 +152,54 @@ describe("NodeEditor", () => {
     expect(await screen.findByRole("dialog", { name: "Modifica web01" })).toBeInTheDocument();
   });
 
+  it("puts the focus on Nome once the node has loaded", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+
+    const name = await screen.findByLabelText(t.general.name);
+    await waitFor(() => expect(name).toHaveFocus());
+  });
+
+  it("puts the focus on the first field of the step shown", async () => {
+    unlocked();
+    renderEditor({ mode: "add", kind: "ssh", parent: null });
+
+    await userEvent.click(screen.getByRole("button", { name: t.next }));
+    expect(screen.getByLabelText(t.connection.host)).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: t.back }));
+    expect(screen.getByLabelText(t.general.name)).toHaveFocus();
+  });
+
+  it("puts the focus on the field of an error of the backend", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("dc01") });
+
+    await type(t.general.name, "web01");
+    await save();
+
+    const name = await screen.findByLabelText(t.general.name);
+    await waitFor(() => expect(name).toHaveAccessibleDescription(/esiste già/));
+    expect(name).toHaveFocus();
+  });
+
+  it("shows the step of an error of the backend with the focus on its field", async () => {
+    unlocked();
+    renderEditor({ mode: "edit", id: await idOf("web01") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+    await userEvent.click(screen.getByRole("button", { name: t.ssh.addOption }));
+    const table = screen.getByRole("table", { name: t.ssh.options });
+    await userEvent.type(
+      within(table).getByLabelText(texts.components.keyValue.name),
+      "ProxyCommand",
+    );
+    await userEvent.click(screen.getByRole("button", { name: t.back }));
+
+    await save();
+
+    const refused = await screen.findByDisplayValue("ProxyCommand");
+    await waitFor(() => expect(refused).toHaveFocus());
+  });
+
   it("asks for the host before saving a new connection", async () => {
     unlocked();
     renderEditor({ mode: "add", kind: "rdp", parent: null });
