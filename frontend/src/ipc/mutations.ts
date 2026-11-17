@@ -1,3 +1,5 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import {
   commands,
   type DeleteOptionsInput_Deserialize,
@@ -12,6 +14,7 @@ import {
 } from "../bindings";
 import { queryKeys } from "./keys";
 import { useCommandMutation, useSecretMutation } from "./mutation";
+import { unwrap } from "./result";
 
 /**
  * The commands that change something, as TanStack Query mutations that make
@@ -42,8 +45,18 @@ export const useCreateDocument = () =>
     documentSwitch,
   );
 
-export const useReloadDocument = () =>
-  useCommandMutation(() => commands.reloadDocument(), [queryKeys.document]);
+/** The key of "Ricarica": the editor watches it to end its notice (DEC-043.7). */
+export const reloadDocumentKey = ["reloadDocument"] as const;
+
+export const useReloadDocument = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: reloadDocumentKey,
+    mutationFn: async () => unwrap(await commands.reloadDocument()),
+    // Awaited: "Ricarica" succeeds once the document has been read again.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.document }),
+  });
+};
 
 export const useCloseDocument = () =>
   useCommandMutation(() => commands.closeDocument(), documentSwitch);

@@ -1,0 +1,54 @@
+/* Group headers on the left, controls on the right (inventario §5.16). */
+.grid {
+  display: grid;
+  grid-template-columns: var(--size-label-column) minmax(0, 1fr);
+  gap: var(--space-fine-18) var(--space-5);
+}
+
+.groupTitle {
+  padding-top: var(--space-fine-10);
+}
+
+.groupBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-fine-5);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+}
+
+.pathRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  align-self: stretch;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-secondary);
+  line-height: var(--line-height-body);
+}
+
+.error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-label);
+}

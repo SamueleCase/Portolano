@@ -61,4 +61,23 @@ describe("SegmentedControl", () => {
 
     expect(screen.getByRole("radio", { name: "Scuro" })).toHaveFocus();
   });
+
+  it("reads the message it is given with each option", () => {
+    render(
+      <>
+        <SegmentedControl
+          label="Tema"
+          options={themes}
+          value="dark"
+          onChange={() => undefined}
+          describedBy="tema-errore"
+        />
+        <span id="tema-errore">scelta rifiutata</span>
+      </>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Scuro" })).toHaveAccessibleDescription(
+      "scelta rifiutata",
+    );
+  });
 });

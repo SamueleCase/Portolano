@@ -1,3 +1,11 @@
+import {
+  CreateVaultFeature,
+  LoginFeature,
+  PasswordFeature,
+  UnlockVaultFeature,
+} from "../features/dialogs/DialogFeatures";
+import { EditorFeature } from "../features/editor/EditorFeature";
+import { PreferencesFeature } from "../features/preferences/PreferencesFeature";
 import type { FeatureRegistry } from "./features";
 
 /**
@@ -5,4 +13,11 @@ import type { FeatureRegistry } from "./features";
  * UI-WP5 (editor, password, vault, login, preferences) and UI-WP6 (import,
  * validation) add their line here when they integrate (DEC-035).
  */
-export const featureRegistry: FeatureRegistry = {};
+export const featureRegistry: FeatureRegistry = {
+  editor: EditorFeature,
+  password: PasswordFeature,
+  unlockVault: UnlockVaultFeature,
+  createFileVault: CreateVaultFeature,
+  login: LoginFeature,
+  preferences: PreferencesFeature,
+};

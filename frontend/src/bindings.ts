@@ -970,7 +970,10 @@ candidates: Candidate[] } |
 { kind: "invalid"; 
 /**
  *  The field, as named by the operation (`name`, `host`, `port`,
- *  `color`, `settings`, a configuration key, …).
+ *  `color`, a configuration key, …). A setting of a protocol is
+ *  `settings.<key>` (`settings.jump_hosts`), a refused ssh option
+ *  `settings.options.<option>`, and `settings` alone the settings as a
+ *  whole (DEC-040.3).
  */
 field: string } | 
 /**  The references that prevent a deletion. */
@@ -1437,6 +1440,8 @@ export type NodeEditInput_Deserialize = {
 	keyFile?: string | null,
 	/**  The staged secrets. */
 	secrets?: StagedSecretsInput_Deserialize,
+	/**  The folder to move the node into, in the same save (DEC-040.2). */
+	parent?: ParentInput_Deserialize | null,
 };
 
 /**
@@ -1466,6 +1471,8 @@ export type NodeEditInput_Serialize = {
 	keyFile: string | null,
 	/**  The staged secrets. */
 	secrets: StagedSecretsInput_Serialize,
+	/**  The folder to move the node into, in the same save (DEC-040.2). */
+	parent: ParentInput_Serialize | null,
 };
 
 /**  The kind of a node. */
@@ -1520,6 +1527,27 @@ path: string } |
 node: string; 
 /**  Its path. */
 path: string };
+
+/**  Where the editor moves a node: a folder, or the root. */
+export type ParentInput = ParentInput_Serialize | ParentInput_Deserialize;
+
+/**  Where the editor moves a node: a folder, or the root. */
+export type ParentInput_Deserialize = {
+	/**
+	 *  The folder; null is the root. The key is required: a missing one
+	 *  would move the node to the root by mistake.
+	 */
+	id: string | null,
+};
+
+/**  Where the editor moves a node: a folder, or the root. */
+export type ParentInput_Serialize = {
+	/**
+	 *  The folder; null is the root. The key is required: a missing one
+	 *  would move the node to the root by mistake.
+	 */
+	id: string | null,
+};
 
 /**  Where a moved node goes. */
 export type PlacementInput = 

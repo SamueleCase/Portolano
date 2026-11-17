@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use portolano_connectors::ConnectError;
+use portolano_connectors::{ConnectError, SettingsError};
 use portolano_core::VaultError;
 use portolano_import::ImportError;
 use uuid::Uuid;
@@ -117,8 +117,9 @@ pub enum OpsError {
     InvalidSettings {
         /// The connection.
         path: String,
-        /// The protocol's description of the problem.
-        reason: String,
+        /// The protocol's description of the problem, with the setting at
+        /// fault (DEC-040.3).
+        reason: SettingsError,
     },
 
     /// An edit gives a credential together with a user or a domain.

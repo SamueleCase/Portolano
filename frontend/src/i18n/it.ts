@@ -1,9 +1,12 @@
 import { app } from "./app";
 import { components } from "./components";
 import { details } from "./details";
+import { dialogs } from "./dialogs";
+import { editor } from "./editor";
 import { firstRun } from "./firstRun";
 import { icons } from "./icons";
 import { ipc } from "./ipc";
+import { preferences } from "./preferences";
 import { sessions } from "./sessions";
 import { tree } from "./tree";
 
@@ -21,4 +24,7 @@ export const texts = {
   tree,
   details,
   firstRun,
+  dialogs,
+  editor,
+  preferences,
 } as const;

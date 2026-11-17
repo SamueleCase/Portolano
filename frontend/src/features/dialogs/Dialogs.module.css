@@ -1,0 +1,56 @@
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+/* A private key shows dots as a password field does (WebKit). */
+.maskedKey {
+  -webkit-text-security: disc;
+  letter-spacing: var(--tracking-password);
+  resize: vertical;
+}
+
+.vaultTile {
+  display: grid;
+  place-items: center;
+  width: var(--size-tile-large);
+  height: var(--size-tile-large);
+  border-radius: var(--radius-panel);
+  background: var(--color-active);
+  color: var(--color-accent-text);
+}
+
+.centeredTitle {
+  margin: 0;
+  font-size: var(--font-size-dialog-title);
+  font-weight: var(--font-weight-strong);
+}
+
+.path {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-secondary);
+  overflow-wrap: anywhere;
+}
+
+.unlockField {
+  align-self: stretch;
+  text-align: left;
+}
+
+/* The two buttons of the unlock dialog, half the width each (inventario §5.10). */
+.halves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  align-self: stretch;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}

@@ -14,7 +14,6 @@ pub use settings::{
     CertPolicy, RdpClient, RdpClientChoice, RdpConfig, RdpGateway, RdpSettings, Resolution,
 };
 
-use crate::ConnectError;
 use crate::decode::decode_section;
 use crate::env::Environment;
 use crate::plan::LaunchPlan;
@@ -22,6 +21,7 @@ use crate::protocol::{
     PlanContext, Protocol, apply_session_credential, check_value, connection_node, error_issue,
 };
 use crate::terminal::relaunch_step;
+use crate::{ConnectError, SettingsError};
 
 /// Port of RDP when the connection does not set one.
 const RDP_PORT: u16 = 3389;
@@ -43,7 +43,10 @@ impl Protocol for RdpProtocol {
         RDP_PORT
     }
 
-    fn validate_settings(&self, settings: &serde_json::Map<String, Value>) -> Result<(), String> {
+    fn validate_settings(
+        &self,
+        settings: &serde_json::Map<String, Value>,
+    ) -> Result<(), SettingsError> {
         RdpSettings::parse(settings).map(drop)
     }
 
@@ -102,7 +105,7 @@ impl Protocol for RdpProtocol {
         let settings = RdpSettings::parse(&connection.settings).map_err(|reason| {
             ConnectError::InvalidSettings {
                 id: ctx.node_id,
-                reason,
+                reason: reason.message,
             }
         })?;
         let config = RdpConfig::from_app_config(ctx.config)?;

@@ -8,10 +8,10 @@ use portolano_core::{
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::ConnectError;
 use crate::env::Environment;
 use crate::plan::LaunchPlan;
 use crate::rdp::RdpClient;
+use crate::{ConnectError, SettingsError};
 
 /// A connection protocol, identified by the `protocol` field of
 /// [`Connection`](portolano_core::Connection).
@@ -28,8 +28,11 @@ pub trait Protocol: Send + Sync {
     /// Checks that `settings` deserialize into the protocol's typed settings.
     ///
     /// # Errors
-    /// A description of the problem, in Italian.
-    fn validate_settings(&self, settings: &serde_json::Map<String, Value>) -> Result<(), String>;
+    /// The problem, with the setting at fault (DEC-040.3).
+    fn validate_settings(
+        &self,
+        settings: &serde_json::Map<String, Value>,
+    ) -> Result<(), SettingsError>;
 
     /// Checks the protocol's section of `config.toml`: `section` is the
     /// top-level table whose name equals [`Protocol::id`] (DEC-003, DEC-008).

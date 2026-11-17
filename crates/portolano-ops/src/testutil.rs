@@ -136,6 +136,15 @@ pub(crate) fn id_of(doc: &Document, path: &str) -> Uuid {
     doc.resolve_path(path).unwrap()
 }
 
+/// The names of the children of `parent` (`None` = root), in order.
+pub(crate) fn names(doc: &Document, parent: Option<Uuid>) -> Vec<String> {
+    doc.children(parent)
+        .unwrap()
+        .iter()
+        .map(|node| node.name.clone())
+        .collect()
+}
+
 /// Creates an empty file vault with cheap KDF costs in `dir` and returns its
 /// path; reopening it uses the costs stored in the file.
 pub(crate) fn fast_file_vault(dir: &Path) -> PathBuf {

@@ -1,7 +1,7 @@
 //! The staged changes of the editor of the app ([`edit_node_staged`]).
 
 use portolano_core::vault::MemoryVault;
-use portolano_core::{CredentialSpec, PrivateKey, SecretRef};
+use portolano_core::{CredentialSpec, PrivateKey};
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -26,10 +26,6 @@ fn stage(
 
 fn set(value: &str) -> Option<SecretChange> {
     Some(SecretChange::Set(secret(value)))
-}
-
-fn password_of(stored: &Stored, path: &str) -> Option<SecretRef> {
-    node(stored, path).as_credential().unwrap().password.clone()
 }
 
 #[test]

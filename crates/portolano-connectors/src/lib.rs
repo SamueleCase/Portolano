@@ -11,6 +11,7 @@ mod plan;
 mod protocol;
 mod registry;
 mod safe_path;
+mod settings_error;
 mod terminal;
 
 pub mod rdp;
@@ -34,6 +35,7 @@ pub use plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher,
 pub use protocol::{ConnectOptions, PlanContext, Protocol, SessionCredential};
 pub use rdp::RdpClient;
 pub use registry::Registry;
+pub use settings_error::SettingsError;
 
 /// Errors raised before or while launching a connection.
 ///
