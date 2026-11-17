@@ -29,6 +29,7 @@ export const gallery = {
     untrusted: "Stringhe non fidate",
     sessions: "Sessioni",
     editor: "Editor e dialoghi",
+    importValidation: "Import e validazione",
   },
   states: {
     rest: "A riposo",

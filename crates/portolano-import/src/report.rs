@@ -28,6 +28,13 @@ pub struct ImportReport {
     pub unmapped_fields: BTreeMap<String, BTreeMap<String, usize>>,
     /// Document-level warnings.
     pub warnings: Vec<String>,
+    /// Source objects per kind of node they become, or would become for the
+    /// skipped ones: the "Per tipo" of the app (DEC-039.1).
+    pub kinds: KindCounts,
+    /// Objects in the trash of the source, the trash itself excluded, whether
+    /// the trash was imported or not.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub trash_items: usize,
 }
 
 impl ImportReport {
@@ -42,12 +49,16 @@ impl ImportReport {
             items: Vec::new(),
             unmapped_fields: BTreeMap::new(),
             warnings: Vec::new(),
+            kinds: KindCounts::default(),
+            trash_items: 0,
         }
     }
 
-    /// Counts the outcome of one source object; only items that were not
-    /// fully imported are kept in [`ImportReport::items`] (SPEC §8.2).
-    pub(crate) fn record(&mut self, item: ReportItem) {
+    /// Counts the outcome of one source object, which becomes a node of
+    /// `kind`; only items that were not fully imported are kept in
+    /// [`ImportReport::items`] (SPEC §8.2).
+    pub(crate) fn record(&mut self, item: ReportItem, kind: NodeTarget<'_>) {
+        self.kinds.count(kind);
         let counts = self.counts.entry(item.source_type.clone()).or_default();
         counts.source += 1;
         match item.status {
@@ -69,6 +80,48 @@ impl ImportReport {
             .or_default()
             .entry(field.to_owned())
             .or_default() += 1;
+    }
+}
+
+/// The kind of node a source object becomes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NodeTarget<'a> {
+    Folder,
+    /// A connection of the protocol with this id, such as `"ssh"`.
+    Connection(&'a str),
+    Credential,
+    /// A node kept verbatim.
+    Unsupported,
+}
+
+/// Source objects per kind of node.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct KindCounts {
+    /// Folders.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub folders: usize,
+    /// Connections, by protocol id.
+    #[cfg_attr(feature = "specta", specta(type = BTreeMap<String, u32>))]
+    pub connections: BTreeMap<String, usize>,
+    /// Credentials.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub credentials: usize,
+    /// Nodes kept as unsupported.
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub unsupported: usize,
+}
+
+impl KindCounts {
+    fn count(&mut self, kind: NodeTarget<'_>) {
+        match kind {
+            NodeTarget::Folder => self.folders += 1,
+            NodeTarget::Connection(protocol) => {
+                *self.connections.entry(protocol.to_owned()).or_default() += 1;
+            }
+            NodeTarget::Credential => self.credentials += 1,
+            NodeTarget::Unsupported => self.unsupported += 1,
+        }
     }
 }
 
@@ -130,6 +183,8 @@ mod tests {
 
     use super::*;
 
+    const SSH: NodeTarget<'static> = NodeTarget::Connection("ssh");
+
     fn item(source_type: &str, status: ItemStatus) -> ReportItem {
         ReportItem {
             source_type: source_type.to_owned(),
@@ -144,10 +199,13 @@ mod tests {
     fn record_counts_every_status_per_source_type() {
         let mut report = ImportReport::new("royal", "test.rtsz", Utc::now());
 
-        report.record(item("RoyalSSHConnection", ItemStatus::Imported));
-        report.record(item("RoyalSSHConnection", ItemStatus::Partial));
-        report.record(item("RoyalSSHConnection", ItemStatus::Unsupported));
-        report.record(item("RoyalFolder", ItemStatus::Skipped));
+        report.record(item("RoyalSSHConnection", ItemStatus::Imported), SSH);
+        report.record(item("RoyalSSHConnection", ItemStatus::Partial), SSH);
+        report.record(
+            item("RoyalSSHConnection", ItemStatus::Unsupported),
+            NodeTarget::Unsupported,
+        );
+        report.record(item("RoyalFolder", ItemStatus::Skipped), NodeTarget::Folder);
 
         let ssh = TypeCounts {
             source: 3,
@@ -169,11 +227,38 @@ mod tests {
     fn record_keeps_only_items_not_fully_imported() {
         let mut report = ImportReport::new("royal", "test.rtsz", Utc::now());
 
-        report.record(item("RoyalFolder", ItemStatus::Imported));
-        report.record(item("RoyalFolder", ItemStatus::Partial));
+        report.record(
+            item("RoyalFolder", ItemStatus::Imported),
+            NodeTarget::Folder,
+        );
+        report.record(item("RoyalFolder", ItemStatus::Partial), NodeTarget::Folder);
 
         let statuses: Vec<ItemStatus> = report.items.iter().map(|i| i.status).collect();
         assert_eq!(statuses, vec![ItemStatus::Partial]);
+    }
+
+    #[test]
+    fn record_counts_every_object_per_kind_of_node() {
+        let mut report = ImportReport::new("royal", "test.rtsz", Utc::now());
+
+        report.record(item("RoyalSSHConnection", ItemStatus::Imported), SSH);
+        report.record(
+            item("RoyalSSHConnection", ItemStatus::Unsupported),
+            NodeTarget::Unsupported,
+        );
+        report.record(item("RoyalTrash", ItemStatus::Skipped), NodeTarget::Folder);
+        report.record(
+            item("RoyalCredential", ItemStatus::Partial),
+            NodeTarget::Credential,
+        );
+
+        let expected = KindCounts {
+            folders: 1,
+            connections: BTreeMap::from([("ssh".to_owned(), 1)]),
+            credentials: 1,
+            unsupported: 1,
+        };
+        assert_eq!(report.kinds, expected);
     }
 
     #[test]

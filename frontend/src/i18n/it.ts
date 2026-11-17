@@ -5,10 +5,12 @@ import { dialogs } from "./dialogs";
 import { editor } from "./editor";
 import { firstRun } from "./firstRun";
 import { icons } from "./icons";
+import { importWizard } from "./import";
 import { ipc } from "./ipc";
 import { preferences } from "./preferences";
 import { sessions } from "./sessions";
 import { tree } from "./tree";
+import { validation } from "./validation";
 
 /**
  * The texts of the interface, in Italian (SPEC-UI: no text outside i18n/).
@@ -27,4 +29,6 @@ export const texts = {
   dialogs,
   editor,
   preferences,
+  importWizard,
+  validation,
 } as const;

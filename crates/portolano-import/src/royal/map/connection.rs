@@ -17,6 +17,11 @@ use super::credential;
 use super::references::References;
 use crate::ImportError;
 
+/// The id of the SSH protocol of the connectors.
+pub(super) const SSH: &str = "ssh";
+/// The id of the RDP protocol of the connectors.
+pub(super) const RDP: &str = "rdp";
+
 /// [ipo] The Secure Gateway a connection goes through.
 const SECURE_GATEWAY_ID: &str = "SecureGatewayID";
 /// [ipo] The reusable Remote Desktop Gateway of an RDP connection.
@@ -70,7 +75,7 @@ pub(super) fn ssh(
         settings.insert("jump_hosts".to_owned(), json!([{ "$ref": gateway }]));
     }
     Ok(Connection {
-        protocol: "ssh".to_owned(),
+        protocol: SSH.to_owned(),
         host,
         port,
         credential,
@@ -121,7 +126,7 @@ pub(super) fn rdp(
         ctx.add_reason("Secure Gateway non supportato per le connessioni RDP: conservato in extra");
     }
     Ok(Connection {
-        protocol: "rdp".to_owned(),
+        protocol: RDP.to_owned(),
         host,
         port,
         credential,

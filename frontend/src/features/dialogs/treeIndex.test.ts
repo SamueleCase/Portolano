@@ -20,6 +20,7 @@ function node(name: string, kind: TreeNode_Serialize["kind"], children: TreeNode
     tags: [],
     secrets: "none",
     descendants: 0,
+    sourceId: null,
     children,
   } satisfies TreeNode_Serialize;
 }

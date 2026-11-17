@@ -7,8 +7,7 @@ use pretty_assertions::assert_eq;
 
 use crate::testutil::*;
 
-const SKIPPED_PASSWORD: &str =
-    "password Royal cifrata non importata: impostala con `portolano secret set`";
+const SKIPPED_PASSWORD: &str = "password Royal cifrata non importata: impostala dal nodo";
 
 fn spec_of(xml: &str) -> CredentialSpec {
     connection(&import(xml).root, 2).credential.clone()
@@ -343,6 +342,6 @@ fn a_skipped_embedded_key_makes_the_credential_partial() {
 
     assert_eq!(
         reasons(&outcome, 2),
-        vec!["chiave privata Royal cifrata non importata: impostala con `portolano secret set`"]
+        vec!["chiave privata Royal cifrata non importata: impostala dal nodo"]
     );
 }

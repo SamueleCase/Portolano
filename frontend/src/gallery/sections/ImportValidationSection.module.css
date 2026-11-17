@@ -1,0 +1,32 @@
+/* The steps of the wizard at the width of its dialogs (inventario §4.16). */
+.wizard,
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 100%;
+  padding: var(--space-fine-22);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-glass-modal);
+}
+
+.wizard {
+  width: var(--width-dialog-wizard);
+}
+
+.report {
+  width: var(--width-dialog-report);
+}
+
+/* As the footer of the dialogs: right aligned. */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.wentTo {
+  margin: 0;
+  color: var(--color-text-muted);
+}

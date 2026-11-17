@@ -77,6 +77,9 @@ pub struct TreeNode {
     pub secrets: SecretsBadge,
     /// All its descendants (the count of a closed folder, ambiguity 21).
     pub descendants: u32,
+    /// The id of an imported node in its source, to reach it from a line of
+    /// the import report even when the import gave it a new id (`new-ids`).
+    pub source_id: Option<String>,
     /// Its children, in order.
     pub children: Vec<TreeNode>,
 }
@@ -144,6 +147,10 @@ impl Builder<'_> {
             tags: node.tags.clone(),
             secrets: self.badge(node)?,
             descendants,
+            source_id: node
+                .source
+                .as_ref()
+                .and_then(|source| source.source_id.clone()),
             children,
         })
     }
@@ -206,5 +213,48 @@ impl Vault for LockedVault {
 fn locked() -> VaultError {
     VaultError::MasterPasswordUnavailable {
         reason: "vault bloccato".to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+    use portolano_core::SourceInfo;
+    use portolano_core::vault::MemoryVault;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn imported(name: &str, source_id: Option<&str>) -> Node {
+        let mut node = Node::connection(name, "ssh", "web01.example.com");
+        node.source = Some(SourceInfo {
+            system: "royal".to_owned(),
+            source_type: "RoyalSSHConnection".to_owned(),
+            source_id: source_id.map(str::to_owned),
+            file: Some("infra.rtsx".to_owned()),
+            imported_at: Utc::now(),
+        });
+        node
+    }
+
+    fn source_ids(nodes: Vec<Node>) -> Vec<Option<String>> {
+        let mut doc = Document::new("Test");
+        doc.nodes = nodes;
+        let tree = tree_view(&doc, &Registry::with_defaults(), &MemoryVault::default()).unwrap();
+        tree.nodes.into_iter().map(|node| node.source_id).collect()
+    }
+
+    #[test]
+    fn imported_node_carries_its_id_in_the_source() {
+        let ids = source_ids(vec![imported("web01", Some("royal-web01"))]);
+
+        assert_eq!(ids, vec![Some("royal-web01".to_owned())]);
+    }
+
+    #[test]
+    fn node_without_a_source_id_has_none() {
+        let ids = source_ids(vec![Node::folder("Produzione"), imported("web02", None)]);
+
+        assert_eq!(ids, vec![None, None]);
     }
 }

@@ -24,6 +24,7 @@ use super::fields::{Fields, parse_date};
 use super::tree::{Tree, TreeNode};
 use super::xml::RawObject;
 use super::{IMPORTER_ID, UNNAMED, types};
+use crate::report::NodeTarget;
 use crate::{
     ImportError, ImportOptions, ImportOutcome, ImportReport, ItemStatus, PendingIcon, ReportItem,
     SecretPrompter,
@@ -61,6 +62,9 @@ pub(super) fn map_document(
     };
     let root = mapper.map_subtree(&tree.root, "")?;
     mapper.report.document_name = root.name.clone();
+    mapper.report.trash_items = (0..objects.len())
+        .filter(|&index| tree.is_in_trash(index) && objects[index].type_name != types::TRASH)
+        .count();
     Ok(ImportOutcome {
         root,
         secrets: mapper.secrets.into_collected(),
@@ -82,6 +86,19 @@ enum Kind {
     Ssh,
     Rdp,
     Credential,
+}
+
+impl Class {
+    /// The kind of node of the report.
+    fn target(&self) -> NodeTarget<'static> {
+        match self {
+            Class::Supported(Kind::Folder) => NodeTarget::Folder,
+            Class::Supported(Kind::Ssh) => NodeTarget::Connection(connection::SSH),
+            Class::Supported(Kind::Rdp) => NodeTarget::Connection(connection::RDP),
+            Class::Supported(Kind::Credential) => NodeTarget::Credential,
+            Class::Unsupported(_) => NodeTarget::Unsupported,
+        }
+    }
 }
 
 struct Mapper<'a, 'p> {
@@ -124,11 +141,14 @@ impl Mapper<'_, '_> {
         } else {
             "nel cestino di Royal"
         };
+        // What the object would have become, for the counts per kind of node.
+        let target = classify(object, &Fields::new(object)).target();
         self.record(
             tree.object,
             &path,
             ItemStatus::Skipped,
             vec![reason.to_owned()],
+            target,
         );
         for child in &tree.children {
             self.skip_subtree(child, &path);
@@ -168,7 +188,9 @@ impl Mapper<'_, '_> {
         node.modified = modified.unwrap_or(self.imported_at);
         node.source = Some(self.source_info(index));
 
-        let status = match classify(object, &ctx.fields) {
+        let class = classify(object, &ctx.fields);
+        let target = class.target();
+        let status = match class {
             Class::Unsupported(reason) => {
                 node.description = ctx.fields.take("Description").map(str::to_owned);
                 node.kind = unsupported(object, reason, &mut ctx);
@@ -189,7 +211,7 @@ impl Mapper<'_, '_> {
                 }
             }
         };
-        self.record(index, &path, status, ctx.reasons);
+        self.record(index, &path, status, ctx.reasons, target);
         Ok((node, path))
     }
 
@@ -252,14 +274,22 @@ impl Mapper<'_, '_> {
         }
     }
 
-    fn record(&mut self, index: usize, path: &str, status: ItemStatus, reasons: Vec<String>) {
-        self.report.record(ReportItem {
+    fn record(
+        &mut self,
+        index: usize,
+        path: &str,
+        status: ItemStatus,
+        reasons: Vec<String>,
+        target: NodeTarget<'_>,
+    ) {
+        let item = ReportItem {
             source_type: self.objects[index].type_name.clone(),
             source_id: self.tree.ids[index].to_string(),
             path: path.to_owned(),
             status,
             reasons,
-        });
+        };
+        self.report.record(item, target);
     }
 }
 

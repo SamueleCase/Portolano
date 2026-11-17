@@ -125,6 +125,7 @@ export function treeView(state: FakeBackendState, doc: FakeDocument): TreeView_S
       tags: [...node.tags],
       secrets: badgeOf(state, node),
       descendants: children.reduce((count, child) => count + child.descendants + 1, 0),
+      sourceId: node.source?.sourceId ?? null,
       children,
     };
   };

@@ -4,7 +4,9 @@
 use std::collections::BTreeMap;
 
 use portolano_core::{Node, NodeKind};
-use portolano_import::{ImportOutcome, ItemStatus, NonInteractive, TypeCounts};
+use portolano_import::{
+    ImportOptions, ImportOutcome, ItemStatus, KindCounts, NonInteractive, TypeCounts,
+};
 use pretty_assertions::assert_eq;
 
 use crate::testutil::*;
@@ -238,6 +240,38 @@ fn workspace_counts_and_order() {
     );
     let linux = outcome.root.as_folder().unwrap().children[1].clone();
     assert_eq!(child_names(&linux), vec!["bastion", "db01", "web01"]);
+}
+
+#[test]
+fn workspace_counts_every_object_by_the_kind_of_its_node() {
+    let outcome = import_fixture("workspace.royal.xml");
+
+    let expected = KindCounts {
+        folders: 6,
+        connections: [("rdp", 5), ("ssh", 4)]
+            .map(|(protocol, count)| (protocol.to_owned(), count))
+            .into(),
+        credentials: 3,
+        unsupported: 0,
+    };
+    assert_eq!(outcome.report.kinds, expected);
+}
+
+#[test]
+fn workspace_counts_the_items_in_the_trash_without_the_trash() {
+    let skipped = import_fixture("workspace.royal.xml");
+    let included = import_bytes(
+        &fixture("workspace.royal.xml"),
+        &ImportOptions {
+            include_trash: true,
+            ..options()
+        },
+        &mut NonInteractive,
+    )
+    .unwrap();
+
+    assert_eq!(skipped.report.trash_items, 3);
+    assert_eq!(included.report.trash_items, 3);
 }
 
 #[test]

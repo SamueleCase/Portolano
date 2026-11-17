@@ -5,7 +5,9 @@ import {
   UnlockVaultFeature,
 } from "../features/dialogs/DialogFeatures";
 import { EditorFeature } from "../features/editor/EditorFeature";
+import { ImportWizard } from "../features/import/ImportWizard";
 import { PreferencesFeature } from "../features/preferences/PreferencesFeature";
+import { ValidationPanel } from "../features/validation/ValidationPanel";
 import type { FeatureRegistry } from "./features";
 
 /**
@@ -20,4 +22,6 @@ export const featureRegistry: FeatureRegistry = {
   createFileVault: CreateVaultFeature,
   login: LoginFeature,
   preferences: PreferencesFeature,
+  import: ImportWizard,
+  validation: ValidationPanel,
 };

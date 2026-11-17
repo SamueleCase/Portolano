@@ -1,0 +1,9 @@
+/*
+ * The class goes on the field around the area (`TextArea`), and the dots are
+ * inherited: only the area shows dots as a password field does (WebKit), not
+ * its label or its message.
+ */
+.maskedKey textarea {
+  -webkit-text-security: disc;
+  letter-spacing: var(--tracking-password);
+}

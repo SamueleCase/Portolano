@@ -5,13 +5,6 @@
   line-height: var(--line-height-body);
 }
 
-/* A private key shows dots as a password field does (WebKit). */
-.maskedKey {
-  -webkit-text-security: disc;
-  letter-spacing: var(--tracking-password);
-  resize: vertical;
-}
-
 .vaultTile {
   display: grid;
   place-items: center;

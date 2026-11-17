@@ -1,0 +1,205 @@
+/* The import wizard (inventario §5.13): steps 1–3 at 560 px, the report at
+   860 px; the dialog gives the glass, the title and the footer. */
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary);
+}
+
+.ok {
+  color: var(--color-ok);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error-text);
+  font-size: var(--font-size-secondary);
+}
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The footer of the dialog is right aligned: this button and those before it go left. */
+.footerStart {
+  margin-right: auto;
+}
+
+.start {
+  align-self: flex-start;
+}
+
+/* Step 1 */
+.chooser {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-fine-30) var(--space-5);
+  text-align: center;
+}
+
+.chooserTitle {
+  font-size: var(--font-size-lead);
+  font-weight: var(--font-weight-strong);
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-fine-10) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-field);
+}
+
+.fileName {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileFacts {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
+  font-size: var(--font-size-secondary);
+  white-space: nowrap;
+}
+
+/* Step 2 */
+.destination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.destinationPath {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.conflicts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.groupLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+}
+
+/* Step 3 */
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.counter {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-counter);
+}
+
+.requestCard {
+  padding: var(--space-3) var(--space-fine-14);
+}
+
+/* Step 4 */
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.reportHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.reportTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reportActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The number, with "elementi letti" under it. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.heroValue {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-hero);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-hero);
+  line-height: var(--line-height-tight);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.reportColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--space-6);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.warnings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-secondary);
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-fine-6);
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice {
+  margin: 0;
+  color: var(--color-text-muted);
+}

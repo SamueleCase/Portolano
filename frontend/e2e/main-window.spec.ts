@@ -36,16 +36,6 @@ test.describe("the main window", () => {
     expect(loaded).toEqual(expect.arrayContaining(["Hanken Grotesk", "IBM Plex Mono"]));
   });
 
-  test("disables the functions not mounted yet, with the reason", async ({ page }) => {
-    await openApp(page);
-    await documentTree(page);
-
-    const importButton = page.getByRole("button", { name: texts.app.toolbar.import });
-    await expect(importButton).toHaveAttribute("aria-disabled", "true");
-    await importButton.hover();
-    await expect(page.getByRole("tooltip")).toHaveText(texts.app.reasons.unavailable);
-  });
-
   test("connects to an SSH connection in a tab with its terminal", async ({ page }) => {
     // Open vault: bastion's credential has a passphrase in the vault, so with
     // the vault locked the backend refuses and the window asks to unlock (DEC-042).
