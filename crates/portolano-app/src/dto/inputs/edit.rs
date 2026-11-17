@@ -84,7 +84,10 @@ pub struct NodeEditInput {
 #[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ParentInput {
-    /// The folder; none is the root.
+    /// The folder; null is the root. The key is required: a missing one
+    /// would move the node to the root by mistake.
+    #[serde(deserialize_with = "Option::deserialize")]
+    #[specta(type = Option<Uuid>)]
     pub id: Option<Uuid>,
 }
 

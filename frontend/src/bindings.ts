@@ -1533,13 +1533,19 @@ export type ParentInput = ParentInput_Serialize | ParentInput_Deserialize;
 
 /**  Where the editor moves a node: a folder, or the root. */
 export type ParentInput_Deserialize = {
-	/**  The folder; none is the root. */
-	id?: string | null,
+	/**
+	 *  The folder; null is the root. The key is required: a missing one
+	 *  would move the node to the root by mistake.
+	 */
+	id: string | null,
 };
 
 /**  Where the editor moves a node: a folder, or the root. */
 export type ParentInput_Serialize = {
-	/**  The folder; none is the root. */
+	/**
+	 *  The folder; null is the root. The key is required: a missing one
+	 *  would move the node to the root by mistake.
+	 */
 	id: string | null,
 };
 

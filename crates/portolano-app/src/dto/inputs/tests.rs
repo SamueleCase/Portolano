@@ -91,17 +91,35 @@ fn staged_secrets_become_editor_changes() {
     assert!(changes.default_port);
 }
 
+fn parent_of(json: serde_json::Value) -> Option<Option<Uuid>> {
+    edit_of(json).into_edit(&web01()).unwrap().1.parent
+}
+
 #[test]
-fn parent_moves_to_a_folder_or_to_the_root_and_its_absence_stays() {
-    let folder = uuid::Uuid::new_v4();
-    let parent_of = |json| edit_of(json).into_edit(&web01()).unwrap().1.parent;
+fn parent_with_an_id_moves_to_that_folder() {
+    let folder = Uuid::new_v4();
 
     assert_eq!(
         parent_of(json!({ "parent": { "id": folder } })),
         Some(Some(folder))
     );
+}
+
+#[test]
+fn parent_with_a_null_id_moves_to_the_root() {
     assert_eq!(parent_of(json!({ "parent": { "id": null } })), Some(None));
+}
+
+#[test]
+fn no_parent_leaves_the_node_where_it_is() {
     assert_eq!(parent_of(json!({})), None);
+}
+
+#[test]
+fn parent_without_its_id_is_refused() {
+    let result = serde_json::from_value::<NodeEditInput>(json!({ "parent": {} }));
+
+    assert!(result.is_err());
 }
 
 #[test]
