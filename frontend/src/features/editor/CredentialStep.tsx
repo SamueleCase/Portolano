@@ -31,6 +31,7 @@ export function CredentialStep() {
           backend={backend}
           onSet={() => askSecret(key)}
           onClear={() => clearSecret(key)}
+          appliesOnSave
         />
         {error && (
           <span className={styles.error} role="alert">

@@ -90,6 +90,15 @@ async function chooseFolder(name: string) {
   );
 }
 
+/** Types the master password in the unlock dialog that "Salva" opens. */
+async function unlockVault() {
+  await userEvent.type(
+    await screen.findByLabelText(texts.dialogs.unlock.field),
+    TEST_MASTER_PASSWORD,
+  );
+  await userEvent.click(screen.getByRole("button", { name: texts.dialogs.unlock.unlock }));
+}
+
 async function save() {
   await userEvent.click(screen.getByRole("button", { name: t.save }));
 }
@@ -169,11 +178,7 @@ describe("NodeEditor", () => {
     expect(within(row).getByText(texts.components.secretBadge.staged)).toBeInTheDocument();
     expect(nodeNamed(state, "deploy").secrets["password"]).toBeUndefined();
     await save();
-    await userEvent.type(
-      await screen.findByLabelText(texts.dialogs.unlock.field),
-      TEST_MASTER_PASSWORD,
-    );
-    await userEvent.click(screen.getByRole("button", { name: texts.dialogs.unlock.unlock }));
+    await unlockVault();
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
     expect(nodeNamed(state, "deploy").secrets["password"]).toBe(true);
@@ -271,6 +276,45 @@ describe("NodeEditor", () => {
 
     const row = screen.getByRole("group", { name: t.credential.password });
     expect(within(row).getByText(texts.components.secretBadge.locked)).toBeInTheDocument();
+  });
+
+  it("replaces a saved password with the vault locked, and unlocks it on Salva", async () => {
+    const state = installFakeBackend();
+    const { client, onSaved } = renderEditor({ mode: "edit", id: await idOf("Admin ACME") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+    const row = screen.getByRole("group", { name: t.credential.password });
+
+    await userEvent.click(
+      within(row).getByRole("button", { name: texts.components.secretRow.replace }),
+    );
+    const dialog = screen.getByRole("dialog", { name: secret.replaceTitles.password });
+    await userEvent.type(within(dialog).getByLabelText(secret.fields.password), SENTINEL);
+    await userEvent.type(within(dialog).getByLabelText(secret.confirm), SENTINEL);
+    await userEvent.click(within(dialog).getByRole("button", { name: secret.stage }));
+    expect(within(row).getByText(texts.components.secretBadge.staged)).toBeInTheDocument();
+    await save();
+    await unlockVault();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(state.vault.locked).toBe(false);
+    expect(nodeNamed(state, "Admin ACME").secrets["password"]).toBe(true);
+    expectNoSentinel(client);
+  });
+
+  it("clears a saved password with the vault locked, and unlocks it on Salva", async () => {
+    const state = installFakeBackend();
+    const { onSaved } = renderEditor({ mode: "edit", id: await idOf("Admin ACME") });
+    await userEvent.click(await screen.findByRole("button", { name: t.next }));
+    const row = screen.getByRole("group", { name: t.credential.password });
+
+    await userEvent.click(
+      within(row).getByRole("button", { name: texts.components.secretRow.clear }),
+    );
+    await save();
+    await unlockVault();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(nodeNamed(state, "Admin ACME").secrets["password"]).toBeUndefined();
   });
 
   it("does not save the editor with Fatto in the credential selector", async () => {

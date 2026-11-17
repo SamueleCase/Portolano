@@ -220,7 +220,7 @@ export function EditorForm({ initial, details, onClose, onSaved }: EditorFormPro
         open={askingSlot !== undefined}
         slot={askingSlot ?? { kind: "password" }}
         nodeLabel={details ? readablePath(details.path) : values.name || t.untitled}
-        replacing={asking !== undefined && ["present", "staged"].includes(secrets.state(asking))}
+        replacing={asking !== undefined && secrets.replaces(asking)}
         mode="stage"
         backend={backend}
         onClose={() => setAsking(undefined)}

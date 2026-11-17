@@ -47,6 +47,11 @@ export interface SecretSlots {
   state: (key: SlotKey) => SecretState;
   /** Whether the saved node has a secret in `key` ("Cancella" then removes it on "Salva"). */
   stored: (key: SlotKey) => boolean;
+  /**
+   * Whether a value set in `key` replaces one ("Sostituisci"): one staged, or
+   * the saved one not cleared, even if the locked vault cannot show it.
+   */
+  replaces: (key: SlotKey) => boolean;
 }
 
 export function secretSlots(
@@ -64,5 +69,8 @@ export function secretSlots(
       return stored === "present" ? "present" : "absent";
     },
     stored: (key) => storedState(key, secrets, rows) !== undefined,
+    replaces: (key) =>
+      marks[key] === "set" ||
+      (marks[key] !== "clear" && storedState(key, secrets, rows) !== undefined),
   };
 }
