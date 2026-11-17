@@ -77,4 +77,17 @@ describe("ColorPicker", () => {
 
     expect(onChange).toHaveBeenCalledWith(null);
   });
+
+  it("reads the message it is given with each choice", () => {
+    render(
+      <>
+        <ColorPicker value={null} onChange={() => undefined} describedBy="colore-errore" />
+        <span id="colore-errore">colore rifiutato</span>
+      </>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Nessuno" })).toHaveAccessibleDescription(
+      "colore rifiutato",
+    );
+  });
 });

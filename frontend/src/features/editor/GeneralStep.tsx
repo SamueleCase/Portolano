@@ -83,13 +83,12 @@ export function GeneralStep() {
           </div>
           <GroupError id={iconErrorId} text={iconError} />
         </div>
-        {/* The picker names itself: the group only carries its error. */}
-        <div
-          className={styles.group}
-          role="group"
-          aria-describedby={colorError ? colorErrorId : undefined}
-        >
-          <ColorPicker value={values.color} onChange={(color) => set("color", color)} />
+        <div className={styles.group}>
+          <ColorPicker
+            value={values.color}
+            onChange={(color) => set("color", color)}
+            describedBy={colorError ? colorErrorId : undefined}
+          />
           <GroupError id={colorErrorId} text={colorError} />
         </div>
         <FavoriteToggle

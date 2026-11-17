@@ -25,9 +25,8 @@ function SecretSetting({ slot, label }: SecretSettingProps) {
   const error = errorOf(
     slot === PRIVATE_KEY ? "privateKey" : slot === PASSWORD ? "password" : "passphrase",
   );
-  // The row names itself: the group only carries its error.
   return (
-    <div className={styles.group} role="group" aria-describedby={error ? errorId : undefined}>
+    <div className={styles.group}>
       <SecretRow
         label={label}
         state={secrets.state(slot)}
@@ -35,6 +34,7 @@ function SecretSetting({ slot, label }: SecretSettingProps) {
         onSet={() => askSecret(slot)}
         onClear={() => clearSecret(slot)}
         appliesOnSave
+        describedBy={error ? errorId : undefined}
       />
       <GroupError id={errorId} text={error} />
     </div>

@@ -22,12 +22,17 @@ export function ChoiceSetting<T extends string>({
 }: ChoiceSettingProps<T>) {
   const errorId = useId();
   return (
-    // The control names itself: the group only carries its error.
-    <div className={styles.control} role="group" aria-describedby={error ? errorId : undefined}>
+    <div className={styles.control}>
       <span className={styles.label} aria-hidden="true">
         {label}
       </span>
-      <SegmentedControl label={label} options={options} value={value} onChange={onChange} />
+      <SegmentedControl
+        label={label}
+        options={options}
+        value={value}
+        onChange={onChange}
+        describedBy={error ? errorId : undefined}
+      />
       {error && (
         <span id={errorId} className={styles.error} role="alert">
           {error}

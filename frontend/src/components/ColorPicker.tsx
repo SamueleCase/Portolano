@@ -22,6 +22,8 @@ interface ColorPickerProps {
   /** `#RRGGBB`, or `null` for no color. */
   value: string | null;
   onChange: (value: string | null) => void;
+  /** The id of a message about the color (an error), read with each choice. */
+  describedBy?: string | undefined;
 }
 
 type Choice = { kind: "none" } | { kind: "swatch"; color: string } | { kind: "custom" };
@@ -35,7 +37,7 @@ function swatchStyle(color: string): CSSProperties & { "--swatch": string } {
  * hexadecimal field (ambiguity 15). An imported color outside the six shows
  * as the custom one.
  */
-export function ColorPicker({ value, onChange }: ColorPickerProps) {
+export function ColorPicker({ value, onChange, describedBy }: ColorPickerProps) {
   const t = texts.components.colorPicker;
   const id = useId();
   const current = nodeColor(value);
@@ -86,6 +88,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             type: "button" as const,
             role: "radio",
             "aria-checked": on,
+            "aria-describedby": describedBy,
             tabIndex: radio.tabIndexOf(index),
             ref: radio.register(index),
             onClick: () => choose(choice),

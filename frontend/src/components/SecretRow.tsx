@@ -21,6 +21,8 @@ interface SecretRowProps {
    * vault is unlocked on Save (DEC-043.6).
    */
   appliesOnSave?: boolean;
+  /** The id of a message about the secret (an error), read with its actions. */
+  describedBy?: string | undefined;
 }
 
 /**
@@ -36,6 +38,7 @@ export function SecretRow({
   onSet,
   onClear,
   appliesOnSave = false,
+  describedBy,
 }: SecretRowProps) {
   const labelId = useId();
   const locked = state === "locked";
@@ -47,11 +50,16 @@ export function SecretRow({
       </span>
       <SecretBadge state={state} backend={backend} />
       <span className={styles.actions}>
-        <Button variant="ghost" disabled={locked && !appliesOnSave} onClick={onSet}>
+        <Button
+          variant="ghost"
+          disabled={locked && !appliesOnSave}
+          aria-describedby={describedBy}
+          onClick={onSet}
+        >
           {has ? texts.components.secretRow.replace : texts.components.secretRow.set}
         </Button>
         {has && onClear && (
-          <Button variant="danger-text" onClick={onClear}>
+          <Button variant="danger-text" aria-describedby={describedBy} onClick={onClear}>
             {texts.components.secretRow.clear}
           </Button>
         )}

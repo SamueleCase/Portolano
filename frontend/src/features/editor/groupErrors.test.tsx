@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -39,13 +39,6 @@ function renderStep(Step: ComponentType, kind: EditorKind, target: ErrorTarget) 
   );
 }
 
-/** The group the error sits in. */
-function groupOfError(): HTMLElement {
-  const group = screen.getByText(MESSAGE).closest<HTMLElement>("[role='group']");
-  if (!group) throw new Error("errore fuori da un gruppo");
-  return group;
-}
-
 describe("the errors of a group of controls", () => {
   it("describe the button that chooses the icon", () => {
     renderStep(GeneralStep, "ssh", "icon");
@@ -55,10 +48,12 @@ describe("the errors of a group of controls", () => {
     );
   });
 
-  it("describe the group of the color", () => {
+  it("describe the choices of the color", () => {
     renderStep(GeneralStep, "ssh", "color");
 
-    expect(groupOfError()).toHaveAccessibleDescription(MESSAGE);
+    expect(
+      screen.getByRole("radio", { name: texts.components.colorPicker.none }),
+    ).toHaveAccessibleDescription(MESSAGE);
   });
 
   it("describe the button that changes the position", () => {
@@ -89,16 +84,21 @@ describe("the errors of a group of controls", () => {
     expect(screen.getByRole("group", { name: t.ssh.options })).toHaveAccessibleDescription(MESSAGE);
   });
 
-  it("describe the credential", () => {
+  it("describe the button that changes the credential", () => {
     renderStep(SshStep, "ssh", "credential");
 
-    expect(groupOfError()).toHaveAccessibleDescription(MESSAGE);
+    expect(
+      screen.getByRole("button", { name: texts.components.credentialField.change }),
+    ).toHaveAccessibleDescription(MESSAGE);
   });
 
-  it("describe a secret of a credential", () => {
+  it("describe the actions of a secret of a credential", () => {
     renderStep(CredentialStep, "credential", "privateKey");
+    const key = screen.getByRole("group", { name: t.credential.key });
 
-    expect(groupOfError()).toHaveAccessibleDescription(MESSAGE);
+    expect(
+      within(key).getByRole("button", { name: texts.components.secretRow.set }),
+    ).toHaveAccessibleDescription(MESSAGE);
   });
 
   it("describe a choice of the preferences", () => {
@@ -112,6 +112,6 @@ describe("the errors of a group of controls", () => {
       />,
     );
 
-    expect(groupOfError()).toHaveAccessibleDescription(MESSAGE);
+    expect(screen.getByRole("radio", { name: "Portachiavi" })).toHaveAccessibleDescription(MESSAGE);
   });
 });

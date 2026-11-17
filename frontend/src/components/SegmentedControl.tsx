@@ -20,6 +20,8 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   /** Spreads the options over the whole width. */
   fullWidth?: boolean;
+  /** The id of a message about the choice (an error), read with each option. */
+  describedBy?: string | undefined;
 }
 
 interface Indicator {
@@ -38,6 +40,7 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   fullWidth = false,
+  describedBy,
 }: SegmentedControlProps<T>) {
   const group = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<Indicator>();
@@ -80,6 +83,7 @@ export function SegmentedControl<T extends string>({
             role="radio"
             aria-checked={chosen}
             aria-disabled={option.unavailable || undefined}
+            aria-describedby={describedBy}
             tabIndex={radio.tabIndexOf(index)}
             className={classNames(
               styles.option,

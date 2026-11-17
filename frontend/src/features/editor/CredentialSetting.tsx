@@ -91,8 +91,7 @@ export function CredentialSetting({
         : undefined;
 
   return (
-    // The field names itself: the group only carries its error.
-    <div className={styles.group} role="group" aria-describedby={error ? errorId : undefined}>
+    <div className={styles.group}>
       <CredentialField
         label={label}
         mode={texts.components.credentialModes[mode].title}
@@ -101,6 +100,7 @@ export function CredentialSetting({
         password={password}
         backend={backend}
         onChange={() => setChoosing(true)}
+        describedBy={error ? errorId : undefined}
       />
       <GroupError id={errorId} text={error} />
       <CredentialChooser
