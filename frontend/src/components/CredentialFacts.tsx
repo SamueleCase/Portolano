@@ -34,7 +34,7 @@ export function CredentialFacts({
       {credential.key && (
         <>
           <dt>{t.key}</dt>
-          <dd>{credential.key}</dd>
+          <dd>{visibleText(credential.key)}</dd>
         </>
       )}
     </dl>

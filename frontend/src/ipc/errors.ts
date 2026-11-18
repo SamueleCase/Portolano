@@ -1,4 +1,5 @@
 import type { ErrorCode, IpcErrorDetails } from "../bindings";
+import { visibleText } from "../components/visibleText";
 import { texts } from "../i18n/it";
 import { IpcFailure, type IpcError } from "./result";
 
@@ -51,17 +52,23 @@ const presentationByCode: Record<ErrorCode, ErrorPresentation> = {
   internal: "toast",
 };
 
-/** How to show `error`; an invalid value with a field goes under the field. */
+/**
+ * How to show `error`; an invalid value with a field goes under the field.
+ * The message quotes names, hosts and paths of the document, of a Royal
+ * file or of the host: it comes made visible (DEC-026.4, DEC-046.2),
+ * wherever it is shown.
+ */
 export function presentError(error: IpcError): PresentedError {
   const title = texts.ipc.errorTitles[error.code];
   const { details } = error;
+  const message = visibleText(error.message);
   if (details?.kind === "invalid") {
-    return { presentation: "field", title, message: error.message, field: details.field, details };
+    return { presentation: "field", title, message, field: details.field, details };
   }
   const presented: PresentedError = {
     presentation: presentationByCode[error.code],
     title,
-    message: error.message,
+    message,
   };
   return details ? { ...presented, details } : presented;
 }

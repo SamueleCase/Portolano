@@ -1,3 +1,4 @@
+import { visibleText } from "../../components/visibleText";
 import styles from "./Editor.module.css";
 
 interface GroupErrorProps {
@@ -6,12 +7,16 @@ interface GroupErrorProps {
   text: string | undefined;
 }
 
-/** The error of a group of controls of the editor, which describes them; nothing without one. */
+/**
+ * The error of a group of controls of the editor, which describes them;
+ * nothing without one. It may be the message of the backend, which quotes
+ * the document: made visible.
+ */
 export function GroupError({ id, text }: GroupErrorProps) {
   if (!text) return null;
   return (
     <span id={id} className={styles.error} role="alert">
-      {text}
+      {visibleText(text)}
     </span>
   );
 }

@@ -55,6 +55,25 @@ describe("presentError", () => {
 
     expect(presented.details).toEqual({ kind: "ambiguous", candidates });
   });
+
+  it("makes visible the controls and the bidi controls the message quotes", () => {
+    const presented = presentError({
+      code: "connect",
+      message: "host 'web01‮exe.\u001b[2J' rifiutato",
+    });
+
+    expect(presented.message).toBe("host 'web01\\u{202e}exe.\\u{1b}[2J' rifiutato");
+  });
+
+  it("makes visible the message of an error under a field", () => {
+    const presented = presentError({
+      code: "invalid",
+      message: "nome 'a\u0007b' non valido",
+      details: { kind: "invalid", field: "name" },
+    });
+
+    expect(presented.message).toBe("nome 'a\\u{7}b' non valido");
+  });
 });
 
 describe("presentFailure", () => {
