@@ -4,7 +4,9 @@
 # that does not hold:
 # - Portolano.app and its disk image exist;
 # - Contents/MacOS holds the app binary `portolano-app` (never `Portolano`,
-#   which collides on APFS) and the CLI sidecar `portolano`, built in release;
+#   which collides on APFS) and the CLI sidecar `portolano`, the very binary
+#   of target/release (same Mach-O UUID: the signature changes the bytes,
+#   not the UUID);
 # - the sidecar, run from the bundle, answers --version with the version of
 #   the app;
 # - app and sidecar carry an ad hoc signature with the hardened runtime, and
@@ -22,6 +24,11 @@ plist="$app/Contents/Info.plist"
 fail() {
     echo "check-bundle: $1" >&2
     exit 1
+}
+
+# The Mach-O UUID of a binary, the identity the linker gives it.
+uuid() {
+    dwarfdump --uuid "$1" | awk '{ print $2 }'
 }
 
 # The size of a file or a directory, in MiB with one decimal.
@@ -47,11 +54,12 @@ for binary in portolano-app portolano; do
         fail "manca l'eseguibile Contents/MacOS/$binary"
 done
 
-# The sidecar copied by bundle.sh is the CLI built in release: the copy
-# signed in the bundle differs from it, the one in binaries/ does not.
-triple=$(rustc --print host-tuple)
-cmp -s "$root/crates/portolano-app/binaries/portolano-$triple" "$root/target/release/portolano" ||
-    fail "il sidecar di binaries/ non è la CLI compilata in release"
+# The sidecar in the bundle is the CLI built in release, not another build.
+release=$(uuid "$root/target/release/portolano") ||
+    fail "manca target/release/portolano: la CLI compilata in release"
+bundled=$(uuid "$macos/portolano") || fail "il sidecar nel bundle non è un binario Mach-O"
+[ -n "$release" ] && [ "$bundled" = "$release" ] ||
+    fail "il sidecar nel bundle (UUID $bundled) non è la CLI compilata in release (UUID $release)"
 
 answer=$("$macos/portolano" --version) || fail "il sidecar non risponde a --version"
 [ "$answer" = "portolano $version" ] ||
