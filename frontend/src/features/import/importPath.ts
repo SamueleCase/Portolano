@@ -1,4 +1,4 @@
-import { texts } from "../../i18n/it";
+import { readableNames } from "../../components/readablePath";
 
 /**
  * A path of the import report or of a password request, "Ufficio/Rete/web01"
@@ -22,5 +22,5 @@ export function readableImportPath(path: string): string {
     }
   }
   names.push(name);
-  return names.join(texts.validation.separator);
+  return readableNames(names);
 }

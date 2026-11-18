@@ -3,6 +3,7 @@ import { useId } from "react";
 import type { ConflictChoice, ImportPreviewView_Serialize } from "../../bindings";
 import { Button } from "../../components/Button";
 import { FormField } from "../../components/FormField";
+import { readableNames } from "../../components/readablePath";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { ToggleRow } from "../../components/ToggleRow";
 import { visibleText } from "../../components/visibleText";
@@ -73,9 +74,7 @@ export function OptionsStep({
         <div className={styles.destination}>
           <output id={destinationId} className={styles.destinationPath}>
             {visibleText(
-              importedFolder === null
-                ? destination
-                : `${destination}${texts.validation.separator}${importedFolder}`,
+              importedFolder === null ? destination : readableNames([destination, importedFolder]),
             )}
           </output>
           <Button variant="small" onClick={onChooseDestination}>

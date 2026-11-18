@@ -8,5 +8,5 @@ import { texts } from "../i18n/it";
  * them.
  */
 export function readableNames(names: readonly string[]): string {
-  return names.join(texts.validation.separator);
+  return names.join(texts.paths.separator);
 }
