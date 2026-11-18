@@ -103,6 +103,31 @@ fn prepared_launch_holds_the_stdin_secret_and_no_secret_in_args_or_env() {
 }
 
 #[test]
+fn the_stdin_secret_is_let_go_once_written() {
+    let temp = tempfile::tempdir().unwrap();
+    let reference = SecretRef::new();
+    let vault = vault_with(&[(&reference, SENTINEL)]);
+    let plan = run(
+        PathBuf::from("/usr/bin/true"),
+        vec![],
+        Some(reference),
+        None,
+    );
+    let mut prepared = prepare_with(
+        &plan,
+        &vault,
+        &AppConfig::default(),
+        TempFiles::new(temp.path().to_path_buf()),
+    )
+    .unwrap();
+    let mut stdin = Vec::new();
+
+    prepared.write_stdin_secret(&mut stdin).unwrap();
+
+    assert!(prepared.stdin_secret().is_none());
+}
+
+#[test]
 fn missing_secret_is_reported_before_starting_anything() {
     let temp = tempfile::tempdir().unwrap();
     let reference = SecretRef::new();

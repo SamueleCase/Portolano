@@ -108,7 +108,7 @@ fn stdin_secret_is_written_for_a_caller_that_starts_the_program() {
         None,
     );
     let files = TempFiles::new(temp.path().join("files"));
-    let prepared = prepare_with(&plan, &vault, &AppConfig::default(), files).unwrap();
+    let mut prepared = prepare_with(&plan, &vault, &AppConfig::default(), files).unwrap();
     let mut stdin = Vec::new();
 
     prepared.write_stdin_secret(&mut stdin).unwrap();

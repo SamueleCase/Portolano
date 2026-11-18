@@ -36,7 +36,7 @@ impl RdpSession {
     /// [`SessionError::Spawn`] if FreeRDP cannot start, [`SessionError::Io`]
     /// if its log cannot be opened or its stdin written.
     pub(super) fn start(
-        launch: PreparedLaunch,
+        mut launch: PreparedLaunch,
         log: Option<PathBuf>,
         sink: Arc<dyn SessionSink>,
         finish: Finish,
@@ -70,6 +70,8 @@ impl RdpSession {
             program: launch.program().to_path_buf(),
             source,
         })?;
+        // The password leaves the launch here, written or not: it is not
+        // kept for the whole session.
         let written = child
             .stdin
             .take()
