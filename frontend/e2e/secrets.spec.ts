@@ -93,6 +93,13 @@ test.describe("a typed secret", () => {
     await panel.getByRole("button", { name: t.save }).click();
     await expect(panel).toBeHidden();
     await expect(page.getByText(description)).toBeVisible();
+    // The three secrets reached the vault of the backend.
+    const secrets = page.getByRole("region", { name: texts.details.secrets.heading });
+    for (const slot of Object.values(texts.details.secrets.slots)) {
+      await expect(secrets.getByRole("group", { name: slot })).toContainText(
+        texts.components.secretBadge.present.file,
+      );
+    }
 
     const surfaces = await watch.surfaces();
     expect(surfaces.traffic).toContain(description);
@@ -117,6 +124,10 @@ test.describe("a typed secret", () => {
     await dialog.getByRole("button", { name: d.secret.save.file }).click();
     await expect(dialog).toBeHidden();
 
+    // The backend stored it: its answer says the password is present.
+    expect((await watch.surfaces()).traffic).toMatch(
+      /^answer set_secret: .*"slot":"password","state":"present"/m,
+    );
     await watch.expectNowhere(SENTINEL.detailPassword);
   });
 
@@ -203,6 +214,10 @@ test.describe("a typed secret", () => {
     await wizard.getByRole("button", { name: actions.skipAll }).click();
     await expect(wizard.getByText(/^Importazione completata/)).toBeVisible();
 
+    // web10, whose password was typed, is imported whole: it is not among
+    // the items to check, where db10, whose password was skipped, is.
+    await expect(wizard.getByRole("button", { name: /db10/ })).toBeVisible();
+    await expect(wizard.getByRole("button", { name: /web10/ })).toHaveCount(0);
     await watch.expectNowhere(SENTINEL.importPassword);
   });
 
