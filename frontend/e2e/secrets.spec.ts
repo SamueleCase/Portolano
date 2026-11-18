@@ -209,7 +209,9 @@ test.describe("a typed secret", () => {
     await wizard.getByRole("button", { name: actions.next }).click();
     await expect(wizard.getByText(/^In prova:/)).toBeVisible();
     await wizard.getByRole("button", { name: actions.next }).click();
-    await wizard.getByLabel("Password", { exact: true }).fill(SENTINEL.importPassword);
+    await wizard
+      .getByLabel(texts.importWizard.passwords.fields.password, { exact: true })
+      .fill(SENTINEL.importPassword);
     await wizard.getByRole("button", { name: actions.saveAndContinue }).click();
     await wizard.getByRole("button", { name: actions.skipAll }).click();
     await expect(wizard.getByText(/^Importazione completata/)).toBeVisible();
