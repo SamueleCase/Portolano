@@ -578,7 +578,7 @@ rinforzato e alla fine esegue `scripts/check-bundle.sh` (vedi [Test dell'app](#t
 
 | File | Contenuto |
 |---|---|
-| `target/release/bundle/macos/Portolano.app` | l'app, da copiare in `/Applicazioni` |
+| `target/release/bundle/macos/Portolano.app` | l'app, da copiare in `/Applications` |
 | `target/release/bundle/dmg/Portolano_0.1.0_aarch64.dmg` | la stessa app in un'immagine disco |
 
 **Primo avvio.** La firma è ad hoc, senza Developer ID né notarizzazione. Un'app compilata sul proprio Mac si apre
@@ -702,12 +702,19 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
 - **Permessi minimi.** La finestra ha solo i permessi dei comandi dell'app, degli eventi, della finestra stessa e
   l'apertura di link `http(s)` nel browser; nessun plugin `shell`, `fs` o `http`. I percorsi dei file li sceglie il
   backend con i dialoghi di macOS: l'interfaccia non passa percorsi arbitrari.
+- **Solo le pagine dell'app.** La finestra mostra soltanto l'app: ogni altra navigazione (una pagina remota, un file
+  locale, un'immagine di `portolano-icon://` aperta come documento) viene rifiutata prima di caricarla, così i comandi
+  dell'app non sono mai raggiungibili da un'altra origine.
 - **Testo del documento come testo.** Nomi, host, note e titoli del terminale si mostrano solo come testo, con i
   caratteri di controllo e bidi resi visibili come nella CLI. Le icone personalizzate (anche gli SVG importati) sono
   solo immagini servite dallo schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone
-  del documento, con lo SHA-256 del contenuto nel nome, `nosniff` e, per gli SVG, una CSP che non esegue nulla.
-- **Terminale integrato.** I link aprono nel browser solo `http(s)`, gli appunti via OSC 52 sono spenti. Nessun
-  segreto passa dalla PTY: le password arrivano a `ssh` con l'askpass, come nella CLI.
+  del documento, con lo SHA-256 del contenuto nel nome; ogni risposta ha `nosniff` e la CSP
+  `default-src 'none'; sandbox`, che non carica e non esegue nulla. Anche i messaggi d'errore, che possono citare
+  nomi e host, mostrano i caratteri di controllo come testo visibile.
+- **Terminale integrato.** Come in Terminale di macOS, un link si apre nel browser solo con ⌘-clic, e al passaggio del
+  mouse mostra l'indirizzo vero (il testo stampato dall'host può dire altro); si aprono solo i link `http(s)`. Gli
+  appunti via OSC 52 sono spenti. L'app non scrive mai nella PTY un segreto salvato: le password arrivano a `ssh` con
+  l'askpass, come nella CLI, e quella di FreeRDP sul suo stdin, azzerata subito dopo.
 - **Vault e portachiavi** sono quelli della CLI: il vault su file si sblocca con la master password in un dialogo
   dell'app, e la master password non arriva mai ai processi figli.
 
@@ -724,10 +731,14 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
 - **"Ricrea"** riscrive il documento, ma non le icone personalizzate se è sparita anche la loro cartella
   `<nome>.icons/`.
 - Il file di Royal non si trascina sul wizard: si sceglie con il dialogo.
-- **Tab nella webview**: la webview dell'app raggiunge con Tab tutti i controlli. Se in una versione di macOS Tab
-  raggiungesse solo i campi di testo, ⌥Tab raggiunge tutti i controlli, oppure si attiva *Impostazioni di Sistema →
-  Tastiera → Navigazione da tastiera*.
+- **Tab nella webview**: la webview dell'app dovrebbe raggiungere con Tab tutti i controlli; è da verificare dal vivo.
+  Se Tab raggiungesse solo i campi di testo, ⌥Tab raggiunge tutti i controlli, oppure si attiva *Impostazioni di
+  Sistema → Tastiera → Navigazione da tastiera*.
 - `style-src` della CSP contiene `'unsafe-inline'`, necessario al terminale (xterm.js con il renderer DOM).
+- **Una webview compromessa** (un difetto di una libreria dell'interfaccia sfruttato dal contenuto del documento) può
+  chiamare i comandi che l'interfaccia usa: ad esempio cambiare l'host di una connessione verso uno suo, e la verifica
+  della sua host key, e farsi così mandare i segreti alla connessione successiva. La difesa piena è l'isolation pattern
+  di Tauri, che questa versione non usa.
 - **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
   con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab e la
   fluidità dello sfondo nell'app vera.
@@ -759,8 +770,8 @@ della galleria e delle schermate finiscono in `frontend/e2e-screenshots/` (ignor
 misura la fluidità dello sfondo.
 
 `sh scripts/check-bundle.sh` (eseguito anche alla fine di `npm run bundle`) controlla il bundle senza aprire l'app:
-`Portolano.app` e il `.dmg`, il binario `portolano-app` e il sidecar `portolano` compilato in release, che risponde a
-`--version` con la versione dell'app, la firma ad hoc con il runtime rinforzato di entrambi e
+`Portolano.app` e il `.dmg`, il binario `portolano-app` e il sidecar `portolano`, che deve essere la CLI compilata
+in release (stesso UUID Mach-O di `target/release/portolano`) e rispondere a `--version` con la versione dell'app, la firma ad hoc con il runtime rinforzato di entrambi e
 `codesign --verify --deep --strict`; poi stampa le dimensioni e termina con `BUNDLE OK`.
 
 ## Sicurezza
