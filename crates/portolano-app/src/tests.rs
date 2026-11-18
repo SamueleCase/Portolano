@@ -219,58 +219,160 @@ fn capture_logs() {
     });
 }
 
+/// What the frontend would hear from the app: every answer and error of
+/// the commands called through [`Heard::call`] and every event.
+struct Heard {
+    main: WebviewWindow<MockRuntime>,
+    answers: Vec<String>,
+    events: Arc<Mutex<String>>,
+}
+
+impl Heard {
+    fn new(app: &App<MockRuntime>) -> Self {
+        let events = Arc::new(Mutex::new(String::new()));
+        for name in [
+            "document-changed",
+            "document-modified-externally",
+            "document-missing",
+            "vault-locked",
+            "session-ended",
+        ] {
+            let events = Arc::clone(&events);
+            app.listen_any(name, move |event| {
+                events.lock().unwrap().push_str(event.payload())
+            });
+        }
+        Self {
+            main: window(app, "main"),
+            answers: Vec::new(),
+            events,
+        }
+    }
+
+    fn call(&mut self, command: &str, args: Value) -> Result<Value, Value> {
+        let answer = invoke(&self.main, command, args);
+        self.answers.push(format!("{command}: {answer:?}"));
+        answer
+    }
+
+    fn answers(&self) -> String {
+        self.answers.join("\n")
+    }
+
+    fn events(&self) -> String {
+        self.events.lock().unwrap().clone()
+    }
+
+    /// `secret` is in no answer, event, log, file of the app nor file of
+    /// its temporary directory.
+    fn assert_never(&self, secret: &str, test: &TestApp) {
+        let answers = self.answers();
+        assert!(
+            !answers.contains(secret),
+            "{secret} in una risposta: {answers}"
+        );
+        let events = self.events();
+        assert!(!events.contains(secret), "{secret} in un evento: {events}");
+        let logs = String::from_utf8_lossy(&LOGS.lock().unwrap()).into_owned();
+        assert!(!logs.contains(secret), "{secret} nei log: {logs}");
+        assert!(
+            !test.files_text().contains(secret),
+            "{secret} in un file dell'app"
+        );
+        assert!(
+            !temporary_files_text().contains(secret),
+            "{secret} in un file temporaneo"
+        );
+    }
+}
+
+/// The text of the temporary files of the connectors (the logs of FreeRDP,
+/// the `.rdp` of Windows App): their per-user directory in the cache of
+/// Portolano, `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS.
+fn temporary_files_text() -> String {
+    let Some(home) = std::env::home_dir() else {
+        return String::new();
+    };
+    let Ok(entries) = fs::read_dir(home.join("Library/Caches/dev.portolano.Portolano/tmp")) else {
+        return String::new();
+    };
+    entries
+        .filter_map(|entry| fs::read(entry.ok()?.path()).ok())
+        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+        .collect()
+}
+
+/// Writes in `test` an executable probe `name` that runs `script`.
+fn probe(test: &TestApp, name: &str, script: &str) -> std::path::PathBuf {
+    let path = test.dir.path().join(name);
+    fs::write(&path, format!("#!/bin/sh\n{script}")).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    path
+}
+
+/// Appends `toml` to the configuration of `test`.
+fn configure(test: &TestApp, toml: &str) {
+    let mut config = fs::OpenOptions::new()
+        .append(true)
+        .open(&test.state.paths().config)
+        .unwrap();
+    writeln!(config, "{toml}").unwrap();
+}
+
+/// The Royal document of the fixtures as the file of the import dialog;
+/// the options of an import of it.
+fn choose_royal_document(app: &App<MockRuntime>, test: &TestApp) -> Value {
+    let import_file = test.dir.path().join("infra.rtsx");
+    fs::write(&import_file, ROYAL_WORKSPACE).unwrap();
+    app.state::<AppState>()
+        .chosen()
+        .set(crate::state::FileKind::Import, &import_file);
+    json!({ "into": null, "onConflict": "newIds", "includeTrash": false })
+}
+
 /// SPEC-UI §7: a sentinel password typed in the interface goes into the
 /// vault and nowhere else: not in the answers of the commands, not in the
 /// events, not in the logs, not in the files of the app outside the
-/// encrypted vault.
+/// encrypted vault. Nor does the master password.
 #[test]
 fn sentinel_secret_never_reaches_the_frontend() {
     capture_logs();
     let test = TestApp::new();
     let app = mock_app(&test);
-    let main = window(&app, "main");
-    let events = Arc::new(Mutex::new(String::new()));
-    for name in [
-        "document-changed",
-        "document-modified-externally",
-        "document-missing",
-        "vault-locked",
-        "session-ended",
-    ] {
-        let events = Arc::clone(&events);
-        app.listen_any(name, move |event| {
-            events.lock().unwrap().push_str(event.payload())
-        });
-    }
-    let mut answers = Vec::new();
-    let mut call = |command: &str, args: Value| {
-        let answer = invoke(&main, command, args);
-        answers.push(format!("{command}: {answer:?}"));
-        answer
-    };
+    let mut heard = Heard::new(&app);
 
-    call(
-        "create_document",
-        json!({ "source": { "kind": "default" }, "name": "Test" }),
-    )
-    .unwrap();
-    call(
-        "unlock_vault",
-        json!({ "masterPassword": TEST_MASTER_PASSWORD }),
-    )
-    .unwrap();
-    let admin = call("add_node", json!({ "node": admin_with_sentinel() })).unwrap()["id"].clone();
-    let web01 = call("add_node", json!({ "node": ssh_node("web01", None) })).unwrap()["id"].clone();
-    call(
-        "edit_node",
-        json!({ "id": web01, "edit": { "secrets": { "password": { "action": "set", "value": SENTINEL } } } }),
-    )
-    .unwrap();
-    call(
-        "set_secret",
-        json!({ "id": admin, "slot": { "kind": "password" }, "value": SENTINEL }),
-    )
-    .unwrap();
+    heard
+        .call(
+            "create_document",
+            json!({ "source": { "kind": "default" }, "name": "Test" }),
+        )
+        .unwrap();
+    heard
+        .call(
+            "unlock_vault",
+            json!({ "masterPassword": TEST_MASTER_PASSWORD }),
+        )
+        .unwrap();
+    let admin = heard
+        .call("add_node", json!({ "node": admin_with_sentinel() }))
+        .unwrap()["id"]
+        .clone();
+    let web01 = heard
+        .call("add_node", json!({ "node": ssh_node("web01", None) }))
+        .unwrap()["id"]
+        .clone();
+    heard
+        .call(
+            "edit_node",
+            json!({ "id": web01, "edit": { "secrets": { "password": { "action": "set", "value": SENTINEL } } } }),
+        )
+        .unwrap();
+    heard
+        .call(
+            "set_secret",
+            json!({ "id": admin, "slot": { "kind": "password" }, "value": SENTINEL }),
+        )
+        .unwrap();
     for (command, args) in [
         ("tree", json!({})),
         ("node_details", json!({ "id": admin })),
@@ -284,26 +386,24 @@ fn sentinel_secret_never_reaches_the_frontend() {
         ("config_get", json!({})),
         ("vault_status", json!({})),
     ] {
-        call(command, args).unwrap();
+        heard.call(command, args).unwrap();
     }
-    call(
-        "edit_node",
-        json!({ "id": admin, "edit": { "secrets": {
-            "passphrase": { "action": "set", "value": SENTINEL },
-            "privateKey": { "action": "set", "value": SENTINEL },
-        } } }),
-    )
-    .unwrap();
+    heard
+        .call(
+            "edit_node",
+            json!({ "id": admin, "edit": { "secrets": {
+                "passphrase": { "action": "set", "value": SENTINEL },
+                "privateKey": { "action": "set", "value": SENTINEL },
+            } } }),
+        )
+        .unwrap();
     // A command that receives a secret and fails: the name is taken.
-    let refused = call("add_node", json!({ "node": admin_with_sentinel() }));
+    let refused = heard.call("add_node", json!({ "node": admin_with_sentinel() }));
     assert!(refused.is_err());
-    let import_file = test.dir.path().join("infra.rtsx");
-    fs::write(&import_file, ROYAL_WORKSPACE).unwrap();
-    app.state::<AppState>()
-        .chosen()
-        .set(crate::state::FileKind::Import, &import_file);
-    let options = json!({ "into": null, "onConflict": "newIds", "includeTrash": false });
-    let preview = call("import_preview", json!({ "options": options })).unwrap();
+    let options = choose_royal_document(&app, &test);
+    let preview = heard
+        .call("import_preview", json!({ "options": options }))
+        .unwrap();
     let answers_to_import: Vec<Value> = preview["requests"]
         .as_array()
         .unwrap()
@@ -313,75 +413,219 @@ fn sentinel_secret_never_reaches_the_frontend() {
         })
         .collect();
     assert!(!answers_to_import.is_empty());
-    call(
-        "import_apply",
-        json!({ "options": options, "answers": answers_to_import }),
-    )
-    .unwrap();
-    let deleted = call("delete_node", json!({ "id": web01, "options": {} })).unwrap();
-    call("undo_delete", json!({ "undoId": deleted["undoId"] })).unwrap();
+    heard
+        .call(
+            "import_apply",
+            json!({ "options": options, "answers": answers_to_import }),
+        )
+        .unwrap();
+    let deleted = heard
+        .call("delete_node", json!({ "id": web01, "options": {} }))
+        .unwrap();
+    heard
+        .call("undo_delete", json!({ "undoId": deleted["undoId"] }))
+        .unwrap();
     // A session whose login is asked at launch, with a probe as `ssh` that
     // gets the typed password from askpass: it exits with 0 only if the
     // answer has the length of the sentinel, so the password did reach it.
     // The output and state channels cannot be read on the mock runtime:
     // their content is checked with a recording sink by the tests of
     // `sessions/ipc/tests.rs` and `sessions/tests/secrets.rs`.
-    let ssh = test.dir.path().join("ssh");
-    fs::write(
-        &ssh,
-        format!(
-            "#!/bin/sh\nanswer=$(\"$SSH_ASKPASS\" \"operatore@web02.example.com's password: \" </dev/null 2>/dev/null)\n[ \"${{#answer}}\" -eq {} ] || exit 3\n",
+    let ssh = probe(
+        &test,
+        "ssh",
+        &format!(
+            "answer=$(\"$SSH_ASKPASS\" \"operatore@web02.example.com's password: \" </dev/null 2>/dev/null)\n[ \"${{#answer}}\" -eq {} ] || exit 3\n",
             SENTINEL.len()
         ),
-    )
-    .unwrap();
-    fs::set_permissions(&ssh, fs::Permissions::from_mode(0o755)).unwrap();
-    let mut config = fs::OpenOptions::new()
-        .append(true)
-        .open(&test.state.paths().config)
-        .unwrap();
-    writeln!(config, "[ssh]\nprogram = {:?}", ssh.display().to_string()).unwrap();
+    );
+    configure(
+        &test,
+        &format!("[ssh]\nprogram = {:?}", ssh.display().to_string()),
+    );
     crate::sessions::tests::cli_next_to_the_tests();
     let mut web02 = ssh_node("web02", None);
     web02["kind"]["credential"] = json!({ "mode": "prompt" });
-    let web02 = call("add_node", json!({ "node": web02 })).unwrap()["id"].clone();
-    call(
-        "open_session",
-        json!({
-            "node": web02,
-            "options": {},
-            "login": { "username": "operatore", "domain": null, "password": SENTINEL },
-            "size": { "cols": 80, "rows": 24 },
-            "output": "__CHANNEL__:1",
-            "states": "__CHANNEL__:2",
-        }),
+    let web02 = heard.call("add_node", json!({ "node": web02 })).unwrap()["id"].clone();
+    heard
+        .call(
+            "open_session",
+            json!({
+                "node": web02,
+                "options": {},
+                "login": { "username": "operatore", "domain": null, "password": SENTINEL },
+                "size": { "cols": 80, "rows": 24 },
+                "output": "__CHANNEL__:1",
+                "states": "__CHANNEL__:2",
+            }),
+        )
+        .unwrap();
+    // The payload of `session-ended`.
+    wait_for(&heard.events, r#""state":"ended""#);
+    assert!(
+        heard.events().contains(r#""state":"ended","code":0"#),
+        "the probe got the password: {}",
+        heard.events()
+    );
+    heard.call("lock_vault", json!({})).unwrap();
+    heard.call("tree", json!({})).unwrap();
+
+    assert!(
+        heard.answers().contains("web01"),
+        "the commands ran: {}",
+        heard.answers()
+    );
+    assert!(
+        heard.events().contains("portolano.json"),
+        "events were sent: {}",
+        heard.events()
+    );
+    heard.assert_never(SENTINEL, &test);
+    heard.assert_never(TEST_MASTER_PASSWORD, &test);
+}
+
+/// A wrong master password, refused by the vault.
+const WRONG_MASTER_PASSWORD: &str = "sentinel-wrong-master-6d2a";
+
+/// The master password of a vault created in the app.
+const NEW_MASTER_PASSWORD: &str = "sentinel-new-master-8e71";
+
+/// SPEC-UI §7, the paths left out above: the master passwords of a refused
+/// unlock and of a new vault, the commands that fail while they receive a
+/// secret, and the password of FreeRDP on its stdin, whose log the tab and
+/// `session-ended` show on a failure.
+#[test]
+fn sentinel_secret_of_refusals_of_the_vault_and_of_freerdp_never_reaches_the_frontend() {
+    capture_logs();
+    let test = TestApp::new();
+    let app = mock_app(&test);
+    let mut heard = Heard::new(&app);
+    heard
+        .call(
+            "create_document",
+            json!({ "source": { "kind": "default" }, "name": "Test" }),
+        )
+        .unwrap();
+
+    let wrong = heard.call(
+        "unlock_vault",
+        json!({ "masterPassword": WRONG_MASTER_PASSWORD }),
+    );
+    assert!(wrong.is_err(), "{wrong:?}");
+    heard
+        .call(
+            "unlock_vault",
+            json!({ "masterPassword": TEST_MASTER_PASSWORD }),
+        )
+        .unwrap();
+    let admin = heard
+        .call("add_node", json!({ "node": admin_with_sentinel() }))
+        .unwrap()["id"]
+        .clone();
+    let folder = json!({ "parent": null, "name": "Rete",
+        "kind": { "type": "folder", "credential": { "mode": "inherit" } } });
+    let folder = heard.call("add_node", json!({ "node": folder })).unwrap()["id"].clone();
+    // A folder that inherits its credential holds no password nor key.
+    let set = heard.call(
+        "set_secret",
+        json!({ "id": folder, "slot": { "kind": "password" }, "value": SENTINEL }),
+    );
+    assert!(set.is_err(), "{set:?}");
+    let edit = heard.call(
+        "edit_node",
+        json!({ "id": folder, "edit": { "secrets": { "privateKey": { "action": "set", "value": SENTINEL } } } }),
+    );
+    assert!(edit.is_err(), "{edit:?}");
+    // Answers that are not those of the requests of the import.
+    let options = choose_royal_document(&app, &test);
+    heard
+        .call("import_preview", json!({ "options": options }))
+        .unwrap();
+    let import = heard.call(
+        "import_apply",
+        json!({ "options": options, "answers": [
+            { "nodePath": "Nessun/nodo", "field": { "kind": "password" }, "value": SENTINEL },
+        ] }),
+    );
+    assert!(import.is_err(), "{import:?}");
+    // FreeRDP reads the password of `admin` on its stdin, logs only its
+    // length and fails: the end of its log reaches `session-ended`.
+    let freerdp = probe(
+        &test,
+        "freerdp",
+        "read -r password\nprintf 'letti %s caratteri\\n' \"${#password}\" >&2\nexit 2\n",
+    );
+    configure(
+        &test,
+        &format!(
+            "[rdp]\nclient = \"freerdp\"\nfreerdp_program = {:?}",
+            freerdp.display().to_string()
+        ),
+    );
+    let dc01 = json!({ "parent": null, "name": "dc01", "kind": {
+        "type": "connection", "protocol": "rdp", "host": "192.0.2.10", "port": null,
+        "credential": { "mode": "byId", "id": admin }, "settings": {},
+    } });
+    let dc01 = heard.call("add_node", json!({ "node": dc01 })).unwrap()["id"].clone();
+    heard
+        .call(
+            "open_session",
+            json!({
+                "node": dc01,
+                "options": {},
+                "login": null,
+                "size": { "cols": 80, "rows": 24 },
+                "output": "__CHANNEL__:1",
+                "states": "__CHANNEL__:2",
+            }),
+        )
+        .unwrap();
+    wait_for(&heard.events, r#""state":"failed""#);
+    assert!(
+        heard
+            .events()
+            .contains(&format!("letti {} caratteri", SENTINEL.len())),
+        "FreeRDP got the password and its log reached the event: {}",
+        heard.events()
+    );
+    heard.call("lock_vault", json!({})).unwrap();
+    // A new file vault, created with its own master password. The file of
+    // the vault is chosen with a native dialog: here it changes in the
+    // configuration, as another program would change it.
+    let new_vault = test.dir.path().join("nuovo-vault.json");
+    let config = &test.state.paths().config;
+    let old_vault = test.dir.path().join("vault.json").display().to_string();
+    let toml = fs::read_to_string(config).unwrap();
+    fs::write(
+        config,
+        toml.replace(&old_vault, &new_vault.display().to_string()),
     )
     .unwrap();
-    // The payload of `session-ended`.
-    wait_for(&events, r#""state":"ended""#);
-    assert!(
-        events
-            .lock()
-            .unwrap()
-            .contains(r#""state":"ended","code":0"#),
-        "the probe got the password: {}",
-        events.lock().unwrap()
-    );
-    call("lock_vault", json!({})).unwrap();
-    call("tree", json!({})).unwrap();
+    heard
+        .call(
+            "create_file_vault",
+            json!({ "masterPassword": NEW_MASTER_PASSWORD }),
+        )
+        .unwrap();
+    assert!(new_vault.is_file());
 
-    let answers = answers.join("\n");
-    assert!(answers.contains("web01"), "the commands ran: {answers}");
-    assert!(!answers.contains(SENTINEL), "{answers}");
-    let events = events.lock().unwrap().clone();
     assert!(
-        events.contains("portolano.json"),
-        "events were sent: {events}"
+        heard.answers().contains("master password errata"),
+        "the errors were heard: {}",
+        heard.answers()
     );
-    assert!(!events.contains(SENTINEL));
-    let logs = String::from_utf8_lossy(&LOGS.lock().unwrap()).into_owned();
-    assert!(!logs.contains(SENTINEL), "{logs}");
-    assert!(!test.files_text().contains(SENTINEL));
+    assert!(
+        temporary_files_text().contains(&format!("letti {} caratteri", SENTINEL.len())),
+        "the log of FreeRDP is among the temporary files read"
+    );
+    for secret in [
+        SENTINEL,
+        TEST_MASTER_PASSWORD,
+        WRONG_MASTER_PASSWORD,
+        NEW_MASTER_PASSWORD,
+    ] {
+        heard.assert_never(secret, &test);
+    }
 }
 
 /// Waits until the events heard contain `text`.
