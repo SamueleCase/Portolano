@@ -208,7 +208,9 @@ test.describe("a typed secret", () => {
     const probe = "sonda-di-controllo-3a5d";
 
     await page.evaluate((value) => {
-      console.info(value);
+      // A nested object: WebKit writes "{dettagli: Object}" as its text, the
+      // value is only in the argument.
+      console.info({ dettagli: { sessione: { sonda: value } } });
       sessionStorage.setItem("sonda", value);
       document.body.dataset["sonda"] = value;
       history.replaceState(null, "", `?sonda=${value}`);

@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { ConsoleMessage, JSHandle, Page } from "@playwright/test";
 
 import { expect } from "./fixtures";
 
@@ -78,14 +78,39 @@ function readQueryCache(): string {
 }
 
 /**
+ * An argument of a console message as JSON; what cannot be (a DOM node, a
+ * function) as the page writes it, with the text of a node.
+ */
+async function argumentText(argument: JSHandle): Promise<string> {
+  try {
+    const json = JSON.stringify(await argument.jsonValue());
+    if (json !== undefined) return json;
+  } catch {
+    // Not serializable: described in the page below.
+  }
+  return argument.evaluate((value: unknown) =>
+    value instanceof Node ? (value.textContent ?? "") : String(value),
+  );
+}
+
+/**
+ * A console message: its text and each of its arguments, since the text of
+ * an object is only "Object" and would hide what it holds.
+ */
+async function messageText(message: ConsoleMessage): Promise<string> {
+  const values = await Promise.all(message.args().map(argumentText));
+  return [message.text(), ...values].join(" ");
+}
+
+/**
  * Watches a page for a typed secret: the console from the first message on,
  * so it starts before the page opens.
  */
 export class SecretWatch {
-  private readonly messages: string[] = [];
+  private readonly messages: Promise<string>[] = [];
 
   constructor(private readonly page: Page) {
-    page.on("console", (message) => this.messages.push(message.text()));
+    page.on("console", (message) => this.messages.push(messageText(message)));
   }
 
   /** What the page holds and said, now. */
@@ -113,7 +138,7 @@ export class SecretWatch {
       fields,
       storage,
       url: page.url(),
-      console: this.messages.join("\n"),
+      console: (await Promise.all(this.messages)).join("\n"),
       queryCache,
     };
   }
