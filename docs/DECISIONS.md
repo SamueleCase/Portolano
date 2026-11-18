@@ -756,6 +756,43 @@ Elenco delle correzioni in `docs/pm/ui-wp5-correzioni.md`. Decisioni di perimetr
    - la navigazione con Tab (Option+Tab in WebKit, come `gallery-keyboard.spec.ts`) nella finestra principale, con
      il focus visibile e il focus contenuto nei dialoghi e nel pannello dell'editor.
 
+### DEC-046 – Esito della revisione di sicurezza e della revisione di UI-WP7 (decise dal PM, 2026-11-18)
+Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
+1. **Comando del terminale personalizzato** (finding medio, provato):
+   - la webview può scrivere `terminal.command` (una riga per `/bin/sh -c`) e farla eseguire con `open_in_terminal`:
+     una webview compromessa ottiene l'esecuzione di codice persistente;
+   - controllare il primo elemento con `safe_path()` non basta (`/bin/sh -c …` passa);
+   - la correzione cambia ciò che l'utente vede nelle Preferenze, quindi la sceglie l'utente.
+2. **Navigazione e testo non fidato**:
+   - guardia di navigazione sulla finestra principale, solo l'origine dell'app;
+   - `visibleText` su ogni testo che arriva da documento, file Royal o host, compresi i messaggi degli `IpcError` e
+     la coda del log di FreeRDP.
+
+   Il rischio del testo non fidato è l'inganno visivo, non l'iniezione: React mostra tutto come testo.
+3. **Link del terminale**: si aprono solo con ⌘-clic e l'indirizzo vero si vede al passaggio del mouse, come Terminale
+   di macOS. La conferma con un dialogo nuovo non c'è nel mock ed è scartata.
+4. **Dipendenze**: `eslint` passa a 10.15.0 e `typescript-eslint` a 8.73.0 (dipendenze di sviluppo).
+   - Motivo: chiudono le 9 vulnerabilità moderate di `minimatch` senza salti di versione maggiore.
+   - Prevale su SPEC-UI §2.1 (`~10.14`, `~8.72`).
+   - `npm audit --omit=dev` era già a 0.
+5. **Rifiniture accettate**:
+   - CSP `default-src 'none'; sandbox` su tutte le risposte di `portolano-icon://`;
+   - password RDP azzerata dopo la scrittura su stdin (eccezione minima sui connettori);
+   - guard sullo slot della master password;
+   - campi della master password rimontati dopo ogni invio;
+   - sentinella Rust e sentinella e2e più ampie: anche le sessioni finte, gli argomenti della console e la prova che il
+     segreto arriva al backend.
+6. **Revisione di UI-WP7**:
+   - il controllo del bundle confronta l'UUID Mach-O del sidecar nel bundle;
+   - il focus visibile si giudica per differenza;
+   - una sola copia degli helper della tastiera e dei percorsi leggibili, con eccezioni su `features/import`,
+     `features/validation`, `gallery-keyboard.spec.ts` e `i18n`;
+   - seme `vaultMissing` del finto approvato;
+   - correzioni del README.
+7. **Contesto annotato**: anche senza il punto 1, una webview compromessa può spostare un nodo verso un host suo
+   (cambiandone l'host e la verifica della host key) e farsi mandare i segreti. La difesa vera è l'isolation pattern,
+   fuori scope (SPEC-UI §10): resta fra i limiti noti del README.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
