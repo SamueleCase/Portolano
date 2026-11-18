@@ -13,6 +13,7 @@ mod error;
 mod events;
 mod icons;
 mod menu;
+mod navigation;
 mod prefs;
 mod search;
 pub mod sessions;
@@ -38,6 +39,7 @@ pub fn run() {
         // capability grants none of its commands to the frontend.
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(navigation::guard())
         .invoke_handler(invoke_handler)
         .register_asynchronous_uri_scheme_protocol(icons::SCHEME, serve_icon)
         .on_menu_event(|app, event| menu::on_event(app, &event))
