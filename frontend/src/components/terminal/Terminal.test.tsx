@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Terminal } from "./Terminal";
@@ -88,7 +88,16 @@ function fakeIo() {
 }
 
 interface LinkOptions {
-  linkHandler: { activate: (event: MouseEvent, uri: string) => void };
+  linkHandler: {
+    activate: (event: MouseEvent, uri: string) => void;
+    hover: (event: MouseEvent, uri: string) => void;
+    leave: (event: MouseEvent, uri: string) => void;
+  };
+}
+
+/** A click with ⌘, the one that opens a link. */
+function commandClick(): MouseEvent {
+  return new MouseEvent("click", { metaKey: true });
 }
 
 describe("Terminal", () => {
@@ -150,10 +159,55 @@ describe("Terminal", () => {
     render(<Terminal io={fakeIo().io} onOpenLink={onOpenLink} />);
     const { linkHandler } = fake.options as LinkOptions;
 
-    linkHandler.activate(new MouseEvent("click"), "file:///etc/hosts");
-    linkHandler.activate(new MouseEvent("click"), "https://www.example.com/");
+    linkHandler.activate(commandClick(), "file:///etc/hosts");
+    linkHandler.activate(commandClick(), "https://www.example.com/");
 
     expect(onOpenLink).toHaveBeenCalledExactlyOnceWith("https://www.example.com/");
+  });
+
+  it("opens a link only with ⌘-click, as Terminal of macOS", () => {
+    const onOpenLink = vi.fn();
+    render(<Terminal io={fakeIo().io} onOpenLink={onOpenLink} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    linkHandler.activate(new MouseEvent("click"), "https://www.example.com/");
+
+    expect(onOpenLink).not.toHaveBeenCalled();
+  });
+
+  it("shows the real address of a link under the pointer, made visible", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove", { clientX: 40, clientY: 60 }),
+        "https://www.example.com/‮gnp.exe",
+      ),
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "https://www.example.com/%E2%80%AEgnp.exe",
+    );
+  });
+
+  it("hides the address when the pointer leaves the link", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+
+    act(() => linkHandler.leave(new MouseEvent("mouseleave"), "https://www.example.com/"));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("shows no address for a link that never opens", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "file:///etc/hosts"));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("leaves the terminal with Ctrl+Tab, as Tab belongs to the shell", () => {

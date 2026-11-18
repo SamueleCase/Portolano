@@ -3,10 +3,13 @@ import "@xterm/xterm/css/xterm.css";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal as XTerm } from "@xterm/xterm";
-import { useEffect, useEffectEvent, useId, useRef } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { terminalOptions } from "../../design/terminalTheme";
 import { texts } from "../../i18n/it";
+import tooltipStyles from "../Tooltip.module.css";
+import { visibleText } from "../visibleText";
 import { leaveTerminal } from "./leaveTerminal";
 import styles from "./Terminal.module.css";
 import type { TerminalIo } from "./terminalIo";
@@ -23,10 +26,21 @@ interface TerminalProps {
   label?: string;
 }
 
+/** The address of the link under the pointer, where the pointer is. */
+interface LinkHint {
+  url: string;
+  top: number;
+  left: number;
+}
+
 /**
  * The integrated terminal (ambiguity 24): xterm.js 6 with its DOM renderer.
  * The title is only text, links open only if `http(s)` through the
  * callback, and OSC 52 cannot touch the clipboard (SPEC-UI §4.8).
+ *
+ * As in Terminal of macOS, a link opens only with ⌘-click, and the address
+ * it would open shows under the pointer (DEC-046.3): the text the host
+ * prints, or the label of an OSC 8 link, can say something else.
  */
 export function Terminal({
   io,
@@ -38,10 +52,16 @@ export function Terminal({
   const host = useRef<HTMLDivElement>(null);
   const hintId = useId();
   const title = useEffectEvent((text: string) => onTitle?.(terminalTitle(text)));
-  const link = useEffectEvent((uri: string) => {
+  const [hint, setHint] = useState<LinkHint>();
+  const link = useEffectEvent((event: MouseEvent, uri: string) => {
     const url = openableLink(uri);
-    if (url) onOpenLink(url);
+    if (url && event.metaKey) onOpenLink(url);
   });
+  const hover = useEffectEvent((event: MouseEvent, uri: string) => {
+    const url = openableLink(uri);
+    setHint(url ? { url, top: event.clientY, left: event.clientX } : undefined);
+  });
+  const leave = useEffectEvent(() => setHint(undefined));
   const activity = useEffectEvent(() => onActivity?.());
 
   useEffect(() => {
@@ -49,11 +69,21 @@ export function Terminal({
     if (!element) return undefined;
     const terminal = new XTerm({
       ...terminalOptions,
-      linkHandler: { activate: (_event, uri) => link(uri), allowNonHttpProtocols: false },
+      linkHandler: {
+        activate: (event, uri) => link(event, uri),
+        hover: (event, uri) => hover(event, uri),
+        leave: () => leave(),
+        allowNonHttpProtocols: false,
+      },
     });
     const fit = new FitAddon();
     terminal.loadAddon(fit);
-    terminal.loadAddon(new WebLinksAddon((_event, uri) => link(uri)));
+    terminal.loadAddon(
+      new WebLinksAddon((event, uri) => link(event, uri), {
+        hover: (event, uri) => hover(event, uri),
+        leave: () => leave(),
+      }),
+    );
     const subscriptions = [
       terminal.parser.registerOscHandler(CLIPBOARD_OSC, () => true),
       terminal.onTitleChange((text) => title(text)),
@@ -92,6 +122,17 @@ export function Terminal({
       <span id={hintId} className={styles.hint}>
         {texts.components.terminal.leave}
       </span>
+      {hint &&
+        createPortal(
+          <span
+            role="tooltip"
+            className={tooltipStyles.tooltip}
+            style={{ top: hint.top, left: hint.left }}
+          >
+            {visibleText(hint.url)}
+          </span>,
+          document.body,
+        )}
     </div>
   );
 }
