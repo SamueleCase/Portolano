@@ -7,6 +7,8 @@ import {
   type FocusStop,
   TAB,
   focusedStop,
+  markControls,
+  missedControls,
   sweep,
   tabTo,
   withoutTransitions,
@@ -35,10 +37,12 @@ async function windowOnBastion(page: Page): Promise<void> {
 
 /**
  * Presses Tab, then Shift+Tab, twice as many times as `surface` has stops,
- * and returns whether the focus ever left it.
+ * and returns whether the focus ever left it. A surface of one stop would
+ * keep the focus without a trap: it must have more.
  */
 async function focusLeaves(page: Page, surface: Locator): Promise<boolean> {
   const stops = await sweep(page);
+  expect(stops.length, "fermate di Tab nella superficie").toBeGreaterThan(1);
   for (const key of [TAB, BACK_TAB]) {
     for (let step = 0; step < stops.length * 2; step++) {
       await page.keyboard.press(key);
@@ -50,6 +54,17 @@ async function focusLeaves(page: Page, surface: Locator): Promise<boolean> {
 }
 
 test.describe("the main window from the keyboard", () => {
+  test("reaches every control of the window with Tab", async ({ page }) => {
+    await windowOnBastion(page);
+    const total = await markControls(page);
+
+    const stops = await sweep(page, TAB, total + 20);
+
+    expect(await missedControls(page, total, stops), "controlli non raggiungibili con Tab").toEqual(
+      [],
+    );
+  });
+
   test("reaches every area with Tab, the toolbar and the tree as one stop each", async ({
     page,
   }) => {
