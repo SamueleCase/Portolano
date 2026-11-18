@@ -44,6 +44,9 @@ fn stored_image_is_served_with_its_type() {
     );
 }
 
+/// The policy that every response of the scheme carries.
+const POLICY: Option<&str> = Some("default-src 'none'; sandbox");
+
 #[test]
 fn svg_is_served_with_a_policy_that_forbids_everything() {
     let dir = TempDir::new().unwrap();
@@ -52,10 +55,25 @@ fn svg_is_served_with_a_policy_that_forbids_everything() {
     let response = respond(Some(&icons), &path);
 
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        header(&response, header::CONTENT_SECURITY_POLICY),
-        Some("default-src 'none'")
-    );
+    assert_eq!(header(&response, header::CONTENT_SECURITY_POLICY), POLICY);
+}
+
+#[test]
+fn every_image_type_is_served_with_the_policy_that_forbids_everything() {
+    let dir = TempDir::new().unwrap();
+    let (icons, path) = store_with(&dir, PNG, "image/png");
+
+    let response = respond(Some(&icons), &path);
+
+    assert_eq!(header(&response, header::CONTENT_SECURITY_POLICY), POLICY);
+}
+
+#[test]
+fn a_refused_request_carries_the_policy_that_forbids_everything() {
+    let response = respond(None, "/portolano.json");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(header(&response, header::CONTENT_SECURITY_POLICY), POLICY);
 }
 
 #[test]

@@ -78,19 +78,18 @@ fn read_icon(file: &Path) -> io::Result<Option<Vec<u8>>> {
         .then_some(bytes))
 }
 
+/// The policy of every response of the scheme (DEC-046.5): a response
+/// opened as a document instead of in an `<img>` (an SVG with a script, a
+/// PDF, a file that a browser would sniff as HTML) loads nothing and runs
+/// nothing, in a sandbox with an origin of its own.
+const ICON_POLICY: &str = "default-src 'none'; sandbox";
+
 fn image(mime: &str, bytes: Vec<u8>) -> Response<Vec<u8>> {
-    let builder = Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime)
-        .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff");
-    // An SVG opened as a document instead of in an `<img>` could run
-    // scripts: its own policy forbids everything.
-    let builder = if mime == "image/svg+xml" {
-        builder.header(header::CONTENT_SECURITY_POLICY, "default-src 'none'")
-    } else {
-        builder
-    };
-    builder
+        .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+        .header(header::CONTENT_SECURITY_POLICY, ICON_POLICY)
         .body(bytes)
         .unwrap_or_else(|_| empty(StatusCode::INTERNAL_SERVER_ERROR))
 }
@@ -98,9 +97,14 @@ fn image(mime: &str, bytes: Vec<u8>) -> Response<Vec<u8>> {
 fn empty(status: StatusCode) -> Response<Vec<u8>> {
     let mut response = Response::new(Vec::new());
     *response.status_mut() = status;
-    response.headers_mut().insert(
+    let headers = response.headers_mut();
+    headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
         header::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::CONTENT_SECURITY_POLICY,
+        header::HeaderValue::from_static(ICON_POLICY),
     );
     response
 }
