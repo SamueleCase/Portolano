@@ -96,13 +96,14 @@ export class FakeSessionTransport implements SessionTransport {
     private readonly fallback?: FakeScenario,
   ) {}
 
-  open(request: OpenSessionRequest, handlers: SessionHandlers): Promise<SessionOpened> {
+  open(request: OpenSessionRequest, opener: SessionHandlers): Promise<SessionOpened> {
     const scenario = this.scenarios[request.nodeId] ?? this.fallback;
     if (scenario === undefined) {
-      return Promise.reject(
-        new IpcFailure({ code: "notFound", message: `nodo ${request.nodeId} inesistente` }),
-      );
+      const error = { code: "notFound" as const, message: `nodo ${request.nodeId} inesistente` };
+      recordTraffic(`error open_session: ${JSON.stringify(error)}`);
+      return Promise.reject(new IpcFailure(error));
     }
+    const handlers = recorded(opener);
     const attempt = (this.attempts.get(request.nodeId) ?? 0) + 1;
     this.attempts.set(request.nodeId, attempt);
     const id = `fake-session-${this.nextId++}`;
@@ -110,7 +111,9 @@ export class FakeSessionTransport implements SessionTransport {
     // As the backend: "connecting" before the answer, the rest after it.
     handlers.onState({ state: "connecting" });
     setTimeout(() => this.play(id, scenario, attempt), 0);
-    return Promise.resolve({ id, kind: scenario.kind });
+    const opened = { id, kind: scenario.kind };
+    recordTraffic(`answer open_session: ${JSON.stringify(opened)}`);
+    return Promise.resolve(opened);
   }
 
   input(id: SessionId, data: string): Promise<void> {
@@ -183,6 +186,29 @@ export class FakeSessionTransport implements SessionTransport {
     session.running = false;
     session.handlers.onState(state);
   }
+}
+
+/**
+ * Writes down what the fake sends to the page, next to the answers of the
+ * fake backend (`window.__portolanoFakeTraffic`), where the end-to-end
+ * test of the sentinel secret looks for it; nothing outside a page.
+ */
+function recordTraffic(entry: string): void {
+  if (typeof window !== "undefined") window.__portolanoFakeTraffic?.push(entry);
+}
+
+/** `handlers` that also write down each state and each output they receive. */
+function recorded(handlers: SessionHandlers): SessionHandlers {
+  return {
+    onState: (state) => {
+      recordTraffic(`state: ${JSON.stringify(state)}`);
+      handlers.onState(state);
+    },
+    onOutput: (bytes) => {
+      recordTraffic(`output: ${new TextDecoder().decode(bytes)}`);
+      handlers.onOutput(bytes);
+    },
+  };
 }
 
 function encode(text: string): Uint8Array {

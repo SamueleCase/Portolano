@@ -137,7 +137,12 @@ test.describe("a typed secret", () => {
       "aria-selected",
       "true",
     );
+    await expect(page.getByRole("tabpanel")).toContainText("Last login");
 
+    // The record holds the answer, the states and the output of the session.
+    const { traffic } = await watch.surfaces();
+    expect(traffic).toMatch(/^answer open_session: /m);
+    expect(traffic).toMatch(/^output: Last login/m);
     await watch.expectNowhere(SENTINEL.login);
   });
 
