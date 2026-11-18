@@ -4,11 +4,9 @@ import type { SessionController } from "../features/sessions/controller";
 import { isOver } from "../features/sessions/sessionState";
 import { type Session, useSessionsStore } from "../features/sessions/store";
 import { indexTree } from "../features/tree/treeModel";
-import { texts } from "../i18n/it";
 import { loginRequestQuery, treeQuery } from "../ipc/queries";
 import type { SessionLogin } from "../ipc/sessions";
 import { requestLogin } from "../state/requests";
-import { showToast } from "../state/toasts";
 import { useWorkspace } from "../state/workspace";
 import {
   type CanReadyVault,
@@ -28,8 +26,6 @@ export type LoginAnswer = { login?: SessionLogin } | null;
 export interface ConnectionsDeps {
   queryClient: QueryClient;
   controller: SessionController;
-  /** Whether the login dialog is mounted (hook point `login`). */
-  hasLoginDialog: () => boolean;
   /** Whether the dialog that readies the vault is mounted (unlock or creation). */
   canReadyVault: CanReadyVault;
 }
@@ -55,7 +51,6 @@ export interface Connections {
 export function createConnections({
   queryClient,
   controller,
-  hasLoginDialog,
   canReadyVault,
 }: ConnectionsDeps): Connections {
   // A double click or a repeated shortcut must not open two sessions.
@@ -72,10 +67,7 @@ export function createConnections({
     // Always asked anew: the credential may have changed since.
     const request = await queryClient.fetchQuery({ ...loginRequestQuery(nodeId), staleTime: 0 });
     if (request === null) return {};
-    if (!hasLoginDialog()) {
-      showToast({ kind: "error", text: texts.app.connection.noLoginDialog });
-      return null;
-    }
+    // The login dialog is always registered in the window (DEC-035, DEC-046.6).
     const login = await requestLogin(request);
     return login === null ? null : { login };
   };
