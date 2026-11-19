@@ -790,6 +790,8 @@ Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
 12. **Test della CLI fuori dalla cache reale**: `bare_cmd` ed `env_cmd` di `crates/portolano-cli/tests/cli/testutil.rs`
     passano al processo figlio una `HOME` dentro la cartella del test, come `scripts/smoke.sh`. I log vuoti
     `probe-freerdp-*.log` già lasciati dai test in `~/Library/Caches/dev.portolano.Portolano/tmp` si cancellano.
+13. **Testo visibile in Rust**: la regola che rende visibili i caratteri di controllo, usata dalla CLI e dal dialogo
+    di conferma di S1, passa in `portolano-core`. Così ne resta una sola copia in Rust.
 2. **Navigazione e testo non fidato**:
    - guardia di navigazione sulla finestra principale, solo l'origine dell'app;
    - `visibleText` su ogni testo che arriva da documento, file Royal o host, compresi i messaggi degli `IpcError` e
