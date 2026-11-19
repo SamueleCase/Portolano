@@ -47,7 +47,6 @@ pub(super) struct TempFiles {
 
 impl TempFiles {
     /// Files in `dir`, created and checked on the first write.
-    #[cfg(test)]
     pub(super) fn new(dir: PathBuf) -> TempFiles {
         TempFiles {
             dir: Some(dir),

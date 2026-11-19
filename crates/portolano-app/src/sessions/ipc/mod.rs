@@ -6,9 +6,11 @@ mod wire;
 
 use std::sync::Arc;
 
-use portolano_connectors::{ConnectOptions, Environment, LaunchPlan, LaunchStep, prepare};
+use portolano_connectors::{
+    ConnectOptions, Environment, LaunchPlan, LaunchStep, PreparedLaunch, prepare, prepare_in,
+};
 use portolano_core::vault::MemoryVault;
-use portolano_core::{AppConfig, VaultSelection};
+use portolano_core::{AppConfig, Vault, VaultSelection};
 use portolano_ops::OpsError;
 use portolano_ops::connect::plan_connection;
 use portolano_ops::vault::SessionVault;
@@ -120,7 +122,7 @@ pub(crate) fn open(
     let plan = plan_of(state, &config, node, &environment, &connect)?;
     let kind = session_kind(&plan)?;
     require_cli(&plan)?;
-    let launch = prepare(&plan, &session, &config).map_err(OpsError::from)?;
+    let launch = prepare_launch(state, &plan, &session, &config)?;
     Ok(state.sessions().open(kind, launch, size, sink)?)
 }
 
@@ -141,8 +143,23 @@ pub(crate) fn open_new_window(state: &AppState, node: Uuid) -> Result<(), IpcErr
     ensure_terminal_window(&plan)?;
     require_cli(&plan)?;
     // A new window reads no secret: the relaunched CLI opens the vault itself.
-    let launch = prepare(&plan, &MemoryVault::default(), &config).map_err(OpsError::from)?;
+    let launch = prepare_launch(state, &plan, &MemoryVault::default(), &config)?;
     Ok(open_in_new_window(launch)?)
+}
+
+/// Prepares `plan` with its temporary files in the directory of the state:
+/// the per-user one of the connectors, or that of the tests.
+fn prepare_launch(
+    state: &AppState,
+    plan: &LaunchPlan,
+    vault: &dyn Vault,
+    config: &AppConfig,
+) -> Result<PreparedLaunch, IpcError> {
+    let launch = match &state.paths().temp_dir {
+        Some(dir) => prepare_in(plan, vault, config, dir),
+        None => prepare(plan, vault, config),
+    };
+    Ok(launch.map_err(OpsError::from)?)
 }
 
 /// Refuses a plan that does not open a terminal window: Windows App opens

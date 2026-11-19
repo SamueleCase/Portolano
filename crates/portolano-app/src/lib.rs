@@ -73,6 +73,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::Error>>
     let state = AppState::new(AppPaths {
         config,
         ui_preferences,
+        temp_dir: None,
     });
     let preferences = state.ui_preferences();
     app.manage(state);

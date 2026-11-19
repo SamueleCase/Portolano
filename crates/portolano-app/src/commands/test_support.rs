@@ -61,6 +61,8 @@ impl TestApp {
         let state = AppState::new(AppPaths {
             config,
             ui_preferences: dir.path().join("ui.toml"),
+            // Never the cache of the user (DEC-046.10).
+            temp_dir: Some(dir.path().join("tmp")),
         });
         Self { dir, state }
     }

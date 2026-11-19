@@ -263,8 +263,9 @@ impl Heard {
         self.events.lock().unwrap().clone()
     }
 
-    /// `secret` is in no answer, event, log, file of the app nor file of
-    /// its temporary directory.
+    /// `secret` is in no answer, event, log or file of the app, the
+    /// temporary files of the connectors included: their directory is
+    /// inside that of the test (`TestApp`, DEC-046.10).
     fn assert_never(&self, secret: &str, test: &TestApp) {
         let answers = self.answers();
         assert!(
@@ -279,21 +280,15 @@ impl Heard {
             !test.files_text().contains(secret),
             "{secret} in un file dell'app"
         );
-        assert!(
-            !temporary_files_text().contains(secret),
-            "{secret} in un file temporaneo"
-        );
     }
 }
 
 /// The text of the temporary files of the connectors (the logs of FreeRDP,
-/// the `.rdp` of Windows App): their per-user directory in the cache of
-/// Portolano, `~/Library/Caches/dev.portolano.Portolano/tmp` on macOS.
-fn temporary_files_text() -> String {
-    let Some(home) = std::env::home_dir() else {
-        return String::new();
-    };
-    let Ok(entries) = fs::read_dir(home.join("Library/Caches/dev.portolano.Portolano/tmp")) else {
+/// the `.rdp` of Windows App), in the directory `test` gives them: never
+/// the cache of the user (DEC-046.10).
+fn temporary_files_text(test: &TestApp) -> String {
+    let dir = test.state.paths().temp_dir.clone().unwrap();
+    let Ok(entries) = fs::read_dir(dir) else {
         return String::new();
     };
     entries
@@ -615,8 +610,8 @@ fn sentinel_secret_of_refusals_of_the_vault_and_of_freerdp_never_reaches_the_fro
         heard.answers()
     );
     assert!(
-        temporary_files_text().contains(&format!("letti {} caratteri", SENTINEL.len())),
-        "the log of FreeRDP is among the temporary files read"
+        temporary_files_text(&test).contains(&format!("letti {} caratteri", SENTINEL.len())),
+        "the log of FreeRDP is in the temporary directory of the test, read with the files"
     );
     for secret in [
         SENTINEL,

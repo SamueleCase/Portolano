@@ -92,6 +92,20 @@ fn detached_program_writes_its_errors_to_a_private_log() {
 }
 
 #[test]
+fn prepare_in_puts_the_log_in_the_directory_it_is_given() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().join("tmp");
+    let plan = detach(run(PathBuf::from("/usr/bin/true"), vec![], None, None));
+
+    let prepared = prepare_in(&plan, &MemoryVault::default(), &AppConfig::default(), &dir).unwrap();
+
+    assert_eq!(
+        prepared.log_path().and_then(Path::parent),
+        Some(dir.as_path())
+    );
+}
+
+#[test]
 fn waited_program_has_no_log() {
     let temp = tempfile::tempdir().unwrap();
     let plan = run(PathBuf::from("/usr/bin/true"), vec![], None, None);

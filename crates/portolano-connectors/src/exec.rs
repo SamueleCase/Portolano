@@ -81,6 +81,21 @@ pub fn prepare(
     prepare_with(plan, vault, config, TempFiles::per_user())
 }
 
+/// As [`prepare`], with the temporary files and the logs in `temp_dir`
+/// instead of the per-user directory of the cache: for a caller that must
+/// not write there, such as the tests of the app (DEC-046.10).
+///
+/// # Errors
+/// As [`prepare`].
+pub fn prepare_in(
+    plan: &LaunchPlan,
+    vault: &dyn Vault,
+    config: &AppConfig,
+    temp_dir: &Path,
+) -> Result<PreparedLaunch, ConnectError> {
+    prepare_with(plan, vault, config, TempFiles::new(temp_dir.to_path_buf()))
+}
+
 fn prepare_with(
     plan: &LaunchPlan,
     vault: &dyn Vault,

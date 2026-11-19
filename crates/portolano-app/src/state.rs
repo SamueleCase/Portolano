@@ -39,6 +39,10 @@ pub struct AppPaths {
     pub config: PathBuf,
     /// `ui.toml`, the preferences of the interface only (DEC-011).
     pub ui_preferences: PathBuf,
+    /// Where the connectors write the temporary files and the logs of the
+    /// clients; `None` for their per-user directory in the cache, as the
+    /// CLI. The tests set a directory of their own (DEC-046.10).
+    pub temp_dir: Option<PathBuf>,
 }
 
 /// The vault of the configuration, opened on first use.
