@@ -9,6 +9,7 @@ import { terminalOptions } from "../../design/terminalTheme";
 import { texts } from "../../i18n/it";
 import { leaveTerminal } from "./leaveTerminal";
 import { LinkHint } from "./LinkHint";
+import { LinkHintBoundary } from "./LinkHintBoundary";
 import styles from "./Terminal.module.css";
 import type { TerminalIo } from "./terminalIo";
 import { CLIPBOARD_OSC, openableLink, terminalTitle } from "./terminalSafety";
@@ -122,7 +123,12 @@ export function Terminal({
       <span id={hintId} className={styles.hint}>
         {texts.components.terminal.leave}
       </span>
-      {hint && <LinkHint url={hint.url} x={hint.x} y={hint.y} />}
+      {hint && (
+        // A new boundary for each link: a hint that failed does not hide the next.
+        <LinkHintBoundary key={hint.url}>
+          <LinkHint url={hint.url} x={hint.x} y={hint.y} />
+        </LinkHintBoundary>
+      )}
     </div>
   );
 }

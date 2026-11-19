@@ -71,6 +71,19 @@ vi.mock("@xterm/addon-fit", () => ({
 }));
 vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: class {} }));
 
+/** A link whose hint throws while it is drawn: an error of the hint, simulated. */
+const FAILING_LINK = vi.hoisted(() => "https://riquadro-guasto.example.com/");
+
+vi.mock("./LinkHint", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./LinkHint")>();
+  return {
+    LinkHint: (props: Parameters<typeof actual.LinkHint>[0]) => {
+      if (props.url === FAILING_LINK) throw new Error("riquadro guasto");
+      return <actual.LinkHint {...props} />;
+    },
+  };
+});
+
 function fakeIo() {
   let output: ((data: Uint8Array) => void) | undefined;
   const input = vi.fn<(data: string) => void>();
@@ -274,6 +287,21 @@ describe("Terminal", () => {
     expect(Number.parseFloat(style.left)).toBe(window.innerWidth - 8 - 100);
     expect(Number.parseFloat(style.top)).toBe(window.innerHeight - 2 - 40 - 16);
     vi.restoreAllMocks();
+  });
+
+  it("keeps the terminal when the hint of a link fails, and shows the next hint", () => {
+    // React reports the error caught by the boundary on the console.
+    const reported = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), FAILING_LINK));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Terminale" })).toBeInTheDocument();
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("www.example.com");
+    reported.mockRestore();
   });
 
   it("takes the hint of a link away with the terminal", () => {
