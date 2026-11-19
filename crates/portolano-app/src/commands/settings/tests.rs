@@ -190,3 +190,33 @@ fn a_terminal_command_of_1024_characters_is_asked_about() {
 
     assert!(saved.is_ok(), "{saved:?}");
 }
+
+#[test]
+fn a_second_confirmation_is_refused_while_one_is_open() {
+    let app = TestApp::new();
+    let mut second = None;
+
+    set(&app.state, "terminal.command", COMMAND, |_| {
+        // Another request comes while the first dialog is still open.
+        second = Some(set(
+            &app.state,
+            "terminal.command",
+            "/opt/example/bin/altro {cmd}",
+            unasked,
+        ));
+        true
+    })
+    .unwrap();
+
+    assert_eq!(second.unwrap().unwrap_err().code, ErrorCode::Cancelled);
+}
+
+#[test]
+fn a_confirmation_can_open_again_once_the_previous_one_is_closed() {
+    let app = TestApp::new();
+    let _ = set(&app.state, "terminal.command", COMMAND, |_| false);
+
+    let saved = set(&app.state, "terminal.command", COMMAND, |_| true);
+
+    assert!(saved.is_ok(), "{saved:?}");
+}

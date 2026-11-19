@@ -13,6 +13,7 @@ mod pending;
 mod unlock;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 
 use portolano_core::{AppConfig, IconStore, VaultSelection};
@@ -65,6 +66,18 @@ pub struct AppState {
     chosen: ChosenFiles,
     last_import_report: Mutex<Option<portolano_import::ImportReport>>,
     sessions: SessionManager,
+    /// Whether a native confirmation is open: one at a time (DEC-047.2).
+    confirming: AtomicBool,
+}
+
+/// The turn of the one native confirmation open: dropping it lets the
+/// next one open.
+pub struct ConfirmationTurn<'a>(&'a AtomicBool);
+
+impl Drop for ConfirmationTurn<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
 }
 
 impl AppState {
@@ -89,7 +102,18 @@ impl AppState {
             chosen: ChosenFiles::default(),
             last_import_report: Mutex::new(None),
             sessions: SessionManager::default(),
+            confirming: AtomicBool::new(false),
         }
+    }
+
+    /// The turn to open a native confirmation; `None` while another one is
+    /// open, so that a page cannot stack dialogs for the user to click
+    /// through (DEC-047.2).
+    pub fn confirmation_turn(&self) -> Option<ConfirmationTurn<'_>> {
+        self.confirming
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+            .then_some(ConfirmationTurn(&self.confirming))
     }
 
     /// The files of the app.

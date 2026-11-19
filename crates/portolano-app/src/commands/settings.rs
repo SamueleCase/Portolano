@@ -143,15 +143,17 @@ pub(crate) fn set(
     update(state, |config| {
         let changed = set_config_value(config, key, value, state.protocols())?;
         if key == TERMINAL_COMMAND {
-            confirm_terminal_command(config, &changed, confirm)?;
+            confirm_terminal_command(state, config, &changed, confirm)?;
         }
         Ok(changed)
     })
 }
 
-/// Refuses a new terminal command that `confirm` does not accept. The same
-/// command, or none at all, asks nothing: it runs nothing new.
+/// Refuses a new terminal command that `confirm` does not accept, or that
+/// arrives while another confirmation is open. The same command, or none at
+/// all, asks nothing: it runs nothing new.
 fn confirm_terminal_command(
+    state: &AppState,
     saved: &AppConfig,
     changed: &AppConfig,
     confirm: impl FnOnce(&str) -> bool,
@@ -164,6 +166,11 @@ fn confirm_terminal_command(
     match command {
         Some(command) if saved.terminal.command.as_deref() != Some(command) => {
             check_terminal_command(command)?;
+            let Some(_turn) = state.confirmation_turn() else {
+                return Err(IpcError::cancelled(
+                    "un'altra conferma del comando del terminale è già aperta",
+                ));
+            };
             if confirm(command) {
                 Ok(())
             } else {
