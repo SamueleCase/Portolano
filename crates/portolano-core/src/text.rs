@@ -10,21 +10,47 @@
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
-/// The bidi controls: embeddings and overrides (U+202A–U+202E), isolates
-/// (U+2066–U+2069), the marks (U+200E, U+200F) and the Arabic letter mark
-/// (U+061C).
-fn is_bidi_control(c: char) -> bool {
+/// The invisible characters that are not controls: the line and paragraph
+/// separators (Zl, Zp) and the format characters (Cf, Unicode 16), which
+/// include the bidi controls (embeddings, overrides, isolates, marks, the
+/// Arabic letter mark) and the zero-width ones (U+200B–U+200D, U+2060,
+/// U+FEFF). They would hide text, break a line or show it in another order
+/// than it has (DEC-047.2).
+fn is_invisible_format(c: char) -> bool {
     matches!(
         c,
-        '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}' | '\u{061C}'
+        '\u{2028}'
+            | '\u{2029}'
+            | '\u{00AD}'
+            | '\u{0600}'..='\u{0605}'
+            | '\u{061C}'
+            | '\u{06DD}'
+            | '\u{070F}'
+            | '\u{0890}'..='\u{0891}'
+            | '\u{08E2}'
+            | '\u{180E}'
+            | '\u{200B}'..='\u{200F}'
+            | '\u{202A}'..='\u{202E}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{206F}'
+            | '\u{FEFF}'
+            | '\u{FFF9}'..='\u{FFFB}'
+            | '\u{110BD}'
+            | '\u{110CD}'
+            | '\u{13430}'..='\u{1343F}'
+            | '\u{1BCA0}'..='\u{1BCA3}'
+            | '\u{1D173}'..='\u{1D17A}'
+            | '\u{E0001}'
+            | '\u{E0020}'..='\u{E007F}'
     )
 }
 
 fn needs_escape(c: char) -> bool {
-    c.is_control() || is_bidi_control(c)
+    c.is_control() || is_invisible_format(c)
 }
 
-/// `text` with every control character (C0, DEL, C1) and every bidi control
+/// `text` with every control character (C0, DEL, C1), separator of lines
+/// and paragraphs and format character (bidi and zero-width ones included)
 /// written as an escape such as `\u{1b}`. Every value of a document goes
 /// through here before it is printed as text.
 pub fn visible(text: &str) -> Cow<'_, str> {
@@ -34,16 +60,19 @@ pub fn visible(text: &str) -> Cow<'_, str> {
     })
 }
 
-/// JSON text with DEL, the C1 controls and the bidi controls written as
-/// JSON escapes (`\u007f`): `serde_json` escapes only U+0000–U+001F, and
-/// these characters can only appear inside strings, so the result is the
-/// same JSON value. The line breaks of the pretty layout stay as they are.
+/// JSON text with DEL, the C1 controls and the characters of
+/// [`is_invisible_format`] written as JSON escapes (`\u007f`, a surrogate
+/// pair beyond U+FFFF): `serde_json` escapes only U+0000–U+001F, and these
+/// characters can only appear inside strings, so the result is the same
+/// JSON value. The line breaks of the pretty layout stay as they are.
 pub fn json_visible(json: &str) -> Cow<'_, str> {
     let unescaped =
-        |c: char| c == '\u{7f}' || ('\u{80}'..='\u{9f}').contains(&c) || is_bidi_control(c);
+        |c: char| c == '\u{7f}' || ('\u{80}'..='\u{9f}').contains(&c) || is_invisible_format(c);
     escape(json, unescaped, |escaped, c| {
-        // Writing to a `String` cannot fail.
-        let _ = write!(escaped, "\\u{:04x}", u32::from(c));
+        for unit in c.encode_utf16(&mut [0; 2]) {
+            // Writing to a `String` cannot fail.
+            let _ = write!(escaped, "\\u{unit:04x}");
+        }
     })
 }
 
@@ -89,6 +118,19 @@ mod tests {
     }
 
     #[test]
+    fn visible_escapes_the_separators_of_lines_and_paragraphs() {
+        assert_eq!(visible("a\u{2028}b\u{2029}c"), "a\\u{2028}b\\u{2029}c");
+    }
+
+    #[test]
+    fn visible_escapes_the_zero_width_and_format_characters() {
+        assert_eq!(
+            visible("w\u{200b}e\u{200d}b\u{2060}0\u{feff}1\u{ad}x\u{e0041}"),
+            "w\\u{200b}e\\u{200d}b\\u{2060}0\\u{feff}1\\u{ad}x\\u{e0041}"
+        );
+    }
+
+    #[test]
     fn visible_keeps_other_text_as_it_is() {
         assert!(matches!(
             visible("📁 Clienti/ACME àè"),
@@ -109,6 +151,21 @@ mod tests {
         );
         assert!(
             shown.contains("\\u007f") && shown.contains("\\u009b") && shown.contains("\\u202e")
+        );
+        let back: serde_json::Value = serde_json::from_str(&shown).unwrap();
+        assert_eq!(back, value);
+    }
+
+    #[test]
+    fn json_visible_writes_a_surrogate_pair_beyond_the_basic_plane() {
+        let value = serde_json::json!({ "tag": "a\u{e0041}\u{2028}b" });
+        let json = serde_json::to_string(&value).unwrap();
+
+        let shown = json_visible(&json);
+
+        assert!(
+            shown.contains("\\udb40\\udc41") && shown.contains("\\u2028"),
+            "{shown}"
         );
         let back: serde_json::Value = serde_json::from_str(&shown).unwrap();
         assert_eq!(back, value);
