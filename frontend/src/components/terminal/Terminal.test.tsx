@@ -240,6 +240,19 @@ describe("Terminal", () => {
     expect(tooltip).toHaveTextContent("contiene le credenziali «intranet.example.com»");
   });
 
+  it.each(["%ZZ", "%E0%A4%A", "%C0%80"])(
+    "warns about the credentials %s that do not decode, and stays on screen",
+    (user) => {
+      render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+      const { linkHandler } = fake.options as LinkOptions;
+
+      act(() => linkHandler.hover(new MouseEvent("mousemove"), `https://${user}@evil.example/`));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent(`contiene le credenziali «${user}»`);
+      expect(screen.getByRole("group", { name: "Terminale" })).toBeInTheDocument();
+    },
+  );
+
   it("keeps the hint of a link inside the window", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ width: 200, height: 40 }),

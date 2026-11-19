@@ -52,6 +52,16 @@ describe("linkParts", () => {
   it("says there are no credentials when the link has none", () => {
     expect(linkParts("https://www.example.com/docs").user).toBeNull();
   });
+
+  it.each(["%ZZ", "%E0%A4%A", "%C0%80"])(
+    "keeps the user %s as it is written when it does not decode",
+    (user) => {
+      expect(linkParts(`https://${user}@evil.example/`)).toMatchObject({
+        host: "evil.example",
+        user,
+      });
+    },
+  );
 });
 
 describe("shortenMiddle", () => {

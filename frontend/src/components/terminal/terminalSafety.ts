@@ -46,8 +46,22 @@ export function linkParts(href: string): LinkParts {
   return {
     host: url.host,
     address: `${url.protocol}//${url.host}${path}`,
-    user: credentials ? decodeURIComponent(url.username) : null,
+    user: credentials ? decodedUser(url.username) : null,
   };
+}
+
+/**
+ * The user of an address, decoded; as written when it does not decode
+ * (`%ZZ`, a truncated or invalid UTF-8 sequence), which `new URL` accepts
+ * and `decodeURIComponent` refuses (DEC-047.6). Shown through `visibleText`
+ * in either case.
+ */
+function decodedUser(user: string): string {
+  try {
+    return decodeURIComponent(user);
+  } catch {
+    return user;
+  }
 }
 
 /** `text` of at most `max` characters, its middle replaced by "…" if longer. */
