@@ -665,8 +665,8 @@ rende l'elemento "Parziale".
 in terminale esterno" (Terminal, iTerm, Ghostty o un comando con `{cmd}`), programma SSH, client RDP con percorso di
 FreeRDP e certificati, aspetto (densità normale o compatta, sfondo animato acceso, ridotto o spento, riduci
 movimento). Le prime voci sono quelle di `config.toml`, validate come con `portolano config set`; l'aspetto, la
-finestra e i documenti recenti stanno in `ui.toml`, nella cartella dei dati. Un comando del terminale nuovo si salva solo
-dopo la conferma in un dialogo di macOS (vedi [Sicurezza dell'app](#sicurezza-dellapp)).
+finestra e i documenti recenti stanno in `ui.toml`, nella cartella dei dati. Un comando del terminale nuovo si salva
+solo dopo la conferma in un dialogo di macOS (vedi [Sicurezza dell'app](#sicurezza-dellapp)).
 
 **Documento cambiato da fuori.** Se un altro programma (la CLI, git, un editor) modifica il documento, un avviso
 propone "Ricarica"; le modifiche aperte nell'editor restano e vengono riapplicate, con un avviso sui campi cambiati da
@@ -708,12 +708,15 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   dell'app non sono mai raggiungibili da un'altra origine.
 - **Comando del terminale personalizzato.** È una riga di shell che l'app esegue a ogni "Apri in terminale esterno".
   Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia,
-  con il testo esatto del comando (i caratteri di controllo resi visibili) e i bottoni "Annulla" e "Usa questo
-  comando". Senza conferma non si salva nulla e il campo torna al comando salvato. Il comando già presente in
-  `config.toml` e `portolano config set` della CLI non chiedono conferma: il file e la CLI sono dentro il perimetro
-  di fiducia.
+  con il testo esatto del comando (caratteri di controllo, separatori e caratteri invisibili resi visibili) e i
+  bottoni "Annulla" e "Usa questo comando". "Annulla" è il bottone predefinito: Invio non conferma mai, conferma solo
+  un clic su "Usa questo comando". Un comando su più righe o più lungo di 1024 caratteri si rifiuta prima del
+  dialogo, e si apre una sola conferma alla volta. Senza conferma non si salva nulla e il campo torna al comando
+  salvato. Il comando già presente in `config.toml` e `portolano config set` della CLI non chiedono conferma: il file
+  e la CLI sono dentro il perimetro di fiducia.
 - **Testo del documento come testo.** Nomi, host, note e titoli del terminale si mostrano solo come testo, con i
-  caratteri di controllo e bidi resi visibili come nella CLI. Le icone personalizzate (anche gli SVG importati) sono
+  caratteri di controllo, i separatori di riga e i caratteri di formato (bidi e a larghezza zero) resi visibili
+  come nella CLI. Le icone personalizzate (anche gli SVG importati) sono
   solo immagini servite dallo schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone
   del documento, con lo SHA-256 del contenuto nel nome; ogni risposta ha `nosniff` e la CSP
   `default-src 'none'; sandbox`, che non carica e non esegue nulla. Anche i messaggi d'errore, che possono citare
@@ -746,9 +749,10 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   chiamare i comandi che l'interfaccia usa: ad esempio cambiare l'host di una connessione verso uno suo, e la verifica
   della sua host key, e farsi così mandare i segreti alla connessione successiva. La difesa piena è l'isolation pattern
   di Tauri, che questa versione non usa.
-- **`npm audit`**: `npm audit --omit=dev` non trova vulnerabilità nelle dipendenze dell'app. Gli avvisi restanti di
-  `npm audit` riguardano solo strumenti di sviluppo (`picomatch` tramite Vite, Vitest e typescript-eslint, che
-  lavorano su file del progetto) e non hanno versioni corrette.
+- **`npm audit`**: `npm audit --omit=dev`, che controlla le dipendenze incluse nell'app, deve restare a zero.
+  `npm audit` completo può segnalare anche avvisi degli strumenti di sviluppo, che lavorano solo su file del progetto:
+  si valutano a ogni aggiornamento delle dipendenze, e quelli senza una versione corretta compatibile si accettano (è
+  il caso di `picomatch`, tramite Vite, Vitest e typescript-eslint).
 - **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
   con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab e la
   fluidità dello sfondo nell'app vera.
@@ -781,8 +785,9 @@ misura la fluidità dello sfondo.
 
 `sh scripts/check-bundle.sh` (eseguito anche alla fine di `npm run bundle`) controlla il bundle senza aprire l'app:
 `Portolano.app` e il `.dmg`, il binario `portolano-app` e il sidecar `portolano`, che deve essere la CLI compilata
-in release (stesso UUID Mach-O di `target/release/portolano`) e rispondere a `--version` con la versione dell'app, la firma ad hoc con il runtime rinforzato di entrambi e
-`codesign --verify --deep --strict`; poi stampa le dimensioni e termina con `BUNDLE OK`.
+in release (stesso UUID Mach-O di `target/release/portolano`) e rispondere a `--version` con la versione dell'app.
+Controlla poi la firma ad hoc con il runtime rinforzato di entrambi e `codesign --verify --deep --strict`; infine
+stampa le dimensioni e termina con `BUNDLE OK`.
 
 ## Sicurezza
 
@@ -834,9 +839,11 @@ I log di FreeRDP (`0600`, nella cartella privata della cache) possono contenere 
 **Caratteri di controllo.** Nomi, host, utenti e percorsi di un documento condiviso o importato potrebbero
 contenere sequenze che pilotano il terminale (spostare il cursore, riscrivere righe, cambiare il titolo) o
 controlli bidirezionali che mostrano il testo in un ordine diverso da quello reale. In ogni output della CLI
-(`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) i caratteri di controllo
-C0, DEL, C1 e i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C) compaiono come escape, ad
-esempio `\u{1b}`; nell'output `--json` come escape JSON (`\u001b`). `validate` li segnala con l'avviso
+(`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) compaiono come escape,
+ad esempio `\u{1b}`, i caratteri di controllo C0, DEL e C1, i separatori di riga e di paragrafo (U+2028, U+2029) e
+tutti i caratteri di formato: i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C), quelli a
+larghezza zero (U+200B–U+200D, U+2060, U+FEFF) e gli altri della categoria Unicode Cf. Nell'output `--json`
+compaiono come escape JSON (`\u001b`). `validate` segnala i caratteri di controllo con l'avviso
 `control_characters`. `connect` rifiuta caratteri di controllo negli host e negli utenti delle connessioni SSH e
 dei loro jump host, negli host, utenti e domini delle connessioni RDP (sia con FreeRDP sia con Windows App) e nei
 valori del gateway RDP che arrivano al client.
