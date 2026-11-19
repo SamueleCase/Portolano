@@ -8,10 +8,23 @@ import type { ConfigSettings } from "./useConfigSettings";
 /**
  * The command of a custom terminal, with `{cmd}` where the command of
  * Portolano goes (SPEC §7.2): saved when the field is left or with Enter.
+ * The backend asks the user to confirm a new command in a native dialog
+ * (DEC-046.1): if the user says no, the field starts again from the saved
+ * command, without an error.
  */
 export function TerminalCommandSetting({ settings }: { settings: ConfigSettings }) {
-  const t = texts.preferences.terminal;
   const saved = settings.value("terminal.command") ?? "";
+  return (
+    <CommandField
+      key={settings.cancellations("terminal.command")}
+      saved={saved}
+      settings={settings}
+    />
+  );
+}
+
+function CommandField({ saved, settings }: { saved: string; settings: ConfigSettings }) {
+  const t = texts.preferences.terminal;
   const [draft, setDraft] = useState(saved);
   // The value sent last: Enter and then leaving the field send it once.
   const sent = useRef(saved);
