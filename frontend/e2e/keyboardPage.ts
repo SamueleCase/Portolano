@@ -67,41 +67,84 @@ export async function markControls(page: Page): Promise<number> {
   }, CONTROLS);
 }
 
+/** The elements that can take the focus, whose look is written down before a key. */
+const FOCUSABLE = "a[href], button, input, textarea, select, [tabindex], [contenteditable='true']";
+
+declare global {
+  interface Window {
+    /** How an element and the three boxes around it look: outline, shadow, borders, background. */
+    __portolanoLookOf?: (element: HTMLElement) => string;
+    /** How each focusable element looked before the last key, without the focus. */
+    __portolanoUnfocused?: WeakMap<HTMLElement, string>;
+  }
+}
+
+/** Puts in the page the measure of how an element looks, once. */
+function installLookOf(): void {
+  window.__portolanoLookOf ??= (element) => {
+    const seen: string[] = [];
+    for (let node: HTMLElement | null = element, depth = 0; node && depth < 4; depth++) {
+      const style = getComputedStyle(node);
+      seen.push(
+        [
+          style.outlineStyle,
+          style.outlineWidth,
+          style.outlineColor,
+          style.boxShadow,
+          style.borderTopColor,
+          style.borderBottomColor,
+          style.backgroundColor,
+        ].join("|"),
+      );
+      node = node.parentElement;
+    }
+    return seen.join("/");
+  };
+}
+
+/**
+ * Writes down how every focusable element looks now, without the focus:
+ * the stop the next key reaches is then judged against its own look before
+ * the key, never by moving the focus (DEC-047.4).
+ */
+async function rememberUnfocused(page: Page): Promise<void> {
+  await page.evaluate(installLookOf);
+  await page.evaluate((selector) => {
+    const lookOf = window.__portolanoLookOf;
+    if (!lookOf) return;
+    const looks = new WeakMap<HTMLElement, string>();
+    for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+      if (!element.contains(document.activeElement)) looks.set(element, lookOf(element));
+    }
+    window.__portolanoUnfocused = looks;
+  }, FOCUSABLE);
+}
+
 /**
  * The stop of the focused element; none while the focus is on the body.
  *
  * Its focus is visible if the element, or one of the three boxes around it,
- * looks different with the focus than without: the outline, the shadow, the
- * border or the background change. The element loses the focus for a
- * moment to be seen without it, then gets it back.
+ * looks different now than before the key that focused it: the outline, the
+ * shadow, a border or the background change. An element that did not exist
+ * before the key (a dialog it opened) has no look of its own to compare: it
+ * loses the focus for a moment to be seen without it, then gets it back,
+ * which a ring shown only on `:focus-visible` may not survive in WebKit.
  */
-export async function focusedStop(page: Page): Promise<FocusStop | undefined> {
+async function focusedStop(page: Page): Promise<FocusStop | undefined> {
+  await page.evaluate(installLookOf);
   return page.evaluate((areas): FocusStop | undefined => {
     const element = document.activeElement;
-    if (!(element instanceof HTMLElement) || element === document.body) return undefined;
-    const looks = () => {
-      const seen: string[] = [];
-      for (let node: HTMLElement | null = element, depth = 0; node && depth < 4; depth++) {
-        const style = getComputedStyle(node);
-        seen.push(
-          [
-            style.outlineStyle,
-            style.outlineWidth,
-            style.outlineColor,
-            style.boxShadow,
-            style.borderTopColor,
-            style.borderBottomColor,
-            style.backgroundColor,
-          ].join("|"),
-        );
-        node = node.parentElement;
-      }
-      return seen.join("/");
-    };
-    const focused = looks();
-    element.blur();
-    const unfocused = looks();
-    element.focus({ preventScroll: true });
+    const lookOf = window.__portolanoLookOf;
+    if (!(element instanceof HTMLElement) || element === document.body || !lookOf) {
+      return undefined;
+    }
+    const focused = lookOf(element);
+    let unfocused = window.__portolanoUnfocused?.get(element);
+    if (unfocused === undefined) {
+      element.blur();
+      unfocused = lookOf(element);
+      element.focus({ preventScroll: true });
+    }
     element.dataset["control"] ??= `other-${document.querySelectorAll("[data-control]").length}`;
     const area = areas.find(([, selector]) => element.closest(selector))?.[0] ?? "other";
     const name = (element.getAttribute("aria-label") ?? element.textContent ?? "").trim();
@@ -115,6 +158,13 @@ export async function focusedStop(page: Page): Promise<FocusStop | undefined> {
   }, AREAS);
 }
 
+/** Presses `key` and returns the stop it reaches, its focus judged against its look before. */
+export async function press(page: Page, key: string): Promise<FocusStop | undefined> {
+  await rememberUnfocused(page);
+  await page.keyboard.press(key);
+  return focusedStop(page);
+}
+
 /**
  * The stops met pressing `key` from the focused element until one comes
  * back, at most `limit`. A terminal is left with Ctrl+Tab, as a user does.
@@ -123,8 +173,7 @@ export async function sweep(page: Page, key = TAB, limit = 80): Promise<FocusSto
   const stops: FocusStop[] = [];
   let next = key;
   for (let step = 0; step < limit; step++) {
-    await page.keyboard.press(next);
-    const stop = await focusedStop(page);
+    const stop = await press(page, next);
     if (!stop) continue;
     if (stops.some((seen) => seen.id === stop.id)) break;
     stops.push(stop);
@@ -162,8 +211,7 @@ export async function missedControls(
  */
 export async function tabTo(page: Page, area: string, limit = 80): Promise<FocusStop> {
   for (let step = 0; step < limit; step++) {
-    await page.keyboard.press(TAB);
-    const stop = await focusedStop(page);
+    const stop = await press(page, TAB);
     if (stop?.area === area) return stop;
   }
   throw new Error(`nessuna fermata di Tab in ${area}`);

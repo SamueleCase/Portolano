@@ -6,7 +6,7 @@ import {
   BACK_TAB,
   type FocusStop,
   TAB,
-  focusedStop,
+  press,
   markControls,
   missedControls,
   sweep,
@@ -103,13 +103,11 @@ test.describe("the main window from the keyboard", () => {
     await windowOnBastion(page);
     const toolbar = page.getByRole("toolbar", { name: texts.app.toolbar.label });
     const items = await toolbar.getByRole("button").count();
-    await tabTo(page, "toolbar");
+    const stops: FocusStop[] = [await tabTo(page, "toolbar")];
 
-    const stops: FocusStop[] = [];
-    for (let step = 0; step < items; step++) {
-      const stop = await focusedStop(page);
+    for (let step = 1; step < items; step++) {
+      const stop = await press(page, "ArrowRight");
       if (stop) stops.push(stop);
-      await page.keyboard.press("ArrowRight");
     }
 
     expect(new Set(stops.map((stop) => stop.id)).size).toBe(items);
