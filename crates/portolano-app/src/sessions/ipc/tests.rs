@@ -215,6 +215,26 @@ fn a_new_window_reopens_the_same_document_configuration_and_vault() {
 }
 
 #[test]
+fn a_terminal_command_the_user_did_not_confirm_never_runs() {
+    let (app, web01) = app_with_ssh_probe("exit 0\n");
+    let received = terminal_probe(&app);
+    let ran = app.dir.path().join("altro-terminale-eseguito");
+    let other = probe(&app, "altro", &format!("touch '{}'\n", ran.display()));
+
+    let refused = crate::commands::settings::set(
+        &app.state,
+        "terminal.command",
+        &format!("{} {{cmd}}", other.display()),
+        |_| false,
+    );
+    open_new_window(&app.state, web01).unwrap();
+
+    assert_eq!(refused.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(received.exists(), "the confirmed command opened the window");
+    assert!(!ran.exists(), "the command not confirmed never ran");
+}
+
+#[test]
 fn freerdp_opens_in_a_new_window_with_its_client_without_reading_the_vault() {
     let (app, _) = app_with_ssh_probe("exit 0\n");
     let freerdp = probe(&app, "freerdp", "exit 0\n");

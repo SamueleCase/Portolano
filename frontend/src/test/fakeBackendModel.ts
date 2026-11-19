@@ -129,6 +129,8 @@ export interface FakeBackendState {
     keyFile: string | null;
     /** The file chosen for each key of the configuration (`choose_config_file`). */
     configFiles: Record<string, string | null>;
+    /** The answer of the native confirmation of a new terminal command (DEC-046.1). */
+    terminalCommand: boolean;
   };
   /** Paths chosen in the dialogs, as the backend keeps them. */
   chosen: Partial<Record<ChosenKind, string>>;

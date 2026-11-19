@@ -49,6 +49,8 @@ const presentationByCode: Record<ErrorCode, ErrorPresentation> = {
   noDocument: "firstRun",
   connect: "toast",
   io: "toast",
+  // Only a change of the preferences can be cancelled, and they show nothing for it.
+  cancelled: "toast",
   internal: "toast",
 };
 

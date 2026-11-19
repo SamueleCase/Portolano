@@ -24,6 +24,16 @@ fn error_serializes_with_camel_case_code_and_without_empty_details() {
 }
 
 #[test]
+fn a_change_not_confirmed_serializes_as_cancelled_without_details() {
+    let json = serde_json::to_value(IpcError::cancelled("modifica annullata")).unwrap();
+
+    assert_eq!(
+        json,
+        json!({ "code": "cancelled", "message": "modifica annullata" })
+    );
+}
+
+#[test]
 fn locked_vault_keeps_its_own_code() {
     let error = IpcError::from(OpsError::Vault(VaultError::MasterPasswordUnavailable {
         reason: "vault bloccato".to_owned(),

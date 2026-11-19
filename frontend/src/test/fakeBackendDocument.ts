@@ -175,6 +175,12 @@ function setEntry(state: FakeBackendState, key: string, value: string | null): C
 
 export function configSet(state: FakeBackendState, key: string, value: string): ConfigEntry[] {
   if (FILE_KEYS.includes(key)) failField(key, "questo percorso si sceglie con «Scegli…»");
+  // As the app: a new terminal command needs the native confirmation (DEC-046.1).
+  const newCommand =
+    key === "terminal.command" && value.trim() !== "" && state.config[key] !== value;
+  if (newCommand && !state.dialogs.terminalCommand) {
+    fail("cancelled", "modifica del comando del terminale annullata");
+  }
   return setEntry(state, key, value);
 }
 

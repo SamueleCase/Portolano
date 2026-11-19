@@ -51,6 +51,7 @@ export function initialFakeState(): FakeBackendState {
       report: null,
       keyFile: null,
       configFiles: {},
+      terminalCommand: true,
     },
     chosen: {},
     clock: () => Date.now(),

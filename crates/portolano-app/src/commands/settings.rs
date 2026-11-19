@@ -24,6 +24,11 @@ const FILE_KEYS: [&str; 4] = [
     "rdp.freerdp_program",
 ];
 
+/// The command of the custom terminal: a line of shell that every new
+/// window runs. A new one is saved only once the user confirms it in a
+/// native dialog that the webview cannot answer (DEC-046.1).
+const TERMINAL_COMMAND: &str = "terminal.command";
+
 /// The keys of `config.toml` and their values.
 #[tauri::command]
 #[specta::specta]
@@ -32,7 +37,9 @@ pub async fn config_get<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ConfigEntry
 }
 
 /// Sets `key` to `value`, validated by the core or by the protocol of the
-/// section (DEC-008, DEC-011), and saves `config.toml`.
+/// section (DEC-008, DEC-011), and saves `config.toml`. A new terminal
+/// command needs the confirmation of the user in a native dialog; without
+/// it nothing is saved and the answer is a `cancelled` error.
 #[tauri::command]
 #[specta::specta]
 pub async fn config_set<R: Runtime>(
@@ -40,7 +47,12 @@ pub async fn config_set<R: Runtime>(
     key: String,
     value: String,
 ) -> Result<Vec<ConfigEntry>, IpcError> {
-    blocking(app, move |_, state| set(state, &key, &value)).await
+    blocking(app, move |app, state| {
+        set(state, &key, &value, |command| {
+            dialogs::confirm_terminal_command(app, command)
+        })
+    })
+    .await
 }
 
 /// Removes `key` from `config.toml`: it takes its default again.
@@ -114,7 +126,14 @@ pub async fn ui_prefs_set<R: Runtime>(
     .await
 }
 
-pub(crate) fn set(state: &AppState, key: &str, value: &str) -> Result<Vec<ConfigEntry>, IpcError> {
+/// Sets `key` to `value`; `confirm` is asked about a new terminal command
+/// before anything is saved.
+pub(crate) fn set(
+    state: &AppState,
+    key: &str,
+    value: &str,
+    confirm: impl FnOnce(&str) -> bool,
+) -> Result<Vec<ConfigEntry>, IpcError> {
     if FILE_KEYS.contains(&key) {
         return Err(IpcError::invalid(
             key,
@@ -122,8 +141,36 @@ pub(crate) fn set(state: &AppState, key: &str, value: &str) -> Result<Vec<Config
         ));
     }
     update(state, |config| {
-        Ok(set_config_value(config, key, value, state.protocols())?)
+        let changed = set_config_value(config, key, value, state.protocols())?;
+        if key == TERMINAL_COMMAND {
+            confirm_terminal_command(config, &changed, confirm)?;
+        }
+        Ok(changed)
     })
+}
+
+/// Refuses a new terminal command that `confirm` does not accept. The same
+/// command, or none at all, asks nothing: it runs nothing new.
+fn confirm_terminal_command(
+    saved: &AppConfig,
+    changed: &AppConfig,
+    confirm: impl FnOnce(&str) -> bool,
+) -> Result<(), IpcError> {
+    let command = changed
+        .terminal
+        .command
+        .as_deref()
+        .filter(|command| !command.trim().is_empty());
+    match command {
+        Some(command)
+            if saved.terminal.command.as_deref() != Some(command) && !confirm(command) =>
+        {
+            Err(IpcError::cancelled(
+                "modifica del comando del terminale annullata",
+            ))
+        }
+        _ => Ok(()),
+    }
 }
 
 pub(crate) fn set_file(

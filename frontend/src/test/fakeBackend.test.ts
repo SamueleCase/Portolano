@@ -236,6 +236,15 @@ describe("fake backend seeded by an end-to-end test", () => {
     expect(created).toMatchObject({ exists: true, locked: false });
   });
 
+  it("refuses a new terminal command when the seed says the user does not confirm it", async () => {
+    window.__portolanoFakeSeed = { dialogs: { terminalCommand: false } };
+    installFakeBackend();
+
+    const answer = await commands.configSet("terminal.command", "kitty -e {cmd}");
+
+    expect(answer.status === "error" && answer.error.code).toBe("cancelled");
+  });
+
   it("adds a connection whose credential does not resolve when the seed asks", async () => {
     window.__portolanoFakeSeed = { unresolvedCredential: true };
     installFakeBackend();

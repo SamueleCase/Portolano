@@ -14,11 +14,19 @@ fn value_of(entries: &[ConfigEntry], key: &str) -> Option<String> {
         .map(|entry| entry.value.clone())
 }
 
+/// A confirmation that no change of these tests should ask for.
+fn unasked(command: &str) -> bool {
+    panic!("conferma non attesa per {command}")
+}
+
+/// A custom terminal command of the tests (a probe, never run here).
+const COMMAND: &str = "/opt/example/bin/terminale --esegui {cmd}";
+
 #[test]
 fn set_value_is_saved_in_the_configuration() {
     let app = TestApp::new();
 
-    let entries = set(&app.state, "terminal.app", "iterm").unwrap();
+    let entries = set(&app.state, "terminal.app", "iterm", unasked).unwrap();
 
     assert_eq!(value_of(&entries, "terminal.app").as_deref(), Some("iterm"));
     let saved = portolano_core::AppConfig::load(&app.state.paths().config).unwrap();
@@ -32,7 +40,7 @@ fn set_value_is_saved_in_the_configuration() {
 fn value_refused_by_the_protocol_names_its_key() {
     let app = TestApp::new();
 
-    let error = set(&app.state, "rdp.client", "telepatia").unwrap_err();
+    let error = set(&app.state, "rdp.client", "telepatia", unasked).unwrap_err();
 
     assert_eq!(error.code, ErrorCode::Invalid);
     assert_eq!(
@@ -48,7 +56,7 @@ fn file_keys_cannot_be_typed() {
     let app = TestApp::new();
 
     for key in FILE_KEYS {
-        let error = set(&app.state, key, "/tmp/altro").unwrap_err();
+        let error = set(&app.state, key, "/tmp/altro", unasked).unwrap_err();
 
         assert_eq!(error.code, ErrorCode::Invalid, "{key}");
     }
@@ -69,7 +77,7 @@ fn chosen_file_is_set_as_a_string() {
 #[test]
 fn reset_key_takes_its_default_again() {
     let app = TestApp::new();
-    set(&app.state, "terminal.app", "iterm").unwrap();
+    set(&app.state, "terminal.app", "iterm", unasked).unwrap();
 
     let entries = update(&app.state, |config| {
         Ok(unset_config_value(
@@ -98,4 +106,46 @@ fn interface_preferences_are_saved_in_their_own_file() {
     assert_eq!(saved.interface.density, Density::Compact);
     let config = std::fs::read_to_string(&app.state.paths().config).unwrap();
     assert!(!config.contains("density"));
+}
+
+#[test]
+fn a_new_terminal_command_is_saved_once_the_user_confirms_it() {
+    let app = TestApp::new();
+    let mut asked = Vec::new();
+
+    let entries = set(&app.state, "terminal.command", COMMAND, |command| {
+        asked.push(command.to_owned());
+        true
+    })
+    .unwrap();
+
+    assert_eq!(asked, [COMMAND]);
+    assert_eq!(
+        value_of(&entries, "terminal.command").as_deref(),
+        Some(COMMAND)
+    );
+}
+
+#[test]
+fn a_terminal_command_not_confirmed_leaves_the_configuration_as_it_was() {
+    let app = TestApp::new();
+    let before = std::fs::read(&app.state.paths().config).unwrap();
+
+    let error = set(&app.state, "terminal.command", COMMAND, |_| false).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert_eq!(std::fs::read(&app.state.paths().config).unwrap(), before);
+}
+
+#[test]
+fn the_terminal_command_already_saved_asks_nothing() {
+    let app = TestApp::new();
+    set(&app.state, "terminal.command", COMMAND, |_| true).unwrap();
+
+    let entries = set(&app.state, "terminal.command", COMMAND, unasked).unwrap();
+
+    assert_eq!(
+        value_of(&entries, "terminal.command").as_deref(),
+        Some(COMMAND)
+    );
 }
