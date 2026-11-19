@@ -863,6 +863,12 @@ Esito:
      invisibile deve vedersi.
    - Esc sul dialogo nativo non annulla (NSAlert lega Esc solo a un bottone "Cancel"): si chiude con il clic su
      "Annulla", o con Invio, che annulla. Va fra i test manuali.
+6. **Regressione di T4** (verifica della webview):
+   - un link come `https://%ZZ@evil.example/` è valido per `new URL`, ma `decodeURIComponent` lancia un errore mentre
+     React disegna il riquadro, e l'intera interfaccia si smonta;
+   - correzione: decodifica tollerante dell'utente, che senza `%` validi resta com'è, passato da `visibleText`;
+   - test con `%ZZ`, `%E0%A4%A` e `%C0%80`;
+   - un confine d'errore attorno al riquadro, così un errore lì non tocca il resto della finestra.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
