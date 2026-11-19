@@ -739,6 +739,9 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   chiamare i comandi che l'interfaccia usa: ad esempio cambiare l'host di una connessione verso uno suo, e la verifica
   della sua host key, e farsi così mandare i segreti alla connessione successiva. La difesa piena è l'isolation pattern
   di Tauri, che questa versione non usa.
+- **`npm audit`**: `npm audit --omit=dev` non trova vulnerabilità nelle dipendenze dell'app. Gli avvisi restanti di
+  `npm audit` riguardano solo strumenti di sviluppo (`picomatch` tramite Vite, Vitest e typescript-eslint, che
+  lavorano su file del progetto) e non hanno versioni corrette.
 - **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
   con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab e la
   fluidità dello sfondo nell'app vera.
