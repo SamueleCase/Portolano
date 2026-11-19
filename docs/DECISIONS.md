@@ -782,6 +782,14 @@ Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
     (`~/Library/Caches/dev.portolano.Portolano/tmp`), come nessun test. La cartella temporanea dei connettori si
     rende configurabile per i test con il minimo cambiamento. È un'eccezione sui connettori, senza variabili
     d'ambiente globali nel processo dei test.
+11. **Annullamento riconoscibile**:
+    - il dialogo di S1 annullato risponde con un `ErrorCode::Cancelled` nuovo (bindings rigenerati, una riga in
+      `ipc/errors.ts`);
+    - `useConfigSettings` non lo mostra come errore e il campo torna al valore salvato;
+    - il frontend continua a non leggere il testo dei messaggi (DEC-040.3).
+12. **Test della CLI fuori dalla cache reale**: `bare_cmd` ed `env_cmd` di `crates/portolano-cli/tests/cli/testutil.rs`
+    passano al processo figlio una `HOME` dentro la cartella del test, come `scripts/smoke.sh`. I log vuoti
+    `probe-freerdp-*.log` già lasciati dai test in `~/Library/Caches/dev.portolano.Portolano/tmp` si cancellano.
 2. **Navigazione e testo non fidato**:
    - guardia di navigazione sulla finestra principale, solo l'origine dell'app;
    - `visibleText` su ogni testo che arriva da documento, file Royal o host, compresi i messaggi degli `IpcError` e
