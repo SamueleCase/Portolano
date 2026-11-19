@@ -26,9 +26,13 @@ fail() {
     exit 1
 }
 
-# The Mach-O UUID of a binary, the identity the linker gives it.
+# The Mach-O UUID of a binary, the identity the linker gives it; fails if
+# the file is missing, is not Mach-O or has no UUID.
 uuid() {
-    dwarfdump --uuid "$1" | awk '{ print $2 }'
+    output=$(dwarfdump --uuid "$1" 2>/dev/null) || return 1
+    id=$(printf '%s\n' "$output" | awk '/^UUID: / { print $2; exit }')
+    [ -n "$id" ] || return 1
+    printf '%s\n' "$id"
 }
 
 # The size of a file or a directory, in MiB with one decimal.
@@ -56,10 +60,10 @@ done
 
 # The sidecar in the bundle is the CLI built in release, not another build.
 release=$(uuid "$root/target/release/portolano") ||
-    fail "manca target/release/portolano: la CLI compilata in release"
+    fail "target/release/portolano manca o non è un binario Mach-O: riesegui npm run bundle"
 bundled=$(uuid "$macos/portolano") || fail "il sidecar nel bundle non è un binario Mach-O"
-[ -n "$release" ] && [ "$bundled" = "$release" ] ||
-    fail "il sidecar nel bundle (UUID $bundled) non è la CLI compilata in release (UUID $release)"
+[ "$bundled" = "$release" ] ||
+    fail "il sidecar nel bundle (UUID $bundled) non è la CLI compilata in release (UUID $release): riesegui npm run bundle"
 
 answer=$("$macos/portolano" --version) || fail "il sidecar non risponde a --version"
 [ "$answer" = "portolano $version" ] ||
