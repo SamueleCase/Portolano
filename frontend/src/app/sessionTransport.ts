@@ -14,7 +14,7 @@ export const appSessionTransport: SessionTransport =
   import.meta.env.MODE === "e2e" ? await fakeTransport() : tauriSessionTransport;
 
 async function fakeTransport(): Promise<SessionTransport> {
-  const { FakeSessionTransport, fakeScenarios, workingConnection } =
+  const { FakeSessionTransport, fakeScenarios, recordTraffic, workingConnection } =
     await import("../test/fakeSessions");
   const transport = new FakeSessionTransport(fakeScenarios, workingConnection);
   return {
@@ -23,10 +23,13 @@ async function fakeTransport(): Promise<SessionTransport> {
     open: async (request, handlers) => {
       const details = unwrap(await commands.nodeDetails(request.nodeId));
       if (details.vaultLocked) {
-        throw new IpcFailure({
-          code: "vaultLocked",
+        const error = {
+          code: "vaultLocked" as const,
           message: "il vault è bloccato: sbloccalo con la master password",
-        });
+        };
+        // In the record of the sentinel e2e, as the other answers of the fake.
+        recordTraffic(`error open_session: ${JSON.stringify(error)}`);
+        throw new IpcFailure(error);
       }
       return transport.open(request, handlers);
     },

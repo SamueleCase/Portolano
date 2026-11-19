@@ -180,6 +180,26 @@ test.describe("a typed secret", () => {
     await watch.expectNowhere(TEST_MASTER_PASSWORD);
   });
 
+  test("asked by a connection with the vault locked stays nowhere", async ({ page }) => {
+    const watch = new SecretWatch(page);
+    await openApp(page);
+
+    await row(await documentTree(page), "bastion").dblclick();
+    const dialog = page.getByRole("dialog", { name: d.unlock.title });
+    await dialog.getByLabel(d.unlock.field).fill(TEST_MASTER_PASSWORD);
+    await dialog.getByRole("button", { name: d.unlock.unlock }).click();
+    await expect(page.getByRole("tab", { name: /bastion.*SSH/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // The refusal of the locked vault is in the record, with the session after it.
+    const { traffic } = await watch.surfaces();
+    expect(traffic).toMatch(/^error open_session: .*"vaultLocked"/m);
+    expect(traffic).toMatch(/^answer open_session: /m);
+    await watch.expectNowhere(TEST_MASTER_PASSWORD);
+  });
+
   test("as the master password of a new vault stays nowhere", async ({ page }) => {
     const watch = new SecretWatch(page);
     await openApp(page, { vaultMissing: true });

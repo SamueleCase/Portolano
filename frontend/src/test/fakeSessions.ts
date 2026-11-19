@@ -193,7 +193,7 @@ export class FakeSessionTransport implements SessionTransport {
  * fake backend (`window.__portolanoFakeTraffic`), where the end-to-end
  * test of the sentinel secret looks for it; nothing outside a page.
  */
-function recordTraffic(entry: string): void {
+export function recordTraffic(entry: string): void {
   if (typeof window !== "undefined") window.__portolanoFakeTraffic?.push(entry);
 }
 
