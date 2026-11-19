@@ -2,7 +2,7 @@ import { type ReactNode, useRef, useState } from "react";
 
 import { Stepper } from "../../components/Stepper";
 import { FileStep } from "../../features/import/FileStep";
-import { readableImportPath } from "../../features/import/importPath";
+import { readablePath } from "../../features/tree/treeModel";
 import { type ImportSettings, OptionsStep } from "../../features/import/OptionsStep";
 import { PasswordStep, type SecretFieldElement } from "../../features/import/PasswordStep";
 import { ReportStep } from "../../features/import/ReportStep";
@@ -149,7 +149,7 @@ export function ImportValidationSection() {
             <ReportStep
               result={galleryResult}
               passwordsAsked={galleryRequests.length}
-              onGoToItem={(item) => setWentTo(readableImportPath(item.path))}
+              onGoToItem={(item) => setWentTo(readablePath(item.path))}
               notice={null}
               actions={
                 <ReportActions

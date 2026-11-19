@@ -8,7 +8,7 @@ import { TextField } from "../../components/TextField";
 import { interpolate, plural } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import { MaskedKeyField } from "../dialogs/MaskedKeyField";
-import { readableImportPath } from "./importPath";
+import { readablePath } from "../tree/treeModel";
 import styles from "./ImportWizard.module.css";
 
 /**
@@ -62,7 +62,7 @@ export function PasswordStep({
     {
       key: "node",
       label: passwords.node,
-      value: readableImportPath(request.nodePath),
+      value: readablePath(request.nodePath),
       mono: true,
     },
     ...(request.username === null

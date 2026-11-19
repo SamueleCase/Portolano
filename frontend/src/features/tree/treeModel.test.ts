@@ -104,6 +104,12 @@ describe("the model of the tree", () => {
     expect(readablePath("/Clienti/ACME\\/Nord/web01")).toBe("Clienti / ACME/Nord / web01");
   });
 
+  it("writes a path of the import, without the leading slash, keeping escaped backslashes", () => {
+    expect(readablePath("Ufficio/DOMINIO\\\\admin/LAN\\/WAN")).toBe(
+      "Ufficio / DOMINIO\\admin / LAN/WAN",
+    );
+  });
+
   it("moves a node among the siblings shown only, while a filter hides some", async () => {
     const index = await sampleTree();
     const shown = new Set([await idOf("Clienti"), await idOf("ts01"), await idOf("ACME")]);
