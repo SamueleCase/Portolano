@@ -162,15 +162,49 @@ fn confirm_terminal_command(
         .as_deref()
         .filter(|command| !command.trim().is_empty());
     match command {
-        Some(command)
-            if saved.terminal.command.as_deref() != Some(command) && !confirm(command) =>
-        {
-            Err(IpcError::cancelled(
-                "modifica del comando del terminale annullata",
-            ))
+        Some(command) if saved.terminal.command.as_deref() != Some(command) => {
+            check_terminal_command(command)?;
+            if confirm(command) {
+                Ok(())
+            } else {
+                Err(IpcError::cancelled(
+                    "modifica del comando del terminale annullata",
+                ))
+            }
         }
         _ => Ok(()),
     }
+}
+
+/// The longest terminal command the confirmation shows, in characters.
+const MAX_TERMINAL_COMMAND_CHARS: usize = 1024;
+
+/// Refuses, before the confirmation, a command that the dialog could not
+/// show whole on its line: one with a line break of any kind, which could
+/// push the rest of the command out of sight, or a very long one
+/// (DEC-047.2).
+fn check_terminal_command(command: &str) -> Result<(), IpcError> {
+    let line_break = |c: char| {
+        matches!(
+            c,
+            '\n' | '\r' | '\u{0B}' | '\u{0C}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+        )
+    };
+    if command.contains(line_break) {
+        return Err(IpcError::invalid(
+            TERMINAL_COMMAND,
+            "il comando del terminale va scritto su una sola riga".to_owned(),
+        ));
+    }
+    if command.chars().count() > MAX_TERMINAL_COMMAND_CHARS {
+        return Err(IpcError::invalid(
+            TERMINAL_COMMAND,
+            format!(
+                "il comando del terminale può avere al massimo {MAX_TERMINAL_COMMAND_CHARS} caratteri"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn set_file(

