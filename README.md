@@ -665,7 +665,8 @@ rende l'elemento "Parziale".
 in terminale esterno" (Terminal, iTerm, Ghostty o un comando con `{cmd}`), programma SSH, client RDP con percorso di
 FreeRDP e certificati, aspetto (densità normale o compatta, sfondo animato acceso, ridotto o spento, riduci
 movimento). Le prime voci sono quelle di `config.toml`, validate come con `portolano config set`; l'aspetto, la
-finestra e i documenti recenti stanno in `ui.toml`, nella cartella dei dati.
+finestra e i documenti recenti stanno in `ui.toml`, nella cartella dei dati. Un comando del terminale nuovo si salva solo
+dopo la conferma in un dialogo di macOS (vedi [Sicurezza dell'app](#sicurezza-dellapp)).
 
 **Documento cambiato da fuori.** Se un altro programma (la CLI, git, un editor) modifica il documento, un avviso
 propone "Ricarica"; le modifiche aperte nell'editor restano e vengono riapplicate, con un avviso sui campi cambiati da
@@ -705,6 +706,12 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
 - **Solo le pagine dell'app.** La finestra mostra soltanto l'app: ogni altra navigazione (una pagina remota, un file
   locale, un'immagine di `portolano-icon://` aperta come documento) viene rifiutata prima di caricarla, così i comandi
   dell'app non sono mai raggiungibili da un'altra origine.
+- **Comando del terminale personalizzato.** È una riga di shell che l'app esegue a ogni "Apri in terminale esterno".
+  Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia,
+  con il testo esatto del comando (i caratteri di controllo resi visibili) e i bottoni "Annulla" e "Usa questo
+  comando". Senza conferma non si salva nulla e il campo torna al comando salvato. Il comando già presente in
+  `config.toml` e `portolano config set` della CLI non chiedono conferma: il file e la CLI sono dentro il perimetro
+  di fiducia.
 - **Testo del documento come testo.** Nomi, host, note e titoli del terminale si mostrano solo come testo, con i
   caratteri di controllo e bidi resi visibili come nella CLI. Le icone personalizzate (anche gli SVG importati) sono
   solo immagini servite dallo schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone
