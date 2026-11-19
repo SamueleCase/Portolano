@@ -10,7 +10,24 @@ Decisioni del PM in DEC-046. Un finding per commit quando possibile, con un test
 - **S1 (medio) – comando del terminale personalizzato dalla webview.**
   - Problema: `config_set("terminal.command")` più `open_in_terminal` eseguono una riga di shell scelta dalla webview
     (`commands/settings.rs`, `connectors/terminal.rs` `custom_launcher`).
-  - **Correzione in sospeso**: aspetta la scelta dell'utente (DEC-046.1). Si fa per ultima.
+  - **Correzione scelta dall'utente: conferma nativa** (DEC-046.1).
+    - In `config_set`, per `terminal.command` con un valore diverso da quello salvato, Rust apre un dialogo nativo
+      di conferma con il testo del comando (caratteri di controllo resi visibili). I bottoni sono "Annulla" e "Usa
+      questo comando", con testi in italiano accanto agli altri testi del backend.
+    - Se l'utente annulla, nulla si scrive e il comando risponde con un errore riconoscibile. Il campo delle
+      Preferenze torna al valore salvato senza mostrare un errore rosso.
+    - La conferma passa da un'astrazione iniettabile, così i test non aprono finestre. Test:
+      - senza conferma `config.toml` resta invariato e `open_in_terminal` usa il comando vecchio;
+      - con la conferma il valore si scrive;
+      - lo stesso valore non chiede nulla.
+    - E2e sul finto backend: annulla, il campo torna al valore salvato. Il finto simula la risposta del dialogo
+      con un seme.
+    - README: sezione sicurezza.
+- **S2 bis**: ammettere anche `http://tauri.localhost` con `cfg(windows)` (DEC-046.9).
+- **S3 bis**: il test non scrive più nella cache reale dell'utente; cartella temporanea dei connettori configurabile
+  per i test (DEC-046.10).
+- **W5 bis**: `picomatch` senza correzione, accettato (DEC-046.8). Nel README, fra i limiti o nei test, una riga con
+  l'esito di `npm audit`.
 - **S2 (basso) – guardia di navigazione.**
   - Un plugin minimo con `on_navigation` sulla finestra principale ammette solo l'origine dell'app: `tauri://localhost`,
     più `devUrl` solo in sviluppo. Rifiuta tutto il resto, `portolano-icon:` compreso.

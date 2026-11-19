@@ -763,6 +763,25 @@ Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
      una webview compromessa ottiene l'esecuzione di codice persistente;
    - controllare il primo elemento con `safe_path()` non basta (`/bin/sh -c …` passa);
    - la correzione cambia ciò che l'utente vede nelle Preferenze, quindi la sceglie l'utente.
+   - **Scelta dell'utente (2026-11-19): conferma nativa.**
+     - Quando la webview salva un `terminal.command` diverso da quello attuale, Rust mostra un dialogo nativo di
+       macOS (aperto da Rust, non dalla webview) con il testo esatto del comando, reso visibile. I bottoni sono
+       "Annulla" e "Usa questo comando".
+     - Senza conferma il valore non si salva: errore "annullato", e il campo torna al comando salvato.
+     - La CLI (`portolano config set`) e il valore già presente in `config.toml` non cambiano.
+8. **`npm audit` dopo l'aggiornamento**: 12 avvisi alti, tutti da un solo avviso su `picomatch` (GHSA-fc5q-39xc-vjpf,
+   ReDoS), che non ha nessuna versione corretta.
+   - Arriva tramite `vite`, `vitest`, `@vitejs/plugin-react` e `typescript-eslint`: solo strumenti di sviluppo, con
+     input fidati.
+   - `npm audit --omit=dev`: 0.
+   - **Accettato** e annotato fra i limiti. Nessun `audit fix --force`, che darebbe `vitest` 3.1.4, un salto
+     all'indietro con cambi incompatibili.
+9. **Guardia di navigazione su Windows**: ammette anche `http://tauri.localhost`, solo con `cfg(windows)`, perché il
+   workspace deve compilare anche lì (SPEC-UI §10).
+10. **Test della sentinella Rust**: non deve scrivere nella cache reale dell'utente
+    (`~/Library/Caches/dev.portolano.Portolano/tmp`), come nessun test. La cartella temporanea dei connettori si
+    rende configurabile per i test con il minimo cambiamento. È un'eccezione sui connettori, senza variabili
+    d'ambiente globali nel processo dei test.
 2. **Navigazione e testo non fidato**:
    - guardia di navigazione sulla finestra principale, solo l'origine dell'app;
    - `visibleText` su ogni testo che arriva da documento, file Royal o host, compresi i messaggi degli `IpcError` e
