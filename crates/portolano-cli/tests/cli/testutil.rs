@@ -27,6 +27,11 @@ const TEST_KDF_PARAMS: KdfParams = KdfParams {
     p_cost: 1,
 };
 
+/// The home of the binary, inside the workspace: the temporary files and
+/// the logs of the clients go to its cache, never to that of the user
+/// (DEC-046.12). Only the child process gets it, as in `scripts/smoke.sh`.
+const HOME: &str = "home";
+
 /// No test may wait for a terminal.
 const TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -53,6 +58,7 @@ impl Workspace {
             TEST_KDF_PARAMS,
         )
         .unwrap();
+        fs::create_dir(dir.path().join(HOME)).unwrap();
         Workspace { dir }
     }
 
@@ -96,6 +102,7 @@ impl Workspace {
             cmd.env_remove(name);
         }
         cmd.env("PORTOLANO_VAULT_PASSWORD", TEST_MASTER_PASSWORD)
+            .env("HOME", self.path(HOME))
             .arg("--file")
             .arg(self.doc())
             .arg("--config")
@@ -115,6 +122,7 @@ impl Workspace {
             .env("PORTOLANO_VAULT", "file")
             .env("PORTOLANO_VAULT_FILE", "vault.json")
             .env("PORTOLANO_VAULT_PASSWORD", TEST_MASTER_PASSWORD)
+            .env("HOME", self.path(HOME))
             .args(["--config", "config.toml"])
             .write_stdin("")
             .timeout(TIMEOUT);
