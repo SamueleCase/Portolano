@@ -1,8 +1,11 @@
-//! Characters of a document that must not reach the terminal as they are
-//! (DEC-024.3, DEC-026.4). Names, hosts, paths and messages may come from a
-//! shared or imported document: control characters would drive the terminal
-//! (move the cursor, rewrite lines, change the window title), and the bidi
-//! controls would show text in another order than it has.
+//! Characters of a document that must not reach the terminal, or a dialog,
+//! as they are (DEC-024.3, DEC-026.4). Names, hosts, paths and messages may
+//! come from a shared or imported document: control characters would drive
+//! the terminal (move the cursor, rewrite lines, change the window title),
+//! and the bidi controls would show text in another order than it has.
+//!
+//! The one rule of the CLI and of the native dialogs of the app
+//! (DEC-046.13); the interface has its equivalent in TypeScript.
 
 use std::borrow::Cow;
 use std::fmt::Write as _;

@@ -11,6 +11,7 @@ pub mod migrate;
 pub mod model;
 pub mod secret;
 pub mod store;
+pub mod text;
 pub mod vault;
 
 mod path;

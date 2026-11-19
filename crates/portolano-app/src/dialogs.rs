@@ -1,6 +1,7 @@
 //! The native dialogs (SPEC-UI §4.6): opened by Rust. The frontend only
 //! learns the name of the file chosen, or that a change was not confirmed.
 
+use portolano_core::text::visible;
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::{
     DialogExt, FileDialogBuilder, FilePath, MessageDialogButtons, MessageDialogKind,
@@ -65,7 +66,8 @@ pub fn remember(state: &AppState, kind: FileKind, chosen: Option<FilePath>) -> O
 /// Asks, with a native dialog of macOS, whether `command` is the custom
 /// terminal command the user wants: Portolano runs it with the shell for
 /// every new window (DEC-046.1). The webview can ask for it, never answer.
-/// The command shows as it is, its control and bidi characters as escapes.
+/// The command shows as it is, its control and bidi characters as escapes
+/// ([`visible`], the rule of the CLI).
 pub fn confirm_terminal_command<R: Runtime>(app: &AppHandle<R>, command: &str) -> bool {
     app.dialog()
         .message(format!(
@@ -82,44 +84,7 @@ pub fn confirm_terminal_command<R: Runtime>(app: &AppHandle<R>, command: &str) -
         .blocking_show()
 }
 
-/// `text` with every control character (C0, DEL, C1) and every bidi
-/// control written as an escape such as `\u{1b}`, as the CLI and the
-/// interface show text that may not be the user's (DEC-026.4).
-pub(crate) fn visible(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            let bidi = matches!(
-                c,
-                '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}' | '\u{061C}'
-            );
-            if c.is_control() || bidi {
-                c.escape_unicode().to_string()
-            } else {
-                c.to_string()
-            }
-        })
-        .collect()
-}
-
 /// The local path of a dialog answer; `None` if the user cancelled.
 pub fn local_path(chosen: Option<FilePath>) -> Option<std::path::PathBuf> {
     chosen?.into_path().ok()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_command_to_confirm_shows_its_control_and_bidi_characters_as_escapes() {
-        assert_eq!(
-            visible("term \u{202E}gnp.exe {cmd}\u{1b}[2J"),
-            "term \\u{202e}gnp.exe {cmd}\\u{1b}[2J"
-        );
-    }
-
-    #[test]
-    fn a_plain_command_to_confirm_shows_as_it_is() {
-        assert_eq!(visible("wezterm start -- {cmd}"), "wezterm start -- {cmd}");
-    }
 }
