@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isInvisibleFormat, visibleText } from "./visibleText";
+import { isControl, JOINERS, visibleText } from "./visibleText";
 
 // The cases of `portolano_core::text` (DEC-026.4, DEC-047.2): the same input
 // must read the same in the app and in the terminal.
@@ -35,17 +35,27 @@ describe("visibleText", () => {
   });
 
   it("escapes the zero-width and format characters like the CLI", () => {
-    const text = String.fromCodePoint(0x77, 0x200b, 0x65, 0x200d, 0x62, 0x2060, 0x30, 0xfeff, 0x78);
+    const text = String.fromCodePoint(0x77, 0x200b, 0x65, 0x62, 0x2060, 0x30, 0xfeff, 0x78);
 
-    expect(visibleText(text)).toBe("w\\u{200b}e\\u{200d}b\\u{2060}0\\u{feff}x");
+    expect(visibleText(text)).toBe("w\\u{200b}eb\\u{2060}0\\u{feff}x");
   });
 
-  it("knows exactly the format characters and separators of Unicode", () => {
+  it("keeps the joiners of a composed emoji, as the CLI", () => {
+    // A family: man, ZWJ, woman, ZWJ, girl.
+    const family = `Famiglia ${String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467)}`;
+
+    expect(visibleText(family)).toBe(family);
+  });
+
+  it("escapes exactly the format characters and separators of Unicode, but the joiners", () => {
     const unicode = /[\p{Cf}\p{Zl}\p{Zp}]/u;
     const differ: string[] = [];
     for (let codePoint = 0; codePoint <= 0x10ffff; codePoint++) {
-      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue;
-      if (unicode.test(String.fromCodePoint(codePoint)) !== isInvisibleFormat(codePoint)) {
+      if ((codePoint >= 0xd800 && codePoint <= 0xdfff) || isControl(codePoint)) continue;
+      const character = String.fromCodePoint(codePoint);
+      // The one exception of the rule: ZWJ and ZWNJ stay (DEC-047.5).
+      const expected = unicode.test(character) && !JOINERS.has(codePoint);
+      if ((visibleText(character) !== character) !== expected) {
         differ.push(codePoint.toString(16));
       }
     }

@@ -51,17 +51,27 @@ const INVISIBLE_FORMAT: readonly (readonly [number, number])[] = [
 ];
 
 /** Whether `codePoint` is a separator of lines or paragraphs or a format character. */
-export function isInvisibleFormat(codePoint: number): boolean {
+function isInvisibleFormat(codePoint: number): boolean {
   return INVISIBLE_FORMAT.some(([first, last]) => codePoint >= first && codePoint <= last);
 }
 
-/** `text` with each control, separator and format character written as `\u{1b}`. */
+/**
+ * The zero-width non-joiner and joiner (U+200C, U+200D): format characters
+ * that compose emoji and join or keep apart the letters of some scripts.
+ * The text of a document keeps them (DEC-047.5).
+ */
+export const JOINERS: ReadonlySet<number> = new Set([0x200c, 0x200d]);
+
+/**
+ * `text` with each control, separator and format character written as
+ * `\u{1b}`, except the joiners (`JOINERS`).
+ */
 export function visibleText(text: string): string {
   let shown = "";
   for (const character of text) {
     const codePoint = character.codePointAt(0) ?? 0;
     shown +=
-      isControl(codePoint) || isInvisibleFormat(codePoint)
+      isControl(codePoint) || (isInvisibleFormat(codePoint) && !JOINERS.has(codePoint))
         ? `\\u{${codePoint.toString(16)}}`
         : character;
   }

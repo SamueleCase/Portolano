@@ -707,20 +707,20 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   locale, un'immagine di `portolano-icon://` aperta come documento) viene rifiutata prima di caricarla, così i comandi
   dell'app non sono mai raggiungibili da un'altra origine.
 - **Comando del terminale personalizzato.** È una riga di shell che l'app esegue a ogni "Apri in terminale esterno".
-  Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia,
-  con il testo esatto del comando (caratteri di controllo, separatori e caratteri invisibili resi visibili) e i
-  bottoni "Annulla" e "Usa questo comando". "Annulla" è il bottone predefinito: Invio non conferma mai, conferma solo
-  un clic su "Usa questo comando". Un comando su più righe o più lungo di 1024 caratteri si rifiuta prima del
-  dialogo, e si apre una sola conferma alla volta. Senza conferma non si salva nulla e il campo torna al comando
-  salvato. Il comando già presente in `config.toml` e `portolano config set` della CLI non chiedono conferma: il file
-  e la CLI sono dentro il perimetro di fiducia.
+  Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia, con
+  il testo esatto del comando (caratteri di controllo, separatori e caratteri invisibili resi visibili, ZWJ e ZWNJ
+  compresi) e i bottoni "Annulla" e "Usa questo comando". "Annulla" è il bottone predefinito: Invio non conferma mai,
+  conferma solo un clic su "Usa questo comando". Un comando su più righe o più lungo di 1024 caratteri si rifiuta prima
+  del dialogo, e si apre una sola conferma alla volta. Senza conferma non si salva nulla e il campo torna al comando
+  salvato. Il comando già presente in `config.toml` e `portolano config set` della CLI non chiedono conferma: il file e
+  la CLI sono dentro il perimetro di fiducia.
 - **Testo del documento come testo.** Nomi, host, note e titoli del terminale si mostrano solo come testo, con i
-  caratteri di controllo, i separatori di riga e i caratteri di formato (bidi e a larghezza zero) resi visibili
-  come nella CLI. Le icone personalizzate (anche gli SVG importati) sono
-  solo immagini servite dallo schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone
-  del documento, con lo SHA-256 del contenuto nel nome; ogni risposta ha `nosniff` e la CSP
-  `default-src 'none'; sandbox`, che non carica e non esegue nulla. Anche i messaggi d'errore, che possono citare
-  nomi e host, mostrano i caratteri di controllo come testo visibile.
+  caratteri di controllo, i separatori di riga e i caratteri di formato (bidi e a larghezza zero, tranne ZWJ e ZWNJ)
+  resi visibili come nella CLI. Le icone personalizzate (anche gli SVG importati) sono solo immagini servite dallo
+  schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone del documento, con lo SHA-256
+  del contenuto nel nome; ogni risposta ha `nosniff` e la CSP `default-src 'none'; sandbox`, che non carica e non esegue
+  nulla. Anche i messaggi d'errore, che possono citare nomi e host, mostrano i caratteri di controllo come testo
+  visibile.
 - **Terminale integrato.** Come in Terminale di macOS, un link si apre nel browser solo con ⌘-clic, e al passaggio del
   mouse mostra l'indirizzo vero (il testo stampato dall'host può dire altro); si aprono solo i link `http(s)`. Gli
   appunti via OSC 52 sono spenti. L'app non scrive mai nella PTY un segreto salvato: le password arrivano a `ssh` con
@@ -841,8 +841,10 @@ contenere sequenze che pilotano il terminale (spostare il cursore, riscrivere ri
 controlli bidirezionali che mostrano il testo in un ordine diverso da quello reale. In ogni output della CLI
 (`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) compaiono come escape,
 ad esempio `\u{1b}`, i caratteri di controllo C0, DEL e C1, i separatori di riga e di paragrafo (U+2028, U+2029) e
-tutti i caratteri di formato: i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C), quelli a
-larghezza zero (U+200B–U+200D, U+2060, U+FEFF) e gli altri della categoria Unicode Cf. Nell'output `--json`
+i caratteri di formato: i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C), lo spazio a
+larghezza zero (U+200B), U+2060, U+FEFF e gli altri della categoria Unicode Cf. Restano intatti solo l'unione e la
+non-unione a larghezza zero (ZWJ U+200D, ZWNJ U+200C), che servono alle emoji composte come 👨‍👩‍👧 e ad alcune
+scritture; nella conferma del comando del terminale dell'app compaiono anche loro come escape. Nell'output `--json`
 compaiono come escape JSON (`\u001b`). `validate` segnala i caratteri di controllo con l'avviso
 `control_characters`. `connect` rifiuta caratteri di controllo negli host e negli utenti delle connessioni SSH e
 dei loro jump host, negli host, utenti e domini delle connessioni RDP (sia con FreeRDP sia con Windows App) e nei

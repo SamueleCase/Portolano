@@ -45,29 +45,56 @@ fn is_invisible_format(c: char) -> bool {
     )
 }
 
-fn needs_escape(c: char) -> bool {
+/// The zero-width joiner and non-joiner (U+200D, U+200C): format characters
+/// that compose emoji (👨‍👩‍👧) and join or keep apart the letters of
+/// some scripts. The text of a document keeps them as they are (DEC-047.5).
+fn is_joiner(c: char) -> bool {
+    matches!(c, '\u{200C}' | '\u{200D}')
+}
+
+/// What [`visible_strict`] escapes: every control and invisible character.
+fn needs_strict_escape(c: char) -> bool {
     c.is_control() || is_invisible_format(c)
+}
+
+/// What [`visible`] escapes: the same, except the joiners.
+fn needs_escape(c: char) -> bool {
+    needs_strict_escape(c) && !is_joiner(c)
 }
 
 /// `text` with every control character (C0, DEL, C1), separator of lines
 /// and paragraphs and format character (bidi and zero-width ones included)
-/// written as an escape such as `\u{1b}`. Every value of a document goes
-/// through here before it is printed as text.
+/// written as an escape such as `\u{1b}`, except the joiners of
+/// [`is_joiner`]. Every value of a document goes through here before it is
+/// printed as text.
 pub fn visible(text: &str) -> Cow<'_, str> {
-    escape(text, needs_escape, |escaped, c| {
-        // Writing to a `String` cannot fail.
-        let _ = write!(escaped, "{}", c.escape_unicode());
-    })
+    escape(text, needs_escape, write_escape)
+}
+
+/// [`visible`] without the exception of the joiners: for a text that must
+/// show every character it has, such as a command to confirm before it
+/// runs (DEC-047.5).
+pub fn visible_strict(text: &str) -> Cow<'_, str> {
+    escape(text, needs_strict_escape, write_escape)
+}
+
+fn write_escape(escaped: &mut String, c: char) {
+    // Writing to a `String` cannot fail.
+    let _ = write!(escaped, "{}", c.escape_unicode());
 }
 
 /// JSON text with DEL, the C1 controls and the characters of
-/// [`is_invisible_format`] written as JSON escapes (`\u007f`, a surrogate
-/// pair beyond U+FFFF): `serde_json` escapes only U+0000–U+001F, and these
-/// characters can only appear inside strings, so the result is the same
-/// JSON value. The line breaks of the pretty layout stay as they are.
+/// [`is_invisible_format`], except the joiners, written as JSON escapes
+/// (`\u007f`, a surrogate pair beyond U+FFFF): `serde_json` escapes only
+/// U+0000–U+001F, and these characters can only appear inside strings, so
+/// the result is the same JSON value. The line breaks of the pretty layout
+/// stay as they are.
 pub fn json_visible(json: &str) -> Cow<'_, str> {
-    let unescaped =
-        |c: char| c == '\u{7f}' || ('\u{80}'..='\u{9f}').contains(&c) || is_invisible_format(c);
+    let unescaped = |c: char| {
+        c == '\u{7f}'
+            || ('\u{80}'..='\u{9f}').contains(&c)
+            || (is_invisible_format(c) && !is_joiner(c))
+    };
     escape(json, unescaped, |escaped, c| {
         for unit in c.encode_utf16(&mut [0; 2]) {
             // Writing to a `String` cannot fail.
@@ -125,9 +152,31 @@ mod tests {
     #[test]
     fn visible_escapes_the_zero_width_and_format_characters() {
         assert_eq!(
-            visible("w\u{200b}e\u{200d}b\u{2060}0\u{feff}1\u{ad}x\u{e0041}"),
-            "w\\u{200b}e\\u{200d}b\\u{2060}0\\u{feff}1\\u{ad}x\\u{e0041}"
+            visible("w\u{200b}eb\u{2060}0\u{feff}1\u{ad}x\u{e0041}"),
+            "w\\u{200b}eb\\u{2060}0\\u{feff}1\\u{ad}x\\u{e0041}"
         );
+    }
+
+    #[test]
+    fn visible_keeps_the_joiners_of_a_composed_emoji() {
+        let family = "Famiglia \u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467} e\u{200c}x";
+
+        assert!(matches!(visible(family), Cow::Borrowed(text) if text == family));
+    }
+
+    #[test]
+    fn visible_strict_escapes_the_joiners_too() {
+        assert_eq!(
+            visible_strict("term\u{200d} {cmd}\u{200c}\u{1b}"),
+            "term\\u{200d} {cmd}\\u{200c}\\u{1b}"
+        );
+    }
+
+    #[test]
+    fn json_visible_keeps_the_joiners() {
+        let json = serde_json::to_string(&serde_json::json!({ "n": "a\u{200d}b" })).unwrap();
+
+        assert_eq!(json_visible(&json), json);
     }
 
     #[test]
