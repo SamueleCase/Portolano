@@ -96,3 +96,46 @@ Decisioni del PM in DEC-046. Un finding per commit quando possibile, con un test
   - poi la sezione sicurezza aggiornata con S1, S2 e W1.
 - **R11** `i18n/app.ts` `connection.noLoginDialog`: se non si raggiunge più (il dialogo è sempre registrato), togliere
   testo e ramo come `vaultUnavailable` (eccezione su `app/` e `i18n/app.ts`).
+
+## Terzo giro (secondo giro delle revisioni, 2026-11-19; DEC-047)
+Fonti: il secondo giro delle tre revisioni su `3708947`, più `30dd20d` (rivisto dal PM: approvato).
+
+### Backend
+- **T1 (medio, obbligatoria)** – `dialogs.rs` `confirm_terminal_command`: "Annulla" è il bottone predefinito (Invio).
+  - Conferma solo il clic su "Usa questo comando", con `blocking_show_with_result()` o equivalente e un confronto per
+    etichetta.
+  - Test della funzione che decide quale risultato vale come conferma.
+  - Il comportamento di Esc si annota nei test manuali.
+- **T2 (basso)**:
+  - `portolano_core::text::visible` rende visibili anche Zl, Zp e Cf (U+2028, U+2029, U+200B–U+200D, U+2060, U+FEFF…),
+    con test; lo smoke e i test della CLI restano verdi;
+  - `confirm_terminal_command` (o `config_set` prima del dialogo) rifiuta un comando con a capo di qualunque tipo o
+    più lungo di 1024 caratteri, con un errore di validazione sul campo;
+  - una sola conferma aperta alla volta: le altre richieste si rifiutano;
+  - test per ognuno.
+- **T3 (informativo)**: un test che `run()` registri il plugin della guardia di navigazione, se fattibile senza aprire
+  finestre; altrimenti annotato.
+
+### Webview
+- **T4 (basso)**: tooltip dei link del terminale (`Terminal.tsx`):
+  - host per primo e mai accorciato; percorso accorciato al centro;
+  - credenziali `utente@` evidenti;
+  - larghezza massima e aggancio ai bordi della finestra;
+  - `setHint(undefined)` nella pulizia dell'effetto;
+  - test con un URL lungo e con `https://intranet.example.com@evil.example/`.
+- **T5**: `visibleText` del frontend allineata a T2 (Zl, Zp, Cf), con test.
+
+### Revisione del WP
+- **T6** `check-bundle.sh`: `uuid()` fallisce se `dwarfdump` fallisce o non dà un UUID, così scattano i messaggi
+  "manca…" e "non è un binario Mach-O". Quando l'UUID non coincide, il messaggio suggerisce di rieseguire
+  `npm run bundle`.
+- **T7** README:
+  - righe 783-784 rimesse a capo a 120 caratteri, con la frase sul sidecar chiusa prima della firma;
+  - riga di `npm audit` indipendente dalla data (DEC-046.8);
+  - sicurezza aggiornata con T1 e T2.
+- **T8** `secretsPage.ts`: `messageText(message).catch(() => "<argomento non leggibile>")`.
+- **T9** `app/sessionTransport.ts`: l'errore `vaultLocked` dell'involucro e2e entra nel registro (eccezione concessa).
+- **T10** `keyboardPage.ts`: lo stato "senza focus" si misura prima di raggiungere la fermata, invece di `blur()` e
+  `focus()`, se il giudizio resta affidabile; altrimenti un commento che spiega il limite.
+- **T11** `features/import/importPath.ts`: `readableImportPath` diventa `readablePath`, se le due differenze (`\`
+  finale, `/` iniziale) non toccano i percorsi dell'import; altrimenti un commento con il motivo.

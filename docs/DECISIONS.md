@@ -769,27 +769,6 @@ Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
        "Annulla" e "Usa questo comando".
      - Senza conferma il valore non si salva: errore "annullato", e il campo torna al comando salvato.
      - La CLI (`portolano config set`) e il valore già presente in `config.toml` non cambiano.
-8. **`npm audit` dopo l'aggiornamento**: 12 avvisi alti, tutti da un solo avviso su `picomatch` (GHSA-fc5q-39xc-vjpf,
-   ReDoS), che non ha nessuna versione corretta.
-   - Arriva tramite `vite`, `vitest`, `@vitejs/plugin-react` e `typescript-eslint`: solo strumenti di sviluppo, con
-     input fidati.
-   - `npm audit --omit=dev`: 0.
-   - **Accettato** e annotato fra i limiti. Nessun `audit fix --force`, che darebbe `vitest` 3.1.4, un salto
-     all'indietro con cambi incompatibili.
-9. **Guardia di navigazione su Windows**: ammette anche `http://tauri.localhost`, solo con `cfg(windows)`, perché il
-   workspace deve compilare anche lì (SPEC-UI §10).
-10. **Test della sentinella Rust**: non deve scrivere nella cache reale dell'utente
-    (`~/Library/Caches/dev.portolano.Portolano/tmp`), come nessun test. La cartella temporanea dei connettori si
-    rende configurabile per i test con il minimo cambiamento. È un'eccezione sui connettori, senza variabili
-    d'ambiente globali nel processo dei test.
-11. **Annullamento riconoscibile**:
-    - il dialogo di S1 annullato risponde con un `ErrorCode::Cancelled` nuovo (bindings rigenerati, una riga in
-      `ipc/errors.ts`);
-    - `useConfigSettings` non lo mostra come errore e il campo torna al valore salvato;
-    - il frontend continua a non leggere il testo dei messaggi (DEC-040.3).
-12. **Test della CLI fuori dalla cache reale**: `bare_cmd` ed `env_cmd` di `crates/portolano-cli/tests/cli/testutil.rs`
-    passano al processo figlio una `HOME` dentro la cartella del test, come `scripts/smoke.sh`. I log vuoti
-    `probe-freerdp-*.log` già lasciati dai test in `~/Library/Caches/dev.portolano.Portolano/tmp` si cancellano.
 2. **Navigazione e testo non fidato**:
    - guardia di navigazione sulla finestra principale, solo l'origine dell'app;
    - `visibleText` su ogni testo che arriva da documento, file Royal o host, compresi i messaggi degli `IpcError` e
@@ -819,6 +798,60 @@ Correzioni elencate in `docs/pm/ui-wp7-correzioni.md`, tutte affidate a UI-WP7.
 7. **Contesto annotato**: anche senza il punto 1, una webview compromessa può spostare un nodo verso un host suo
    (cambiandone l'host e la verifica della host key) e farsi mandare i segreti. La difesa vera è l'isolation pattern,
    fuori scope (SPEC-UI §10): resta fra i limiti noti del README.
+8. **`npm audit` dopo l'aggiornamento**: 12 avvisi alti, tutti da un solo avviso su `picomatch` (GHSA-fc5q-39xc-vjpf,
+   ReDoS), che non ha nessuna versione corretta.
+   - Arriva tramite `vite`, `vitest`, `@vitejs/plugin-react` e `typescript-eslint`: solo strumenti di sviluppo, con
+     input fidati.
+   - `npm audit --omit=dev`: 0.
+   - **Accettato** e annotato fra i limiti. Nessun `audit fix --force`, che darebbe `vitest` 3.1.4, un salto
+     all'indietro con cambi incompatibili.
+   - Il 2026-11-19, nel secondo giro di revisione, `npm audit` completo dava 0 avvisi: l'avviso non compare più. La
+     riga del README sull'esito di `npm audit` non deve dipendere dalla data.
+9. **Guardia di navigazione su Windows**: ammette anche `http://tauri.localhost`, solo con `cfg(windows)`, perché il
+   workspace deve compilare anche lì (SPEC-UI §10).
+10. **Test della sentinella Rust**: non deve scrivere nella cache reale dell'utente
+    (`~/Library/Caches/dev.portolano.Portolano/tmp`), come nessun test. La cartella temporanea dei connettori si
+    rende configurabile per i test con il minimo cambiamento. È un'eccezione sui connettori, senza variabili
+    d'ambiente globali nel processo dei test.
+11. **Annullamento riconoscibile**:
+    - il dialogo di S1 annullato risponde con un `ErrorCode::Cancelled` nuovo (bindings rigenerati, una riga in
+      `ipc/errors.ts`);
+    - `useConfigSettings` non lo mostra come errore e il campo torna al valore salvato;
+    - il frontend continua a non leggere il testo dei messaggi (DEC-040.3).
+12. **Test della CLI fuori dalla cache reale**: `bare_cmd` ed `env_cmd` di `crates/portolano-cli/tests/cli/testutil.rs`
+    passano al processo figlio una `HOME` dentro la cartella del test, come `scripts/smoke.sh`. I log vuoti
+    `probe-freerdp-*.log` già lasciati dai test in `~/Library/Caches/dev.portolano.Portolano/tmp` si cancellano.
+13. **Testo visibile in Rust**: la regola che rende visibili i caratteri di controllo, usata dalla CLI e dal dialogo
+    di conferma di S1, passa in `portolano-core`. Così ne resta una sola copia in Rust.
+
+### DEC-047 – Secondo giro delle revisioni di UI-WP7 (decise dal PM, 2026-11-19)
+Esito:
+- chiusi S2–S6, W1–W5 e R1–R11;
+- S1 si può ancora aggirare;
+- correzioni in `docs/pm/ui-wp7-correzioni.md`, sezione "Terzo giro".
+
+1. **Bottone predefinito della conferma**: il dialogo nativo ha "Annulla" come bottone predefinito, quello di Invio.
+   - Conferma solo il clic su "Usa questo comando", riconosciuto per etichetta.
+   - Motivo: una webview compromessa vede i tasti del terminale integrato e può aprire il dialogo un attimo prima di
+     un Invio dell'utente.
+2. **Testo del dialogo**: la regola del testo visibile (in `portolano-core`, quindi anche per la CLI) rende visibili
+   anche i separatori di riga e di paragrafo (Zl, Zp) e i caratteri di formato (Cf, larghezza zero compresa).
+   - Il frontend (`visibleText`) segue la stessa regola.
+   - Il comando da confermare si rifiuta se contiene un a capo di qualunque tipo o se supera 1024 caratteri.
+   - Si apre al massimo una conferma alla volta: una richiesta arrivata mentre un dialogo è aperto si rifiuta.
+3. **Tooltip dei link del terminale**:
+   - l'host si mostra per primo e non si accorcia mai: si accorcia al centro solo il percorso;
+   - le credenziali nell'URL (`utente@`) si mostrano in modo evidente;
+   - il tooltip resta dentro la finestra e si toglie quando il terminale si smonta.
+4. **Rifiniture del WP**, eccezioni concesse:
+   - `check-bundle.sh` con messaggi d'errore che scattano davvero;
+   - README rimesso a capo, con la riga su `npm audit` indipendente dalla data;
+   - Promise della console con `catch`;
+   - l'errore `vaultLocked` del trasporto finto nel registro (eccezione su `app/sessionTransport.ts`);
+   - focus misurato prima della fermata invece di blur e refocus, se affidabile, altrimenti annotato;
+   - `readableImportPath` sostituito da `readablePath` se le due differenze (`\` finale, `/` iniziale) non toccano i
+     percorsi dell'import, altrimenti annotate;
+   - un test che `run()` registri la guardia di navigazione, se fattibile senza aprire finestre.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
