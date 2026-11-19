@@ -27,12 +27,30 @@ pub fn guard<R: Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
-/// Whether `url` is a page of the app: its own origin, `tauri://localhost`,
-/// or the origin of `dev_url` while developing.
+/// Whether `url` is a page of the app: its own origin, `tauri://localhost`
+/// (`http://tauri.localhost` on Windows), or the origin of `dev_url` while
+/// developing.
 pub(crate) fn is_app_page(url: &Url, dev_url: Option<&Url>) -> bool {
-    let bundled =
-        url.scheme() == "tauri" && url.host_str() == Some("localhost") && url.port().is_none();
+    let bundled = is_origin(url, "tauri", "localhost") || is_windows_origin(url);
     bundled || dev_url.is_some_and(|dev| url.origin() == dev.origin())
+}
+
+/// Whether `url` has `scheme`, `host` and no port of its own.
+fn is_origin(url: &Url, scheme: &str, host: &str) -> bool {
+    url.scheme() == scheme && url.host_str() == Some(host) && url.port().is_none()
+}
+
+/// The origin under which Tauri serves the app on Windows (DEC-046.9): the
+/// workspace builds there too (SPEC-UI §10).
+#[cfg(windows)]
+fn is_windows_origin(url: &Url) -> bool {
+    is_origin(url, "http", "tauri.localhost")
+}
+
+/// Elsewhere the app is never served from an `http` origin.
+#[cfg(not(windows))]
+fn is_windows_origin(_url: &Url) -> bool {
+    false
 }
 
 #[cfg(test)]
@@ -72,6 +90,20 @@ mod tests {
         assert!(!is_app_page(&url("tauri://localhost.example.com/"), None));
         assert!(!is_app_page(&url("tauri://localhost:8080/"), None));
         assert!(!is_app_page(&url("data:text/html,<p>x</p>"), None));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn refuses_the_origin_of_windows_elsewhere() {
+        assert!(!is_app_page(&url("http://tauri.localhost/"), None));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn admits_the_origin_of_the_app_on_windows() {
+        assert!(is_app_page(&url("http://tauri.localhost/index.html"), None));
+        assert!(!is_app_page(&url("http://tauri.localhost:8080/"), None));
+        assert!(!is_app_page(&url("https://tauri.localhost/"), None));
     }
 
     #[test]
