@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { visibleText } from "./visibleText";
+import { isInvisibleFormat, visibleText } from "./visibleText";
 
-// The cases of `portolano-cli` `output::escape` (DEC-026.4): the same input
+// The cases of `portolano_core::text` (DEC-026.4, DEC-047.2): the same input
 // must read the same in the app and in the terminal.
 describe("visibleText", () => {
   it("escapes C0 controls, DEL and C1 controls like the CLI", () => {
@@ -26,6 +26,31 @@ describe("visibleText", () => {
 
   it("escapes NUL and the tab", () => {
     expect(visibleText("a\u0000b\tc")).toBe("a\\u{0}b\\u{9}c");
+  });
+
+  it("escapes the separators of lines and paragraphs like the CLI", () => {
+    const text = String.fromCodePoint(0x61, 0x2028, 0x62, 0x2029, 0x63);
+
+    expect(visibleText(text)).toBe("a\\u{2028}b\\u{2029}c");
+  });
+
+  it("escapes the zero-width and format characters like the CLI", () => {
+    const text = String.fromCodePoint(0x77, 0x200b, 0x65, 0x200d, 0x62, 0x2060, 0x30, 0xfeff, 0x78);
+
+    expect(visibleText(text)).toBe("w\\u{200b}e\\u{200d}b\\u{2060}0\\u{feff}x");
+  });
+
+  it("knows exactly the format characters and separators of Unicode", () => {
+    const unicode = /[\p{Cf}\p{Zl}\p{Zp}]/u;
+    const differ: string[] = [];
+    for (let codePoint = 0; codePoint <= 0x10ffff; codePoint++) {
+      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue;
+      if (unicode.test(String.fromCodePoint(codePoint)) !== isInvisibleFormat(codePoint)) {
+        differ.push(codePoint.toString(16));
+      }
+    }
+
+    expect(differ).toEqual([]);
   });
 
   it("keeps other text as it is, emoji and accents included", () => {
