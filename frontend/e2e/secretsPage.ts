@@ -110,7 +110,11 @@ export class SecretWatch {
   private readonly messages: Promise<string>[] = [];
 
   constructor(private readonly page: Page) {
-    page.on("console", (message) => this.messages.push(messageText(message)));
+    page.on("console", (message) =>
+      // An argument of a page gone (a reload) cannot be read any more: the
+      // message stays in the record, the watch does not fail on it.
+      this.messages.push(messageText(message).catch(() => "<argomento non leggibile>")),
+    );
   }
 
   /** What the page holds and said, now. */
