@@ -852,6 +852,17 @@ Esito:
    - `readableImportPath` sostituito da `readablePath` se le due differenze (`\` finale, `/` iniziale) non toccano i
      percorsi dell'import, altrimenti annotate;
    - un test che `run()` registri la guardia di navigazione, se fattibile senza aprire finestre.
+5. **Esito del terzo giro** (2026-11-19):
+   - T3 non è fattibile, perché il runtime finto di Tauri non chiama i gestori di navigazione: la guardia resta
+     coperta dai test di `navigation.rs` e dalla verifica dal vivo;
+   - approvati `components/terminal/LinkHint.tsx` con i suoi stili e la riga d'import nella galleria.
+   - **ZWJ e ZWNJ** (U+200D, U+200C) **restano intatti** nella regola generale del testo visibile (core e frontend):
+     servono alle emoji composte e ad alcune scritture, e un nome con un'emoji di famiglia non deve mostrare
+     escape.
+   - Il dialogo di conferma del comando del terminale rende visibili anche quei due caratteri: lì ogni carattere
+     invisibile deve vedersi.
+   - Esc sul dialogo nativo non annulla (NSAlert lega Esc solo a un bottone "Cancel"): si chiude con il clic su
+     "Annulla", o con Invio, che annulla. Va fra i test manuali.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
