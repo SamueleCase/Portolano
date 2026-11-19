@@ -210,6 +210,69 @@ describe("Terminal", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
+  it("shows the host of a long link first and whole, the path shortened in the middle", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove"),
+        `https://docs.example.com/${"percorso/".repeat(30)}fine`,
+      ),
+    );
+
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.firstElementChild).toHaveTextContent(/^docs\.example\.com$/);
+    expect(tooltip).toHaveTextContent(/….*fine$/);
+    expect(tooltip.textContent?.length).toBeLessThan(150);
+  });
+
+  it("shows the host a link with credentials goes to, and warns about them", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(new MouseEvent("mousemove"), "https://intranet.example.com@evil.example/"),
+    );
+
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.firstElementChild).toHaveTextContent(/^evil\.example$/);
+    expect(tooltip).toHaveTextContent("contiene le credenziali «intranet.example.com»");
+  });
+
+  it("keeps the hint of a link inside the window", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ width: 200, height: 40 }),
+    );
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove", {
+          clientX: window.innerWidth - 2,
+          clientY: window.innerHeight - 2,
+        }),
+        "https://www.example.com/",
+      ),
+    );
+
+    const { style } = screen.getByRole("tooltip");
+    expect(Number.parseFloat(style.left)).toBe(window.innerWidth - 8 - 100);
+    expect(Number.parseFloat(style.top)).toBe(window.innerHeight - 2 - 40 - 16);
+    vi.restoreAllMocks();
+  });
+
+  it("takes the hint of a link away with the terminal", () => {
+    const { unmount } = render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+
+    unmount();
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("leaves the terminal with Ctrl+Tab, as Tab belongs to the shell", () => {
     render(
       <>

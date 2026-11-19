@@ -168,6 +168,7 @@ export const components = {
     label: "Terminale",
     input: "Input del terminale",
     leave: "Ctrl+Tab o Ctrl+Maiusc+Tab per uscire dal terminale.",
+    linkCredentials: "Attenzione: l'indirizzo contiene le credenziali «{user}»",
   },
   tagInput: {
     placeholder: "Aggiungi tag…",

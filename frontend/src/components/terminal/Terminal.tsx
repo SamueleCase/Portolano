@@ -4,13 +4,11 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { terminalOptions } from "../../design/terminalTheme";
 import { texts } from "../../i18n/it";
-import tooltipStyles from "../Tooltip.module.css";
-import { visibleText } from "../visibleText";
 import { leaveTerminal } from "./leaveTerminal";
+import { LinkHint } from "./LinkHint";
 import styles from "./Terminal.module.css";
 import type { TerminalIo } from "./terminalIo";
 import { CLIPBOARD_OSC, openableLink, terminalTitle } from "./terminalSafety";
@@ -26,11 +24,11 @@ interface TerminalProps {
   label?: string;
 }
 
-/** The address of the link under the pointer, where the pointer is. */
-interface LinkHint {
+/** The link under the pointer, where the pointer is. */
+interface HoveredLink {
   url: string;
-  top: number;
-  left: number;
+  x: number;
+  y: number;
 }
 
 /**
@@ -52,14 +50,14 @@ export function Terminal({
   const host = useRef<HTMLDivElement>(null);
   const hintId = useId();
   const title = useEffectEvent((text: string) => onTitle?.(terminalTitle(text)));
-  const [hint, setHint] = useState<LinkHint>();
+  const [hint, setHint] = useState<HoveredLink>();
   const link = useEffectEvent((event: MouseEvent, uri: string) => {
     const url = openableLink(uri);
     if (url && event.metaKey) onOpenLink(url);
   });
   const hover = useEffectEvent((event: MouseEvent, uri: string) => {
     const url = openableLink(uri);
-    setHint(url ? { url, top: event.clientY, left: event.clientX } : undefined);
+    setHint(url ? { url, x: event.clientX, y: event.clientY } : undefined);
   });
   const leave = useEffectEvent(() => setHint(undefined));
   const activity = useEffectEvent(() => onActivity?.());
@@ -113,6 +111,8 @@ export function Terminal({
       unsubscribe();
       subscriptions.forEach((subscription) => subscription.dispose());
       terminal.dispose();
+      // The links of the terminal gone, so is the hint of one of them.
+      setHint(undefined);
     };
   }, [io, hintId]);
 
@@ -122,17 +122,7 @@ export function Terminal({
       <span id={hintId} className={styles.hint}>
         {texts.components.terminal.leave}
       </span>
-      {hint &&
-        createPortal(
-          <span
-            role="tooltip"
-            className={tooltipStyles.tooltip}
-            style={{ top: hint.top, left: hint.left }}
-          >
-            {visibleText(hint.url)}
-          </span>,
-          document.body,
-        )}
+      {hint && <LinkHint url={hint.url} x={hint.x} y={hint.y} />}
     </div>
   );
 }
