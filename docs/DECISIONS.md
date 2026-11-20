@@ -869,6 +869,16 @@ Esito:
    - correzione: decodifica tollerante dell'utente, che senza `%` validi resta com'è, passato da `visibleText`;
    - test con `%ZZ`, `%E0%A4%A` e `%C0%80`;
    - un confine d'errore attorno al riquadro, così un errore lì non tocca il resto della finestra.
+7. **Chiusura** (2026-11-20):
+   - La verifica mirata di T1–T2 del revisore del backend si è interrotta con la sessione. Per non allungare i tempi
+     l'ha fatta il PM sul codice e sulle librerie:
+     - in `tauri-plugin-dialog` 2.8.4 e `rfd` 0.17.2 il primo bottone di `OkCancelCustom` ("Annulla") è quello di
+       Invio, e solo il secondo restituisce `Custom("Usa questo comando")`;
+     - il controllo di a capo e lunghezza avviene prima del dialogo, sul valore che verrebbe salvato;
+     - il turno della conferma si libera nel `Drop`;
+     - `config_set` è asincrono, quindi il dialogo bloccante non occupa il thread principale.
+   - N1, N2 e N3 del secondo giro sono chiusi; T13 è rivisto dal PM.
+   - UI-WP7 è integrato con il merge `ddd0cf3`.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.

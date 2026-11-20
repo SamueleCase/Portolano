@@ -240,8 +240,8 @@ worktree esistente a cui si passano brief e stato. Verifiche dal vivo aggiunte: 
 l'utente chiude la finestra (se non è 0, la tab RDP mostrerebbe "non riuscita"). Limite (DEC-030.3): FreeRDP che deve
 chiedere una password con quella della destinazione già su stdin non si apre in una tab: si usa "Apri in terminale
 esterno".
-| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 **integrato** (merge `9a02da3`, due giri di revisione doppia, DEC-041; gate su `main` verdi dopo la correzione d'integrazione `70e4f17` del lint: Rust 1300 + 2 ignorati, Vitest 630, e2e 61/61, smoke OK); UI-WP5 **integrato** (merge `f4c4e3e`, DEC-043; Rust 1326 + 2 ignorati, Vitest 749, e2e 82/82); UI-WP6 **integrato** (merge `5f00dca`, DEC-039, DEC-044; Rust 1332 + 2 ignorati, Vitest 827, e2e 104/104 due volte, smoke OK); in attesa del checkpoint visivo 2 | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
-| UI-WP7 + revisione di sicurezza (ondata D) | da fare | |
+| UI-WP4…WP6 (ondata C) | in corso: UI-WP4 **integrato** (merge `9a02da3`, due giri di revisione doppia, DEC-041; gate su `main` verdi dopo la correzione d'integrazione `70e4f17` del lint: Rust 1300 + 2 ignorati, Vitest 630, e2e 61/61, smoke OK); UI-WP5 **integrato** (merge `f4c4e3e`, DEC-043; Rust 1326 + 2 ignorati, Vitest 749, e2e 82/82); UI-WP6 **integrato** (merge `5f00dca`, DEC-039, DEC-044; Rust 1332 + 2 ignorati, Vitest 827, e2e 104/104 due volte, smoke OK); checkpoint visivo 2 **approvato** ("vai", 2026-11-17; DEC-045) | brief in `docs/pm/ui-wp{4,5,6}-brief.md`; cornice e punti d'aggancio di UI-WP4, UI-WP5 e UI-WP6 in due fasi (DEC-035); checkpoint visivo con l'utente sulle schermate |
+| UI-WP7 + revisione di sicurezza (ondata D) | **integrati** (merge `ddd0cf3`, 2026-11-20) | brief in `docs/pm/ui-wp7-brief.md` e `docs/pm/security-review-brief.md`; correzioni in `docs/pm/ui-wp7-correzioni.md` (tre giri: S1–S6, W1–W5, R1–R11, T1–T13); decisioni DEC-045…DEC-047; revisione di sicurezza (backend e webview) senza finding aperti; verifica finale su clone pulito: Rust 1365 + 2 ignorati, Vitest 867, e2e 120/120 due volte, smoke OK, `npm run bundle` → `BUNDLE OK` (app 28,2 MiB, dmg 8,9 MiB, firma ad hoc con runtime rinforzato), `npm audit` 0 |
 
 ### Limiti e migliorie annotati nell'ondata C
 - "Ricrea" del documento mancante riscrive il documento in memoria, ma non le icone personalizzate se è sparita anche
@@ -249,6 +249,19 @@ esterno".
 - Trascinare un file Royal sul wizard d'import: miglioria futura con un gestore in Rust (DEC-037.3).
 - Le password dell'import vanno riscritte se `import_apply` fallisce (DEC-037.4).
 
+
+### Stato finale della FASE 2 (2026-11-20)
+- `main` = `ddd0cf3` più i commit di documenti. Verifica finale su un clone pulito: tutti i gate Rust e frontend verdi,
+  e2e 120/120 due volte, `SMOKE OK`, `BUNDLE OK`, nessun IP fuori da RFC 5737.
+- Restano i **test manuali dell'utente** (DoD SPEC-UI §9 e DEC-045.1, DEC-047.5):
+  - apertura di `Portolano.app` dal Finder;
+  - SSH nel terminale integrato su un host reale (password salvata, conferma della host key);
+  - RDP con FreeRDP: stato nella tab e autologon;
+  - Keychain con l'app firmata ad hoc;
+  - Tab in WKWebView e fluidità del vetro;
+  - dialogo di conferma del comando del terminale personalizzato (Invio annulla, Esc);
+  - guardia di navigazione e riquadro dei link del terminale (⌘-clic).
+- Limiti noti: nel README (sezione dell'app) e in DEC-046.7 (isolation pattern fuori scope).
 
 ### Punto di ripresa (2026-11-17)
 Stato esatto alla chiusura della sessione del PM:
