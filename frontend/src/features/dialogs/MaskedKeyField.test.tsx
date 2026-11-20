@@ -32,4 +32,13 @@ describe("MaskedKeyField", () => {
 
     expect(cut.defaultPrevented).toBe(true);
   });
+
+  it("lets the key not be dragged out of the area", () => {
+    render(<MaskedKeyField label="Chiave privata" />);
+
+    const drag = new Event("dragstart", { bubbles: true, cancelable: true });
+    screen.getByLabelText("Chiave privata").dispatchEvent(drag);
+
+    expect(drag.defaultPrevented).toBe(true);
+  });
 });

@@ -35,12 +35,15 @@ function OpenUnlockVaultDialog({ onClose, onUnlocked }: UnlockVaultDialogProps) 
   const unlock = useUnlockVault();
   const { data: vault } = useQuery(vaultStatusQuery);
   const [error, setError] = useState<string>();
+  // Each master password sent gets a new field: the undo of the old one would give it back.
+  const [generation, setGeneration] = useState(0);
 
   const submit = () => {
     const input = field.current;
     if (!input || unlock.isPending) return;
     const masterPassword = input.value;
     input.value = "";
+    setGeneration((current) => current + 1);
     setError(undefined);
     unlock
       .mutateAsync(masterPassword)
@@ -60,6 +63,7 @@ function OpenUnlockVaultDialog({ onClose, onUnlocked }: UnlockVaultDialogProps) 
       {vault?.path && <p className={styles.path}>{visibleText(vault.path)}</p>}
       <div className={styles.unlockField}>
         <TextField
+          key={generation}
           ref={field}
           label={t.field}
           type="password"

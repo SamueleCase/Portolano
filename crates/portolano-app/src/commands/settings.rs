@@ -24,6 +24,11 @@ const FILE_KEYS: [&str; 4] = [
     "rdp.freerdp_program",
 ];
 
+/// The command of the custom terminal: a line of shell that every new
+/// window runs. A new one is saved only once the user confirms it in a
+/// native dialog that the webview cannot answer (DEC-046.1).
+const TERMINAL_COMMAND: &str = "terminal.command";
+
 /// The keys of `config.toml` and their values.
 #[tauri::command]
 #[specta::specta]
@@ -32,7 +37,9 @@ pub async fn config_get<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ConfigEntry
 }
 
 /// Sets `key` to `value`, validated by the core or by the protocol of the
-/// section (DEC-008, DEC-011), and saves `config.toml`.
+/// section (DEC-008, DEC-011), and saves `config.toml`. A new terminal
+/// command needs the confirmation of the user in a native dialog; without
+/// it nothing is saved and the answer is a `cancelled` error.
 #[tauri::command]
 #[specta::specta]
 pub async fn config_set<R: Runtime>(
@@ -40,7 +47,12 @@ pub async fn config_set<R: Runtime>(
     key: String,
     value: String,
 ) -> Result<Vec<ConfigEntry>, IpcError> {
-    blocking(app, move |_, state| set(state, &key, &value)).await
+    blocking(app, move |app, state| {
+        set(state, &key, &value, |command| {
+            dialogs::confirm_terminal_command(app, command)
+        })
+    })
+    .await
 }
 
 /// Removes `key` from `config.toml`: it takes its default again.
@@ -114,7 +126,14 @@ pub async fn ui_prefs_set<R: Runtime>(
     .await
 }
 
-pub(crate) fn set(state: &AppState, key: &str, value: &str) -> Result<Vec<ConfigEntry>, IpcError> {
+/// Sets `key` to `value`; `confirm` is asked about a new terminal command
+/// before anything is saved.
+pub(crate) fn set(
+    state: &AppState,
+    key: &str,
+    value: &str,
+    confirm: impl FnOnce(&str) -> bool,
+) -> Result<Vec<ConfigEntry>, IpcError> {
     if FILE_KEYS.contains(&key) {
         return Err(IpcError::invalid(
             key,
@@ -122,8 +141,77 @@ pub(crate) fn set(state: &AppState, key: &str, value: &str) -> Result<Vec<Config
         ));
     }
     update(state, |config| {
-        Ok(set_config_value(config, key, value, state.protocols())?)
+        let changed = set_config_value(config, key, value, state.protocols())?;
+        if key == TERMINAL_COMMAND {
+            confirm_terminal_command(state, config, &changed, confirm)?;
+        }
+        Ok(changed)
     })
+}
+
+/// Refuses a new terminal command that `confirm` does not accept, or that
+/// arrives while another confirmation is open. The same command, or none at
+/// all, asks nothing: it runs nothing new.
+fn confirm_terminal_command(
+    state: &AppState,
+    saved: &AppConfig,
+    changed: &AppConfig,
+    confirm: impl FnOnce(&str) -> bool,
+) -> Result<(), IpcError> {
+    let command = changed
+        .terminal
+        .command
+        .as_deref()
+        .filter(|command| !command.trim().is_empty());
+    match command {
+        Some(command) if saved.terminal.command.as_deref() != Some(command) => {
+            check_terminal_command(command)?;
+            let Some(_turn) = state.confirmation_turn() else {
+                return Err(IpcError::cancelled(
+                    "un'altra conferma del comando del terminale è già aperta",
+                ));
+            };
+            if confirm(command) {
+                Ok(())
+            } else {
+                Err(IpcError::cancelled(
+                    "modifica del comando del terminale annullata",
+                ))
+            }
+        }
+        _ => Ok(()),
+    }
+}
+
+/// The longest terminal command the confirmation shows, in characters.
+const MAX_TERMINAL_COMMAND_CHARS: usize = 1024;
+
+/// Refuses, before the confirmation, a command that the dialog could not
+/// show whole on its line: one with a line break of any kind, which could
+/// push the rest of the command out of sight, or a very long one
+/// (DEC-047.2).
+fn check_terminal_command(command: &str) -> Result<(), IpcError> {
+    let line_break = |c: char| {
+        matches!(
+            c,
+            '\n' | '\r' | '\u{0B}' | '\u{0C}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+        )
+    };
+    if command.contains(line_break) {
+        return Err(IpcError::invalid(
+            TERMINAL_COMMAND,
+            "il comando del terminale va scritto su una sola riga".to_owned(),
+        ));
+    }
+    if command.chars().count() > MAX_TERMINAL_COMMAND_CHARS {
+        return Err(IpcError::invalid(
+            TERMINAL_COMMAND,
+            format!(
+                "il comando del terminale può avere al massimo {MAX_TERMINAL_COMMAND_CHARS} caratteri"
+            ),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn set_file(

@@ -213,18 +213,6 @@ describe("ImportWizard", () => {
     expect(await screen.findAllByRole("dialog", { name: "Sblocca il vault" })).toHaveLength(1);
   });
 
-  it("says when the vault cannot be opened in this version", async () => {
-    importBackend({ vaultLocked: true });
-    const { user } = renderWizard({});
-    await toOptions(user);
-
-    await user.click(screen.getByRole("button", { name: "Avanti" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Lo sblocco del vault non è ancora disponibile",
-    );
-  });
-
   it("shows on the options why the vault could not be asked for", async () => {
     importBackend({ vaultLocked: true });
     const { user } = renderWizard();

@@ -27,7 +27,7 @@ export interface WindowServices {
 export function createWindowServices(
   transport: SessionTransport,
   queryClient: QueryClient,
-  features: { hasLoginDialog: () => boolean; canReadyVault: CanReadyVault },
+  features: { canReadyVault: CanReadyVault },
 ): WindowServices {
   const output = createOutputBus();
   const controller = createSessionController({

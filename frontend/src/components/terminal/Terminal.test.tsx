@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Terminal } from "./Terminal";
@@ -71,6 +71,19 @@ vi.mock("@xterm/addon-fit", () => ({
 }));
 vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: class {} }));
 
+/** A link whose hint throws while it is drawn: an error of the hint, simulated. */
+const FAILING_LINK = vi.hoisted(() => "https://riquadro-guasto.example.com/");
+
+vi.mock("./LinkHint", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./LinkHint")>();
+  return {
+    LinkHint: (props: Parameters<typeof actual.LinkHint>[0]) => {
+      if (props.url === FAILING_LINK) throw new Error("riquadro guasto");
+      return <actual.LinkHint {...props} />;
+    },
+  };
+});
+
 function fakeIo() {
   let output: ((data: Uint8Array) => void) | undefined;
   const input = vi.fn<(data: string) => void>();
@@ -88,7 +101,16 @@ function fakeIo() {
 }
 
 interface LinkOptions {
-  linkHandler: { activate: (event: MouseEvent, uri: string) => void };
+  linkHandler: {
+    activate: (event: MouseEvent, uri: string) => void;
+    hover: (event: MouseEvent, uri: string) => void;
+    leave: (event: MouseEvent, uri: string) => void;
+  };
+}
+
+/** A click with ⌘, the one that opens a link. */
+function commandClick(): MouseEvent {
+  return new MouseEvent("click", { metaKey: true });
 }
 
 describe("Terminal", () => {
@@ -150,10 +172,146 @@ describe("Terminal", () => {
     render(<Terminal io={fakeIo().io} onOpenLink={onOpenLink} />);
     const { linkHandler } = fake.options as LinkOptions;
 
-    linkHandler.activate(new MouseEvent("click"), "file:///etc/hosts");
-    linkHandler.activate(new MouseEvent("click"), "https://www.example.com/");
+    linkHandler.activate(commandClick(), "file:///etc/hosts");
+    linkHandler.activate(commandClick(), "https://www.example.com/");
 
     expect(onOpenLink).toHaveBeenCalledExactlyOnceWith("https://www.example.com/");
+  });
+
+  it("opens a link only with ⌘-click, as Terminal of macOS", () => {
+    const onOpenLink = vi.fn();
+    render(<Terminal io={fakeIo().io} onOpenLink={onOpenLink} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    linkHandler.activate(new MouseEvent("click"), "https://www.example.com/");
+
+    expect(onOpenLink).not.toHaveBeenCalled();
+  });
+
+  it("shows the real address of a link under the pointer, made visible", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove", { clientX: 40, clientY: 60 }),
+        "https://www.example.com/‮gnp.exe",
+      ),
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "https://www.example.com/%E2%80%AEgnp.exe",
+    );
+  });
+
+  it("hides the address when the pointer leaves the link", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+
+    act(() => linkHandler.leave(new MouseEvent("mouseleave"), "https://www.example.com/"));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("shows no address for a link that never opens", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "file:///etc/hosts"));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("shows the host of a long link first and whole, the path shortened in the middle", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove"),
+        `https://docs.example.com/${"percorso/".repeat(30)}fine`,
+      ),
+    );
+
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.firstElementChild).toHaveTextContent(/^docs\.example\.com$/);
+    expect(tooltip).toHaveTextContent(/….*fine$/);
+    expect(tooltip.textContent?.length).toBeLessThan(150);
+  });
+
+  it("shows the host a link with credentials goes to, and warns about them", () => {
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(new MouseEvent("mousemove"), "https://intranet.example.com@evil.example/"),
+    );
+
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.firstElementChild).toHaveTextContent(/^evil\.example$/);
+    expect(tooltip).toHaveTextContent("contiene le credenziali «intranet.example.com»");
+  });
+
+  it.each(["%ZZ", "%E0%A4%A", "%C0%80"])(
+    "warns about the credentials %s that do not decode, and stays on screen",
+    (user) => {
+      render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+      const { linkHandler } = fake.options as LinkOptions;
+
+      act(() => linkHandler.hover(new MouseEvent("mousemove"), `https://${user}@evil.example/`));
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent(`contiene le credenziali «${user}»`);
+      expect(screen.getByRole("group", { name: "Terminale" })).toBeInTheDocument();
+    },
+  );
+
+  it("keeps the hint of a link inside the window", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ width: 200, height: 40 }),
+    );
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() =>
+      linkHandler.hover(
+        new MouseEvent("mousemove", {
+          clientX: window.innerWidth - 2,
+          clientY: window.innerHeight - 2,
+        }),
+        "https://www.example.com/",
+      ),
+    );
+
+    const { style } = screen.getByRole("tooltip");
+    expect(Number.parseFloat(style.left)).toBe(window.innerWidth - 8 - 100);
+    expect(Number.parseFloat(style.top)).toBe(window.innerHeight - 2 - 40 - 16);
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the terminal when the hint of a link fails, and shows the next hint", () => {
+    // React reports the error caught by the boundary on the console.
+    const reported = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), FAILING_LINK));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Terminale" })).toBeInTheDocument();
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("www.example.com");
+    reported.mockRestore();
+  });
+
+  it("takes the hint of a link away with the terminal", () => {
+    const { unmount } = render(<Terminal io={fakeIo().io} onOpenLink={vi.fn()} />);
+    const { linkHandler } = fake.options as LinkOptions;
+    act(() => linkHandler.hover(new MouseEvent("mousemove"), "https://www.example.com/"));
+
+    unmount();
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("leaves the terminal with Ctrl+Tab, as Tab belongs to the shell", () => {

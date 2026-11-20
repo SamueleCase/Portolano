@@ -81,6 +81,21 @@ pub fn prepare(
     prepare_with(plan, vault, config, TempFiles::per_user())
 }
 
+/// As [`prepare`], with the temporary files and the logs in `temp_dir`
+/// instead of the per-user directory of the cache: for a caller that must
+/// not write there, such as the tests of the app (DEC-046.10).
+///
+/// # Errors
+/// As [`prepare`].
+pub fn prepare_in(
+    plan: &LaunchPlan,
+    vault: &dyn Vault,
+    config: &AppConfig,
+    temp_dir: &Path,
+) -> Result<PreparedLaunch, ConnectError> {
+    prepare_with(plan, vault, config, TempFiles::new(temp_dir.to_path_buf()))
+}
+
 fn prepare_with(
     plan: &LaunchPlan,
     vault: &dyn Vault,
@@ -318,15 +333,17 @@ impl PreparedLaunch {
 
     /// Writes the stdin secret, if any, to `stdin`, the pipe of the started
     /// program, followed by a newline unless it already ends with one (as a
-    /// private key does). The caller then drops `stdin` to close it. A
-    /// program that exits without reading is not an error: its exit code
-    /// tells the story.
+    /// private key does), and lets it go: the secret is zeroed right after
+    /// the write, written or not, instead of staying in memory as long as
+    /// the program runs (a FreeRDP session, DEC-046.5). The caller then
+    /// drops `stdin` to close it. A program that exits without reading is
+    /// not an error: its exit code tells the story.
     ///
     /// # Errors
     /// Writing fails for another reason than a closed pipe.
-    pub fn write_stdin_secret(&self, stdin: &mut impl Write) -> io::Result<()> {
-        match &self.stdin_secret {
-            Some(secret) => write_secret(stdin, secret),
+    pub fn write_stdin_secret(&mut self, stdin: &mut impl Write) -> io::Result<()> {
+        match self.stdin_secret.take() {
+            Some(secret) => write_secret(stdin, &secret),
             None => Ok(()),
         }
     }

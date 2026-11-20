@@ -51,6 +51,7 @@ export function initialFakeState(): FakeBackendState {
       report: null,
       keyFile: null,
       configFiles: {},
+      terminalCommand: true,
     },
     chosen: {},
     clock: () => Date.now(),
@@ -76,6 +77,8 @@ export interface FakeSeed {
   dialogs?: Partial<Omit<FakeBackendState["dialogs"], "configFiles">>;
   /** Whether the file vault starts locked; default: locked. */
   vaultLocked?: boolean;
+  /** The file vault does not exist yet: the window offers to create it. */
+  vaultMissing?: boolean;
   /**
    * Adds to the sample, in `ACME`, the connection `web03` whose credential is
    * looked up by a name no credential has: a credential that does not resolve.
@@ -88,7 +91,27 @@ export interface FakeSeed {
 declare global {
   interface Window {
     __portolanoFakeSeed?: FakeSeed;
+    /**
+     * Every answer, error and event the fake sent to the page, as text, in
+     * order: the end-to-end test of the sentinel secret looks for it here
+     * (SPEC-UI §7).
+     */
+    __portolanoFakeTraffic?: string[];
   }
+}
+
+/** Writes down what the fake sends to the page. */
+type RecordTraffic = (entry: string) => void;
+
+/**
+ * The record of the traffic of the page, on `window` where an end-to-end
+ * test reads it; outside a page nothing reads it.
+ */
+function trafficRecord(): RecordTraffic {
+  if (typeof window === "undefined") return () => undefined;
+  const traffic: string[] = [];
+  window.__portolanoFakeTraffic = traffic;
+  return (entry) => traffic.push(entry);
 }
 
 /** The initial state changed as `seed` asks. */
@@ -101,6 +124,9 @@ export function seededFakeState(seed: FakeSeed): FakeBackendState {
   state.dialogs = { ...state.dialogs, ...seed.dialogs };
   if (seed.vaultLocked !== undefined) {
     state.vault.locked = seed.vaultLocked;
+  }
+  if (seed.vaultMissing) {
+    state.vault = { ...state.vault, exists: false, locked: true };
   }
   const acme = state.document?.nodes[0]?.children.find((node) => node.name === "ACME");
   if (seed.unresolvedCredential && acme) {
@@ -272,12 +298,16 @@ const SAVING = new Set([
 ]);
 
 /** The events the backend sends after `command` succeeded. */
-function eventsAfter(state: FakeBackendState, command: string): void {
+function eventsAfter(state: FakeBackendState, command: string, record: RecordTraffic): void {
+  const send = (event: string, payload: unknown) => {
+    record(`event ${event}: ${JSON.stringify(payload)}`);
+    void emit(event, payload);
+  };
   if (SAVING.has(command) && state.document) {
-    void emit("document-changed", { fileName: fileName(state.document.path) });
+    send("document-changed", { fileName: fileName(state.document.path) });
   }
   if (command === "lock_vault") {
-    void emit("vault-locked", { kind: state.vault.kind });
+    send("vault-locked", { kind: state.vault.kind });
   }
 }
 
@@ -293,22 +323,27 @@ function eventsAfter(state: FakeBackendState, command: string): void {
  * a test emits them itself) and the menu (`menu-action`, likewise).
  *
  * Without a state, an end-to-end test starts from its seed (`FakeSeed`).
+ * Every answer, error and event goes also to `window.__portolanoFakeTraffic`.
  */
 export function installFakeBackend(state: FakeBackendState = defaultFakeState()): FakeBackendState {
   // Read apart from the state: it is how the fake answers, not what it holds.
   const unanswered = new Set(
     typeof window === "undefined" ? [] : (window.__portolanoFakeSeed?.unanswered ?? []),
   );
+  const record = trafficRecord();
   mockIPC(
     (command, args) => {
       if (unanswered.has(command)) return new Promise(() => undefined);
       try {
         deletes.expireDeletions(state);
         const result = answer(state, command, args);
-        eventsAfter(state, command);
+        // As text at once: the state the answer points into changes later.
+        record(`answer ${command}: ${JSON.stringify(result) ?? "undefined"}`);
+        eventsAfter(state, command, record);
         return result;
       } catch (failure) {
         if (failure instanceof FakeFailure) {
+          record(`error ${command}: ${JSON.stringify(failure.error)}`);
           return rejectWith(failure.error);
         }
         throw failure;

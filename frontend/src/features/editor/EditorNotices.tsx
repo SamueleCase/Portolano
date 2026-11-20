@@ -1,3 +1,4 @@
+import { visibleText } from "../../components/visibleText";
 import { interpolate } from "../../i18n/format";
 import { texts } from "../../i18n/it";
 import styles from "./Editor.module.css";
@@ -59,7 +60,7 @@ export function EditorNotices({ external, error, secretsLost }: EditorNoticesPro
       )}
       {(error !== undefined || secretsLost) && (
         <div className={styles.failure} role="alert">
-          {error && <p>{error}</p>}
+          {error && <p>{visibleText(error)}</p>}
           {secretsLost && <p>{t.errors.secretsLost}</p>}
         </div>
       )}

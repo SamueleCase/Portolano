@@ -9,7 +9,6 @@ import {
   indexTree,
   nodeKindOf,
   parentForNew,
-  readableNames,
   readablePath,
   siblingPlacement,
   type TreeIndex,
@@ -101,12 +100,14 @@ describe("the model of the tree", () => {
     ]);
   });
 
-  it("writes names from the root as a path of the interface, slashes inside them included", () => {
-    expect(readableNames(["Clienti", "ACME/Nord", "web01"])).toBe("Clienti / ACME/Nord / web01");
-  });
-
   it("writes a path as the interface does, keeping escaped slashes in the names", () => {
     expect(readablePath("/Clienti/ACME\\/Nord/web01")).toBe("Clienti / ACME/Nord / web01");
+  });
+
+  it("writes a path of the import, without the leading slash, keeping escaped backslashes", () => {
+    expect(readablePath("Ufficio/DOMINIO\\\\admin/LAN\\/WAN")).toBe(
+      "Ufficio / DOMINIO\\admin / LAN/WAN",
+    );
   });
 
   it("moves a node among the siblings shown only, while a filter hides some", async () => {

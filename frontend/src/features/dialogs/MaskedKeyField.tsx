@@ -22,6 +22,7 @@ interface MaskedKeyFieldProps {
  * breaks of a key, so the key goes in a text area that shows dots as a
  * password field does, without autocomplete, spelling or a way to copy the
  * key out. Shared by the secret dialog and the import wizard (DEC-044.1).
+ * `writingsuggestions` is left out: the types of React 19.3 do not know it.
  */
 export function MaskedKeyField({ label, message, onInput, autoFocus, ref }: MaskedKeyFieldProps) {
   return (
@@ -39,9 +40,10 @@ export function MaskedKeyField({ label, message, onInput, autoFocus, ref }: Mask
       message={message}
       onInput={onInput}
       // Dots on screen, and no way to copy the key out of the area, as
-      // a password field.
+      // a password field: neither the clipboard nor a drag of the text.
       onCopy={(event) => event.preventDefault()}
       onCut={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
     />
   );
 }

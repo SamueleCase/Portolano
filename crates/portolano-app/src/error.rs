@@ -55,6 +55,9 @@ pub enum ErrorCode {
     Connect,
     /// A filesystem error.
     Io,
+    /// The user said no in a native dialog: nothing changed, and there is
+    /// no error to show (DEC-046.11).
+    Cancelled,
     /// Anything else.
     Internal,
 }
@@ -136,6 +139,11 @@ impl IpcError {
     /// deletion that can no longer be undone.
     pub fn not_found(message: String) -> Self {
         Self::plain(ErrorCode::NotFound, message)
+    }
+
+    /// A change the user did not confirm in a native dialog.
+    pub fn cancelled(message: &str) -> Self {
+        Self::plain(ErrorCode::Cancelled, message.to_owned())
     }
 
     fn plain(code: ErrorCode, message: String) -> Self {

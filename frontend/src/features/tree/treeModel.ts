@@ -6,6 +6,7 @@ import type {
 } from "../../bindings";
 import type { NodeIconChoice } from "../../components/icons/NodeIcon";
 import type { NodeKind } from "../../components/nodeKind";
+import { readableNames } from "../../components/readablePath";
 import type { TreeFilter } from "../../state/workspace";
 
 /** A node of the tree with what the window needs to find it. */
@@ -145,11 +146,6 @@ export function pathSegments(path: string): string[] {
   }
   segments.push(current);
   return segments;
-}
-
-/** Names from the root, as the interface writes a path: "Clienti / ACME/Nord / web01" (inventario §6). */
-export function readableNames(names: readonly string[]): string {
-  return names.join(" / ");
 }
 
 /** A path of the core as the interface writes it (`readableNames`). */

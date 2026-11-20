@@ -14,6 +14,7 @@ export const ipc = {
     noDocument: "Nessun documento aperto",
     connect: "Connessione non riuscita",
     io: "Errore di lettura o scrittura",
+    cancelled: "Modifica annullata",
     internal: "Errore imprevisto",
   } satisfies Record<ErrorCode, string>,
   unexpected: "Il comando non ha risposto come previsto",

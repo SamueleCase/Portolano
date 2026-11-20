@@ -1,8 +1,12 @@
-//! The native dialogs that choose files (SPEC-UI §4.6): opened by Rust, the
-//! frontend only learns the name of the file chosen.
+//! The native dialogs (SPEC-UI §4.6): opened by Rust. The frontend only
+//! learns the name of the file chosen, or that a change was not confirmed.
 
+use portolano_core::text::visible_strict;
 use tauri::{AppHandle, Runtime};
-use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
+use tauri_plugin_dialog::{
+    DialogExt, FileDialogBuilder, FilePath, MessageDialogButtons, MessageDialogKind,
+    MessageDialogResult,
+};
 
 use crate::dto::ChosenFile;
 use crate::state::{AppState, FileKind};
@@ -60,7 +64,96 @@ pub fn remember(state: &AppState, kind: FileKind, chosen: Option<FilePath>) -> O
     Some(ChosenFile::of(&path))
 }
 
+/// The button that confirms a new terminal command.
+const USE_COMMAND: &str = "Usa questo comando";
+
+/// The button that refuses it, the default one: Return presses it.
+const CANCEL: &str = "Annulla";
+
+/// Asks, with a native dialog of macOS, whether `command` is the custom
+/// terminal command the user wants: Portolano runs it with the shell for
+/// every new window (DEC-046.1). The webview can ask for it, never answer.
+/// The command shows as it is, every invisible character as an escape
+/// ([`confirmation_message`]).
+///
+/// "Annulla" is the first button, the default of Return: a compromised
+/// webview sees the keys typed in the terminal and could open the dialog
+/// just before a Return of the user (DEC-047.1). Only a click on "Usa
+/// questo comando", told by its label, confirms.
+pub fn confirm_terminal_command<R: Runtime>(app: &AppHandle<R>, command: &str) -> bool {
+    let answer = app
+        .dialog()
+        .message(confirmation_message(command))
+        .title("Usare questo comando del terminale?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            CANCEL.to_owned(),
+            USE_COMMAND.to_owned(),
+        ))
+        .blocking_show_with_result();
+    confirms(&answer)
+}
+
+/// The text of the confirmation of `command`: the command with every
+/// control and invisible character as an escape, the joiners of composed
+/// emoji included, which the text of a document otherwise keeps
+/// ([`visible_strict`], DEC-047.5): what runs must show whole.
+fn confirmation_message(command: &str) -> String {
+    format!(
+        "Portolano eseguirà questo comando con la shell a ogni «Apri in terminale esterno»:\n\n\
+         {}\n\nUsalo solo se l'hai scritto tu.",
+        visible_strict(command)
+    )
+}
+
+/// Whether `answer`, the button pressed in the confirmation, is the one
+/// that confirms: "Usa questo comando", and nothing else (Return,
+/// "Annulla", a dialog closed).
+pub(crate) fn confirms(answer: &MessageDialogResult) -> bool {
+    matches!(answer, MessageDialogResult::Custom(label) if label == USE_COMMAND)
+}
+
 /// The local path of a dialog answer; `None` if the user cancelled.
 pub fn local_path(chosen: Option<FilePath>) -> Option<std::path::PathBuf> {
     chosen?.into_path().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_confirmation_shows_the_joiners_of_the_command_as_escapes() {
+        let message = confirmation_message("terminale\u{200d} {cmd}\u{200c}");
+
+        assert!(
+            message.contains("terminale\\u{200d} {cmd}\\u{200c}"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn only_the_button_use_this_command_confirms() {
+        assert!(confirms(&MessageDialogResult::Custom(
+            USE_COMMAND.to_owned()
+        )));
+    }
+
+    #[test]
+    fn return_on_the_default_button_does_not_confirm() {
+        assert!(!confirms(&MessageDialogResult::Custom(CANCEL.to_owned())));
+    }
+
+    #[test]
+    fn a_dialog_closed_or_any_other_answer_does_not_confirm() {
+        for answer in [
+            MessageDialogResult::Cancel,
+            MessageDialogResult::Ok,
+            MessageDialogResult::Yes,
+            MessageDialogResult::No,
+            MessageDialogResult::Custom("Usa questo comando ".to_owned()),
+        ] {
+            assert!(!confirms(&answer), "{answer:?}");
+        }
+    }
 }

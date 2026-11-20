@@ -334,19 +334,6 @@ describe("the window", () => {
     });
   });
 
-  it("does not connect when the login dialog is not mounted, and says why", async () => {
-    const { transport, opened } = recordingTransport();
-    renderApp(initialFakeState(), {}, transport);
-    await userEvent.click(await row("ACME"));
-
-    await userEvent.dblClick(await row("kiosk"));
-
-    expect((await screen.findAllByText(texts.app.connection.noLoginDialog)).length).toBeGreaterThan(
-      0,
-    );
-    expect(opened).toEqual([]);
-  });
-
   it("deletes a node after the confirmation and puts it back with «Annulla»", async () => {
     renderApp();
     await userEvent.click(await row("vnc-legacy"));

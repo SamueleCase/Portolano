@@ -30,7 +30,7 @@ use portolano_core::{SecretRef, VaultError};
 use uuid::Uuid;
 
 pub use env::{Environment, Os, RejectedProgram};
-pub use exec::{CHILD_ENV_REMOVE, PreparedLaunch, execute, exit_code, prepare};
+pub use exec::{CHILD_ENV_REMOVE, PreparedLaunch, execute, exit_code, prepare, prepare_in};
 pub use plan::{AskpassEntry, AskpassSpec, LaunchPlan, LaunchStep, PromptMatcher, render};
 pub use protocol::{ConnectOptions, PlanContext, Protocol, SessionCredential};
 pub use rdp::RdpClient;

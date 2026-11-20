@@ -13,6 +13,7 @@ mod error;
 mod events;
 mod icons;
 mod menu;
+mod navigation;
 mod prefs;
 mod search;
 pub mod sessions;
@@ -38,6 +39,7 @@ pub fn run() {
         // capability grants none of its commands to the frontend.
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(navigation::guard())
         .invoke_handler(invoke_handler)
         .register_asynchronous_uri_scheme_protocol(icons::SCHEME, serve_icon)
         .on_menu_event(|app, event| menu::on_event(app, &event))
@@ -71,6 +73,7 @@ fn setup<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::Error>>
     let state = AppState::new(AppPaths {
         config,
         ui_preferences,
+        temp_dir: None,
     });
     let preferences = state.ui_preferences();
     app.manage(state);

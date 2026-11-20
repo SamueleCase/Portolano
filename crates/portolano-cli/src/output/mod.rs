@@ -1,6 +1,5 @@
 //! Output formatting: tree, tables, details and JSON (SPEC §10.2).
 
-mod escape;
 mod report;
 mod show;
 mod tree;
@@ -9,7 +8,7 @@ use anyhow::Result;
 use serde::Serialize;
 use uuid::Uuid;
 
-pub use escape::visible;
+pub use portolano_core::text::visible;
 pub use report::print_import;
 pub use show::print_show;
 pub use tree::{Header, render_tree};
@@ -31,7 +30,7 @@ pub fn short_id(id: Uuid) -> String {
 /// Serialization errors.
 pub fn print_json(value: &impl Serialize) -> Result<()> {
     let json = serde_json::to_string_pretty(value)?;
-    println!("{}", escape::json_visible(&json));
+    println!("{}", portolano_core::text::json_visible(&json));
     Ok(())
 }
 

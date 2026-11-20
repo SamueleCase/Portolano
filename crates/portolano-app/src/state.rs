@@ -13,6 +13,7 @@ mod pending;
 mod unlock;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 
 use portolano_core::{AppConfig, IconStore, VaultSelection};
@@ -39,6 +40,10 @@ pub struct AppPaths {
     pub config: PathBuf,
     /// `ui.toml`, the preferences of the interface only (DEC-011).
     pub ui_preferences: PathBuf,
+    /// Where the connectors write the temporary files and the logs of the
+    /// clients; `None` for their per-user directory in the cache, as the
+    /// CLI. The tests set a directory of their own (DEC-046.10).
+    pub temp_dir: Option<PathBuf>,
 }
 
 /// The vault of the configuration, opened on first use.
@@ -61,6 +66,18 @@ pub struct AppState {
     chosen: ChosenFiles,
     last_import_report: Mutex<Option<portolano_import::ImportReport>>,
     sessions: SessionManager,
+    /// Whether a native confirmation is open: one at a time (DEC-047.2).
+    confirming: AtomicBool,
+}
+
+/// The turn of the one native confirmation open: dropping it lets the
+/// next one open.
+pub struct ConfirmationTurn<'a>(&'a AtomicBool);
+
+impl Drop for ConfirmationTurn<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
 }
 
 impl AppState {
@@ -85,7 +102,18 @@ impl AppState {
             chosen: ChosenFiles::default(),
             last_import_report: Mutex::new(None),
             sessions: SessionManager::default(),
+            confirming: AtomicBool::new(false),
         }
+    }
+
+    /// The turn to open a native confirmation; `None` while another one is
+    /// open, so that a page cannot stack dialogs for the user to click
+    /// through (DEC-047.2).
+    pub fn confirmation_turn(&self) -> Option<ConfirmationTurn<'_>> {
+        self.confirming
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+            .then_some(ConfirmationTurn(&self.confirming))
     }
 
     /// The files of the app.

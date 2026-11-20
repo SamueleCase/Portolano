@@ -41,6 +41,8 @@ function OpenCreateVaultDialog({ onClose, onCreated }: CreateVaultDialogProps) {
   const [problem, setProblem] = useState<Problem>();
   const [matching, setMatching] = useState(false);
   const [error, setError] = useState<string>();
+  // Each master password sent gets new fields: the undo of the old ones would give it back.
+  const [generation, setGeneration] = useState(0);
 
   const compare = () => {
     const typed = first.current?.value ?? "";
@@ -64,12 +66,17 @@ function OpenCreateVaultDialog({ onClose, onCreated }: CreateVaultDialogProps) {
     const masterPassword = password.value;
     password.value = "";
     again.value = "";
+    setGeneration((current) => current + 1);
     setMatching(false);
     setError(undefined);
     create
       .mutateAsync(masterPassword)
       .then(onCreated)
-      .catch((failure: unknown) => setError(presentFailure(failure).message));
+      .catch((failure: unknown) => {
+        setError(presentFailure(failure).message);
+        // The new field, in place of the one whose value was sent.
+        first.current?.focus();
+      });
   };
 
   const firstMessage: FieldMessage | undefined =
@@ -104,6 +111,7 @@ function OpenCreateVaultDialog({ onClose, onCreated }: CreateVaultDialogProps) {
     >
       <p className={styles.hint}>{t.text}</p>
       <TextField
+        key={`password-${generation}`}
         ref={first}
         label={t.field}
         type="password"
@@ -112,6 +120,7 @@ function OpenCreateVaultDialog({ onClose, onCreated }: CreateVaultDialogProps) {
         onInput={compare}
       />
       <TextField
+        key={`confirmation-${generation}`}
         ref={second}
         label={t.confirm}
         type="password"

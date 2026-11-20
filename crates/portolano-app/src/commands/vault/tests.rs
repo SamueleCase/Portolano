@@ -1,5 +1,6 @@
 use std::fs;
 
+use portolano_core::MasterPasswordSource;
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -138,4 +139,31 @@ fn vault_of_another_configuration_is_opened_anew() {
     assert_eq!(status.path, Some(other.display().to_string()));
     assert!(status.locked);
     assert!(!status.exists);
+}
+
+#[test]
+fn the_master_password_leaves_the_slot_when_opening_the_vault_panics() {
+    let slot = UnlockSlot::default();
+
+    let opened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        with_master_password(&slot, secret(TEST_MASTER_PASSWORD), || {
+            panic!("apertura del vault interrotta")
+        })
+    }));
+
+    assert!(opened.is_err());
+    assert!(slot.master_password(false).is_err());
+}
+
+#[test]
+fn the_master_password_is_in_the_slot_only_while_the_vault_opens() {
+    let slot = UnlockSlot::default();
+
+    let seen = with_master_password(&slot, secret(TEST_MASTER_PASSWORD), || {
+        slot.master_password(false)
+            .map(|password| password.expose().to_owned())
+    });
+
+    assert_eq!(seen.unwrap(), TEST_MASTER_PASSWORD);
+    assert!(slot.master_password(false).is_err());
 }

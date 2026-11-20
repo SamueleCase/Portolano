@@ -8,5 +8,4 @@ export const validation = {
   counts: "Problemi per gravità",
   list: "Problemi",
   unknownNode: "(nodo non trovato)",
-  separator: " / ",
 } as const;

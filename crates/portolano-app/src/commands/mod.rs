@@ -12,7 +12,7 @@ mod icons;
 mod import;
 mod nodes;
 mod secrets;
-mod settings;
+pub(crate) mod settings;
 mod tree;
 mod validate;
 mod vault;

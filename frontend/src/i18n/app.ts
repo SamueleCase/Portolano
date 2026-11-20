@@ -47,10 +47,6 @@ export const app = {
     openOther: "Apri altro…",
     close: "Chiudi l'avviso",
   },
-  connection: {
-    noLoginDialog:
-      "Questa connessione chiede le credenziali all'avvio: il dialogo non è ancora disponibile. Usa «Apri in terminale esterno».",
-  },
   toasts: {
     error: "{title}: {message}",
     candidates: "{message} ({candidates})",

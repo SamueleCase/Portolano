@@ -7,6 +7,7 @@ import { firstRun } from "./firstRun";
 import { icons } from "./icons";
 import { importWizard } from "./import";
 import { ipc } from "./ipc";
+import { paths } from "./paths";
 import { preferences } from "./preferences";
 import { sessions } from "./sessions";
 import { tree } from "./tree";
@@ -18,6 +19,7 @@ import { validation } from "./validation";
  * its file and its line.
  */
 export const texts = {
+  paths,
   components,
   icons,
   ipc,

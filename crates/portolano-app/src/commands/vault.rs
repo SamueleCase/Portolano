@@ -10,7 +10,7 @@ use super::blocking;
 use crate::dto::{SecretText, VaultKind, VaultStatus};
 use crate::error::IpcError;
 use crate::events::{VaultLocked, emit};
-use crate::state::AppState;
+use crate::state::{AppState, UnlockSlot};
 
 /// The vault of the configuration and whether it is locked.
 #[tauri::command]
@@ -117,11 +117,33 @@ fn file_vault(state: &AppState) -> Result<std::path::PathBuf, IpcError> {
 /// derived from it.
 fn open_with(state: &AppState, master_password: Secret) -> Result<VaultStatus, IpcError> {
     let vault = state.vault()?;
-    state.unlock_slot().fill(master_password);
-    let opened = vault.contains(&SecretRef::new());
-    state.unlock_slot().clear();
+    let opened = with_master_password(state.unlock_slot(), master_password, || {
+        vault.contains(&SecretRef::new())
+    });
     opened.map_err(OpsError::from)?;
     status(state)
+}
+
+/// Runs `open` with `master_password` in `slot`, and empties the slot when
+/// `open` returns or unwinds from a panic: the master password never stays
+/// there for the next command to find.
+pub(crate) fn with_master_password<T>(
+    slot: &UnlockSlot,
+    master_password: Secret,
+    open: impl FnOnce() -> T,
+) -> T {
+    /// Empties the slot when dropped, on every way out of `open`.
+    struct Filled<'a>(&'a UnlockSlot);
+
+    impl Drop for Filled<'_> {
+        fn drop(&mut self) {
+            self.0.clear();
+        }
+    }
+
+    slot.fill(master_password);
+    let _filled = Filled(slot);
+    open()
 }
 
 #[cfg(test)]

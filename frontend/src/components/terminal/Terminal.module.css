@@ -35,6 +35,30 @@
   white-space: nowrap;
 }
 
+/* The hint of a link: the host on its own line, whole, then the address,
+   then the credentials it carries, which must stand out. */
+.linkHint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-fine-2);
+}
+
+.linkHost {
+  font-weight: var(--font-weight-strong);
+  overflow-wrap: anywhere;
+}
+
+.linkAddress {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.linkCredentials {
+  color: var(--color-error-text);
+  font-weight: var(--font-weight-strong);
+}
+
 .terminal :global(.xterm-viewport) {
   background: var(--color-terminal);
   scrollbar-width: thin;

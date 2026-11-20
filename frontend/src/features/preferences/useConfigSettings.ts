@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { presentFailure } from "../../ipc/errors";
+import { IpcFailure } from "../../ipc/result";
 import { useChooseConfigFile, useConfigReset, useConfigSet } from "../../ipc/mutations";
 import { configQuery } from "../../ipc/queries";
 
@@ -28,6 +29,12 @@ export interface ConfigSettings {
   choose: (key: ConfigKey) => void;
   /** The message of the backend for the last change of `key`, if it was refused. */
   error: (key: ConfigKey) => string | undefined;
+  /**
+   * How many changes of `key` the user did not confirm in the native dialog
+   * of the backend (`cancelled`, DEC-046.11): no error, and the control
+   * shows the saved value again.
+   */
+  cancellations: (key: ConfigKey) => number;
 }
 
 /**
@@ -41,12 +48,17 @@ export function useConfigSettings(): ConfigSettings {
   const resetValue = useConfigReset();
   const chooseFile = useChooseConfigFile();
   const [errors, setErrors] = useState<Partial<Record<ConfigKey, string>>>({});
+  const [cancelled, setCancelled] = useState<Partial<Record<ConfigKey, number>>>({});
 
   const run = (key: ConfigKey, change: Promise<unknown>) => {
     setErrors((current) => ({ ...current, [key]: undefined }));
-    change.catch((failure: unknown) =>
-      setErrors((current) => ({ ...current, [key]: presentFailure(failure).message })),
-    );
+    change.catch((failure: unknown) => {
+      if (failure instanceof IpcFailure && failure.ipc.code === "cancelled") {
+        setCancelled((current) => ({ ...current, [key]: (current[key] ?? 0) + 1 }));
+        return;
+      }
+      setErrors((current) => ({ ...current, [key]: presentFailure(failure).message }));
+    });
   };
 
   return {
@@ -55,5 +67,6 @@ export function useConfigSettings(): ConfigSettings {
     reset: (key) => run(key, resetValue.mutateAsync(key)),
     choose: (key) => run(key, chooseFile.mutateAsync(key)),
     error: (key) => errors[key],
+    cancellations: (key) => cancelled[key] ?? 0,
   };
 }

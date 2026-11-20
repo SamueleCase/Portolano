@@ -33,7 +33,6 @@ async function connectionsFor(scenario: FakeScenario) {
   const connections = createConnections({
     queryClient,
     controller,
-    hasLoginDialog: () => false,
     canReadyVault: () => false,
   });
   return { connections, bastion };
@@ -170,7 +169,6 @@ async function kioskOver(locked: number) {
   const connections = createConnections({
     queryClient,
     controller,
-    hasLoginDialog: () => true,
     canReadyVault: () => true,
   });
   return { connections, kiosk, transport, queryClient, controller };

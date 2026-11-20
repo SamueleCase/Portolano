@@ -4,7 +4,8 @@ Portolano è un gestore di connessioni remote **SSH** e **RDP** per macOS, ispir
 le cartelle e le credenziali stanno in un albero salvato in un file JSON leggibile (adatto anche a un repo git);
 le password stanno solo nel **Keychain di macOS** o in un **vault su file cifrato**, mai nel documento.
 
-Questa versione è a riga di comando (`portolano`):
+Si usa dalla riga di comando (`portolano`) o con un'app per macOS (**Portolano.app**), che lavorano sullo stesso
+documento, con la stessa configurazione e lo stesso vault:
 
 - gestisce l'albero: cartelle, connessioni SSH e RDP, credenziali riusabili ed ereditate dalle cartelle;
 - apre le connessioni con l'OpenSSH di sistema e con FreeRDP 3; è progettato per passare le password salvate
@@ -12,7 +13,8 @@ Questa versione è a riga di comando (`portolano`):
   è ancora da verificare, vedi [limiti noti](#limiti-noti));
 - importa i documenti di Royal TS/TSX (`.rtsz`, `.rtsx`), con un report di cosa è stato importato.
 
-L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è già una libreria riusabile.
+L'app (Tauri v2 + React) offre in grafica tutto ciò che fa la CLI, con il terminale SSH integrato in tab e lo
+stato delle sessioni RDP: vedi [App desktop](#app-desktop).
 
 ## Indice
 
@@ -22,6 +24,7 @@ L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è gi�
 - [Concetti](#concetti)
 - [Uso](#uso)
 - [Configurazione](#configurazione)
+- [App desktop](#app-desktop)
 - [Sicurezza](#sicurezza)
 - [Limiti noti](#limiti-noti)
 - [Struttura del progetto](#struttura-del-progetto)
@@ -55,6 +58,8 @@ L'interfaccia grafica (Tauri) è prevista in una fase successiva; il core è gi�
   `/opt/homebrew/bin` e `/usr/local/bin`.
 - **Windows App** (Mac App Store, già *Microsoft Remote Desktop*): alternativa a FreeRDP, **senza autologon**:
   la password la chiede l'app a ogni connessione.
+- **Node.js 22.23.2**, solo per compilare l'app desktop (`frontend/.nvmrc`; la v20 non basta), ad esempio con nvm:
+  `nvm install 22.23.2`.
 
 ## Build e installazione
 
@@ -553,6 +558,237 @@ Un programma rifiutato blocca solo il proprio protocollo, con codice 6: un `[ssh
 impedisce le connessioni RDP e viceversa. Con `client = "auto"`, un FreeRDP configurato e rifiutato dà errore
 invece di ripiegare su Windows App.
 
+## App desktop
+
+**Portolano.app** è l'interfaccia grafica di Portolano per macOS 14 o successivo su Apple Silicon: albero, dettaglio,
+editor, dialoghi, import, validazione, preferenze e sessioni in tab. Usa le stesse librerie della CLI
+(`portolano-ops` e i crate sotto) e convive con lei: stesso documento, stessa `config.toml`, stesso vault. La CLI è
+inclusa nell'app (`Contents/MacOS/portolano`) e serve da programma askpass e per "Apri in terminale esterno".
+
+### Installazione dal bundle
+
+```sh
+cd frontend
+npm ci
+npm run bundle
+```
+
+`npm run bundle` compila la CLI in release e la copia come sidecar, compila l'app, la firma **ad hoc** con il runtime
+rinforzato e alla fine esegue `scripts/check-bundle.sh` (vedi [Test dell'app](#test-dellapp)). Produce:
+
+| File | Contenuto |
+|---|---|
+| `target/release/bundle/macos/Portolano.app` | l'app, da copiare in `/Applications` |
+| `target/release/bundle/dmg/Portolano_0.1.0_aarch64.dmg` | la stessa app in un'immagine disco |
+
+**Primo avvio.** La firma è ad hoc, senza Developer ID né notarizzazione. Un'app compilata sul proprio Mac si apre
+con un doppio clic. Se invece arriva da un altro Mac (copiata o scaricata), al primo avvio macOS la blocca: dal
+Finder **tasto destro → Apri**, poi conferma; da macOS 15 serve invece *Impostazioni di Sistema → Privacy e
+sicurezza → Apri comunque*. Le volte successive si apre normalmente.
+
+**Portachiavi.** Come per la CLI (vedi [Sicurezza](#sicurezza)), dopo ogni ricompilazione la firma ad hoc cambia e
+macOS chiede di nuovo il permesso di leggere gli elementi del portachiavi: scegli "Consenti sempre". "Apri in
+terminale esterno" usa la CLI inclusa, che chiede il proprio permesso.
+
+### Avvio in sviluppo
+
+```sh
+cd frontend
+npm ci
+npm run tauri dev
+```
+
+Compila la CLI in debug (il sidecar, in `target/debug` accanto all'app), avvia Vite e apre l'app con il ricaricamento
+a caldo dell'interfaccia. Se il sidecar manca, le funzioni che lo usano danno un errore chiaro. Con l'indirizzo
+`?gallery` (solo in sviluppo) la finestra mostra la galleria dei componenti in tutti i loro stati.
+
+### Uso dell'app
+
+**Primo avvio.** Senza un documento aperto l'app propone "Nuovo documento" (nome e percorso si scelgono con il
+dialogo di macOS; il file è un `*.json`), "Apri…" e i documenti recenti. Poi riapre l'ultimo documento usato; se non
+si apre, quello predefinito.
+
+**Albero e ricerca.** La barra in alto ha "+ Connessione" (SSH o RDP), "+ Cartella", "+ Credenziale", "Importa",
+"Valida" e "Preferenze"; un nodo nuovo va nella cartella selezionata, modificabile nell'editor. Nella barra laterale:
+
+- la ricerca trova i nodi per nome, host o tag (⌘F) e apre le cartelle che li contengono;
+- i filtri mostrano solo SSH, RDP, credenziali o preferiti (★);
+- i nodi si spostano e riordinano trascinandoli, oppure con ⌥↑/⌥↓ e "Sposta in…" del menu contestuale (tasto
+  destro, ⇧F10 o il tasto menu);
+- da tastiera: frecce, Home/Fine, Invio apre il dettaglio, ⌘↩ connette, le lettere saltano al nome;
+- una cartella chiusa mostra quanti nodi contiene; il colore del nodo è il pallino prima del nome;
+- il piè mostra il vault: "Portachiavi di sistema", oppure "Vault su file · bloccato/sbloccato", da cliccare per
+  sbloccarlo (o crearlo, se il file non esiste ancora).
+
+Il **dettaglio** a destra mostra il riepilogo, la credenziale effettiva con la catena delle cartelle da cui arriva, lo
+stato dei segreti (presente, assente, vault bloccato), chi usa una credenziale, "Mostra comando" (il piano reale, con
+i segreti come `<vault:…>`), note, proprietà e sorgente d'import. Un nodo non supportato si mostra in sola lettura.
+
+**Editor e segreti in staging.** "Modifica" (⌘E) apre il pannello laterale in due passi: Generale (nome, posizione,
+descrizione, note, icona, colore, preferito, tag, proprietà) e Connessione, Accesso o Credenziale predefinita, secondo
+il tipo. "Salva" è disponibile in entrambi i passi. Una password, una passphrase o una chiave privata impostata
+nell'editor resta **da salvare** (badge "Da salvare") e arriva al vault solo con "Salva", insieme alle altre modifiche;
+"Annulla" la scarta. Anche "Cancella" si applica al salvataggio. Se il vault su file è bloccato, l'app chiede di
+sbloccarlo al momento del "Salva". Dal dettaglio, invece, "Imposta…" e "Sostituisci…" salvano subito la password.
+
+**Duplica ed elimina.** "Duplica" (⌘D) copia il nodo con id e segreti nuovi; le credenziali copiate prendono un nome
+" (copia)". "Elimina" (⌘⌫) mostra prima chi usa il nodo, anche per ereditarietà, e il contenuto di una cartella; il
+nodo sparisce subito, ma il toast "Annulla" lo rimette al suo posto per 10 secondi, e i segreti si cancellano dal
+vault solo dopo.
+
+**Sessioni.** "Connetti" (⌘↩ o doppio clic sulla connessione) apre una tab accanto al dettaglio (⌘1…⌘9 passano da una
+tab all'altra, ⌘W la chiude):
+
+- **SSH**: un terminale integrato con l'`ssh` di sistema e l'askpass di Portolano. La conferma della host key e i
+  prompt che Portolano non conosce compaiono nel terminale. Lo stato è unico: in corso, connesso, terminata o non
+  riuscita con il codice d'uscita, con "Riprova".
+- **RDP con FreeRDP**: FreeRDP apre la sua finestra; la tab mostra lo stato del processo, la durata, "Disconnetti" e,
+  se non riesce, "Mostra log". Se FreeRDP deve chiedere una password, si avvia in una tab terminale.
+- **RDP con Windows App**: la tab dice che la connessione è aperta in Windows App.
+- **Credenziali all'avvio**: per una credenziale "Chiedi all'avvio" un dialogo chiede utente e password (e dominio per
+  RDP) a ogni connessione, senza conservarli.
+- **Apri in terminale esterno** (menu contestuale): lancia `portolano connect` nel terminale scelto nelle
+  preferenze, come `connect --new-window`.
+
+Il vault su file viene chiesto solo se la connessione ne usa i segreti.
+
+**Import.** "Importa" (⌘I) apre il wizard: il file di Royal TSX (`.rtsz`, `.rtsx`, XML anche compresso) scelto con il
+dialogo di macOS; le opzioni (cartella di destinazione, conflitti, cestino, "Chiedi le password") con l'anteprima in
+prova; le password una alla volta ("1 / 3", "Salta", "Salta tutte le restanti"); il report con i conteggi, gli
+elementi non importati completamente con il motivo (un clic porta al nodo) ed "Esporta JSON". Una password saltata
+rende l'elemento "Parziale".
+
+**Validazione.** "Valida" (⇧⌘V) apre una tab con errori, avvisi e note del documento, ognuno con "Vai al nodo", e
+"Ricontrolla". Con il vault bloccato una sola nota sostituisce gli avvisi sui segreti mancanti.
+
+**Preferenze** (⌘,): documento predefinito, vault (portachiavi o file cifrato con il suo percorso), terminale per "Apri
+in terminale esterno" (Terminal, iTerm, Ghostty o un comando con `{cmd}`), programma SSH, client RDP con percorso di
+FreeRDP e certificati, aspetto (densità normale o compatta, sfondo animato acceso, ridotto o spento, riduci
+movimento). Le prime voci sono quelle di `config.toml`, validate come con `portolano config set`; l'aspetto, la
+finestra e i documenti recenti stanno in `ui.toml`, nella cartella dei dati. Un comando del terminale nuovo si salva
+solo dopo la conferma in un dialogo di macOS (vedi [Sicurezza dell'app](#sicurezza-dellapp)).
+
+**Documento cambiato da fuori.** Se un altro programma (la CLI, git, un editor) modifica il documento, un avviso
+propone "Ricarica"; le modifiche aperte nell'editor restano e vengono riapplicate, con un avviso sui campi cambiati da
+entrambe le parti. Se il file sparisce, "Ricrea" lo riscrive dov'era e "Apri altro…" ne apre un altro.
+
+**Menu nativo e scorciatoie.**
+
+| Menu | Voci |
+|---|---|
+| Portolano | Informazioni su Portolano, Preferenze… ⌘,, Esci da Portolano ⌘Q |
+| File | Nuovo documento, Apri… ⌘O, Documenti recenti, Importa… ⌘I, Chiudi tab ⌘W |
+| Modifica | Annulla, Ripeti, Taglia, Copia, Incolla, Seleziona tutto |
+| Nodo | Nuova connessione ⌘N, Nuova cartella ⇧⌘N, Nuova credenziale, Connetti ⌘↩, Modifica ⌘E, Duplica ⌘D, Elimina ⌘⌫ |
+| Vista | Cerca ⌘F, Valida ⇧⌘V, Densità (Normale, Compatta) |
+| Finestra | Riduci a icona, Ingrandisci, Schermo intero |
+
+Nei dialoghi Esc chiude e Invio esegue l'azione predefinita, tranne nella conferma d'eliminazione, dove Invio annulla.
+
+### Sicurezza dell'app
+
+Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza)); in più:
+
+- **L'interfaccia non riceve mai segreti.** La webview riceve solo lo stato di un segreto: presente, assente, da
+  salvare, vault bloccato. Nessun comando restituisce password, passphrase, chiavi o master password, nemmeno
+  mascherate. Una password digitata va al backend in un solo comando, che la tiene in memoria come segreto da
+  azzerare; nell'interfaccia non passa da store, cache, log, console, URL o storage del browser, e il campo si svuota
+  appena inviato. Un test end-to-end con un segreto sentinella lo controlla per ogni flusso che riceve segreti, un
+  test Rust per i comandi.
+- **Nessun contenuto remoto.** Font, icone e librerie sono inclusi nell'app. La CSP permette solo il contenuto
+  dell'app: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:
+  portolano-icon:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none';
+  form-action 'none'; frame-src 'none'`. `Object.prototype` è congelato prima di ogni script (`freezePrototype`) e il
+  protocollo degli asset di Tauri è spento.
+- **Permessi minimi.** La finestra ha solo i permessi dei comandi dell'app, degli eventi, della finestra stessa e
+  l'apertura di link `http(s)` nel browser; nessun plugin `shell`, `fs` o `http`. I percorsi dei file li sceglie il
+  backend con i dialoghi di macOS: l'interfaccia non passa percorsi arbitrari.
+- **Solo le pagine dell'app.** La finestra mostra soltanto l'app: ogni altra navigazione (una pagina remota, un file
+  locale, un'immagine di `portolano-icon://` aperta come documento) viene rifiutata prima di caricarla, così i comandi
+  dell'app non sono mai raggiungibili da un'altra origine.
+- **Comando del terminale personalizzato.** È una riga di shell che l'app esegue a ogni "Apri in terminale esterno".
+  Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia, con
+  il testo esatto del comando (caratteri di controllo, separatori e caratteri invisibili resi visibili, ZWJ e ZWNJ
+  compresi) e i bottoni "Annulla" e "Usa questo comando". "Annulla" è il bottone predefinito: Invio non conferma mai,
+  conferma solo un clic su "Usa questo comando". Un comando su più righe o più lungo di 1024 caratteri si rifiuta prima
+  del dialogo, e si apre una sola conferma alla volta. Senza conferma non si salva nulla e il campo torna al comando
+  salvato. Il comando già presente in `config.toml` e `portolano config set` della CLI non chiedono conferma: il file e
+  la CLI sono dentro il perimetro di fiducia.
+- **Testo del documento come testo.** Nomi, host, note e titoli del terminale si mostrano solo come testo, con i
+  caratteri di controllo, i separatori di riga e i caratteri di formato (bidi e a larghezza zero, tranne ZWJ e ZWNJ)
+  resi visibili come nella CLI. Le icone personalizzate (anche gli SVG importati) sono solo immagini servite dallo
+  schema `portolano-icon://`, che legge soltanto file regolari della cartella delle icone del documento, con lo SHA-256
+  del contenuto nel nome; ogni risposta ha `nosniff` e la CSP `default-src 'none'; sandbox`, che non carica e non esegue
+  nulla. Anche i messaggi d'errore, che possono citare nomi e host, mostrano i caratteri di controllo come testo
+  visibile.
+- **Terminale integrato.** Come in Terminale di macOS, un link si apre nel browser solo con ⌘-clic, e al passaggio del
+  mouse mostra l'indirizzo vero (il testo stampato dall'host può dire altro); si aprono solo i link `http(s)`. Gli
+  appunti via OSC 52 sono spenti. L'app non scrive mai nella PTY un segreto salvato: le password arrivano a `ssh` con
+  l'askpass, come nella CLI, e quella di FreeRDP sul suo stdin, azzerata subito dopo.
+- **Vault e portachiavi** sono quelli della CLI: il vault su file si sblocca con la master password in un dialogo
+  dell'app, e la master password non arriva mai ai processi figli.
+
+### Limiti noti dell'app
+
+- **Le stringhe di JavaScript non si azzerano.** Una password digitata nella webview resta nella memoria del processo
+  dell'interfaccia finché il motore non la libera: è un limite di ogni interfaccia web. L'app la passa subito al
+  backend e non ne tiene copie.
+- **Password dell'import**: restano nel wizard fino all'importazione, che le vuole tutte insieme; se l'importazione
+  fallisce vanno riscritte.
+- **FreeRDP che deve chiedere una password** mentre quella della destinazione arriva già da stdin (gateway con
+  un'altra credenziale) non si apre in una tab: l'app lo rifiuta e indica "Apri in terminale esterno", dove vale il
+  comportamento della CLI. La tab RDP mostra il client come "FreeRDP" anche quando la scelta viene da `auto`.
+- **"Ricrea"** riscrive il documento, ma non le icone personalizzate se è sparita anche la loro cartella
+  `<nome>.icons/`.
+- Il file di Royal non si trascina sul wizard: si sceglie con il dialogo.
+- **Tab nella webview**: la webview dell'app dovrebbe raggiungere con Tab tutti i controlli; è da verificare dal vivo.
+  Se Tab raggiungesse solo i campi di testo, ⌥Tab raggiunge tutti i controlli, oppure si attiva *Impostazioni di
+  Sistema → Tastiera → Navigazione da tastiera*.
+- `style-src` della CSP contiene `'unsafe-inline'`, necessario al terminale (xterm.js con il renderer DOM).
+- **Una webview compromessa** (un difetto di una libreria dell'interfaccia sfruttato dal contenuto del documento) può
+  chiamare i comandi che l'interfaccia usa: ad esempio cambiare l'host di una connessione verso uno suo, e la verifica
+  della sua host key, e farsi così mandare i segreti alla connessione successiva. La difesa piena è l'isolation pattern
+  di Tauri, che questa versione non usa.
+- **`npm audit`**: `npm audit --omit=dev`, che controlla le dipendenze incluse nell'app, deve restare a zero.
+  `npm audit` completo può segnalare anche avvisi degli strumenti di sviluppo, che lavorano solo su file del progetto:
+  si valutano a ogni aggiornamento delle dipendenze, e quelli senza una versione corretta compatibile si accettano (è
+  il caso di `picomatch`, tramite Vite, Vitest e typescript-eslint).
+- **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
+  con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab e la
+  fluidità dello sfondo nell'app vera.
+- **Fuori da questa versione**: RDP integrato nella finestra (previsto con IronRDP, nello spazio già riservato alle
+  tab), più documenti aperti insieme, associazione dei file `.json`, firma Developer ID e notarizzazione,
+  aggiornamenti automatici, Windows e Linux, l'isolation pattern di Tauri, un utente proposto per "Chiedi all'avvio",
+  "Porta in primo piano" della finestra di FreeRDP.
+
+### Test dell'app
+
+In `frontend/`, con Node 22.23.2:
+
+```sh
+npm run typecheck          # TypeScript strict
+npm run lint               # ESLint, nessun avviso ammesso
+npm run format:check       # Prettier
+npm test                   # Vitest + Testing Library, IPC simulato
+npm run build              # build di produzione dell'interfaccia
+npm run bindings:check     # i tipi generati da Rust (src/bindings.ts) sono aggiornati
+npm run e2e                # Playwright con WebKit sul finto backend
+```
+
+Gli end-to-end girano sull'interfaccia da sola, in WebKit (il motore di WKWebView), con un **finto backend in
+memoria** al posto di Rust e con la CSP e il prototipo congelato dell'app: crea e apri documento, albero e
+trascinamento, editor con segreti in staging, sessioni, duplicazione, eliminazione con annullamento, import con
+password, validazione, preferenze, tastiera e segreto sentinella. Non toccano i tuoi file, il portachiavi né host
+reali. Il server di prova usa la porta 4173; `PORTOLANO_E2E_PORT=4178 npm run e2e` ne usa un'altra. Gli screenshot
+della galleria e delle schermate finiscono in `frontend/e2e-screenshots/` (ignorata da git); `npm run perf:glass`
+misura la fluidità dello sfondo.
+
+`sh scripts/check-bundle.sh` (eseguito anche alla fine di `npm run bundle`) controlla il bundle senza aprire l'app:
+`Portolano.app` e il `.dmg`, il binario `portolano-app` e il sidecar `portolano`, che deve essere la CLI compilata
+in release (stesso UUID Mach-O di `target/release/portolano`) e rispondere a `--version` con la versione dell'app.
+Controlla poi la firma ad hoc con il runtime rinforzato di entrambi e `codesign --verify --deep --strict`; infine
+stampa le dimensioni e termina con `BUNDLE OK`.
+
 ## Sicurezza
 
 **Modello di fiducia.** Il documento può arrivare da altri (un repo condiviso, un import da Royal) e **non** è
@@ -603,9 +839,13 @@ I log di FreeRDP (`0600`, nella cartella privata della cache) possono contenere 
 **Caratteri di controllo.** Nomi, host, utenti e percorsi di un documento condiviso o importato potrebbero
 contenere sequenze che pilotano il terminale (spostare il cursore, riscrivere righe, cambiare il titolo) o
 controlli bidirezionali che mostrano il testo in un ordine diverso da quello reale. In ogni output della CLI
-(`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) i caratteri di controllo
-C0, DEL, C1 e i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C) compaiono come escape, ad
-esempio `\u{1b}`; nell'output `--json` come escape JSON (`\u001b`). `validate` li segnala con l'avviso
+(`tree`, `list`, `show`, `validate`, report d'import, `connect --print`, messaggi d'errore) compaiono come escape,
+ad esempio `\u{1b}`, i caratteri di controllo C0, DEL e C1, i separatori di riga e di paragrafo (U+2028, U+2029) e
+i caratteri di formato: i controlli bidi (U+202A–U+202E, U+2066–U+2069, U+200E, U+200F, U+061C), lo spazio a
+larghezza zero (U+200B), U+2060, U+FEFF e gli altri della categoria Unicode Cf. Restano intatti solo l'unione e la
+non-unione a larghezza zero (ZWJ U+200D, ZWNJ U+200C), che servono alle emoji composte come 👨‍👩‍👧 e ad alcune
+scritture; nella conferma del comando del terminale dell'app compaiono anche loro come escape. Nell'output `--json`
+compaiono come escape JSON (`\u001b`). `validate` segnala i caratteri di controllo con l'avviso
 `control_characters`. `connect` rifiuta caratteri di controllo negli host e negli utenti delle connessioni SSH e
 dei loro jump host, negli host, utenti e domini delle connessioni RDP (sia con FreeRDP sia con Windows App) e nei
 valori del gateway RDP che arrivano al client.
@@ -653,9 +893,9 @@ avevi scelto "Consenti sempre": la firma del binario è cambiata. È normale; sc
 - **Royal**: alcuni campi (gateway, Secure Gateway, campi personalizzati protetti, chiavi incorporate) sono
   interpretati per ipotesi; gli elementi ricostruiti da questi campi risultano *parziali* nel report e conservano
   l'originale. Controllali dopo l'import.
-- **Fuori da questa versione**: interfaccia grafica, terminale integrato, RDP integrato nell'app, Wake-on-LAN (il
-  MAC si conserva soltanto), VNC/Web/SFTP, sincronizzazione o condivisione dei documenti, decrittaggio dei
-  segreti di Royal. Windows non è una piattaforma verificata.
+- **Fuori da questa versione**: RDP integrato nell'app, Wake-on-LAN (il MAC si conserva soltanto), VNC/Web/SFTP,
+  sincronizzazione o condivisione dei documenti, decrittaggio dei segreti di Royal. Windows non è una piattaforma
+  verificata. I limiti propri dell'app sono in [Limiti noti dell'app](#limiti-noti-dellapp).
 
 ## Struttura del progetto
 
@@ -665,15 +905,24 @@ crates/
                          salvataggio atomico e migrazioni, icone, configurazione, vault (Keychain, file, memoria)
   portolano-connectors/  protocolli SSH e RDP: piani di lancio puri, esecuzione, askpass, terminali
   portolano-import/      trait Importer, report e importer Royal TS/TSX
-  portolano-ops/         operazioni complete riusabili da CLI e futura app (add/edit con segreti, delete,
+  portolano-ops/         operazioni complete riusabili da CLI e app (add/edit con segreti, delete,
                          import con conflitti, validate, secret, connect), senza I/O su terminale
   portolano-cli/         il binario `portolano`: parsing, prompt e output
-docs/                    SPEC.md (specifica), DECISIONS.md (decisioni), royal-format.md, progress.md
-scripts/smoke.sh         test end-to-end
+  portolano-app/         l'app Tauri (binario `portolano-app`): stato, comandi IPC sopra portolano-ops, sessioni
+                         (PTY, FreeRDP), osservazione del file, schema delle icone, menu nativo; tauri.conf.json,
+                         tauri.bundle.json (sidecar), capabilities/
+frontend/                l'interfaccia (Vite + React + TypeScript): app/ (cornice), components/ (design system),
+                         features/ (albero, dettaglio, editor, dialoghi, sessioni, import, validazione, preferenze),
+                         ipc/ e bindings.ts (tipi generati da Rust), state/, design/, i18n/ (testi italiani),
+                         test/ (finto backend), e2e/ (Playwright), scripts/ (bundle e controllo)
+docs/                    SPEC.md e SPEC-UI.md (specifiche), DECISIONS.md (decisioni), royal-format.md, progress.md,
+                         ui/ (inventario del mock)
+scripts/smoke.sh         test end-to-end della CLI
 ```
 
-Le dipendenze vanno verso il core: `cli → {ops, core, connectors, import}`,
+Le dipendenze vanno verso il core: `app → {ops, core, connectors, import}`, `cli → {ops, core, connectors, import}`,
 `ops → {core, connectors, import}`, `connectors → core`, `import → core`. Il core non conosce SSH, RDP o Royal.
+L'interfaccia parla solo con `portolano-app`, attraverso i comandi generati in `bindings.ts`.
 
 ## Test
 
@@ -690,6 +939,8 @@ temporanea, con la master password di test. Cerca il segreto di prova nell'outpu
 file prodotti. Non tocca i tuoi file né il Keychain e non avvia
 client reali: `ssh`, FreeRDP, `ssh-add`, `osascript` e `open` sono sostituiti da stub. Termina con `SMOKE OK`.
 Per provare un binario già compilato: `PORTOLANO_BIN=~/.cargo/bin/portolano scripts/smoke.sh`.
+
+I test dell'app (interfaccia, end-to-end, bundle) sono in [Test dell'app](#test-dellapp).
 
 Test che richiedono risorse reali, esclusi di default:
 

@@ -48,6 +48,18 @@ describe("TextField", () => {
 
     expect(screen.getByRole("textbox", { name: "Cerca" })).toBeInTheDocument();
   });
+
+  it("shows a label and a message from the document with their controls visible", () => {
+    render(
+      <TextField
+        label={"token‮"}
+        message={{ tone: "error", text: "valore di 'web\u001b[2J01' rifiutato" }}
+      />,
+    );
+    const field = screen.getByRole("textbox", { name: "token\\u{202e}" });
+
+    expect(field).toHaveAccessibleDescription("valore di 'web\\u{1b}[2J01' rifiutato");
+  });
 });
 
 describe("TextArea", () => {

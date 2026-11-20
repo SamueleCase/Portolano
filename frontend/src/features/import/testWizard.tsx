@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 
 import { FeatureHost } from "../../app/FeatureHost";
-import { type FeatureRegistry, FeatureRegistryContext, type ImportProps } from "../../app/features";
+import { FeatureRegistryContext, type ImportProps } from "../../app/features";
 import type { ImportAnswerInput_Deserialize, ImportPreviewView_Serialize } from "../../bindings";
 import { createQueryClient } from "../../ipc/queryClient";
 import { closeRequest, openRequest, topRequest, useRequests } from "../../state/requests";
@@ -37,7 +37,7 @@ export function importBackend(
  * the vault, as the window registers it). Spies for its callbacks, the query
  * client it uses and `setOpen` to close it and open it again.
  */
-export function renderWizard(features: FeatureRegistry = { unlockVault: UnlockVaultFeature }) {
+export function renderWizard() {
   const client: QueryClient = createQueryClient();
   const onClose = vi.fn();
   const onGoToNode = vi.fn();
@@ -59,7 +59,7 @@ export function renderWizard(features: FeatureRegistry = { unlockVault: UnlockVa
   useRequests.setState({ stack: [] });
   render(
     <QueryClientProvider client={client}>
-      <FeatureRegistryContext value={{ ...features, import: SpiedImport }}>
+      <FeatureRegistryContext value={{ unlockVault: UnlockVaultFeature, import: SpiedImport }}>
         <FeatureHost />
       </FeatureRegistryContext>
     </QueryClientProvider>,

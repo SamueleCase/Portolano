@@ -227,6 +227,24 @@ describe("fake backend seeded by an end-to-end test", () => {
     expect(ok(await commands.vaultStatus()).locked).toBe(false);
   });
 
+  it("lets the vault be created when the seed says its file is missing", async () => {
+    window.__portolanoFakeSeed = { vaultMissing: true };
+    installFakeBackend();
+
+    const created = ok(await commands.createFileVault("una-master-password-nuova"));
+
+    expect(created).toMatchObject({ exists: true, locked: false });
+  });
+
+  it("refuses a new terminal command when the seed says the user does not confirm it", async () => {
+    window.__portolanoFakeSeed = { dialogs: { terminalCommand: false } };
+    installFakeBackend();
+
+    const answer = await commands.configSet("terminal.command", "kitty -e {cmd}");
+
+    expect(answer.status === "error" && answer.error.code).toBe("cancelled");
+  });
+
   it("adds a connection whose credential does not resolve when the seed asks", async () => {
     window.__portolanoFakeSeed = { unresolvedCredential: true };
     installFakeBackend();
@@ -252,5 +270,35 @@ describe("fake backend seeded by an end-to-end test", () => {
     installFakeBackend();
 
     expect(ok(await commands.appStatus()).document?.name).toBe("Infrastruttura");
+  });
+});
+
+describe("traffic of the fake backend", () => {
+  it("records each answer of a command as text", async () => {
+    installFakeBackend();
+
+    await commands.appStatus();
+
+    expect(window.__portolanoFakeTraffic?.join("\n")).toMatch(
+      /^answer app_status: .*Infrastruttura/m,
+    );
+  });
+
+  it("records each error of a command", async () => {
+    installFakeBackend();
+
+    await commands.unlockVault("una-master-password-sbagliata");
+
+    expect(window.__portolanoFakeTraffic?.join("\n")).toMatch(
+      /^error unlock_vault: .*master password errata/m,
+    );
+  });
+
+  it("records the events sent after a command", async () => {
+    unlocked();
+
+    await commands.lockVault();
+
+    expect(window.__portolanoFakeTraffic).toContain('event vault-locked: {"kind":"file"}');
   });
 });

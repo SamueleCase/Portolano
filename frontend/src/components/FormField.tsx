@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { classNames } from "./classNames";
 import styles from "./FormField.module.css";
+import { visibleText } from "./visibleText";
 
 /** A message under a field: an error, or a confirmation such as matching passwords. */
 export interface FieldMessage {
@@ -22,7 +23,11 @@ interface FormFieldProps {
   children: ReactNode;
 }
 
-/** A label 12 px muted above a control, with an optional message below (inventario §4.26). */
+/**
+ * A label 12 px muted above a control, with an optional message below
+ * (inventario §4.26). Both can quote the document (the name of a property,
+ * an error of the backend): they are made visible here (DEC-032.2).
+ */
 export function FormField({
   label,
   controlId,
@@ -35,7 +40,7 @@ export function FormField({
   return (
     <div className={classNames(styles.field, className)}>
       <label htmlFor={controlId} className={classNames(styles.label, hideLabel && styles.hidden)}>
-        {label}
+        {visibleText(label)}
       </label>
       {children}
       {message && (
@@ -44,7 +49,7 @@ export function FormField({
           className={classNames(styles.message, message.tone === "ok" && styles.ok)}
           role={message.tone === "error" ? "alert" : undefined}
         >
-          {message.text}
+          {visibleText(message.text)}
         </span>
       )}
     </div>

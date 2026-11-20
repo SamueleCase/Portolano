@@ -1,11 +1,6 @@
 import type { TreeView_Serialize } from "../../bindings";
-import {
-  ancestorsOf,
-  indexTree,
-  readableNames,
-  type TreeEntry,
-  type TreeIndex,
-} from "../tree/treeModel";
+import { readableNames } from "../../components/readablePath";
+import { ancestorsOf, indexTree, type TreeEntry, type TreeIndex } from "../tree/treeModel";
 
 /** A node of the tree with where it sits, for the pickers and the editor. */
 export interface IndexedNode extends TreeEntry {

@@ -140,7 +140,9 @@ export const commands = {
 	configGet: () => typedError<ConfigEntry[], IpcError_Serialize>(__TAURI_INVOKE("config_get")),
 	/**
 	 *  Sets `key` to `value`, validated by the core or by the protocol of the
-	 *  section (DEC-008, DEC-011), and saves `config.toml`.
+	 *  section (DEC-008, DEC-011), and saves `config.toml`. A new terminal
+	 *  command needs the confirmation of the user in a native dialog; without
+	 *  it nothing is saved and the answer is a `cancelled` error.
 	 */
 	configSet: (key: string, value: string) => typedError<ConfigEntry[], IpcError_Serialize>(__TAURI_INVOKE("config_set", { key, value })),
 	/**  Removes `key` from `config.toml`: it takes its default again. */
@@ -763,6 +765,11 @@ export type ErrorCode =
 "connect" | 
 /**  A filesystem error. */
 "io" | 
+/**
+ *  The user said no in a native dialog: nothing changed, and there is
+ *  no error to show (DEC-046.11).
+ */
+"cancelled" | 
 /**  Anything else. */
 "internal";
 

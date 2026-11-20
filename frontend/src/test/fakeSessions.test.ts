@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { SessionState } from "../ipc/sessions";
 import { FakeSessionTransport, workingConnection } from "./fakeSessions";
@@ -28,6 +28,10 @@ function recorder() {
 const played = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("FakeSessionTransport", () => {
+  afterEach(() => {
+    delete window.__portolanoFakeTraffic;
+  });
+
   it("refuses a node without a scenario", async () => {
     const transport = new FakeSessionTransport({});
 
@@ -46,5 +50,18 @@ describe("FakeSessionTransport", () => {
     expect(opened.kind).toBe("terminal");
     expect(session.states.at(-1)).toEqual({ state: "connected" });
     expect(session.output()).toContain("Last login");
+  });
+
+  it("writes down its answer, the states and the output for the sentinel e2e", async () => {
+    window.__portolanoFakeTraffic = [];
+    const transport = new FakeSessionTransport({}, workingConnection);
+
+    await transport.open({ nodeId: NODE, size: SIZE }, recorder().handlers);
+    await played();
+
+    const traffic = window.__portolanoFakeTraffic.join("\n");
+    expect(traffic).toMatch(/^answer open_session: .*"kind":"terminal"/m);
+    expect(traffic).toContain('state: {"state":"connected"}');
+    expect(traffic).toMatch(/^output: Last login/m);
   });
 });

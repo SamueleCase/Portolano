@@ -39,6 +39,20 @@ describe("UnlockVaultDialog", () => {
     expect(screen.getByLabelText(t.unlock.field)).toHaveValue("");
   });
 
+  it("puts a new field in place of the one whose master password was sent", async () => {
+    installFakeBackend();
+    renderWithQueries(
+      <UnlockVaultDialog open onClose={() => undefined} onUnlocked={() => undefined} />,
+    );
+    const first = screen.getByLabelText(t.unlock.field);
+    await userEvent.type(first, "sbagliata-di-prova");
+
+    await userEvent.click(screen.getByRole("button", { name: t.unlock.unlock }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByLabelText(t.unlock.field)).not.toBe(first);
+  });
+
   it("closes without unlocking with Apri senza segreti", async () => {
     installFakeBackend();
     const onClose = vi.fn();
@@ -81,6 +95,22 @@ describe("CreateVaultDialog", () => {
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
     expect(state.vault).toMatchObject({ exists: true, locked: false });
+  });
+
+  it("puts new fields in place of those whose master password was sent", async () => {
+    missingVault();
+    renderWithQueries(
+      <CreateVaultDialog open onClose={() => undefined} onCreated={() => undefined} />,
+    );
+    const first = screen.getByLabelText(t.create.field);
+    const second = screen.getByLabelText(t.create.confirm);
+    await userEvent.type(first, "una-master-password-lunga");
+    await userEvent.type(second, "una-master-password-lunga");
+
+    await userEvent.click(screen.getByRole("button", { name: t.create.create }));
+
+    expect(screen.getByLabelText(t.create.field)).not.toBe(first);
+    expect(screen.getByLabelText(t.create.confirm)).not.toBe(second);
   });
 });
 
