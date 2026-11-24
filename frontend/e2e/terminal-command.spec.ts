@@ -1,6 +1,6 @@
 import { texts } from "../src/i18n/it";
 import { expect, test } from "./fixtures";
-import { documentTree, openApp } from "./mainWindowPage";
+import { documentTree, openApp, sidebarTool } from "./mainWindowPage";
 
 /**
  * The command of a custom terminal in the preferences of the main window: a
@@ -17,7 +17,7 @@ test.describe("the command of a custom terminal", () => {
   }) => {
     await openApp(page, { dialogs: { terminalCommand: false } });
     await documentTree(page);
-    await page.getByRole("button", { name: texts.app.toolbar.preferences }).click();
+    await sidebarTool(page, "preferences").click();
     const dialog = page.getByRole("dialog", { name: t.title });
     await dialog
       .getByRole("radiogroup", { name: t.terminal.label })
@@ -35,7 +35,7 @@ test.describe("the command of a custom terminal", () => {
   test("is saved when the user confirms it", async ({ page }) => {
     await openApp(page);
     await documentTree(page);
-    await page.getByRole("button", { name: texts.app.toolbar.preferences }).click();
+    await sidebarTool(page, "preferences").click();
     const dialog = page.getByRole("dialog", { name: t.title });
     await dialog
       .getByRole("radiogroup", { name: t.terminal.label })
@@ -46,7 +46,7 @@ test.describe("the command of a custom terminal", () => {
     await field.fill("wezterm start -- {cmd}");
     await field.press("Enter");
     await dialog.getByRole("button", { name: t.close }).click();
-    await page.getByRole("button", { name: texts.app.toolbar.preferences }).click();
+    await sidebarTool(page, "preferences").click();
 
     await expect(dialog.getByLabel(t.terminal.command)).toHaveValue("wezterm start -- {cmd}");
   });

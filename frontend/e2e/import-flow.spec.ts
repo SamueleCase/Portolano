@@ -5,7 +5,7 @@ import type { FakeSeed } from "../src/test/fakeBackend";
 import { IMPORT_FILE, UNREADABLE_IMPORT_FILE } from "../src/test/fakeBackendImport";
 import { TEST_MASTER_PASSWORD } from "../src/test/fakeBackendModel";
 import { expect, test } from "./fixtures";
-import { documentTree, openApp, row } from "./mainWindowPage";
+import { addFromSidebar, documentTree, openApp, row } from "./mainWindowPage";
 
 /**
  * The import wizard in the main window, on the fake backend started by the
@@ -30,7 +30,7 @@ const withFile = (file: string, extra: FakeSeed = {}): FakeSeed => ({
 async function openWizard(page: Page, seed: FakeSeed): Promise<Locator> {
   await openApp(page, seed);
   await documentTree(page);
-  await page.getByRole("button", { name: texts.app.toolbar.import }).click();
+  await addFromSidebar(page, texts.tree.add.import);
   const wizard = page.getByRole("dialog", { name: texts.importWizard.title });
   await expect(wizard).toBeVisible();
   return wizard;

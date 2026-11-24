@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
 
+import { texts } from "../src/i18n/it";
+
 /**
  * The helpers of the keyboard e2e, for the gallery and the main window.
  *
@@ -11,7 +13,7 @@ import type { Page } from "@playwright/test";
 export const TAB = "Alt+Tab";
 export const BACK_TAB = "Alt+Shift+Tab";
 
-/** The elements a user must be able to reach with Tab (one stop per radio group, toolbar, tree). */
+/** The elements a user must be able to reach with Tab (one stop per radio group, tree). */
 const CONTROLS = [
   "a[href]",
   "button:not([tabindex='-1'])",
@@ -27,7 +29,7 @@ export interface FocusStop {
   id: string;
   /** The accessible name, or the text, of the element. */
   name: string;
-  /** The landmark around it: the toolbar, the tree, a dialog… (`AREAS`). */
+  /** The landmark around it: the bar, the tree, a dialog… (`AREAS`). */
   area: string;
   /** Whether focusing it changes how it, or the box around it, looks. */
   visible: boolean;
@@ -38,9 +40,12 @@ export interface FocusStop {
 /** The areas of the main window a stop can be in, from the innermost; first match wins. */
 const AREAS: [string, string][] = [
   ["dialog", "[role='dialog']"],
-  ["toolbar", "[role='toolbar']"],
+  ["menu", "[role='menu']"],
+  ["bar", `header[aria-label='${texts.app.toolbar.label}']`],
   ["search", "input[type='search']"],
+  ["add", `aside button[aria-label='${texts.tree.add.label}']`],
   ["tree", "[role='tree']"],
+  ["tools", `aside [role='group'][aria-label='${texts.tree.tools.label}']`],
   ["filters", "aside [role='group']"],
   ["actions", "header [role='group']"],
   ["footer", "footer"],

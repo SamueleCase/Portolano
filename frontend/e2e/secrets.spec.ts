@@ -4,7 +4,7 @@ import { texts } from "../src/i18n/it";
 import { IMPORT_FILE } from "../src/test/fakeBackendImport";
 import { TEST_MASTER_PASSWORD } from "../src/test/fakeBackendModel";
 import { expect, test } from "./fixtures";
-import { documentTree, openApp, row } from "./mainWindowPage";
+import { addFromSidebar, documentTree, openApp, row } from "./mainWindowPage";
 import { SecretWatch } from "./secretsPage";
 
 /**
@@ -222,7 +222,7 @@ test.describe("a typed secret", () => {
     await documentTree(page);
     const { actions } = texts.importWizard;
 
-    await page.getByRole("button", { name: texts.app.toolbar.import }).click();
+    await addFromSidebar(page, texts.tree.add.import);
     const wizard = page.getByRole("dialog", { name: texts.importWizard.title });
     await wizard.getByRole("button", { name: texts.importWizard.file.choose }).click();
     await expect(wizard.getByText(texts.importWizard.file.readable)).toBeVisible();
