@@ -61,6 +61,36 @@ export async function emitEvent(page: Page, event: string, payload: unknown): Pr
   );
 }
 
+/** The "+" of the sidebar, which opens the menu of the new nodes and the import (DEC-050). */
+export function addButton(page: Page): Locator {
+  return page.getByRole("button", { name: texts.tree.add.label });
+}
+
+/** Chooses `entry` in the menu of "+" of the sidebar. */
+export async function addFromSidebar(page: Page, entry: string): Promise<void> {
+  await addButton(page).click();
+  await page
+    .getByRole("menu", { name: texts.tree.add.label })
+    .getByRole("menuitem", { name: entry })
+    .click();
+}
+
+/** A new connection of `protocol` from the "+" of the sidebar: the protocol menu, then its entry. */
+export async function newConnectionFromSidebar(page: Page, protocol: "ssh" | "rdp"): Promise<void> {
+  await addFromSidebar(page, texts.tree.add.newConnection);
+  await page
+    .getByRole("menu", { name: texts.app.toolbar.newConnectionMenu })
+    .getByRole("menuitem", { name: texts.app.toolbar.protocols[protocol] })
+    .click();
+}
+
+/** A tool of the footer of the sidebar: "Valida" or "Preferenze" (DEC-050). */
+export function sidebarTool(page: Page, tool: "validate" | "preferences"): Locator {
+  return page
+    .getByRole("group", { name: texts.tree.tools.label })
+    .getByRole("button", { name: texts.tree.tools[tool] });
+}
+
 /** A screenshot of the whole window for the visual checkpoint. */
 export async function shoot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: `${SHOTS}/${name}.png`, animations: "disabled" });

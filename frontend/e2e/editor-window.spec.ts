@@ -4,7 +4,13 @@ import { texts } from "../src/i18n/it";
 import { TEST_MASTER_PASSWORD } from "../src/test/fakeBackendModel";
 import { EDITOR_SHOTS, ipcAnswers, recordIpcAnswers } from "./editorPage";
 import { expect, test } from "./fixtures";
-import { documentTree, openApp, row } from "./mainWindowPage";
+import {
+  documentTree,
+  newConnectionFromSidebar,
+  openApp,
+  row,
+  sidebarTool,
+} from "./mainWindowPage";
 
 const t = texts.editor;
 const d = texts.dialogs;
@@ -50,15 +56,14 @@ async function expectNoSentinel(page: Page) {
 }
 
 test.describe("the editor in the main window", () => {
-  test("creates an SSH connection from + Connessione and shows it in the tree", async ({
+  test("creates an SSH connection from the «+» of the sidebar and shows it in the tree", async ({
     page,
   }) => {
     await openApp(page, { vaultLocked: false });
     const tree = await documentTree(page);
     await row(tree, "ACME").click();
 
-    await page.getByRole("button", { name: texts.app.toolbar.newConnection }).click();
-    await page.getByRole("menuitem", { name: texts.app.toolbar.protocols.ssh }).click();
+    await newConnectionFromSidebar(page, "ssh");
     const panel = page.getByRole("dialog", { name: t.subtitles.add.ssh });
     await panel.getByLabel(t.general.name).fill("web09");
     await expect(panel.getByText("Clienti / ACME")).toBeVisible();
@@ -76,8 +81,7 @@ test.describe("the editor in the main window", () => {
     await openApp(page, { vaultLocked: false });
     const tree = await documentTree(page);
 
-    await page.getByRole("button", { name: texts.app.toolbar.newConnection }).click();
-    await page.getByRole("menuitem", { name: texts.app.toolbar.protocols.rdp }).click();
+    await newConnectionFromSidebar(page, "rdp");
     const panel = page.getByRole("dialog", { name: t.subtitles.add.rdp });
     await panel.getByLabel(t.general.name).fill("dc09");
     await panel.getByRole("button", { name: t.next }).click();
@@ -189,7 +193,7 @@ test.describe("the dialogs in the main window", () => {
     await openApp(page);
     await documentTree(page);
 
-    await page.getByRole("button", { name: texts.app.toolbar.preferences }).click();
+    await sidebarTool(page, "preferences").click();
     const dialog = page.getByRole("dialog", { name: texts.preferences.title });
     await dialog
       .getByRole("radiogroup", { name: texts.preferences.appearance.density })

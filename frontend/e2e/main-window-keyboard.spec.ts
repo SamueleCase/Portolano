@@ -13,13 +13,14 @@ import {
   tabTo,
   withoutTransitions,
 } from "./keyboardPage";
-import { documentTree, openApp, row } from "./mainWindowPage";
+import { addButton, documentTree, openApp, row, sidebarTool } from "./mainWindowPage";
 
 /**
- * The main window from the keyboard (SPEC-UI §1.6, §5.5): Tab reaches every
- * area with its focus visible, the toolbar and the tree as one stop each;
- * a dialog and the side panel of the editor keep the focus inside and give
- * it back to the control that opened them.
+ * The main window from the keyboard (SPEC-UI §1.6, §5.5, DEC-050): Tab
+ * reaches every area with its focus visible, the tree as one stop; the menu
+ * of "+" moves with the arrows and gives the focus back on Esc; a dialog and
+ * the side panel of the editor keep the focus inside and give it back to the
+ * control that opened them.
  */
 
 /** The names of the stops in `area`. */
@@ -65,16 +66,15 @@ test.describe("the main window from the keyboard", () => {
     );
   });
 
-  test("reaches every area with Tab, the toolbar and the tree as one stop each", async ({
-    page,
-  }) => {
+  test("reaches every area with Tab, the tree as one stop", async ({ page }) => {
     await windowOnBastion(page);
 
     const stops = await sweep(page);
 
-    const { filters } = texts.tree;
-    expect(namesIn(stops, "toolbar")).toHaveLength(1);
+    const { filters, add, tools } = texts.tree;
+    expect(namesIn(stops, "bar")).toEqual([texts.app.toolbar.connect]);
     expect(namesIn(stops, "search")).toHaveLength(1);
+    expect(namesIn(stops, "add")).toEqual([add.label]);
     expect(namesIn(stops, "filters")).toEqual([
       filters.all,
       filters.ssh,
@@ -87,6 +87,7 @@ test.describe("the main window from the keyboard", () => {
       expect.arrayContaining([texts.details.actions.connect, texts.details.actions.edit]),
     );
     expect(namesIn(stops, "footer")).toEqual([texts.components.vault.fileLocked]);
+    expect(namesIn(stops, "tools")).toEqual([tools.validate, tools.preferences]);
   });
 
   test("shows the focus at every stop of Tab", async ({ page }) => {
@@ -97,27 +98,50 @@ test.describe("the main window from the keyboard", () => {
     expect(stops.filter((stop) => !stop.visible).map((stop) => stop.name)).toEqual([]);
   });
 
-  test("moves among every control of the toolbar with the arrows, showing the focus", async ({
+  test("opens the menu of «+» with Enter and moves among its entries with the arrows", async ({
     page,
   }) => {
     await windowOnBastion(page);
-    const toolbar = page.getByRole("toolbar", { name: texts.app.toolbar.label });
-    const items = await toolbar.getByRole("button").count();
-    const stops: FocusStop[] = [await tabTo(page, "toolbar")];
+    await tabTo(page, "add");
+    const menu = page.getByRole("menu", { name: texts.tree.add.label });
 
-    for (let step = 1; step < items; step++) {
-      const stop = await press(page, "ArrowRight");
-      if (stop) stops.push(stop);
-    }
+    const stops = [await press(page, "Enter")];
+    const entries = await menu.getByRole("menuitem").count();
+    for (let step = 1; step < entries; step++) stops.push(await press(page, "ArrowDown"));
 
-    expect(new Set(stops.map((stop) => stop.id)).size).toBe(items);
-    const unseen = stops.filter((stop) => stop.area !== "toolbar" || !stop.visible);
-    expect(unseen, "controlli della barra senza fuoco visibile").toEqual([]);
+    expect(new Set(stops.map((stop) => stop?.id)).size).toBe(entries);
+    const unseen = stops.filter((stop) => stop?.area !== "menu" || !stop.visible);
+    expect(unseen, "voci del menu senza fuoco visibile").toEqual([]);
+  });
+
+  test("closes the menu of «+» with Esc and gives the focus back to «+»", async ({ page }) => {
+    await windowOnBastion(page);
+    await tabTo(page, "add");
+    await page.keyboard.press("Space");
+    const menu = page.getByRole("menu", { name: texts.tree.add.label });
+    await expect(menu).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(menu).toBeHidden();
+    await expect(addButton(page)).toBeFocused();
+  });
+
+  test("reaches the tools of the footer with Tab, showing the focus", async ({ page }) => {
+    await windowOnBastion(page);
+
+    const first = await tabTo(page, "tools");
+    const second = await press(page, TAB);
+
+    expect([first, second].map((stop) => [stop?.name, stop?.visible])).toEqual([
+      [texts.tree.tools.validate, true],
+      [texts.tree.tools.preferences, true],
+    ]);
   });
 
   test("keeps the focus in a dialog and gives it back to its button on Esc", async ({ page }) => {
     await windowOnBastion(page);
-    const preferences = page.getByRole("button", { name: texts.app.toolbar.preferences });
+    const preferences = sidebarTool(page, "preferences");
     await preferences.focus();
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: texts.preferences.title });

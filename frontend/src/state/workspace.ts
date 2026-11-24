@@ -31,7 +31,7 @@ export interface WorkspaceState {
   banner: DocumentBanner | null;
   /** Grows at each request to focus the search field (⌘F). */
   searchRequests: number;
-  /** The menu of "+ Connessione" is open (its button, or ⌘N). */
+  /** The protocol menu of a new connection is open, under "+" of the sidebar (or ⌘N). */
   connectionMenuOpen: boolean;
   /** The open folders of the tree; `null` until the user opens or closes one. */
   expanded: readonly string[] | null;

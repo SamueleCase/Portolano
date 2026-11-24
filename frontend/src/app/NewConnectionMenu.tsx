@@ -9,7 +9,7 @@ interface NewConnectionMenuProps {
 }
 
 /**
- * "+ Connessione" (ambiguity 10): the protocol first, SSH or RDP; the editor
+ * "Nuova connessione" (ambiguity 10): the protocol first, SSH or RDP; the editor
  * opens on the folder of the selection, which it can change.
  */
 export function NewConnectionMenu({ anchor, onClose }: NewConnectionMenuProps) {

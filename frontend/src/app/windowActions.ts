@@ -39,7 +39,7 @@ import { type Feature, useFeatures } from "./features";
 import { useWindowServices } from "./windowServices";
 
 /**
- * Everything the window can be asked to do, by the toolbar, the tree and its
+ * Everything the window can be asked to do, by the bar, the sidebar and its
  * context menu, the detail, the native menu, the shortcuts and the functions
  * of the hook points alike. The node actions take the node they act on (the
  * selection, or the row of a context menu). A command refused because the
@@ -51,7 +51,7 @@ export interface WindowActions {
   offers: (feature: Feature) => boolean;
   connect: (id: string) => void;
   openInTerminal: (id: string) => void;
-  /** "+ Connessione" (SSH or RDP), "+ Cartella", "+ Credenziale" (ambiguity 10). */
+  /** The new connection (SSH or RDP), folder, credential of "+" (ambiguity 10, DEC-050). */
   create: (kind: NewNodeKind) => void;
   edit: (id: string) => void;
   duplicate: (id: string) => void;

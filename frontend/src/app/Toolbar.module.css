@@ -1,5 +1,17 @@
-/* The toolbar of inventario §5.1: glass of the panels, wrapping when narrow. */
+/* The bar of inventario §5.1 (DEC-050): glass of the panels, wrapping when narrow. */
 .bar {
+  /* The native traffic lights, as AppKit draws them (measured, DEC-050): three
+     buttons of 14 pt, 23 pt apart, 60 pt from the first to the last edge. */
+  --traffic-lights-width: calc(var(--space-8) + var(--space-3));
+  /* The room above and below them on the bar, 56 pt tall (the 34 of
+     "Connetti", the padding and the border): (56 − 14) / 2 = 21 pt. The same
+     room is left on their left and on their right, before the logo. The
+     `trafficLightPosition` of `tauri.conf.json` follows: x = 14 (the padding
+     of the window) + 21 = 35; y = 14 + 21 + 9 = 44, since AppKit draws a
+     button 9 pt above the bottom of a title bar `14 + y` tall. The e2e of
+     the main window checks the sums against the bar as drawn. */
+  --traffic-lights-margin: calc(var(--space-5) + var(--space-fine-1));
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -7,11 +19,15 @@
   padding: var(--space-fine-10) var(--space-fine-14);
 }
 
-/* The native traffic lights sit here (`titleBarStyle: Overlay`, x 16, y 18):
-   three buttons of 12 px with gaps of 8 px, past the padding of the bar. */
+/* The native traffic lights sit here (`titleBarStyle: Overlay`): from the
+   edge of the bar, margin, buttons, margin; the border, the padding and the
+   gap of the bar are already part of that room. */
 .trafficLights {
   flex: none;
-  width: calc(var(--space-8) + var(--space-fine-14));
+  width: calc(
+    2 * var(--traffic-lights-margin) + var(--traffic-lights-width) - var(--border-width) -
+      var(--space-fine-14) - var(--space-fine-10)
+  );
   align-self: stretch;
 }
 
@@ -26,17 +42,6 @@
   white-space: nowrap;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.connect {
   margin-left: auto;
-}
-
-.separator {
-  align-self: stretch;
-  width: var(--border-width);
-  margin: var(--space-1) var(--space-fine-2);
-  background: var(--color-border);
 }

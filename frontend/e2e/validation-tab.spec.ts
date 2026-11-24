@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { texts } from "../src/i18n/it";
 import type { FakeSeed } from "../src/test/fakeBackend";
 import { expect, test } from "./fixtures";
-import { documentTree, openApp, row } from "./mainWindowPage";
+import { documentTree, openApp, row, sidebarTool } from "./mainWindowPage";
 
 /**
  * The validation tab in the main window, on the fake backend started by the
@@ -17,7 +17,7 @@ const SHOTS = "e2e-screenshots/validation";
 async function openValidation(page: Page, seed: FakeSeed = {}) {
   await openApp(page, seed);
   await documentTree(page);
-  await page.getByRole("button", { name: texts.app.toolbar.validate }).click();
+  await sidebarTool(page, "validate").click();
   const tab = page.getByRole("tab", { name: /Validazione/ });
   await expect(tab).toHaveAttribute("aria-selected", "true");
   const panel = page.getByRole("tabpanel");

@@ -1,18 +1,118 @@
+import { readFileSync } from "node:fs";
+
+import type { Page } from "@playwright/test";
+
+import type { MenuCommand } from "../src/bindings";
 import { interpolate } from "../src/i18n/format";
 import { texts } from "../src/i18n/it";
 import { expect, test } from "./fixtures";
-import { documentTree, emitEvent, openApp, row, shoot } from "./mainWindowPage";
+import {
+  addButton,
+  addFromSidebar,
+  documentTree,
+  emitEvent,
+  openApp,
+  row,
+  shoot,
+  sidebarTool,
+} from "./mainWindowPage";
+
+/**
+ * The native traffic lights as AppKit draws them, measured on macOS for
+ * DEC-050: each button is a circle of 14 pt, 23 pt from the next one; tao
+ * makes the title bar `14 + y` tall and AppKit keeps the buttons 9 pt above
+ * its bottom edge, so a button's top edge is at `y - 9`.
+ */
+const TRAFFIC_LIGHT = { size: 14, pitch: 23, aboveTitleBarBottom: 9 };
+
+/** The `trafficLightPosition` of the window in `tauri.conf.json`. */
+function trafficLightPosition(): { x: number; y: number } {
+  const conf = JSON.parse(
+    readFileSync(new URL("../../crates/portolano-app/tauri.conf.json", import.meta.url), "utf8"),
+  ) as { app: { windows: { trafficLightPosition: { x: number; y: number } }[] } };
+  const position = conf.app.windows[0]?.trafficLightPosition;
+  if (!position) throw new Error("trafficLightPosition mancante in tauri.conf.json");
+  return position;
+}
+
+/** The bar of the window. */
+function windowBar(page: Page) {
+  return page.getByRole("banner", { name: texts.app.toolbar.label });
+}
+
+/** The editor of a new node of `kind`, open. */
+function newNodeEditor(kind: "folder" | "credential") {
+  return (page: Page) =>
+    expect(page.getByRole("dialog", { name: texts.editor.subtitles.add[kind] })).toBeVisible();
+}
+
+/** The import wizard, open. */
+function importWizard(page: Page) {
+  return expect(page.getByRole("dialog", { name: texts.importWizard.title })).toBeVisible();
+}
+
+/** What each entry of "+" opens. */
+const ADD_ENTRIES: [string, (page: Page) => Promise<void>][] = [
+  [texts.tree.add.newFolder, newNodeEditor("folder")],
+  [texts.tree.add.newCredential, newNodeEditor("credential")],
+  [texts.tree.add.import, importWizard],
+];
+
+/** What each command of the native menu whose button left the bar opens (DEC-050.4). */
+const MENU_COMMANDS: [MenuCommand["kind"], (page: Page) => Promise<void>][] = [
+  [
+    "newConnection",
+    (page) =>
+      expect(page.getByRole("menu", { name: texts.app.toolbar.newConnectionMenu })).toBeVisible(),
+  ],
+  ["newFolder", newNodeEditor("folder")],
+  ["newCredential", newNodeEditor("credential")],
+  ["import", importWizard],
+  [
+    "validate",
+    (page) =>
+      expect(page.getByRole("tab", { name: /Validazione/ })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+  ],
+  [
+    "preferences",
+    (page) => expect(page.getByRole("dialog", { name: texts.preferences.title })).toBeVisible(),
+  ],
+];
 
 test.describe("the main window", () => {
-  test("shows the toolbar, the tree and the vault of the document", async ({ page }) => {
+  test("shows the bar, the tree and the vault of the document", async ({ page }) => {
     await openApp(page);
     await documentTree(page);
 
     await expect(page.getByText("portolano.json")).toBeVisible();
-    await expect(page.getByRole("toolbar", { name: texts.app.toolbar.label })).toBeVisible();
+    await expect(windowBar(page).getByRole("button")).toHaveText([texts.app.toolbar.connect]);
     await expect(row(page, "Clienti")).toBeVisible();
     await expect(page.getByText(texts.components.vault.fileLocked)).toBeVisible();
     await shoot(page, "main-window");
+  });
+
+  test("centers the native traffic lights on the bar, inside it, before the logo", async ({
+    page,
+  }) => {
+    const { x, y } = trafficLightPosition();
+    await openApp(page);
+    const bar = await windowBar(page).boundingBox();
+    const logo = await windowBar(page).locator("svg").first().boundingBox();
+    if (!bar || !logo) throw new Error("barra non disegnata");
+
+    const top = y - TRAFFIC_LIGHT.aboveTitleBarBottom;
+    const right = x + 2 * TRAFFIC_LIGHT.pitch + TRAFFIC_LIGHT.size;
+    const above = top - bar.y;
+    const margins = {
+      below: bar.y + bar.height - (top + TRAFFIC_LIGHT.size),
+      left: x - bar.x,
+      beforeLogo: logo.x - right,
+    };
+
+    for (const margin of Object.values(margins)) expect(margin).toBeCloseTo(above, 0);
   });
 
   test("shows a skeleton while the tree loads", async ({ page }) => {
@@ -118,4 +218,95 @@ test.describe("the main window", () => {
 
     await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
   });
+});
+
+test.describe("the «+» of the sidebar", () => {
+  test("offers the new nodes and the import", async ({ page }) => {
+    await openApp(page);
+    await documentTree(page);
+
+    await addButton(page).click();
+
+    await expect(
+      page.getByRole("menu", { name: texts.tree.add.label }).getByRole("menuitem"),
+    ).toHaveText([
+      new RegExp(`^${texts.tree.add.newConnection}`),
+      new RegExp(`^${texts.tree.add.newFolder}`),
+      new RegExp(`^${texts.tree.add.newCredential}`),
+      new RegExp(`^${texts.tree.add.import}`),
+    ]);
+    await shoot(page, "add-menu");
+  });
+
+  test("asks the protocol of a new connection and opens its editor", async ({ page }) => {
+    await openApp(page);
+    await documentTree(page);
+
+    await addFromSidebar(page, texts.tree.add.newConnection);
+    const protocols = page.getByRole("menu", { name: texts.app.toolbar.newConnectionMenu });
+    await expect(protocols).toBeVisible();
+    await shoot(page, "add-menu-protocol");
+    await protocols.getByRole("menuitem", { name: texts.app.toolbar.protocols.ssh }).click();
+
+    await expect(page.getByRole("dialog", { name: texts.editor.subtitles.add.ssh })).toBeVisible();
+  });
+
+  for (const [entry, opened] of ADD_ENTRIES) {
+    test(`opens its function from «${entry}»`, async ({ page }) => {
+      await openApp(page);
+      await documentTree(page);
+
+      await addFromSidebar(page, entry);
+
+      await opened(page);
+    });
+  }
+});
+
+test.describe("the tools of the footer of the sidebar", () => {
+  test("opens the validation tab with Valida", async ({ page }) => {
+    await openApp(page);
+    await documentTree(page);
+
+    await sidebarTool(page, "validate").click();
+
+    await expect(page.getByRole("tab", { name: /Validazione/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  test("opens the preferences with Preferenze", async ({ page }) => {
+    await openApp(page);
+    await documentTree(page);
+
+    await sidebarTool(page, "preferences").click();
+
+    await expect(page.getByRole("dialog", { name: texts.preferences.title })).toBeVisible();
+  });
+
+  test("names each tool in its tooltip, with the shortcut", async ({ page }) => {
+    await openApp(page);
+    await documentTree(page);
+
+    await sidebarTool(page, "preferences").hover();
+
+    await expect(page.getByRole("tooltip")).toHaveText(
+      `${texts.tree.tools.preferences}${texts.app.shortcuts.preferences}`,
+    );
+    await shoot(page, "footer-tools");
+  });
+});
+
+test.describe("the native menu", () => {
+  for (const [kind, opened] of MENU_COMMANDS) {
+    test(`still performs «${kind}», whose button left the bar`, async ({ page }) => {
+      await openApp(page);
+      await documentTree(page);
+
+      await emitEvent(page, "menu-action", { command: { kind } });
+
+      await opened(page);
+    });
+  }
 });
