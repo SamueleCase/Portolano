@@ -929,6 +929,27 @@ Esito:
      `contains`;
    - il valore si legge solo per connessione e duplicazione.
 
+### DEC-050 – Barra e albero riorganizzati su richiesta dell'utente (2026-11-24)
+L'utente, provando l'app installata, chiede queste modifiche, che prevalgono sul mock e sull'inventario §5.1–5.2.
+1. **Semafori**:
+   - i bottoni di macOS (`trafficLightPosition`) vanno centrati in verticale sulla barra disegnata dalla UI e stanno
+     dentro il suo margine sinistro;
+   - oggi sono più in alto del contenuto della barra;
+   - il logo e il nome del documento si spostano quanto serve.
+2. **Barra in alto**: a destra resta solo "Connetti" (primario). "+ Connessione", "+ Cartella", "+ Credenziale",
+   "Importa", "Valida" e "Preferenze" lasciano la barra.
+3. **Albero**:
+   - accanto alla ricerca c'è un bottone "+" con un menu: Nuova connessione (con la scelta SSH/RDP di oggi), Nuova
+     cartella, Nuova credenziale, un separatore, Importa…;
+   - nel piè dell'albero, a destra, ci sono due bottoni icona con tooltip ed etichetta accessibile: Valida e
+     Preferenze (ingranaggio).
+4. **Invariati**:
+   - i comandi e le scorciatoie del menu nativo;
+   - i punti d'aggancio (DEC-035): una funzione non registrata resta non offerta;
+   - la navigazione da tastiera: il menu "+" con le frecce, Esc che torna al bottone, i due bottoni del piè
+     raggiungibili con Tab.
+5. **Verifica**: screenshot nuovi per l'utente; il controllo finale dell'aspetto lo fa l'utente sull'app installata.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
