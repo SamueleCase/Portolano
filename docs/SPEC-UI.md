@@ -215,7 +215,7 @@ link solo `http(s)` aperti con `opener`, clipboard OSC 52 disattivato. Isolation
 
 ### 4.9 Finestra e menu
 Finestra unica `main`, 1280×800, minima 900×560, `titleBarStyle: Overlay`, titolo nascosto, semafori nativi
-(posizione `x:16, y:18`), barra disegnata dalla UI con `data-tauri-drag-region`. Finestra **opaca**: lo sfondo è la
+(posizione `x:35, y:44`, centrati sulla barra: DEC-050), barra disegnata dalla UI con `data-tauri-drag-region`. Finestra **opaca**: lo sfondo è la
 costellazione del mock su canvas (niente vibrancy nativa). Dimensione e posizione ricordate. **Menu nativo** (in
 italiano): Portolano (Informazioni, Preferenze… ⌘,, Esci), File (Nuovo documento, Apri… ⌘O, Documenti recenti,
 Importa… ⌘I, Chiudi tab ⌘W), Modifica (standard), Nodo (Nuova connessione ⌘N, Nuova cartella ⇧⌘N, Nuova credenziale,
