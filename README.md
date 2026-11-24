@@ -706,6 +706,9 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
 - **Solo le pagine dell'app.** La finestra mostra soltanto l'app: ogni altra navigazione (una pagina remota, un file
   locale, un'immagine di `portolano-icon://` aperta come documento) viene rifiutata prima di caricarla, così i comandi
   dell'app non sono mai raggiungibili da un'altra origine.
+- **Niente gestore nativo dei file trascinati.** La finestra lo ha spento (`dragDropEnabled: false`), perché
+  bloccherebbe il trascinamento dell'albero; un file o un link trascinato da fuori non può far navigare la finestra,
+  perché la guardia di navigazione lo rifiuta.
 - **Comando del terminale personalizzato.** È una riga di shell che l'app esegue a ogni "Apri in terminale esterno".
   Quando le Preferenze ne salvano uno nuovo, l'app mostra un dialogo di macOS, aperto da lei e non dall'interfaccia, con
   il testo esatto del comando (caratteri di controllo, separatori e caratteri invisibili resi visibili, ZWJ e ZWNJ
@@ -754,8 +757,9 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   si valutano a ogni aggiornamento delle dipendenze, e quelli senza una versione corretta compatibile si accettano (è
   il caso di `picomatch`, tramite Vite, Vitest e typescript-eslint).
 - **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
-  con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab e la
-  fluidità dello sfondo nell'app vera.
+  con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab, la
+  fluidità dello sfondo, il trascinamento dei nodi nell'albero e un file o un link trascinato da fuori sulla
+  finestra (la pagina non deve cambiare), tutto nell'app vera.
 - **Fuori da questa versione**: RDP integrato nella finestra (previsto con IronRDP, nello spazio già riservato alle
   tab), più documenti aperti insieme, associazione dei file `.json`, firma Developer ID e notarizzazione,
   aggiornamenti automatici, Windows e Linux, l'isolation pattern di Tauri, un utente proposto per "Chiedi all'avvio",

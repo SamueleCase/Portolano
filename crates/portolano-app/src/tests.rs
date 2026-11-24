@@ -176,6 +176,28 @@ fn registered_commands_are_exactly_those_of_build_rs_and_of_the_capability() {
     assert_eq!(allowed_commands(), registered);
 }
 
+/// The native handler of dropped files (on by default, so also when the
+/// key is missing) answers every drag as handled, and wry 0.57 then never
+/// calls `draggingUpdated` and `performDragOperation` of WKWebView: the
+/// HTML5 drag and drop of the tree dies in the real app while the e2e,
+/// without Tauri, still pass (DEC-048). A dragged file or link stays
+/// harmless: the navigation guard refuses it.
+#[test]
+fn the_main_window_has_no_native_drag_and_drop_handler() {
+    let test = TestApp::new();
+    let app = mock_app(&test);
+
+    let main = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|config| config.label == crate::window::MAIN)
+        .unwrap();
+
+    assert!(!main.drag_drop_enabled);
+}
+
 /// A Royal document whose import asks for passwords.
 const ROYAL_WORKSPACE: &[u8] =
     include_bytes!("../../portolano-import/tests/fixtures/workspace.royal.xml");
