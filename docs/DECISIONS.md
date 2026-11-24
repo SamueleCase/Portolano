@@ -920,6 +920,14 @@ Esito:
    - con la firma ad hoc "Sempre" vale solo fino alla build successiva;
    - una firma stabile (un certificato di firma del codice locale) eviterebbe i prompt dopo ogni reinstallazione, ma
      è un'azione fuori dal repo (certificato nel Portachiavi): la sceglie l'utente.
+5. **Esito**:
+   - `contains` di `KeychainVault` usa `keyring_core::Entry::search`, che chiede solo gli attributi
+     (`apple-native-keyring-store` 1.0.2), dopo aver fatto installare a `keyring` il suo store;
+   - deviazione approvata: dipendenza diretta `keyring-core` 1.0.1, già transitiva nel lockfile e solo su macOS,
+     perché `keyring` 4.2 non espone la ricerca;
+   - tutti i percorsi di sola lettura dello stato (albero, dettaglio, `secret_status`, validazione) passavano già da
+     `contains`;
+   - il valore si legge solo per connessione e duplicazione.
 
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
