@@ -880,6 +880,24 @@ Esito:
    - N1, N2 e N3 del secondo giro sono chiusi; T13 è rivisto dal PM.
    - UI-WP7 è integrato con il merge `ddd0cf3`.
 
+### DEC-048 – Drag & drop dell'albero nell'app vera (decisa dal PM, 2026-11-24)
+1. **Problema**:
+   - l'utente segnala che nell'app installata il drag & drop dell'albero non funziona;
+   - gli e2e passano perché girano in Playwright WebKit senza Tauri.
+2. **Causa**:
+   - `dragDropEnabled` della finestra è attivo di default e installa su WKWebView un gestore nativo dei file
+     trascinati;
+   - il gestore di Tauri risponde sempre "gestito", quindi wry non chiama `draggingUpdated` né
+     `performDragOperation` di WKWebView (wry 0.57.2, `wkwebview/drag_drop.rs`);
+   - senza quelle chiamate il drag & drop HTML5 interno alla pagina non funziona.
+3. **Decisione**:
+   - `dragDropEnabled: false` nella finestra `main`, perché il gestore nativo non serve: il trascinamento del file
+     Royal sul wizard resta rimandato (DEC-037.3) e, se si farà, userà un'altra strada;
+   - un URL o un file trascinato da fuori porterebbe WebKit a navigare, ma la guardia di navigazione (DEC-046.2) lo
+     rifiuta;
+   - un test Rust sulla configurazione impedisce che il valore torni attivo;
+   - la verifica dal vivo (trascinamento nell'albero, file e URL trascinati da fuori) va fra i test manuali.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
