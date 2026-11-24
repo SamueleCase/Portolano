@@ -586,9 +586,11 @@ con un doppio clic. Se invece arriva da un altro Mac (copiata o scaricata), al p
 Finder **tasto destro → Apri**, poi conferma; da macOS 15 serve invece *Impostazioni di Sistema → Privacy e
 sicurezza → Apri comunque*. Le volte successive si apre normalmente.
 
-**Portachiavi.** Come per la CLI (vedi [Sicurezza](#sicurezza)), dopo ogni ricompilazione la firma ad hoc cambia e
-macOS chiede di nuovo il permesso di leggere gli elementi del portachiavi: scegli "Consenti sempre". "Apri in
-terminale esterno" usa la CLI inclusa, che chiede il proprio permesso.
+**Portachiavi.** All'apertura l'app non chiede nulla: lo stato dei segreti si legge senza aprirli. Il permesso
+arriva solo quando un segreto serve davvero (una connessione, la copia dei segreti di un nodo duplicato). Come per
+la CLI (vedi [Sicurezza](#sicurezza)), dopo ogni ricompilazione la firma ad hoc cambia e macOS chiede di nuovo
+quel permesso: scegli "Consenti sempre". "Apri in terminale esterno" usa la CLI inclusa, che chiede il proprio
+permesso.
 
 ### Avvio in sviluppo
 
@@ -730,6 +732,9 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   l'askpass, come nella CLI, e quella di FreeRDP sul suo stdin, azzerata subito dopo.
 - **Vault e portachiavi** sono quelli della CLI: il vault su file si sblocca con la master password in un dialogo
   dell'app, e la master password non arriva mai ai processi figli.
+- **Lo stato dei segreti si legge senza aprirli.** Albero, dettaglio, validazione e stato dei segreti chiedono al
+  portachiavi solo se l'elemento esiste (i suoi attributi), mai il valore: per questo all'apertura macOS non mostra
+  prompt, nemmeno con molti segreti salvati. Il permesso arriva solo quando un segreto serve davvero.
 
 ### Limiti noti dell'app
 
@@ -741,6 +746,10 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
 - **FreeRDP che deve chiedere una password** mentre quella della destinazione arriva già da stdin (gateway con
   un'altra credenziale) non si apre in una tab: l'app lo rifiuta e indica "Apri in terminale esterno", dove vale il
   comportamento della CLI. La tab RDP mostra il client come "FreeRDP" anche quando la scelta viene da `auto`.
+- **"Consenti sempre" vale fino alla build successiva.** Con la firma ad hoc ogni build ha un'identità diversa, e
+  macOS non la riconosce come l'app che ha salvato i segreti: dopo una reinstallazione il primo segreto usato chiede
+  di nuovo il permesso. Una firma stabile (un certificato di firma del codice locale, nel tuo portachiavi) lo
+  eviterebbe, ma è una scelta fuori dal progetto.
 - **"Ricrea"** riscrive il documento, ma non le icone personalizzate se è sparita anche la loro cartella
   `<nome>.icons/`.
 - Il file di Royal non si trascina sul wizard: si sceglie con il dialogo.
@@ -757,9 +766,9 @@ Valgono il modello di fiducia e le regole della CLI (vedi [Sicurezza](#sicurezza
   si valutano a ogni aggiornamento delle dipendenze, e quelli senza una versione corretta compatibile si accettano (è
   il caso di `picomatch`, tramite Vite, Vitest e typescript-eslint).
 - **Da verificare dal vivo**: SSH su un host reale con password salvata e conferma della host key nel terminale, RDP
-  con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc, la navigazione con Tab, la
-  fluidità dello sfondo, il trascinamento dei nodi nell'albero e un file o un link trascinato da fuori sulla
-  finestra (la pagina non deve cambiare), tutto nell'app vera.
+  con FreeRDP (stato della tab e autologon), il portachiavi con l'app firmata ad hoc (aprire l'app con segreti salvati
+  non mostra prompt), la navigazione con Tab, la fluidità dello sfondo, il trascinamento dei nodi nell'albero e un
+  file o un link trascinato da fuori sulla finestra (la pagina non deve cambiare), tutto nell'app vera.
 - **Fuori da questa versione**: RDP integrato nella finestra (previsto con IronRDP, nello spazio già riservato alle
   tab), più documenti aperti insieme, associazione dei file `.json`, firma Developer ID e notarizzazione,
   aggiornamenti automatici, Windows e Linux, l'isolation pattern di Tauri, un utente proposto per "Chiedi all'avvio",
@@ -856,7 +865,9 @@ valori del gateway RDP che arrivano al client.
 
 **Prompt del portachiavi dopo ogni ricompilazione.** Con un binario non firmato (come quello di
 `cargo install`), macOS può mostrare "portolano vuole accedere al portachiavi" dopo ogni ricompilazione, anche se
-avevi scelto "Consenti sempre": la firma del binario è cambiata. È normale; scegli di nuovo "Consenti sempre".
+avevi scelto "Consenti sempre": la firma del binario è cambiata. È normale; scegli di nuovo "Consenti sempre". Il
+prompt compare solo quando un segreto serve (`connect`): per sapere se un segreto c'è (`show --resolved`,
+`validate`, `secret status`) Portolano legge solo gli attributi dell'elemento, non il valore.
 
 ## Limiti noti
 

@@ -89,6 +89,25 @@ mod tests {
     }
 
     #[test]
+    fn contains_is_true_for_a_secret_that_was_set() {
+        let vault = MemoryVault::default();
+        let reference = SecretRef::new();
+
+        vault
+            .set(&reference, &Secret::new(SENTINEL.to_owned()))
+            .unwrap();
+
+        assert!(vault.contains(&reference).unwrap());
+    }
+
+    #[test]
+    fn contains_is_false_for_a_missing_entry() {
+        let vault = MemoryVault::default();
+
+        assert!(!vault.contains(&SecretRef::new()).unwrap());
+    }
+
+    #[test]
     fn set_replaces_the_previous_value() {
         let vault = MemoryVault::default();
         let reference = SecretRef::new();

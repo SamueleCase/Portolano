@@ -3456,6 +3456,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hex",
  "keyring",
+ "keyring-core",
  "pretty_assertions",
  "serde",
  "serde_json",

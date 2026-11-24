@@ -97,6 +97,25 @@ fn get_of_a_missing_entry_is_none() {
 }
 
 #[test]
+fn contains_is_true_for_a_secret_that_was_set() {
+    let (_dir, path) = vault_path();
+    let vault = open_test_vault(&path);
+    let reference = SecretRef::new();
+
+    vault.set(&reference, &sentinel()).unwrap();
+
+    assert!(vault.contains(&reference).unwrap());
+}
+
+#[test]
+fn contains_is_false_for_a_missing_entry() {
+    let (_dir, path) = vault_path();
+    let vault = open_test_vault(&path);
+
+    assert!(!vault.contains(&SecretRef::new()).unwrap());
+}
+
+#[test]
 fn reopening_with_the_same_password_restores_the_secrets() {
     let (_dir, path) = vault_path();
     let reference = SecretRef::new();
