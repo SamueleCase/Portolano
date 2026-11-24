@@ -4,7 +4,7 @@ import { commands, type LoginRequest, type NodeRef, type SecretSlotInput } from 
 import { unwrap } from "../ipc/result";
 import type { SessionLogin } from "../ipc/sessions";
 
-/** The kinds of node "+ Connessione", "+ Cartella" and "+ Credenziale" create. */
+/** The kinds of node the "+" of the sidebar creates. */
 export type NewNodeKind = "ssh" | "rdp" | "folder" | "credential";
 
 /** What the editor opens on (ambiguity 10: the parent comes from the selection). */
