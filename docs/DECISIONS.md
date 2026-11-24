@@ -898,6 +898,29 @@ Esito:
    - un test Rust sulla configurazione impedisce che il valore torni attivo;
    - la verifica dal vivo (trascinamento nell'albero, file e URL trascinati da fuori) va fra i test manuali.
 
+### DEC-049 – Prompt del Portachiavi all'apertura dell'app (decisa dal PM, 2026-11-24)
+1. **Problema**:
+   - l'utente segnala che all'apertura dell'app installata macOS mostra il prompt "Portolano vuole utilizzare i dati
+     riservati memorizzati in dev.portolano" una volta dopo l'altra, e l'albero resta in caricamento;
+   - la firma ad hoc cambia a ogni build, quindi macOS non riconosce l'app che ha salvato le voci.
+2. **Causa**:
+   - `Vault::contains` di default chiama `get`, che legge il **valore** della voce;
+   - in `keyring` 4.2 / `apple-native-keyring-store` 1.0.2 anche `get_credential` usa `find_generic_password`, che
+     legge il valore;
+   - ogni lettura del valore richiede l'autorizzazione dell'ACL, quindi lo stato dei segreti mostrato nell'albero
+     costa un prompt per ogni voce.
+3. **Decisione**:
+   - `KeychainVault` implementa `contains` con una ricerca dei soli attributi (`kSecReturnAttributes`, senza
+     `kSecReturnData`: `ItemSearchOptions` di `security-framework` o la `search` dello store), che non passa
+     dall'ACL e non chiede nulla;
+   - la lettura del valore resta solo dove serve il segreto (connessione, nuova finestra, test della password);
+   - test: unitari dove possibile; la verifica dal vivo dell'assenza del prompt all'apertura va fra i test manuali,
+     perché nei test automatici il Portachiavi reale non si usa.
+4. **Annotato, non deciso**:
+   - con la firma ad hoc "Sempre" vale solo fino alla build successiva;
+   - una firma stabile (un certificato di firma del codice locale) eviterebbe i prompt dopo ogni reinstallazione, ma
+     è un'azione fuori dal repo (certificato nel Portachiavi): la sceglie l'utente.
+
 ### DEC-006 – Conflitti fra documenti già risolti dalla SPEC (nessuna domanda)
 - `CredentialMode` assente → `Inherit` (SPEC §8.3), non `none` come in `royal-format.md` §5.1.
 - Service Keychain `dev.portolano` (SPEC §5.2), non `portolano`.
