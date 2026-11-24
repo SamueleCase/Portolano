@@ -610,9 +610,11 @@ a caldo dell'interfaccia. Se il sidecar manca, le funzioni che lo usano danno un
 dialogo di macOS; il file è un `*.json`), "Apri…" e i documenti recenti. Poi riapre l'ultimo documento usato; se non
 si apre, quello predefinito.
 
-**Albero e ricerca.** La barra in alto ha "+ Connessione" (SSH o RDP), "+ Cartella", "+ Credenziale", "Importa",
-"Valida" e "Preferenze"; un nodo nuovo va nella cartella selezionata, modificabile nell'editor. Nella barra laterale:
+**Albero e ricerca.** La barra in alto ha, oltre ai semafori di macOS, al logo e al nome del documento, solo
+"Connetti". Nella barra laterale:
 
+- il bottone "+" accanto alla ricerca apre un menu con "Nuova connessione" (poi SSH o RDP), "Nuova cartella", "Nuova
+  credenziale" e "Importa…"; un nodo nuovo va nella cartella selezionata, modificabile nell'editor;
 - la ricerca trova i nodi per nome, host o tag (⌘F) e apre le cartelle che li contengono;
 - i filtri mostrano solo SSH, RDP, credenziali o preferiti (★);
 - i nodi si spostano e riordinano trascinandoli, oppure con ⌥↑/⌥↓ e "Sposta in…" del menu contestuale (tasto
@@ -620,7 +622,8 @@ si apre, quello predefinito.
 - da tastiera: frecce, Home/Fine, Invio apre il dettaglio, ⌘↩ connette, le lettere saltano al nome;
 - una cartella chiusa mostra quanti nodi contiene; il colore del nodo è il pallino prima del nome;
 - il piè mostra il vault: "Portachiavi di sistema", oppure "Vault su file · bloccato/sbloccato", da cliccare per
-  sbloccarlo (o crearlo, se il file non esiste ancora).
+  sbloccarlo (o crearlo, se il file non esiste ancora); a destra due bottoni icona, "Valida" e "Preferenze"
+  (l'ingranaggio).
 
 Il **dettaglio** a destra mostra il riepilogo, la credenziale effettiva con la catena delle cartelle da cui arriva, lo
 stato dei segreti (presente, assente, vault bloccato), chi usa una credenziale, "Mostra comando" (il piano reale, con
@@ -654,16 +657,16 @@ tab all'altra, ⌘W la chiude):
 
 Il vault su file viene chiesto solo se la connessione ne usa i segreti.
 
-**Import.** "Importa" (⌘I) apre il wizard: il file di Royal TSX (`.rtsz`, `.rtsx`, XML anche compresso) scelto con il
+**Import.** "Importa…" del "+" (⌘I) apre il wizard: il file di Royal TSX (`.rtsz`, `.rtsx`, XML anche compresso) scelto con il
 dialogo di macOS; le opzioni (cartella di destinazione, conflitti, cestino, "Chiedi le password") con l'anteprima in
 prova; le password una alla volta ("1 / 3", "Salta", "Salta tutte le restanti"); il report con i conteggi, gli
 elementi non importati completamente con il motivo (un clic porta al nodo) ed "Esporta JSON". Una password saltata
 rende l'elemento "Parziale".
 
-**Validazione.** "Valida" (⇧⌘V) apre una tab con errori, avvisi e note del documento, ognuno con "Vai al nodo", e
+**Validazione.** "Valida" del piè dell'albero (⇧⌘V) apre una tab con errori, avvisi e note del documento, ognuno con "Vai al nodo", e
 "Ricontrolla". Con il vault bloccato una sola nota sostituisce gli avvisi sui segreti mancanti.
 
-**Preferenze** (⌘,): documento predefinito, vault (portachiavi o file cifrato con il suo percorso), terminale per "Apri
+**Preferenze** (l'ingranaggio nel piè dell'albero, ⌘,): documento predefinito, vault (portachiavi o file cifrato con il suo percorso), terminale per "Apri
 in terminale esterno" (Terminal, iTerm, Ghostty o un comando con `{cmd}`), programma SSH, client RDP con percorso di
 FreeRDP e certificati, aspetto (densità normale o compatta, sfondo animato acceso, ridotto o spento, riduci
 movimento). Le prime voci sono quelle di `config.toml`, validate come con `portolano config set`; l'aspetto, la
