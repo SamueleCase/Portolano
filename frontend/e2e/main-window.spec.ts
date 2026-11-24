@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { Page } from "@playwright/test";
 
 import type { MenuCommand } from "../src/bindings";
@@ -14,6 +16,24 @@ import {
   shoot,
   sidebarTool,
 } from "./mainWindowPage";
+
+/**
+ * The native traffic lights as AppKit draws them, measured on macOS for
+ * DEC-050: each button is a circle of 14 pt, 23 pt from the next one; tao
+ * makes the title bar `14 + y` tall and AppKit keeps the buttons 9 pt above
+ * its bottom edge, so a button's top edge is at `y - 9`.
+ */
+const TRAFFIC_LIGHT = { size: 14, pitch: 23, aboveTitleBarBottom: 9 };
+
+/** The `trafficLightPosition` of the window in `tauri.conf.json`. */
+function trafficLightPosition(): { x: number; y: number } {
+  const conf = JSON.parse(
+    readFileSync(new URL("../../crates/portolano-app/tauri.conf.json", import.meta.url), "utf8"),
+  ) as { app: { windows: { trafficLightPosition: { x: number; y: number } }[] } };
+  const position = conf.app.windows[0]?.trafficLightPosition;
+  if (!position) throw new Error("trafficLightPosition mancante in tauri.conf.json");
+  return position;
+}
 
 /** The bar of the window. */
 function windowBar(page: Page) {
@@ -72,6 +92,27 @@ test.describe("the main window", () => {
     await expect(row(page, "Clienti")).toBeVisible();
     await expect(page.getByText(texts.components.vault.fileLocked)).toBeVisible();
     await shoot(page, "main-window");
+  });
+
+  test("centers the native traffic lights on the bar, inside it, before the logo", async ({
+    page,
+  }) => {
+    const { x, y } = trafficLightPosition();
+    await openApp(page);
+    const bar = await windowBar(page).boundingBox();
+    const logo = await windowBar(page).locator("svg").first().boundingBox();
+    if (!bar || !logo) throw new Error("barra non disegnata");
+
+    const top = y - TRAFFIC_LIGHT.aboveTitleBarBottom;
+    const right = x + 2 * TRAFFIC_LIGHT.pitch + TRAFFIC_LIGHT.size;
+    const above = top - bar.y;
+    const margins = {
+      below: bar.y + bar.height - (top + TRAFFIC_LIGHT.size),
+      left: x - bar.x,
+      beforeLogo: logo.x - right,
+    };
+
+    for (const margin of Object.values(margins)) expect(margin).toBeCloseTo(above, 0);
   });
 
   test("shows a skeleton while the tree loads", async ({ page }) => {
