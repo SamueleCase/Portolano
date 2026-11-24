@@ -3,15 +3,9 @@ export const app = {
   loading: "Apertura del documento…",
   startFailed: "Impossibile leggere lo stato dell'app",
   toolbar: {
-    label: "Barra degli strumenti",
-    newConnection: "+ Connessione",
+    label: "Barra della finestra",
     newConnectionMenu: "Nuova connessione",
     protocols: { ssh: "SSH", rdp: "RDP" },
-    newFolder: "+ Cartella",
-    newCredential: "+ Credenziale",
-    import: "Importa",
-    validate: "Valida",
-    preferences: "Preferenze",
     connect: "Connetti",
   },
   reasons: {

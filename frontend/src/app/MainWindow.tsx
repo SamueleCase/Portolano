@@ -47,7 +47,7 @@ function useSessionActivity(): void {
 }
 
 /**
- * The main window with a document open (inventario §5.1): toolbar, banner of
+ * The main window with a document open (inventario §5.1): bar, banner of
  * the document, sidebar and work area, with the confirmation of a deletion.
  * The native menu and the shortcuts perform the same commands.
  */

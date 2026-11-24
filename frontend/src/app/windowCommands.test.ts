@@ -79,7 +79,7 @@ describe("the commands of the menu and the shortcuts", () => {
     expect(calls).toEqual([]);
   });
 
-  it("opens the menu of «+ Connessione» to choose the protocol", () => {
+  it("opens the menu of the new connection to choose the protocol", () => {
     const { actions } = recordingActions();
 
     runWindowCommand({ kind: "newConnection" }, actions, nothing);

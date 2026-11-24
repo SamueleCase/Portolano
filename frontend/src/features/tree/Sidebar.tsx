@@ -12,10 +12,12 @@ import { texts } from "../../i18n/it";
 import { presentFailure } from "../../ipc/errors";
 import { searchQuery } from "../../ipc/queries";
 import { type TreeFilter, useWorkspace } from "../../state/workspace";
+import { AddMenu } from "./AddMenu";
 import { MoveToDialog } from "./MoveToDialog";
 import { NodeContextMenu } from "./NodeContextMenu";
 import { NodeTree } from "./NodeTree";
 import styles from "./Sidebar.module.css";
+import { SidebarTools } from "./SidebarTools";
 import { TreeSkeleton } from "./TreeSkeleton";
 import { nodeCount, visibleIds } from "./treeModel";
 import { useDebounced } from "./useDebounced";
@@ -28,9 +30,10 @@ const FILTERS: readonly TreeFilter[] = ["all", "ssh", "rdp", "credentials", "fav
 const SEARCH_DELAY_MS = 150;
 
 /**
- * The sidebar (inventario §5.1): the search (name, host, tag, by the backend)
- * and the filters, the tree with its context menu and empty states, the
- * footer of the vault.
+ * The sidebar (inventario §5.1, DEC-050): the search (name, host, tag, by the
+ * backend) with the "+" of the new nodes and the import, the filters, the
+ * tree with its context menu and empty states, the footer of the vault with
+ * "Valida" and "Preferenze".
  */
 export function Sidebar({ backend }: { backend: VaultBackend }) {
   const t = texts.tree;
@@ -75,16 +78,20 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
   return (
     <GlassPanel as="aside" className={styles.sidebar} aria-label={t.sidebar}>
       <div className={styles.head}>
-        <TextField
-          ref={searchField}
-          type="search"
-          variant="search"
-          label={t.search}
-          placeholder={t.searchPlaceholder}
-          aria-keyshortcuts="Meta+F"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className={styles.searchRow}>
+          <TextField
+            ref={searchField}
+            type="search"
+            variant="search"
+            label={t.search}
+            placeholder={t.searchPlaceholder}
+            aria-keyshortcuts="Meta+F"
+            className={styles.searchField}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <AddMenu />
+        </div>
         <div role="group" aria-label={t.filters.label} className={styles.filters}>
           {FILTERS.map((option) => (
             <FilterChip
@@ -126,7 +133,10 @@ export function Sidebar({ backend }: { backend: VaultBackend }) {
           />
         )}
       </div>
-      <VaultFooter nodeCount={index ? nodeCount(index) : undefined} />
+      <div className={styles.foot}>
+        <VaultFooter nodeCount={index ? nodeCount(index) : undefined} />
+        <SidebarTools />
+      </div>
       {menu && index && menuEntry && (
         <NodeContextMenu
           entry={menuEntry}

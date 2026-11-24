@@ -1,4 +1,7 @@
-/** The texts of the sidebar: search, filters, tree, context menu (inventario §5.1, §4.15). */
+/**
+ * The texts of the sidebar: search, the menu "+", filters, tree, context menu,
+ * the tools of the footer (inventario §5.1, §4.15, DEC-050).
+ */
 export const tree = {
   sidebar: "Documento",
   search: "Cerca",
@@ -11,6 +14,18 @@ export const tree = {
     credentials: "Credenziali",
     favorites: "★",
     favoritesLabel: "Preferiti",
+  },
+  add: {
+    label: "Aggiungi",
+    newConnection: "Nuova connessione",
+    newFolder: "Nuova cartella",
+    newCredential: "Nuova credenziale",
+    import: "Importa…",
+  },
+  tools: {
+    label: "Strumenti del documento",
+    validate: "Valida",
+    preferences: "Preferenze",
   },
   label: "Nodi del documento",
   loading: "Caricamento dell'albero…",

@@ -30,7 +30,7 @@ export interface ConnectionsDeps {
   canReadyVault: CanReadyVault;
 }
 
-/** Opening sessions from the tree, the toolbar, the detail and the menus. */
+/** Opening sessions from the tree, the bar, the detail and the menus. */
 export interface Connections {
   /**
    * Connects to `nodeId` (inventario §5.1): a session of the node still

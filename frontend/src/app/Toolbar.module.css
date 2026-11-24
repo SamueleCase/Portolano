@@ -1,4 +1,4 @@
-/* The toolbar of inventario §5.1: glass of the panels, wrapping when narrow. */
+/* The bar of inventario §5.1 (DEC-050): glass of the panels, wrapping when narrow. */
 .bar {
   display: flex;
   flex-wrap: wrap;
@@ -26,17 +26,6 @@
   white-space: nowrap;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+.connect {
   margin-left: auto;
-}
-
-.separator {
-  align-self: stretch;
-  width: var(--border-width);
-  margin: var(--space-1) var(--space-fine-2);
-  background: var(--color-border);
 }

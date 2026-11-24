@@ -43,7 +43,7 @@ export function runWindowCommand(
       if (workspace.activeTab !== DETAIL_TAB) actions.closeTab(workspace.activeTab);
       return;
     case "newConnection":
-      // The protocol comes from the menu of "+ Connessione" (ambiguity 10).
+      // The protocol comes from the menu under "+" of the sidebar (ambiguity 10).
       if (actions.offers("editor")) workspace.setConnectionMenu(true);
       else actions.create("ssh");
       return;

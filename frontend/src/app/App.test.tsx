@@ -27,6 +27,7 @@ import type {
   PasswordProps,
   VaultDialogProps,
 } from "./features";
+import { isMac } from "./useWindowCommands";
 
 // xterm.js needs a real layout engine: the e2e runs the real terminal in WebKit.
 vi.mock("../components/terminal/Terminal", () => ({
@@ -70,6 +71,12 @@ async function tree() {
 /** The row of node `name`: its accessible name starts with the name. */
 async function row(name: string) {
   return within(await tree()).findByRole("treeitem", { name: new RegExp(`^${name},`) });
+}
+
+/** Chooses `entry` in the menu of "+" of the sidebar. */
+async function addFromSidebar(entry: string) {
+  await userEvent.click(screen.getByRole("button", { name: texts.tree.add.label }));
+  await userEvent.click(screen.getByRole("menuitem", { name: entry }));
 }
 
 /** A login dialog that answers with the sentinel password. */
@@ -161,9 +168,10 @@ describe("the window", () => {
     renderApp();
     await tree();
 
-    const button = screen.getByRole("button", { name: texts.app.toolbar.import });
+    const button = screen.getByRole("button", { name: texts.tree.tools.validate });
 
     expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).toHaveAccessibleDescription(texts.app.reasons.unavailable);
   });
 
   it("mounts the function of a hook point when asked, and closes it", async () => {
@@ -175,7 +183,7 @@ describe("the window", () => {
     renderApp(initialFakeState(), { import: Import });
     await tree();
 
-    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.import }));
+    await addFromSidebar(texts.tree.add.import);
     await userEvent.click(await screen.findByRole("button", { name: "chiudi import" }));
 
     expect(screen.queryByRole("button", { name: "chiudi import" })).not.toBeInTheDocument();
@@ -189,7 +197,7 @@ describe("the window", () => {
     );
     renderApp(initialFakeState(), { editor: Editor, unlockVault: Unlock });
     await userEvent.click(await row("Rete"));
-    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
+    await addFromSidebar(texts.tree.add.newFolder);
 
     await userEvent.click(await screen.findByRole("button", { name: "salva" }));
 
@@ -206,7 +214,7 @@ describe("the window", () => {
     renderApp(initialFakeState(), { editor: Editor });
     await userEvent.click(await row("Rete"));
 
-    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
+    await addFromSidebar(texts.tree.add.newFolder);
 
     await screen.findByText("editor");
     expect(targets.at(-1)).toMatchObject({ mode: "add", kind: "folder" });
@@ -273,7 +281,7 @@ describe("the window", () => {
     );
     renderApp(initialFakeState(), { editor: Editor });
     await userEvent.click(await row("Rete"));
-    await userEvent.click(screen.getByRole("button", { name: texts.app.toolbar.newFolder }));
+    await addFromSidebar(texts.tree.add.newFolder);
 
     await userEvent.click(await screen.findByRole("button", { name: "salva" }));
 
@@ -366,19 +374,28 @@ describe("the window", () => {
     }
   });
 
-  it("moves among the buttons of the toolbar with the arrows, one of them taking Tab", async () => {
+  it("opens the protocol menu under «+» of the sidebar for ⌘N", async () => {
+    renderApp(initialFakeState(), { editor: () => <p>editor</p> });
+    await tree();
+
+    await userEvent.keyboard(isMac ? "{Meta>}n{/Meta}" : "{Control>}n{/Control}");
+
+    expect(
+      await screen.findByRole("menu", { name: texts.app.toolbar.newConnectionMenu }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps only «Connetti» in the bar of the window", async () => {
     renderApp();
-    const toolbar = await screen.findByRole("toolbar", { name: texts.app.toolbar.label });
-    const buttons = within(toolbar).getAllByRole("button");
-    expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
-    buttons[0]?.focus();
+    await tree();
 
-    await userEvent.keyboard("{ArrowRight}");
-    expect(buttons[1]).toHaveFocus();
-    await userEvent.keyboard("{ArrowLeft}{ArrowLeft}");
+    const bar = screen.getByRole("banner", { name: texts.app.toolbar.label });
 
-    expect(buttons.at(-1)).toHaveFocus();
-    expect(buttons.at(-1)).toHaveAttribute("tabindex", "0");
+    expect(
+      within(bar)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([texts.app.toolbar.connect]);
   });
 
   it("says that the search failed instead of finding nothing", async () => {

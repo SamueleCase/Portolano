@@ -3,10 +3,10 @@
  * and the dialogs (UI-WP5) and the import and the validation (UI-WP6) mount.
  *
  * ## The requests of the user
- * The toolbar, the context menu, the detail, the native menu (`menu-action`)
- * and the shortcuts ask for these through the actions of the window
- * (`useWindowActions()`, `windowActions.ts`), which the mounted functions can
- * use too:
+ * The bar, the sidebar (its "+" and its footer), the context menu, the
+ * detail, the native menu (`menu-action`) and the shortcuts ask for these
+ * through the actions of the window (`useWindowActions()`,
+ * `windowActions.ts`), which the mounted functions can use too:
  * - `create(kind)` / `edit(id)`: the editor on `{ mode: "add", kind: "ssh" |
  *   "rdp" | "folder" | "credential", parent }` (the parent is the selected
  *   folder, the folder of the selected node, or `null` for the root:
@@ -15,10 +15,10 @@
  *   of the detail, written at once with `set_secret`; → `password`;
  * - `unlockVault()`, `createFileVault()`: the footer of the vault; →
  *   `unlockVault`, `createFileVault`;
- * - `openImport()`: "Importa", ⌘I, the empty document; → `import`;
- * - `openValidation()`: "Valida", ⇧⌘V; opens the tab "Validazione", whose body
- *   is the registration `validation`;
- * - `openPreferences()`: "Preferenze", ⌘,; → `preferences`.
+ * - `openImport()`: "Importa…" of "+", ⌘I, the empty document; → `import`;
+ * - `openValidation()`: "Valida" of the footer, ⇧⌘V; opens the tab
+ *   "Validazione", whose body is the registration `validation`;
+ * - `openPreferences()`: "Preferenze" of the footer, ⌘,; → `preferences`.
  * A request of the user opens only when nothing else is open: with a dialog
  * or the editor open it is refused, not put in place of it.
  *

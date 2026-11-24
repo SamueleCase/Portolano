@@ -1,4 +1,4 @@
-/* The grid of inventario §2.16: toolbar, banner, then sidebar and work area. */
+/* The grid of inventario §2.16: bar, banner, then sidebar and work area. */
 .window {
   position: relative;
   z-index: var(--z-app);

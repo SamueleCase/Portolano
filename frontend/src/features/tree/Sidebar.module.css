@@ -13,6 +13,27 @@
   padding: var(--space-3) var(--space-3) var(--space-2);
 }
 
+/* The search with the "+" of the new nodes on its right (DEC-050). */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.searchField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A square as tall as the search field. The class of the row raises the
+   specificity above the padding of the button. */
+.searchRow .addButton {
+  flex: none;
+  width: var(--size-control);
+  height: var(--size-control);
+  padding: 0;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -88,4 +109,25 @@
 .vaultCount {
   margin-left: auto;
   font-family: var(--font-mono);
+}
+
+/* The footer of the vault and, on its right, the tools of DEC-050. The footer
+   keeps its own look; the tools take the same top border, so that the two
+   read as one line. */
+.foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: var(--space-2);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+/* The class of the tools raises the specificity above the padding of the button. */
+.tools .toolButton {
+  padding: var(--space-1);
 }
