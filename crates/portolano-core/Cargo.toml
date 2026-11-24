@@ -28,6 +28,11 @@ tracing.workspace = true
 # Type descriptions for the TypeScript bindings of the app (SPEC-UI §3.5).
 specta = { workspace = true, optional = true }
 
+# `keyring` exposes no search: the keychain vault asks keyring-core directly
+# whether an entry exists, without reading its value (DEC-049).
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring-core.workspace = true
+
 [features]
 # Derives `specta::Type` on the result types that the app passes to its
 # frontend as they are.
